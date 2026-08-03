@@ -17,6 +17,7 @@ import "./editorial-interface.css";
 import "./bible-glass.css";
 import "./moody-light.css";
 import "./brand-guide-pass.css";
+import "./final-polish.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL(websiteUrl),
