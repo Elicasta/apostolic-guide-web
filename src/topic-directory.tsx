@@ -42,7 +42,7 @@ export function TopicDirectory({ topics }: { topics: Topic[] }) {
       {filtered.length ? (
         <div className="topic-directory-grid">
           {filtered.map((topic, index) => (
-            <Link className="topic-directory-card" href={`/topics/${topic.slug}`} key={topic.slug}>
+            <Link className="topic-directory-card" href={`/topics/${topic.slug}`} key={topic.slug} data-reveal>
               <span className="topic-index">{String(index + 1).padStart(2, "0")}</span>
               <span className="eyebrow">{topic.category}</span>
               <h2>{topic.title}</h2>
