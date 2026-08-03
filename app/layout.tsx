@@ -11,6 +11,7 @@ import "./public-routes.css";
 import "./site-v1.css";
 import "./design-pass.css";
 import "./spacing-audit.css";
+import "./editorial-signal.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL(websiteUrl),
