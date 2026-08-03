@@ -40,7 +40,6 @@ export function SiteBehavior() {
       if (target?.closest("a")) closeMenu();
     };
 
-    const revealItems = Array.from(document.querySelectorAll<HTMLElement>("[data-reveal]"));
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
@@ -53,7 +52,23 @@ export function SiteBehavior() {
       { rootMargin: "0px 0px -8%", threshold: 0.08 }
     );
 
-    revealItems.forEach((item) => observer.observe(item));
+    const observeRevealItems = (root: ParentNode = document) => {
+      root.querySelectorAll<HTMLElement>("[data-reveal]:not(.is-visible)").forEach((item) => observer.observe(item));
+    };
+
+    observeRevealItems();
+
+    const mutationObserver = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        mutation.addedNodes.forEach((node) => {
+          if (!(node instanceof HTMLElement)) return;
+          if (node.matches("[data-reveal]:not(.is-visible)")) observer.observe(node);
+          observeRevealItems(node);
+        });
+      });
+    });
+
+    mutationObserver.observe(document.body, { childList: true, subtree: true });
     window.addEventListener("scroll", onScroll, { passive: true });
     menu?.addEventListener("click", onMenuClick);
 
@@ -61,6 +76,7 @@ export function SiteBehavior() {
       window.removeEventListener("scroll", onScroll);
       menu?.removeEventListener("click", onMenuClick);
       observer.disconnect();
+      mutationObserver.disconnect();
     };
   }, []);
 
