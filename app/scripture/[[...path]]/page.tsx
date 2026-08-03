@@ -26,8 +26,8 @@ export default async function ScripturePage({ params }: Props) {
   if (!path?.length) {
     return (
       <>
-        <PageHero eyebrow="Scripture library" title="Open the text. Follow the connections." text="Search by reference, phrase, doctrine, or question. Each passage includes context, a central point, and related Scriptures." />
-        <section className="section">
+        <PageHero variant="scripture" eyebrow="Scripture library" title="Open the text. Follow the connections." text="Search by reference, phrase, doctrine, or question. Each passage includes context, a central point, and related Scriptures." />
+        <section className="section scripture-index-section">
           <div className="shell scripture-directory-shell">
             <SearchForm />
             <div className="scripture-directory-intro"><span className="eyebrow">Browse the current library</span><p>The public Scripture library is intentionally curated. The app will hold the larger working reference database.</p></div>
@@ -57,13 +57,13 @@ export default async function ScripturePage({ params }: Props) {
         </div>
       </section>
 
-      <section className="section">
+      <section className="section scripture-detail-section">
         <div className="shell scripture-detail-grid">
           <article className="scripture-explanation">
             <div className="scripture-main-point"><span className="eyebrow">Main point</span><h1>{entry.mainPoint}</h1></div>
-            <section><span className="eyebrow">Context</span><h2>Read the verse in its argument.</h2><p>{entry.context}</p></section>
-            <section><span className="eyebrow">Apostolic connection</span><h2>Why this passage matters.</h2><p>{entry.apostolicConnection}</p></section>
-            {entry.misunderstanding && <section className="callout"><span>Common misunderstanding</span><h2>Do not force the verse to say more than it says.</h2><p>{entry.misunderstanding}</p></section>}
+            <section data-reveal><span className="eyebrow">Context</span><h2>Read the verse in its argument.</h2><p>{entry.context}</p></section>
+            <section data-reveal><span className="eyebrow">Apostolic connection</span><h2>Why this passage matters.</h2><p>{entry.apostolicConnection}</p></section>
+            {entry.misunderstanding && <section className="callout" data-reveal><span>Common misunderstanding</span><h2>Do not force the verse to say more than it says.</h2><p>{entry.misunderstanding}</p></section>}
           </article>
 
           <aside className="scripture-sidebar">
