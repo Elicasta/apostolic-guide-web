@@ -1,30 +1,80 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, Clock3 } from "lucide-react";
+import { ArrowLeft, ArrowRight, Clock3, ExternalLink } from "lucide-react";
 import { notFound } from "next/navigation";
 import { AppBridge } from "@/components";
 import { pathwayBySlug, pathways, scriptures, topicBySlug } from "@/data";
 import { buildAppUrl } from "@/urls";
 
-type Props = { params: Promise<{ slug: string }> };
-
 export function generateStaticParams() { return pathways.map((pathway) => ({ slug: pathway.slug })); }
 
+type Props = { params: Promise<{ slug: string }> };
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const pathway = pathwayBySlug((await params).slug);
-  return pathway ? { title: pathway.title, description: pathway.summary } : {};
+  const { slug } = await params;
+  const pathway = pathwayBySlug(slug);
+  if (!pathway) return {};
+  return { title: pathway.title, description: pathway.summary };
 }
 
 export default async function PathwayPage({ params }: Props) {
-  const pathway = pathwayBySlug((await params).slug);
+  const { slug } = await params;
+  const pathway = pathwayBySlug(slug);
   if (!pathway) notFound();
   const topic = topicBySlug(pathway.topicSlug);
+  const currentIndex = pathways.findIndex((item) => item.slug === pathway.slug);
+  const previous = currentIndex > 0 ? pathways[currentIndex - 1] : null;
+  const next = currentIndex < pathways.length - 1 ? pathways[currentIndex + 1] : null;
 
   return (
     <>
-      <section className="pathway-hero"><div className="shell"><Link className="back-link back-link-light" href="/pathways"><ArrowLeft size={16} /> All pathways</Link><span className="eyebrow eyebrow-light">{topic?.title ?? "Guided study"}</span><h1>{pathway.title}</h1><p>{pathway.summary}</p><div className="pathway-hero-meta"><span><Clock3 size={15} /> {pathway.estimatedMinutes} minutes</span><span>{pathway.level}</span><span>{pathway.steps.length} steps</span></div></div></section>
-      <section className="section"><div className="shell pathway-study-layout"><div className="pathway-timeline">{pathway.steps.map((step, index) => { const entry = scriptures.find((item) => item.reference === step.reference); return <article className="pathway-study-step" key={`${step.reference}-${index}`}><div className="timeline-marker"><span>{index + 1}</span></div><div><span className="eyebrow">{step.reference}</span><h2>{step.title}</h2><p>{step.explanation}</p>{entry && <blockquote>{entry.text}</blockquote>}{entry && <Link className="text-link" href={`/scripture/${entry.path}`}>Study {entry.reference} <ArrowRight size={16} /></Link>}</div></article>; })}</div><aside className="pathway-summary-card"><span className="eyebrow eyebrow-light">Continue studying</span><h2>Use this pathway in the app.</h2><p>Open the full study workspace to search related passages, save notes, and prepare for a conversation or presentation.</p><a className="button button-paper" href={buildAppUrl(`/pathways/${pathway.appSlug}`, { origin: `pathway:${pathway.slug}` })}>Open in app <ArrowRight size={16} /></a>{topic && <Link href={`/topics/${topic.slug}`}>Explore {topic.title}</Link>}</aside></div></section>
-      <section className="section section-tight"><div className="shell"><AppBridge compact origin={`pathway:${pathway.slug}`} /></div></section>
+      <section className="pathway-hero">
+        <div className="shell">
+          <Link className="back-link back-link-light" href="/pathways"><ArrowLeft size={15} /> All pathways</Link>
+          <span className="eyebrow eyebrow-light">Guided Scripture pathway</span>
+          <h1>{pathway.title}</h1>
+          <p>{pathway.summary}</p>
+          <div className="study-metrics"><span><Clock3 size={13} /> {pathway.estimatedMinutes} minutes</span><span>{pathway.steps.length} steps</span><span>{pathway.level}</span></div>
+        </div>
+      </section>
+
+      <section className="section">
+        <div className="shell pathway-study-layout">
+          <div className="pathway-timeline">
+            {pathway.steps.map((step, index) => {
+              const scripture = scriptures.find((item) => item.reference === step.reference || item.reference.startsWith(step.reference.replace(/–.*/, "")));
+              return (
+                <article className="pathway-study-step" key={`${step.reference}-${index}`}>
+                  <div className="timeline-marker"><span>{String(index + 1).padStart(2, "0")}</span></div>
+                  <div>
+                    <span className="eyebrow">{step.reference}</span>
+                    <h2>{step.title}</h2>
+                    <p>{step.explanation}</p>
+                    {scripture && <blockquote>“{scripture.text}”</blockquote>}
+                    {scripture && <Link className="text-link" href={`/scripture/${scripture.path}`}>Study passage <ArrowRight size={15} /></Link>}
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+
+          <aside className="pathway-summary-card">
+            <span className="eyebrow eyebrow-light">Pathway overview</span>
+            <h2>{pathway.title}</h2>
+            <p>{pathway.summary}</p>
+            {topic && <Link href={`/topics/${topic.slug}`}>Related topic: {topic.title}</Link>}
+            <a className="button button-paper" href={buildAppUrl(`/pathways/${pathway.appSlug}`, { origin: "website-pathway" })}>Open in app <ExternalLink size={15} /></a>
+          </aside>
+        </div>
+      </section>
+
+      <section className="section section-tight pathway-pagination-section">
+        <div className="shell pathway-pagination">
+          {previous ? <Link href={`/pathways/${previous.slug}`}><span>Previous pathway</span><strong><ArrowLeft size={17} /> {previous.title}</strong></Link> : <span />}
+          {next ? <Link className="next" href={`/pathways/${next.slug}`}><span>Next pathway</span><strong>{next.title} <ArrowRight size={17} /></strong></Link> : <span />}
+        </div>
+      </section>
+      <section className="section section-tight"><div className="shell"><AppBridge origin={`pathway-${pathway.slug}`} compact /></div></section>
     </>
   );
 }
