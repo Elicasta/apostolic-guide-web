@@ -1,39 +1,79 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, BookOpen } from "lucide-react";
+import { ArrowLeft, ArrowRight, ExternalLink, Search } from "lucide-react";
 import { notFound } from "next/navigation";
-import { AppBridge, PageHero, ScriptureMiniCard, SearchForm } from "@/components";
-import { answers, articles, scriptureByPath, scriptures, topicBySlug } from "@/data";
+import { AppBridge, PageHero, SearchForm, ScriptureMiniCard } from "@/components";
+import { scriptureByPath, scriptures, topicBySlug } from "@/data";
+import { buildAppSearchUrl } from "@/urls";
+
+export function generateStaticParams() {
+  return scriptures.map((item) => ({ path: item.path.split("/") }));
+}
 
 type Props = { params: Promise<{ path?: string[] }> };
 
-export function generateStaticParams() { return scriptures.map((entry) => ({ path: entry.path.split("/") })); }
-
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const path = (await params).path?.join("/");
-  if (!path) return { title: "Scripture", description: "Browse Scripture passages with context, main points, and apostolic connections." };
-  const entry = scriptureByPath(path);
-  return entry ? { title: entry.reference, description: entry.mainPoint } : {};
+  const { path } = await params;
+  if (!path?.length) return { title: "Scripture", description: "Browse the Apostolic Guide Scripture library and follow connected passages." };
+  const entry = scriptureByPath(path.join("/"));
+  if (!entry) return {};
+  return { title: entry.reference, description: entry.mainPoint };
 }
 
 export default async function ScripturePage({ params }: Props) {
-  const path = (await params).path?.join("/");
+  const { path } = await params;
 
-  if (!path) {
-    const groups = Object.entries(Object.groupBy(scriptures, (entry) => entry.topicSlugs[0] ?? "other"));
-    return <><PageHero eyebrow="Open the text" title="Scripture library" text="Read each passage with its context, main point, apostolic connection, related texts, and the misunderstanding to avoid." /><section className="section"><div className="shell"><SearchForm compact /><div className="scripture-directory">{groups.map(([topicSlug, entries]) => { const topic = topicBySlug(topicSlug); return <section key={topicSlug}><div className="directory-section-heading"><span className="eyebrow">{topic?.category ?? "Scripture"}</span><h2>{topic?.title ?? "Related passages"}</h2></div><div className="scripture-library">{entries?.map((entry) => <ScriptureMiniCard key={entry.slug} reference={entry.reference} point={entry.mainPoint} href={`/scripture/${entry.path}`} />)}</div></section>; })}</div></div></section></>;
+  if (!path?.length) {
+    return (
+      <>
+        <PageHero eyebrow="Scripture library" title="Open the text. Follow the connections." text="Search by reference, phrase, doctrine, or question. Each passage includes context, a central point, and related Scriptures." />
+        <section className="section">
+          <div className="shell scripture-directory-shell">
+            <SearchForm />
+            <div className="scripture-directory-intro"><span className="eyebrow">Browse the current library</span><p>The public Scripture library is intentionally curated. The app will hold the larger working reference database.</p></div>
+            <div className="scripture-library scripture-library-full">
+              {scriptures.map((entry) => <ScriptureMiniCard href={`/scripture/${entry.path}`} point={entry.mainPoint} reference={entry.reference} key={entry.slug} />)}
+            </div>
+          </div>
+        </section>
+        <section className="section section-tight"><div className="shell"><AppBridge origin="scripture-index" /></div></section>
+      </>
+    );
   }
 
-  const entry = scriptureByPath(path);
+  const entry = scriptureByPath(path.join("/"));
   if (!entry) notFound();
-  const topicLinks = entry.topicSlugs.map(topicBySlug).filter(Boolean);
-  const relatedAnswers = answers.filter((answer) => answer.scriptures.some((reference) => reference.includes(entry.reference.split("–")[0]))).slice(0, 3);
-  const relatedArticles = articles.filter((article) => entry.topicSlugs.includes(article.topicSlug)).slice(0, 3);
+  const relatedEntries = entry.related.map((reference) => scriptures.find((item) => item.reference === reference)).filter((item): item is (typeof scriptures)[number] => Boolean(item));
+  const topics = entry.topicSlugs.map(topicBySlug).filter((item): item is NonNullable<ReturnType<typeof topicBySlug>> => Boolean(item));
 
   return (
     <>
-      <section className="scripture-page-hero"><div className="shell"><Link className="back-link back-link-light" href="/scripture"><ArrowLeft size={16} /> Scripture library</Link><div className="scripture-reference"><BookOpen size={18} /> {entry.reference}<span>{entry.translation}</span></div><blockquote>{entry.text}</blockquote><p>{entry.mainPoint}</p></div></section>
-      <section className="section"><div className="shell scripture-detail-grid"><article className="prose-content scripture-prose"><section><span className="eyebrow">Context</span><h2>What is happening in the passage?</h2><p>{entry.context}</p></section><section><span className="eyebrow">Main point</span><h2>What does the text establish?</h2><p>{entry.mainPoint}</p></section><section><span className="eyebrow">Apostolic connection</span><h2>How does it connect?</h2><p>{entry.apostolicConnection}</p></section>{entry.misunderstanding && <section className="callout"><span>Do not miss this</span><h2>Common misunderstanding</h2><p>{entry.misunderstanding}</p></section>}<AppBridge compact origin={`scripture:${entry.slug}`} /></article><aside className="scripture-sidebar"><div><strong>Topics</strong>{topicLinks.map((topic) => topic && <Link href={`/topics/${topic.slug}`} key={topic.slug}>{topic.title}<ArrowRight size={14} /></Link>)}</div><div><strong>Related passages</strong>{entry.related.map((reference) => { const linked = scriptures.find((item) => item.reference === reference); return linked ? <Link href={`/scripture/${linked.path}`} key={reference}>{reference}<ArrowRight size={14} /></Link> : <span key={reference}>{reference}</span>; })}</div>{relatedAnswers.length > 0 && <div><strong>Related answers</strong>{relatedAnswers.map((answer) => <Link href={`/answers/${answer.slug}`} key={answer.slug}>{answer.question}<ArrowRight size={14} /></Link>)}</div>}{relatedArticles.length > 0 && <div><strong>Related studies</strong>{relatedArticles.map((article) => <Link href={`/articles/${article.slug}`} key={article.slug}>{article.title}<ArrowRight size={14} /></Link>)}</div>}</aside></div></section>
+      <section className="scripture-page-hero">
+        <div className="shell">
+          <Link className="back-link back-link-light" href="/scripture"><ArrowLeft size={15} /> Scripture library</Link>
+          <div className="scripture-reference">{entry.reference}<span>{entry.translation}</span></div>
+          <blockquote>“{entry.text}”</blockquote>
+          <a className="button button-paper" href={buildAppSearchUrl(entry.reference, { origin: "scripture-page" })}>Open in app <ExternalLink size={16} /></a>
+        </div>
+      </section>
+
+      <section className="section">
+        <div className="shell scripture-detail-grid">
+          <article className="scripture-explanation">
+            <div className="scripture-main-point"><span className="eyebrow">Main point</span><h1>{entry.mainPoint}</h1></div>
+            <section><span className="eyebrow">Context</span><h2>Read the verse in its argument.</h2><p>{entry.context}</p></section>
+            <section><span className="eyebrow">Apostolic connection</span><h2>Why this passage matters.</h2><p>{entry.apostolicConnection}</p></section>
+            {entry.misunderstanding && <section className="callout"><span>Common misunderstanding</span><h2>Do not force the verse to say more than it says.</h2><p>{entry.misunderstanding}</p></section>}
+          </article>
+
+          <aside className="scripture-sidebar">
+            <div><strong>Related topics</strong>{topics.map((topic) => <Link href={`/topics/${topic.slug}`} key={topic.slug}>{topic.title}<ArrowRight size={14} /></Link>)}</div>
+            <div><strong>Connected passages</strong>{relatedEntries.length ? relatedEntries.map((related) => <Link href={`/scripture/${related.path}`} key={related.slug}>{related.reference}<ArrowRight size={14} /></Link>) : entry.related.map((reference) => <span key={reference}>{reference}</span>)}</div>
+            <div><strong>Search this idea</strong><Link href={`/search?q=${encodeURIComponent(entry.mainPoint)}`}><Search size={14} /> Find related content</Link></div>
+          </aside>
+        </div>
+      </section>
+      <section className="section section-tight"><div className="shell"><AppBridge origin={`scripture-${entry.slug}`} compact /></div></section>
     </>
   );
 }
