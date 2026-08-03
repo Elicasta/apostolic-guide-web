@@ -11,8 +11,8 @@ export const metadata: Metadata = {
 export default function MediaPage() {
   return (
     <>
-      <PageHero eyebrow="Watch and listen" title="Apostolic Guide media." text="Teaching, short explanations, music, and visual content built to move people back into the text." />
-      <section className="section"><div className="shell"><MediaLibrary items={media} /></div></section>
+      <PageHero variant="media" eyebrow="Watch and listen" title="Apostolic Guide media." text="Teaching, short explanations, music, and visual content built to move people back into the text." />
+      <section className="section media-index-section"><div className="shell"><MediaLibrary items={media} /></div></section>
       <section className="section section-tight"><div className="shell"><AppBridge origin="media" /></div></section>
     </>
   );
