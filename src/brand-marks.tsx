@@ -7,30 +7,30 @@ export function BrandCrown({ className = "", title }: BrandCrownProps) {
   return (
     <svg
       className={`ag-crown-mark ${className}`.trim()}
-      viewBox="0 0 132 92"
+      viewBox="0 0 120 82"
       fill="none"
       role={title ? "img" : undefined}
       aria-hidden={title ? undefined : true}
       aria-label={title}
     >
       <path
-        d="M14 61 25 24l29 29L68 15l25 37 22-28 3 39c-32 8-70 8-104-2Z"
+        d="M16 57 27 25 48 47 60 16 72 47 93 25 104 57"
         stroke="currentColor"
-        strokeWidth="7"
+        strokeWidth="5.5"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
       <path
-        d="M20 72c29 6 61 6 94 0"
+        d="M20 62c24 5 56 5 80 0"
         stroke="currentColor"
-        strokeWidth="6"
+        strokeWidth="5.5"
         strokeLinecap="round"
       />
       <path
         className="ag-crown-underline"
-        d="M31 84c24-4 47-3 71 0"
+        d="M35 75c17-3 33-3 50 0"
         stroke="currentColor"
-        strokeWidth="6"
+        strokeWidth="4.5"
         strokeLinecap="round"
       />
     </svg>
