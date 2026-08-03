@@ -21,7 +21,7 @@ export default async function ArticlesPage() {
       />
       <section className="section ei-article-library">
         <div className="shell ei-library-header">
-          <span>AG / EDITORIAL INDEX</span>
+          <span>AG / STUDY LIBRARY</span>
           <span>{databaseArticles.length + articles.length} PUBLISHED STUDIES</span>
         </div>
         <div className="shell ei-poster-grid ei-poster-grid-library">
