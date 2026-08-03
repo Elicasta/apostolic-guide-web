@@ -132,7 +132,48 @@ const heroWords: Record<PageHeroVariant, string> = {
   answers: "ASK"
 };
 
+const heroSignals: Record<PageHeroVariant, { reference: string; primary: string; secondary: string; related: string[] }> = {
+  default: {
+    reference: "JOHN 5:39",
+    primary: "SEARCH THE SCRIPTURES",
+    secondary: "THEY TESTIFY OF ME",
+    related: ["LUKE 24:27", "ACTS 17:11", "2 TIM. 2:15"]
+  },
+  topics: {
+    reference: "DEUTERONOMY 6:4",
+    primary: "THE LORD OUR GOD",
+    secondary: "IS ONE LORD",
+    related: ["ISAIAH 44:6", "MARK 12:29", "1 COR. 8:4"]
+  },
+  scripture: {
+    reference: "JOHN 1:1",
+    primary: "IN THE BEGINNING",
+    secondary: "THE WORD WAS GOD",
+    related: ["GENESIS 1:1", "PSALM 33:6", "JOHN 1:14"]
+  },
+  pathways: {
+    reference: "ISAIAH 44:6",
+    primary: "THE FIRST AND THE LAST",
+    secondary: "BESIDE ME THERE IS NO GOD",
+    related: ["DEUT. 6:4", "JOHN 14:9", "COL. 2:9"]
+  },
+  media: {
+    reference: "COLOSSIANS 2:9",
+    primary: "ALL THE FULNESS",
+    secondary: "OF THE GODHEAD BODILY",
+    related: ["JOHN 1:14", "COL. 1:15", "HEB. 1:3"]
+  },
+  answers: {
+    reference: "JOHN 14:9",
+    primary: "HE THAT HATH SEEN ME",
+    secondary: "HATH SEEN THE FATHER",
+    related: ["JOHN 14:10", "2 COR. 5:19", "COL. 1:15"]
+  }
+};
+
 export function PageHero({ eyebrow, title, text, variant = "default" }: { eyebrow: string; title: string; text: string; variant?: PageHeroVariant }) {
+  const signal = heroSignals[variant];
+
   return (
     <section className={`page-hero page-hero-${variant}`}>
       <div className="shell page-hero-inner">
@@ -142,11 +183,22 @@ export function PageHero({ eyebrow, title, text, variant = "default" }: { eyebro
           <p>{text}</p>
         </div>
         <div className="page-hero-art" aria-hidden="true">
-          <div className="book-object">
-            <span className="book-page book-page-left" />
-            <span className="book-page book-page-right" />
-            <span className="book-spine" />
-            <span className="book-turn" />
+          <div className="scripture-signal">
+            <div className="signal-topline">
+              <span>APOSTOLIC GUIDE / INDEX</span>
+              <span>01—04</span>
+            </div>
+            <div className="signal-reference">{signal.reference}</div>
+            <div className="signal-copy">
+              <span>{signal.primary}</span>
+              <strong>{signal.secondary}</strong>
+            </div>
+            <div className="signal-related">
+              {signal.related.map((reference, index) => (
+                <span key={reference}><b>{String(index + 1).padStart(2, "0")}</b>{reference}</span>
+              ))}
+            </div>
+            <span className="signal-scan" />
           </div>
           <span className="page-hero-word">{heroWords[variant]}</span>
         </div>
