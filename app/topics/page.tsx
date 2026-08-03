@@ -11,8 +11,8 @@ export const metadata: Metadata = {
 export default function TopicsPage() {
   return (
     <>
-      <PageHero eyebrow="Doctrine library" title="Follow the whole biblical case." text="Start with a doctrine, see the central claim, open the key passages, and follow the related questions and pathways." />
-      <section className="section">
+      <PageHero variant="topics" eyebrow="Doctrine library" title="Follow the whole biblical case." text="Start with a doctrine, see the central claim, open the key passages, and follow the related questions and pathways." />
+      <section className="section topics-page-section">
         <div className="shell"><TopicDirectory topics={topics} /></div>
       </section>
     </>
