@@ -1,0 +1,7 @@
+-- Development seed notes.
+-- Run the app's existing initial migration before the shared content migrations.
+-- Add an editor after creating a Supabase Auth user:
+--
+-- insert into platform.user_roles (user_id, role)
+-- values ('AUTH_USER_UUID', 'admin')
+-- on conflict do nothing;
