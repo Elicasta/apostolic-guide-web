@@ -14,6 +14,7 @@ import "./spacing-audit.css";
 import "./editorial-signal.css";
 import "./homepage-reset.css";
 import "./editorial-interface.css";
+import "./bible-glass.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL(websiteUrl),
