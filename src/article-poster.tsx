@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
+import { BrandCrown } from "./brand-marks";
 
 type ArticlePosterProps = {
   slug: string;
@@ -27,10 +28,9 @@ export function ArticlePoster({
         <span>{eyebrow}</span>
         <span>AG / {issue}</span>
       </header>
-      <div className="ei-poster-graphic" aria-hidden="true">
-        <span className="ei-orbit ei-orbit-a" />
-        <span className="ei-orbit ei-orbit-b" />
-        <span className="ei-orbit ei-orbit-c" />
+      <div className="ei-poster-graphic ag-poster-graphic" aria-hidden="true">
+        <BrandCrown className="ag-poster-crown" />
+        <span className="ag-poster-slash" />
         <span className="ei-poster-index">{issue}</span>
       </div>
       <div className="ei-poster-copy">
