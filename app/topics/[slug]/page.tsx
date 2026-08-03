@@ -1,56 +1,63 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, BookOpen, CircleHelp, FileText, Route } from "lucide-react";
+import { ArrowLeft, ArrowRight, BookOpen, HelpCircle, Route } from "lucide-react";
 import { notFound } from "next/navigation";
-import { AppBridge, DatabaseDocument, ScriptureMiniCard } from "@/components";
+import { AppBridge, PageHero, ScriptureMiniCard, TopicCard } from "@/components";
 import { answers, articles, pathways, scriptures, topicBySlug, topics } from "@/data";
-import { getDatabaseContent } from "@/database-content";
-
-type Props = { params: Promise<{ slug: string }> };
 
 export function generateStaticParams() { return topics.map((topic) => ({ slug: topic.slug })); }
 
+type Props = { params: Promise<{ slug: string }> };
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
-  const local = topicBySlug(slug);
-  const database = local ? null : await getDatabaseContent("topic", slug);
-  return local ? { title: local.title, description: local.claim } : database ? { title: database.title, description: database.summary } : {};
+  const topic = topicBySlug(slug);
+  if (!topic) return {};
+  return { title: topic.title, description: topic.claim };
 }
 
 export default async function TopicPage({ params }: Props) {
   const { slug } = await params;
   const topic = topicBySlug(slug);
-  const database = topic ? null : await getDatabaseContent("topic", slug);
-  if (!topic && !database) notFound();
+  if (!topic) notFound();
 
-  if (!topic && database) {
-    return <><section className="topic-hero"><div className="shell"><span className="eyebrow eyebrow-light">Published topic</span><h1>{database.title}</h1><p>{database.summary}</p></div></section><section className="section"><div className="shell reading-layout"><div /><div><DatabaseDocument body={database.body} /><AppBridge compact origin={`topic:${slug}`} /></div></div></section></>;
-  }
-
-  const resolved = topic!;
-  const relatedAnswers = answers.filter((item) => item.topicSlug === resolved.slug);
-  const relatedArticles = articles.filter((item) => item.topicSlug === resolved.slug);
-  const relatedScriptures = scriptures.filter((item) => item.topicSlugs.includes(resolved.slug));
-  const relatedPathways = pathways.filter((item) => item.topicSlug === resolved.slug);
+  const topicScriptures = scriptures.filter((item) => item.topicSlugs.includes(topic.slug));
+  const topicAnswers = answers.filter((item) => item.topicSlug === topic.slug);
+  const topicArticles = articles.filter((item) => item.topicSlug === topic.slug);
+  const topicPathways = pathways.filter((item) => item.topicSlug === topic.slug);
+  const relatedTopics = topics.filter((item) => item.slug !== topic.slug && item.category === topic.category).slice(0, 2);
 
   return (
     <>
-      <section className="topic-hero"><div className="shell"><span className="eyebrow eyebrow-light">{resolved.category}</span><h1>{resolved.title}</h1><p>{resolved.claim}</p></div></section>
+      <PageHero eyebrow={topic.category} title={topic.title} text={topic.summary} />
       <section className="section">
         <div className="shell topic-page-grid">
-          <article className="topic-main">
-            <div className="topic-summary"><span className="eyebrow">The claim</span><h2>{resolved.claim}</h2><p>{resolved.summary}</p></div>
-            <section className="content-section"><div className="content-section-heading"><BookOpen size={20} /><div><h2>Key Scriptures</h2><p>Start with the passages that establish the argument.</p></div></div><div className="scripture-library">{relatedScriptures.map((entry) => <ScriptureMiniCard key={entry.slug} reference={entry.reference} point={entry.mainPoint} href={`/scripture/${entry.path}`} />)}</div></section>
-            {relatedAnswers.length > 0 && <section className="content-section"><div className="content-section-heading"><CircleHelp size={20} /><div><h2>Questions this topic answers</h2><p>Use the direct response first, then trace the evidence.</p></div></div><div className="list-stack compact-list">{relatedAnswers.map((answer) => <Link className="list-row" href={`/answers/${answer.slug}`} key={answer.slug}><span className="kind">Answer</span><div><h3>{answer.question}</h3><p>{answer.shortAnswer}</p></div><ArrowRight size={18} /></Link>)}</div></section>}
-            {relatedArticles.length > 0 && <section className="content-section"><div className="content-section-heading"><FileText size={20} /><div><h2>Related studies</h2><p>Read the longer argument and passage context.</p></div></div><div className="list-stack compact-list">{relatedArticles.map((article) => <Link className="list-row" href={`/articles/${article.slug}`} key={article.slug}><span className="kind">Article</span><div><h3>{article.title}</h3><p>{article.summary}</p></div><ArrowRight size={18} /></Link>)}</div></section>}
-          </article>
+          <div>
+            <Link className="back-link" href="/topics"><ArrowLeft size={15} /> All topics</Link>
+            <p className="topic-claim">{topic.claim}</p>
+
+            <div className="topic-section-block">
+              <span className="eyebrow">The biblical starting point</span>
+              <h2>Key Scriptures</h2>
+              <div className="scripture-library topic-scripture-list">
+                {topicScriptures.length ? topicScriptures.map((item) => <ScriptureMiniCard href={`/scripture/${item.path}`} point={item.mainPoint} reference={item.reference} key={item.slug} />) : topic.keyScriptures.map((reference) => <div className="scripture-mini" key={reference}><BookOpen size={19} /><span><strong>{reference}</strong><small>Included in the growing Scripture library.</small></span></div>)}
+              </div>
+            </div>
+
+            {topicAnswers.length > 0 && <div className="topic-section-block"><span className="eyebrow">Common questions</span><h2>Answer the real objection.</h2><div className="topic-link-list">{topicAnswers.map((answer) => <Link href={`/answers/${answer.slug}`} key={answer.slug}><HelpCircle size={18} /><span><strong>{answer.question}</strong><small>{answer.shortAnswer}</small></span><ArrowRight size={16} /></Link>)}</div></div>}
+
+            {topicArticles.length > 0 && <div className="topic-section-block"><span className="eyebrow">Go deeper</span><h2>Related articles</h2><div className="topic-link-list">{topicArticles.map((article) => <Link href={`/articles/${article.slug}`} key={article.slug}><BookOpen size={18} /><span><strong>{article.title}</strong><small>{article.summary}</small></span><ArrowRight size={16} /></Link>)}</div></div>}
+          </div>
+
           <aside className="topic-sidebar">
-            <div className="sidebar-card"><span className="eyebrow">Foundation</span><h3>Key references</h3>{resolved.keyScriptures.map((reference) => <span className="plain-reference" key={reference}>{reference}</span>)}</div>
-            {relatedPathways.length > 0 && <div className="sidebar-card"><Route size={20} /><h3>Follow the pathway</h3>{relatedPathways.map((pathway) => <Link className="sidebar-link" href={`/pathways/${pathway.slug}`} key={pathway.slug}><span><strong>{pathway.title}</strong><small>{pathway.estimatedMinutes} min</small></span><ArrowRight size={16} /></Link>)}</div>}
+            <div className="sidebar-card"><span className="eyebrow">Study summary</span><h3>{topic.title}</h3><p>{topic.summary}</p><div className="scripture-chip-row">{topic.keyScriptures.map((reference) => <span key={reference}>{reference}</span>)}</div></div>
+            {topicPathways.map((pathway) => <div className="sidebar-card sidebar-card-dark" key={pathway.slug}><Route size={23} /><span className="eyebrow eyebrow-light">Guided pathway</span><h3>{pathway.title}</h3><p>{pathway.summary}</p><Link className="button button-paper" href={`/pathways/${pathway.slug}`}>Begin study <ArrowRight size={16} /></Link></div>)}
           </aside>
         </div>
       </section>
-      <section className="section section-tight"><div className="shell"><AppBridge origin={`topic:${resolved.slug}`} /></div></section>
+
+      {relatedTopics.length > 0 && <section className="section section-tight related-section"><div className="shell"><span className="eyebrow">Keep studying</span><h2 className="related-heading">Related topics</h2><div className="topic-grid topic-grid-two">{relatedTopics.map((item) => <TopicCard topic={item} key={item.slug} />)}</div></div></section>}
+      <section className="section section-tight"><div className="shell"><AppBridge origin={`topic-${topic.slug}`} compact /></div></section>
     </>
   );
 }
