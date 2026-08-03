@@ -19,7 +19,6 @@ export default function HomePage() {
         <div className="shell ei-hero-grid">
           <div className="ei-hero-copy">
             <div className="ei-system-label"><span>AG / PUBLIC LIBRARY</span><span>001—SCRIPTURE</span></div>
-            <BrandCrown className="ag-hero-crown" />
             <span className="ei-kicker">Scripture first. Questions welcome.</span>
             <h1>Know what you believe.<span>Know why.</span></h1>
             <p>Search Scripture, follow connected passages, and understand Apostolic doctrine from the text itself.</p>
@@ -47,7 +46,7 @@ export default function HomePage() {
                 </Link>
               ))}
             </div>
-            <footer><span>Scripture · Doctrine · Answers</span><span>Updated continuously</span></footer>
+            <footer><span>Scripture · Doctrine · Answers</span><span>Curated for study</span></footer>
           </aside>
         </div>
       </section>
@@ -56,7 +55,7 @@ export default function HomePage() {
         <div className="shell ei-section-grid">
           <div className="ei-section-intro">
             <span className="ei-section-number">01</span>
-            <span className="ei-kicker">Search interface</span>
+            <span className="ei-kicker">Scripture search</span>
             <h2>Start with the question in front of you.</h2>
           </div>
           <div className="ei-search-control">
@@ -162,10 +161,10 @@ export default function HomePage() {
         <div className="shell ei-editorial-heading">
           <div>
             <span className="ei-section-number">05</span>
-            <span className="ei-kicker">Editorial studies</span>
-            <h2>Article covers with a point of view.</h2>
+            <span className="ei-kicker">Studies</span>
+            <h2>Go deeper into the text.</h2>
           </div>
-          <p>The website stays precise. The editorial covers carry the expressive visual language.</p>
+          <p>Focused studies tracing Scripture, context, and connected passages without skipping the hard questions.</p>
         </div>
         <div className="shell ei-poster-grid">
           {featuredArticles.map((article, index) => (
@@ -180,7 +179,7 @@ export default function HomePage() {
             />
           ))}
         </div>
-        <div className="shell ei-editorial-link"><Link href="/articles">Open editorial library <ArrowRight size={16} /></Link></div>
+        <div className="shell ei-editorial-link"><Link href="/articles">View all studies <ArrowRight size={16} /></Link></div>
       </section>
 
       <section className="ei-declaration">
