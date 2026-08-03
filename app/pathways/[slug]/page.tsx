@@ -30,8 +30,10 @@ export default async function PathwayPage({ params }: Props) {
     <>
       <section className="pathway-hero">
         <div className="shell">
-          <Link className="back-link back-link-light" href="/pathways"><ArrowLeft size={15} /> All pathways</Link>
-          <span className="eyebrow eyebrow-light">Guided Scripture pathway</span>
+          <div className="pathway-hero-topline">
+            <Link className="back-link back-link-light" href="/pathways"><ArrowLeft size={15} /> All pathways</Link>
+            <span className="eyebrow eyebrow-light">Guided Scripture pathway</span>
+          </div>
           <h1>{pathway.title}</h1>
           <p>{pathway.summary}</p>
           <div className="study-metrics"><span><Clock3 size={13} /> {pathway.estimatedMinutes} minutes</span><span>{pathway.steps.length} steps</span><span>{pathway.level}</span></div>
