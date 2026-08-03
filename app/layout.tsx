@@ -13,6 +13,7 @@ import "./design-pass.css";
 import "./spacing-audit.css";
 import "./editorial-signal.css";
 import "./homepage-reset.css";
+import "./editorial-interface.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL(websiteUrl),
