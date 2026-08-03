@@ -19,8 +19,12 @@ export function Brand({ reversed = false }: { reversed?: boolean }) {
 }
 
 const navLinks = [
-  ["Topics", "/topics"], ["Answers", "/answers"], ["Articles", "/articles"],
-  ["Scripture", "/scripture"], ["Media", "/media"], ["About", "/about"]
+  ["Topics", "/topics"],
+  ["Scripture", "/scripture"],
+  ["Pathways", "/pathways"],
+  ["Articles", "/articles"],
+  ["Media", "/media"],
+  ["About", "/about"]
 ] as const;
 
 export function SiteHeader() {
@@ -38,6 +42,7 @@ export function SiteHeader() {
             <summary aria-label="Open menu"><span /><span /><span /></summary>
             <div className="mobile-menu-panel">
               {navLinks.map(([label, href]) => <Link key={href} href={href}>{label}</Link>)}
+              <Link href="/answers">Common Questions</Link>
               <Link href="/beliefs">What We Believe</Link>
               <a href={buildAppUrl("/", { placement: "mobile-menu" })}>Open App</a>
             </div>
@@ -147,18 +152,32 @@ export function ContentBody({ sections }: { sections: Section[] }) {
 }
 
 export function DatabaseDocument({ body }: { body: unknown }) {
-  const blocks = typeof body === "object" && body && "blocks" in body && Array.isArray((body as any).blocks) ? (body as any).blocks : [];
+  const blocks = getDocumentBlocks(body);
   if (!blocks.length) return <div className="prose-content"><p>This content has been published, but its long-form body has not been added yet.</p></div>;
   return (
     <div className="prose-content">
-      {blocks.map((block: any, index: number) => {
-        const text = block?.data?.text ?? "";
+      {blocks.map((block, index) => {
+        const text = block.text;
         if (block.type === "heading") return <h2 id={String(text).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "")} key={index}>{text}</h2>;
         if (block.type === "quote") return <blockquote key={index}>{text}</blockquote>;
         return <p key={index}>{text}</p>;
       })}
     </div>
   );
+}
+
+function getDocumentBlocks(body: unknown): Array<{ type: string; text: string }> {
+  if (!body || typeof body !== "object" || !("blocks" in body)) return [];
+  const blocks = (body as { blocks?: unknown }).blocks;
+  if (!Array.isArray(blocks)) return [];
+
+  return blocks.flatMap((block) => {
+    if (!block || typeof block !== "object") return [];
+    const type = "type" in block && typeof block.type === "string" ? block.type : "paragraph";
+    const data = "data" in block ? block.data : null;
+    if (!data || typeof data !== "object" || !("text" in data) || typeof data.text !== "string") return [];
+    return [{ type, text: data.text }];
+  });
 }
 
 export function AppBridge({ origin = "website", compact = false }: { origin?: string; compact?: boolean }) {
