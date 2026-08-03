@@ -81,7 +81,7 @@ export function SearchForm({ defaultValue = "", compact = false }: { defaultValu
 
 export function TopicCard({ topic }: { topic: Topic }) {
   return (
-    <Link className="topic-card" href={`/topics/${topic.slug}`}>
+    <Link className="topic-card" href={`/topics/${topic.slug}`} data-reveal>
       <span className="topic-card-accent" aria-hidden>{topic.accent}</span>
       <span className="eyebrow">{topic.category}</span>
       <h3>{topic.title}</h3>
@@ -93,7 +93,7 @@ export function TopicCard({ topic }: { topic: Topic }) {
 
 export function ArticleCard({ article, large = false }: { article: Article; large?: boolean }) {
   return (
-    <Link className={large ? "article-card article-card-large" : "article-card"} href={`/articles/${article.slug}`}>
+    <Link className={large ? "article-card article-card-large" : "article-card"} href={`/articles/${article.slug}`} data-reveal>
       <span className="eyebrow">{article.eyebrow}</span>
       <h3>{article.title}</h3>
       <p>{article.summary}</p>
@@ -104,7 +104,7 @@ export function ArticleCard({ article, large = false }: { article: Article; larg
 
 export function ScriptureMiniCard({ reference, point, href }: { reference: string; point: string; href: string }) {
   return (
-    <Link className="scripture-mini" href={href}>
+    <Link className="scripture-mini" href={href} data-reveal>
       <BookOpen size={19} />
       <span><strong>{reference}</strong><small>{point}</small></span>
       <ArrowRight size={17} />
@@ -121,8 +121,38 @@ export function SectionHeading({ eyebrow, title, text, href, linkLabel }: { eyeb
   );
 }
 
-export function PageHero({ eyebrow, title, text }: { eyebrow: string; title: string; text: string }) {
-  return <section className="page-hero"><div className="shell page-hero-inner"><span className="eyebrow eyebrow-light">{eyebrow}</span><h1>{title}</h1><p>{text}</p></div></section>;
+type PageHeroVariant = "default" | "topics" | "scripture" | "pathways" | "media" | "answers";
+
+const heroWords: Record<PageHeroVariant, string> = {
+  default: "AG",
+  topics: "TOPICS",
+  scripture: "WORD",
+  pathways: "PATH",
+  media: "MEDIA",
+  answers: "ASK"
+};
+
+export function PageHero({ eyebrow, title, text, variant = "default" }: { eyebrow: string; title: string; text: string; variant?: PageHeroVariant }) {
+  return (
+    <section className={`page-hero page-hero-${variant}`}>
+      <div className="shell page-hero-inner">
+        <div className="page-hero-copy">
+          <span className="eyebrow eyebrow-light">{eyebrow}</span>
+          <h1>{title}</h1>
+          <p>{text}</p>
+        </div>
+        <div className="page-hero-art" aria-hidden="true">
+          <div className="book-object">
+            <span className="book-page book-page-left" />
+            <span className="book-page book-page-right" />
+            <span className="book-spine" />
+            <span className="book-turn" />
+          </div>
+          <span className="page-hero-word">{heroWords[variant]}</span>
+        </div>
+      </div>
+    </section>
+  );
 }
 
 function headingId(value: string) {
@@ -182,7 +212,7 @@ function getDocumentBlocks(body: unknown): Array<{ type: string; text: string }>
 
 export function AppBridge({ origin = "website", compact = false }: { origin?: string; compact?: boolean }) {
   return (
-    <section className={compact ? "app-bridge app-bridge-compact" : "app-bridge"}>
+    <section className={compact ? "app-bridge app-bridge-compact" : "app-bridge"} data-reveal>
       <div><span className="eyebrow eyebrow-light">The study app</span><h2>Take the study further.</h2><p>Search Scripture, follow doctrine pathways, prepare for conversations, and organize your own studies.</p></div>
       {!compact && <div className="app-feature-list"><span>Fast Scripture search</span><span>Guided doctrine pathways</span><span>Saved studies and presentation mode</span></div>}
       <a className="button button-paper" href={buildAppUrl("/", { origin })}>Open Apostolic Guide App <ArrowUpRight size={17} /></a>
