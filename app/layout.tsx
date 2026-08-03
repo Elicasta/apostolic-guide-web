@@ -4,10 +4,12 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Suspense } from "react";
 import { SiteFooter, SiteHeader } from "@/components";
 import { ProductAnalytics } from "@/analytics";
+import { SiteBehavior } from "@/site-behavior";
 import { websiteUrl } from "@/urls";
 import "./globals.css";
 import "./public-routes.css";
 import "./site-v1.css";
+import "./design-pass.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL(websiteUrl),
@@ -37,6 +39,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <SiteHeader />
         <main id="main-content">{children}</main>
         <SiteFooter />
+        <SiteBehavior />
         <Suspense fallback={null}><ProductAnalytics /></Suspense>
         <Analytics />
         <SpeedInsights />
