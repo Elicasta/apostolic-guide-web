@@ -21,6 +21,7 @@ export function ArticlePoster({
 }: ArticlePosterProps) {
   const variant = index % 4;
   const issue = String(index + 1).padStart(2, "0");
+  const showCrown = variant === 0 || variant === 3;
 
   return (
     <Link className={`ei-article-poster ei-poster-${variant}`} href={`/articles/${slug}`} data-reveal>
@@ -29,7 +30,7 @@ export function ArticlePoster({
         <span>AG / {issue}</span>
       </header>
       <div className="ei-poster-graphic ag-poster-graphic" aria-hidden="true">
-        <BrandCrown className="ag-poster-crown" />
+        {showCrown ? <BrandCrown className="ag-poster-crown" /> : <span className="ag-poster-monogram">AG</span>}
         <span className="ag-poster-slash" />
         <span className="ei-poster-index">{issue}</span>
       </div>
