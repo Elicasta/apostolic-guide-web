@@ -55,7 +55,7 @@ export default async function ArticlePage({ params }: Props) {
         <header className="article-header ei-article-header">
           <div className="shell article-header-inner ei-article-header-inner">
             <div className="ei-article-header-meta">
-              <Link className="back-link" href="/articles"><ArrowLeft size={16} /> Editorial index</Link>
+              <Link className="back-link" href="/articles"><ArrowLeft size={16} /> All studies</Link>
               <span>AG / STUDY {issue}</span>
             </div>
             <BrandCrown className="ag-article-crown" />
