@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArrowLeft, Clock3 } from "lucide-react";
 import { notFound } from "next/navigation";
 import { AppBridge, ContentBody, DatabaseDocument } from "@/components";
+import { BrandCrown } from "@/brand-marks";
 import { ShareButton } from "@/share-button";
 import { articleBySlug, articles, topicBySlug } from "@/data";
 import { getDatabaseContent } from "@/database-content";
@@ -52,13 +53,12 @@ export default async function ArticlePage({ params }: Props) {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }} />
       <article className="article-page">
         <header className="article-header ei-article-header">
-          <div className="ei-article-header-grid" aria-hidden="true" />
-          <div className="ei-article-header-orbits" aria-hidden="true"><i /><i /><i /></div>
           <div className="shell article-header-inner ei-article-header-inner">
             <div className="ei-article-header-meta">
               <Link className="back-link" href="/articles"><ArrowLeft size={16} /> Editorial index</Link>
               <span>AG / STUDY {issue}</span>
             </div>
+            <BrandCrown className="ag-article-crown" />
             <span className="eyebrow eyebrow-light">{local?.eyebrow ?? "Published study"}</span>
             <h1>{title}</h1>
             <p>{summary}</p>
