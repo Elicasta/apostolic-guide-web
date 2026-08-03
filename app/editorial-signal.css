@@ -1,0 +1,161 @@
+/* Premium Scripture signal visual replacing the folding-book treatment */
+.scripture-signal {
+  position: relative;
+  width: min(390px, 100%);
+  min-height: 280px;
+  overflow: hidden;
+  padding: 22px;
+  border: 1px solid rgba(255,255,255,.18);
+  border-radius: 24px;
+  background:
+    linear-gradient(135deg, rgba(255,255,255,.11), rgba(255,255,255,.035)),
+    rgba(7,18,25,.72);
+  box-shadow: 0 30px 70px rgba(0,0,0,.24);
+  backdrop-filter: blur(14px);
+  transform: rotate(-1.5deg);
+  isolation: isolate;
+}
+.scripture-signal:before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  opacity: .35;
+  background-image:
+    linear-gradient(rgba(255,255,255,.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.08) 1px, transparent 1px);
+  background-size: 26px 26px;
+  mask-image: linear-gradient(to bottom, black, transparent 92%);
+}
+.signal-topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(255,255,255,.15);
+  color: rgba(255,255,255,.56);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: .16em;
+}
+.signal-reference {
+  margin-top: 26px;
+  color: #f2a9b3;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: .18em;
+}
+.signal-copy {
+  display: grid;
+  gap: 4px;
+  margin-top: 13px;
+  font-size: clamp(24px, 3vw, 38px);
+  font-weight: 950;
+  line-height: .96;
+  letter-spacing: -.045em;
+}
+.signal-copy span { color: rgba(255,255,255,.68); }
+.signal-copy strong { color: white; }
+.signal-related {
+  display: grid;
+  gap: 0;
+  margin-top: 30px;
+  border-top: 1px solid rgba(255,255,255,.14);
+}
+.signal-related > span {
+  display: grid;
+  grid-template-columns: 34px 1fr;
+  align-items: center;
+  gap: 10px;
+  min-height: 38px;
+  border-bottom: 1px solid rgba(255,255,255,.1);
+  color: rgba(255,255,255,.65);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .1em;
+}
+.signal-related b {
+  color: #f2a9b3;
+  font-size: 9px;
+}
+.signal-scan {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -18%;
+  height: 38%;
+  pointer-events: none;
+  opacity: .55;
+  background: linear-gradient(to bottom, transparent, rgba(110,219,255,.11), transparent);
+  animation: signalScan 5.6s ease-in-out infinite;
+}
+@keyframes signalScan {
+  0%, 18% { transform: translateY(-120%); }
+  58%, 100% { transform: translateY(460%); }
+}
+
+.page-hero-scripture .scripture-signal {
+  border-color: rgba(16,32,42,.16);
+  color: var(--ink);
+  background:
+    linear-gradient(135deg, rgba(255,255,255,.78), rgba(255,255,255,.42)),
+    rgba(245,247,244,.78);
+  box-shadow: 0 28px 65px rgba(16,32,42,.15);
+}
+.page-hero-scripture .scripture-signal:before {
+  background-image:
+    linear-gradient(rgba(16,32,42,.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(16,32,42,.07) 1px, transparent 1px);
+}
+.page-hero-scripture .signal-topline {
+  border-color: rgba(16,32,42,.13);
+  color: rgba(16,32,42,.5);
+}
+.page-hero-scripture .signal-copy span { color: rgba(16,32,42,.58); }
+.page-hero-scripture .signal-copy strong { color: var(--ink); }
+.page-hero-scripture .signal-related { border-color: rgba(16,32,42,.14); }
+.page-hero-scripture .signal-related > span {
+  border-color: rgba(16,32,42,.1);
+  color: rgba(16,32,42,.64);
+}
+.page-hero-scripture .signal-scan {
+  background: linear-gradient(to bottom, transparent, rgba(21,86,106,.12), transparent);
+}
+
+.page-hero-topics .scripture-signal { transform: rotate(1.4deg); }
+.page-hero-pathways .scripture-signal { transform: rotate(-2.1deg); }
+.page-hero-media .scripture-signal { transform: rotate(1.8deg); }
+.page-hero-answers .scripture-signal { transform: rotate(-1deg); }
+
+@media (max-width: 980px) {
+  .scripture-signal { width: min(330px,100%); min-height: 250px; }
+  .signal-copy { font-size: 29px; }
+}
+
+@media (max-width: 650px) {
+  .page-hero-art { min-height: 210px; }
+  .scripture-signal {
+    width: min(360px, 96%);
+    min-height: 205px;
+    padding: 18px;
+    border-radius: 19px;
+    transform: none !important;
+  }
+  .signal-topline { padding-bottom: 11px; }
+  .signal-reference { margin-top: 17px; }
+  .signal-copy { margin-top: 9px; font-size: 25px; }
+  .signal-related { grid-template-columns: repeat(3,1fr); margin-top: 20px; }
+  .signal-related > span {
+    grid-template-columns: 1fr;
+    gap: 4px;
+    padding: 8px 7px;
+    border-right: 1px solid rgba(255,255,255,.1);
+    font-size: 8px;
+  }
+  .page-hero-scripture .signal-related > span { border-right-color: rgba(16,32,42,.1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .signal-scan { display: none; }
+}
