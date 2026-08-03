@@ -1,0 +1,268 @@
+/* Apostolic Guide — contrast + moody light refinement */
+
+:root {
+  --ag-night: #0a151d;
+  --ag-night-2: #12232d;
+  --ag-warm: #d7a15f;
+  --ag-warm-soft: rgba(215, 161, 95, .22);
+  --ag-text-on-dark: #f7f3eb;
+  --ag-text-on-dark-muted: #c7d0d2;
+}
+
+/* Dark, readable interface surfaces */
+.ei-live-index,
+.ei-pathway-interface,
+.pathway-summary-card,
+.app-bridge {
+  color: var(--ag-text-on-dark);
+  background:
+    radial-gradient(ellipse at 18% 0%, rgba(230, 180, 112, .22), transparent 34%),
+    linear-gradient(145deg, rgba(20, 36, 46, .96), rgba(7, 17, 24, .94));
+  border: 1px solid rgba(255,255,255,.14);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.12),
+    0 30px 80px rgba(5, 13, 18, .22);
+  -webkit-backdrop-filter: blur(28px) saturate(120%);
+  backdrop-filter: blur(28px) saturate(120%);
+}
+
+.ei-live-index::after,
+.ei-pathway-interface::after,
+.pathway-summary-card::after,
+.app-bridge::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background:
+    linear-gradient(112deg, transparent 0 12%, rgba(255, 225, 177, .14) 22%, transparent 38%),
+    linear-gradient(180deg, rgba(255,255,255,.04), transparent 24%);
+  mix-blend-mode: screen;
+}
+
+.ei-live-index > *,
+.ei-pathway-interface > *,
+.pathway-summary-card > *,
+.app-bridge > * {
+  position: relative;
+  z-index: 1;
+}
+
+.ei-pathway-interface header,
+.ei-pathway-interface footer,
+.ei-live-index header,
+.ei-live-index footer {
+  color: #d7dee0;
+  border-color: rgba(255,255,255,.14);
+}
+
+.ei-pathway-step {
+  color: var(--ag-text-on-dark);
+  border-color: rgba(255,255,255,.12);
+}
+
+.ei-pathway-step strong,
+.ei-pathway-step small,
+.ei-pathway-step > span,
+.ei-pathway-step svg,
+.ei-pathway-interface footer span,
+.ei-pathway-interface header span {
+  color: inherit;
+  opacity: 1;
+}
+
+.ei-pathway-step strong { color: #ffffff; }
+.ei-pathway-step small { color: #c2ced1; }
+.ei-pathway-step > span { color: #f4d6b4; }
+.ei-pathway-step svg { color: #f0a3ad; }
+
+.ei-pathway-step:hover {
+  background: rgba(255,255,255,.055);
+}
+
+/* Remove literal paper-card treatment from the homepage index */
+.ei-index-featured {
+  color: var(--ag-text-on-dark);
+  background:
+    linear-gradient(145deg, rgba(255,255,255,.075), rgba(255,255,255,.025));
+  border: 1px solid rgba(255,255,255,.14);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.08),
+    0 20px 50px rgba(0,0,0,.18);
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
+}
+
+.ei-index-featured h2,
+.ei-index-featured p,
+.ei-index-featured a,
+.ei-index-featured > div span {
+  color: inherit;
+}
+
+.ei-index-featured > div span:first-child,
+.ei-index-featured a {
+  color: #f0b9bf;
+}
+
+/* App bridge: moody light, not white stationery */
+.app-bridge {
+  position: relative;
+  overflow: hidden;
+  border-radius: 32px;
+  padding: clamp(34px, 5vw, 58px);
+}
+
+.app-bridge h2 {
+  color: #fff;
+  letter-spacing: -.035em;
+  line-height: 1.02;
+  text-shadow: 0 1px 18px rgba(0,0,0,.28);
+}
+
+.app-bridge p,
+.app-bridge .app-feature-list,
+.app-bridge .app-feature-list span {
+  color: var(--ag-text-on-dark-muted);
+}
+
+.app-bridge .eyebrow,
+.app-bridge .eyebrow::before {
+  color: #efb0b8;
+}
+
+.app-bridge .button-paper {
+  color: #10202a;
+  background: rgba(255,255,255,.92);
+  border: 1px solid rgba(255,255,255,.72);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,1),
+    0 18px 38px rgba(0,0,0,.2);
+}
+
+/* Keep actual reading surfaces paper-like, but not card-like */
+.prose-content,
+.reading-layout,
+.pathway-study-layout {
+  background: transparent;
+}
+
+.sidebar-card:not(.pathway-summary-card) {
+  background: rgba(255,255,255,.78);
+  border-color: rgba(88, 108, 116, .16);
+  box-shadow: 0 16px 42px rgba(12, 28, 37, .07);
+}
+
+/* Contrast restoration for labels and muted copy */
+.ei-live-index p,
+.ei-live-index small,
+.ei-live-index footer,
+.ei-pathway-interface small,
+.ei-pathway-interface footer,
+.pathway-summary-card p,
+.pathway-summary-card a {
+  color: var(--ag-text-on-dark-muted);
+}
+
+.pathway-summary-card h2,
+.pathway-summary-card .eyebrow,
+.pathway-summary-card .eyebrow::before {
+  color: #fff;
+}
+
+/* Mood: a single controlled shaft of warm light */
+.ei-hero,
+.pathway-hero,
+.ei-article-header,
+.ei-declaration {
+  position: relative;
+  isolation: isolate;
+}
+
+.ei-hero::before,
+.pathway-hero::before,
+.ei-article-header::before,
+.ei-declaration::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  pointer-events: none;
+  width: min(38vw, 520px);
+  height: 130%;
+  top: -18%;
+  right: 8%;
+  transform: rotate(7deg);
+  background: linear-gradient(180deg, rgba(255, 236, 196, .20), rgba(218, 159, 86, .05) 46%, transparent 76%);
+  filter: blur(18px);
+  opacity: .78;
+}
+
+/* Mobile type and spacing cleanup */
+@media (max-width: 760px) {
+  .ei-hero-copy h1,
+  .content-header h1,
+  .pathway-hero h1,
+  .ei-article-header h1 {
+    letter-spacing: -.025em;
+    line-height: .98;
+  }
+
+  .ei-pathway-interface,
+  .ei-live-index,
+  .app-bridge {
+    border-radius: 26px;
+  }
+
+  .ei-pathway-interface header,
+  .ei-pathway-interface footer,
+  .ei-live-index header,
+  .ei-live-index footer {
+    gap: 12px;
+    padding-inline: 24px;
+  }
+
+  .ei-pathway-step {
+    grid-template-columns: 58px minmax(0, 1fr) auto;
+    gap: 14px;
+    padding: 24px;
+  }
+
+  .ei-pathway-step strong {
+    font-size: 18px;
+    line-height: 1.16;
+    letter-spacing: -.015em;
+  }
+
+  .ei-pathway-step small {
+    margin-top: 5px;
+    font-size: 14px;
+    line-height: 1.3;
+  }
+
+  .app-bridge {
+    margin-inline: 0;
+    padding: 34px 28px;
+  }
+
+  .app-bridge h2 {
+    font-size: clamp(34px, 11vw, 50px);
+    max-width: 9ch;
+  }
+
+  .app-bridge p {
+    font-size: 18px;
+    line-height: 1.55;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .ei-live-index,
+  .ei-pathway-interface,
+  .pathway-summary-card,
+  .app-bridge,
+  .ei-index-featured {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
