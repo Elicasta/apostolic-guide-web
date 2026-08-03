@@ -38,6 +38,8 @@ export function MediaLibrary({ items }: { items: MediaItem[] }) {
         </div>
       </div>
 
+      <div className="directory-count"><strong>{filtered.length}</strong> item{filtered.length === 1 ? "" : "s"}</div>
+
       <div className="media-library-grid">
         {filtered.map((item, index) => {
           const content = (
@@ -55,7 +57,7 @@ export function MediaLibrary({ items }: { items: MediaItem[] }) {
               </div>
             </>
           );
-          return item.url ? <a className="media-library-card" href={item.url} key={item.slug}>{content}</a> : <article className="media-library-card" key={item.slug}>{content}</article>;
+          return item.url ? <a className="media-library-card" href={item.url} key={item.slug} data-reveal>{content}</a> : <article className="media-library-card" key={item.slug} data-reveal>{content}</article>;
         })}
       </div>
     </div>
