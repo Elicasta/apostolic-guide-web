@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { articles } from "@/data";
-import { ArticleCard, PageHero } from "@/components";
+import { PageHero } from "@/components";
+import { ArticlePoster } from "@/article-poster";
 import { listDatabaseContent } from "@/database-content";
 
 export const metadata: Metadata = {
@@ -18,19 +19,33 @@ export default async function ArticlesPage() {
         title="Articles"
         text="Bible studies, passage breakdowns, doctrinal explanations, and direct responses built to be checked against Scripture."
       />
-      <section className="section">
-        <div className="shell">
-          <div className="article-index-grid">
-            {databaseArticles.map((article) => (
-              <a className="article-card" href={`/articles/${article.slug}`} key={article.id}>
-                <span className="eyebrow">Published study</span>
-                <h3>{article.title}</h3>
-                <p>{article.summary}</p>
-                <span className="card-meta">From the editorial library</span>
-              </a>
-            ))}
-            {articles.map((article) => <ArticleCard article={article} key={article.slug} />)}
-          </div>
+      <section className="section ei-article-library">
+        <div className="shell ei-library-header">
+          <span>AG / EDITORIAL INDEX</span>
+          <span>{databaseArticles.length + articles.length} PUBLISHED STUDIES</span>
+        </div>
+        <div className="shell ei-poster-grid ei-poster-grid-library">
+          {databaseArticles.map((article, index) => (
+            <ArticlePoster
+              key={article.id}
+              slug={article.slug}
+              title={article.title}
+              eyebrow="Published study"
+              summary={article.summary}
+              index={index}
+            />
+          ))}
+          {articles.map((article, index) => (
+            <ArticlePoster
+              key={article.slug}
+              slug={article.slug}
+              title={article.title}
+              eyebrow={article.eyebrow}
+              summary={article.summary}
+              readingMinutes={article.readingMinutes}
+              index={databaseArticles.length + index}
+            />
+          ))}
         </div>
       </section>
     </>
