@@ -6,6 +6,7 @@ import { SiteFooter, SiteHeader } from "@/components";
 import { ProductAnalytics } from "@/analytics";
 import { websiteUrl } from "@/urls";
 import "./globals.css";
+import "./public-routes.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL(websiteUrl),
