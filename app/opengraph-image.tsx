@@ -22,7 +22,10 @@ export default function OpenGraphImage() {
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
         <div style={{ color: "#e099a3", fontSize: 22, fontWeight: 800, letterSpacing: 4, textTransform: "uppercase" }}>Scripture · Doctrine · Answers</div>
-        <div style={{ maxWidth: 960, fontSize: 79, lineHeight: 0.96, fontWeight: 900, letterSpacing: -5 }}>Know what you believe.<br />See it in Scripture.</div>
+        <div style={{ display: "flex", flexDirection: "column", maxWidth: 960, fontSize: 79, lineHeight: 0.96, fontWeight: 900, letterSpacing: -5 }}>
+          <div>Know what you believe.</div>
+          <div>See it in Scripture.</div>
+        </div>
       </div>
       <div style={{ display: "flex", justifyContent: "space-between", color: "#9fb0b6", fontSize: 22 }}>
         <span>apostolicguide.com</span><span>One God. Jesus Christ. The apostolic faith.</span>

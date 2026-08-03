@@ -1,18 +1,20 @@
-# Apostolic Guide CSS build fix
+# Apostolic Guide Open Graph build fix
 
-The Vercel build failed because `app/layout.tsx` imports `./globals.css`, but the deployed GitHub commit does not include `app/globals.css`.
+The Next.js Open Graph renderer rejected a `<div>` with multiple child nodes and no explicit `display` style.
 
-Copy the included file to:
+Replace:
 
 ```text
-app/globals.css
+app/opengraph-image.tsx
 ```
+
+with the included file.
 
 Then run:
 
 ```bash
-git add app/globals.css
-git commit -m "fix missing global stylesheet"
+git add app/opengraph-image.tsx
+git commit -m "fix Open Graph image layout"
 git push origin main
 ```
 
