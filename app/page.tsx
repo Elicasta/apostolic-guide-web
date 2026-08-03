@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowRight, ArrowUpRight, BookOpen, Route, Search } from "lucide-react";
 import { SearchForm } from "@/components";
 import { ArticlePoster } from "@/article-poster";
+import { BrandCrown } from "@/brand-marks";
 import { answers, articles, pathways, scriptures, topics } from "@/data";
 import { buildAppUrl } from "@/urls";
 
@@ -18,6 +19,7 @@ export default function HomePage() {
         <div className="shell ei-hero-grid">
           <div className="ei-hero-copy">
             <div className="ei-system-label"><span>AG / PUBLIC LIBRARY</span><span>001—SCRIPTURE</span></div>
+            <BrandCrown className="ag-hero-crown" />
             <span className="ei-kicker">Scripture first. Questions welcome.</span>
             <h1>Know what you believe.<span>Know why.</span></h1>
             <p>Search Scripture, follow connected passages, and understand Apostolic doctrine from the text itself.</p>
@@ -184,6 +186,7 @@ export default function HomePage() {
       <section className="ei-declaration">
         <div className="shell ei-declaration-grid">
           <div>
+            <BrandCrown className="ag-declaration-crown" />
             <span className="ei-section-number">06</span>
             <span className="ei-kicker ei-kicker-light">Apostolic Guide</span>
             <h2>Jesus is God.<br />Scripture leads the conversation.</h2>
