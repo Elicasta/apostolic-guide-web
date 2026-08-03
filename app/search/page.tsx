@@ -71,14 +71,14 @@ export default async function SearchPage({ searchParams }: Props) {
       <PageHero
         eyebrow="Search the library"
         title="Find the question, passage, or doctrine."
-        text="Use the words you would actually use. Search results connect common phrasing to Apostolic Guide's structured library."
+        text={"Use the words you would actually use. Search results connect common phrasing to Apostolic Guide's structured library."}
       />
       <section className="section section-tight">
         <div className="shell search-page">
           <SearchForm defaultValue={q} />
           {query && <SearchAnalytics query={query} resultCount={results.length} />}
           {query && <div className="search-result-summary" data-search-result-count={results.length}><strong>{results.length}</strong> result{results.length === 1 ? "" : "s"} for “{q}”</div>}
-          {!query && <div className="empty-state"><h2>Start with a real question.</h2><p>Try “Why did Jesus pray?”, “John 14:9”, “right hand,” or “baptism in Jesus' name.”</p></div>}
+          {!query && <div className="empty-state"><h2>Start with a real question.</h2><p>Try “Why did Jesus pray?”, “John 14:9”, “right hand,” or “baptism in Jesus&apos; name.”</p></div>}
           {query && !results.length && <div className="empty-state"><h2>No useful result yet.</h2><p>This search has been recorded as a content gap. Try a shorter phrase or a Scripture reference.</p></div>}
           <div className="search-results">
             {results.map((result) => {
