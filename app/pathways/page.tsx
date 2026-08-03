@@ -12,11 +12,11 @@ export const metadata: Metadata = {
 export default function PathwaysPage() {
   return (
     <>
-      <PageHero eyebrow="Guided Scripture studies" title="Do not collect isolated verses. Follow the pathway." text="Each pathway establishes the starting point, moves through connected passages, and shows how the biblical argument develops." />
-      <section className="section">
+      <PageHero variant="pathways" eyebrow="Guided Scripture studies" title="Do not collect isolated verses. Follow the pathway." text="Each pathway establishes the starting point, moves through connected passages, and shows how the biblical argument develops." />
+      <section className="section pathways-index-section">
         <div className="shell pathway-grid">
           {pathways.map((pathway, index) => (
-            <Link className="pathway-card" href={`/pathways/${pathway.slug}`} key={pathway.slug}>
+            <Link className="pathway-card" href={`/pathways/${pathway.slug}`} key={pathway.slug} data-reveal>
               <span className="pathway-number">{String(index + 1).padStart(2, "0")}</span>
               <Route size={23} />
               <span className="eyebrow">Scripture pathway</span>
