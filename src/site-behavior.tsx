@@ -40,6 +40,23 @@ export function SiteBehavior() {
       if (target?.closest("a")) closeMenu();
     };
 
+    const onSearchPromptClick = (event: MouseEvent) => {
+      const target = event.target as HTMLElement | null;
+      const prompt = target?.closest<HTMLElement>("[data-search-fill]");
+      if (!prompt) return;
+
+      const value = prompt.dataset.searchFill ?? "";
+      const scope = prompt.closest("section, .search-page") ?? document;
+      const input = scope.querySelector<HTMLInputElement>('input[name="q"]')
+        ?? document.querySelector<HTMLInputElement>('input[name="q"]');
+
+      if (!input) return;
+      input.value = value;
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.focus({ preventScroll: true });
+      input.scrollIntoView({ behavior: "smooth", block: "center" });
+    };
+
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
@@ -71,10 +88,12 @@ export function SiteBehavior() {
     mutationObserver.observe(document.body, { childList: true, subtree: true });
     window.addEventListener("scroll", onScroll, { passive: true });
     menu?.addEventListener("click", onMenuClick);
+    document.addEventListener("click", onSearchPromptClick);
 
     return () => {
       window.removeEventListener("scroll", onScroll);
       menu?.removeEventListener("click", onMenuClick);
+      document.removeEventListener("click", onSearchPromptClick);
       observer.disconnect();
       mutationObserver.disconnect();
     };
