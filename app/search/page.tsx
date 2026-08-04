@@ -22,6 +22,12 @@ type SearchResult = {
 };
 
 const icons = { Topic: BookOpen, Answer: HelpCircle, Article: FileText, Scripture: BookOpen, Pathway: Route };
+const searchPrompts = [
+  "Why did Jesus pray?",
+  "John 14:9",
+  "Right hand of God",
+  "Baptism in Jesus' name"
+];
 
 function normalize(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
@@ -69,17 +75,27 @@ export default async function SearchPage({ searchParams }: Props) {
   return (
     <>
       <PageHero
-        eyebrow="Search the library"
+        eyebrow="Search"
         title="Find the question, passage, or doctrine."
-        text={"Use the words you would actually use. Search results connect common phrasing to Apostolic Guide's structured library."}
+        text={"Use the words you would actually use. Search connects common phrasing to Scripture, topics, answers, and guided studies."}
       />
       <section className="section section-tight">
         <div className="shell search-page">
           <SearchForm defaultValue={q} />
           {query && <SearchAnalytics query={query} resultCount={results.length} />}
           {query && <div className="search-result-summary" data-search-result-count={results.length}><strong>{results.length}</strong> result{results.length === 1 ? "" : "s"} for “{q}”</div>}
-          {!query && <div className="empty-state"><h2>Start with a real question.</h2><p>Try “Why did Jesus pray?”, “John 14:9”, “right hand,” or “baptism in Jesus&apos; name.”</p></div>}
-          {query && !results.length && <div className="empty-state"><h2>No useful result yet.</h2><p>This search has been recorded as a content gap. Try a shorter phrase or a Scripture reference.</p></div>}
+          {!query && (
+            <div className="search-prompt-panel">
+              <span className="eyebrow">Start with a question</span>
+              <h2>Choose a prompt or type your own.</h2>
+              <div className="search-prompt-grid" aria-label="Suggested searches">
+                {searchPrompts.map((prompt) => (
+                  <button type="button" data-search-fill={prompt} key={prompt}>{prompt}<ArrowRight size={17} /></button>
+                ))}
+              </div>
+            </div>
+          )}
+          {query && !results.length && <div className="empty-state"><h2>No useful result yet.</h2><p>Try a shorter phrase, a Scripture reference, or one of the suggested questions.</p></div>}
           <div className="search-results">
             {results.map((result) => {
               const Icon = icons[result.type as keyof typeof icons] ?? FileText;
