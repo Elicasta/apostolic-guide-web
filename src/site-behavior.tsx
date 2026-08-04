@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { buildAppUrl } from "./urls";
 
 export function SiteBehavior() {
   useEffect(() => {
@@ -73,6 +74,37 @@ export function SiteBehavior() {
       root.querySelectorAll<HTMLElement>("[data-reveal]:not(.is-visible)").forEach((item) => observer.observe(item));
     };
 
+    const appMenuLink = menu?.querySelector<HTMLAnchorElement>(".mobile-menu-panel > a:last-child");
+    if (appMenuLink) {
+      appMenuLink.textContent = "Try the App";
+      appMenuLink.classList.add("mobile-app-cta");
+    }
+
+    let promo: HTMLAnchorElement | null = null;
+    const homeHero = document.querySelector<HTMLElement>(".editorial-interface .ei-hero");
+    if (homeHero && !document.querySelector(".app-promo-ticker")) {
+      promo = document.createElement("a");
+      promo.className = "app-promo-ticker";
+      promo.href = buildAppUrl("/", { placement: "homepage-ticker" });
+      promo.setAttribute("aria-label", "Try the Apostolic Guide app");
+
+      const track = document.createElement("span");
+      track.className = "app-promo-track";
+      for (let index = 0; index < 6; index += 1) {
+        const item = document.createElement("span");
+        const title = document.createElement("b");
+        const description = document.createElement("i");
+        const arrow = document.createElement("strong");
+        title.textContent = "TRY THE APP";
+        description.textContent = "Search Scripture. Follow pathways. Save your studies.";
+        arrow.textContent = "↗";
+        item.append(title, description, arrow);
+        track.append(item);
+      }
+      promo.append(track);
+      homeHero.insertAdjacentElement("afterend", promo);
+    }
+
     observeRevealItems();
 
     const mutationObserver = new MutationObserver((mutations) => {
@@ -96,6 +128,7 @@ export function SiteBehavior() {
       document.removeEventListener("click", onSearchPromptClick);
       observer.disconnect();
       mutationObserver.disconnect();
+      promo?.remove();
     };
   }, []);
 
