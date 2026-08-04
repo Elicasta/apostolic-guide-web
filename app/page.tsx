@@ -2,9 +2,15 @@ import Link from "next/link";
 import { ArrowRight, ArrowUpRight, BookOpen, Route, Search } from "lucide-react";
 import { SearchForm } from "@/components";
 import { ArticlePoster } from "@/article-poster";
-import { BrandCrown } from "@/brand-marks";
 import { answers, articles, pathways, scriptures, topics } from "@/data";
 import { buildAppUrl } from "@/urls";
+
+const searchPrompts = [
+  "Is Jesus God?",
+  "Why did Jesus pray?",
+  "Right hand of God",
+  "Baptism in Jesus' name"
+];
 
 export default function HomePage() {
   const featuredPathway = pathways[0];
@@ -18,7 +24,7 @@ export default function HomePage() {
       <section className="ei-hero">
         <div className="shell ei-hero-grid">
           <div className="ei-hero-copy">
-            <div className="ei-system-label"><span>AG / PUBLIC LIBRARY</span><span>001—SCRIPTURE</span></div>
+            <div className="ei-system-label"><span>Scripture · Doctrine · Answers</span><span>Search · Study · Understand</span></div>
             <span className="ei-kicker">Scripture first. Questions welcome.</span>
             <h1>Know what you believe.<span>Know why.</span></h1>
             <p>Search Scripture, follow connected passages, and understand Apostolic doctrine from the text itself.</p>
@@ -28,11 +34,11 @@ export default function HomePage() {
             </div>
           </div>
 
-          <aside className="ei-live-index" aria-label="Apostolic Guide live content index">
-            <header><span>LIVE INDEX</span><span>CURATED / 08</span></header>
+          <aside className="ei-live-index" aria-label="Connected Scripture guide">
+            <header><span>Scripture guide</span><span>8 connected entries</span></header>
             <div className="ei-index-query"><Search size={16} /><span>Why did Jesus pray?</span><b>↵</b></div>
             <div className="ei-index-result ei-index-featured">
-              <div><span>BEST MATCH</span><span>{spotlight.reference}</span></div>
+              <div><span>Best match</span><span>{spotlight.reference}</span></div>
               <h2>{spotlight.mainPoint}</h2>
               <p>“{spotlight.text}”</p>
               <Link href={`/scripture/${spotlight.path}`}>Open passage <ArrowRight size={15} /></Link>
@@ -46,7 +52,7 @@ export default function HomePage() {
                 </Link>
               ))}
             </div>
-            <footer><span>Scripture · Doctrine · Answers</span><span>Curated for study</span></footer>
+            <footer><span>Scripture · Doctrine · Answers</span><span>Follow the evidence</span></footer>
           </aside>
         </div>
       </section>
@@ -60,12 +66,11 @@ export default function HomePage() {
           </div>
           <div className="ei-search-control">
             <SearchForm />
-            <div className="ei-search-suggestions">
-              <span>TRY</span>
-              <Link href="/search?q=Is+Jesus+God">Is Jesus God?</Link>
-              <Link href="/search?q=Why+did+Jesus+pray">Why did Jesus pray?</Link>
-              <Link href="/search?q=Right+hand+of+God">Right hand of God</Link>
-              <Link href="/search?q=Baptism+in+Jesus+name">Baptism in Jesus&apos; name</Link>
+            <div className="ei-search-suggestions" aria-label="Suggested searches">
+              <span>Try</span>
+              {searchPrompts.map((prompt) => (
+                <button type="button" data-search-fill={prompt} key={prompt}>{prompt}</button>
+              ))}
             </div>
           </div>
         </div>
@@ -106,7 +111,7 @@ export default function HomePage() {
 
         <div className="shell ei-topic-interface">
           <div className="ei-topic-rail" aria-hidden="true">
-            <span>TOPICS</span><span>08 ENTRIES</span><span>FILTER / ALL</span>
+            <span>Topics</span><span>8 entries</span><span>Browse all</span>
           </div>
           <div className="ei-topic-list">
             {featuredTopics.map((topic, index) => (
@@ -142,7 +147,7 @@ export default function HomePage() {
           </div>
 
           <div className="ei-pathway-interface" data-reveal>
-            <header><span>PATH / {featuredPathway.slug.toUpperCase()}</span><span>STEP SEQUENCE</span></header>
+            <header><span>{featuredPathway.title}</span><span>Step sequence</span></header>
             <div className="ei-pathway-track">
               {featuredPathway.steps.map((step, index) => (
                 <Link href={`/pathways/${featuredPathway.slug}`} className="ei-pathway-step" key={`${step.reference}-${index}`}>
@@ -185,7 +190,6 @@ export default function HomePage() {
       <section className="ei-declaration">
         <div className="shell ei-declaration-grid">
           <div>
-            <BrandCrown className="ag-declaration-crown" />
             <span className="ei-section-number">06</span>
             <span className="ei-kicker ei-kicker-light">Apostolic Guide</span>
             <h2>Jesus is God.<br />Scripture leads the conversation.</h2>
