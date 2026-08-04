@@ -1,7 +1,7 @@
 export const websiteUrl = process.env.NEXT_PUBLIC_WEBSITE_URL ?? "https://apostolicguide.com";
 export const appUrl = "https://apostolicguide-updated.vercel.app";
 
-export function buildAppUrl(path = "/", context?: Record<string, string | undefined>) {
+export function buildDirectAppUrl(path = "/", context?: Record<string, string | undefined>) {
   const url = new URL(path, appUrl);
   url.searchParams.set("source", "website");
   for (const [key, value] of Object.entries(context ?? {})) {
@@ -10,12 +10,13 @@ export function buildAppUrl(path = "/", context?: Record<string, string | undefi
   return url.toString();
 }
 
+export function buildAppUrl(path = "/", context?: Record<string, string | undefined>) {
+  const destination = buildDirectAppUrl(path, context);
+  const handoff = new URL("/app", websiteUrl);
+  handoff.searchParams.set("destination", destination);
+  return handoff.pathname + handoff.search;
+}
+
 export function buildAppSearchUrl(query: string, context?: Record<string, string | undefined>) {
-  const url = new URL("/search", appUrl);
-  url.searchParams.set("q", query);
-  url.searchParams.set("source", "website");
-  for (const [key, value] of Object.entries(context ?? {})) {
-    if (value) url.searchParams.set(key, value);
-  }
-  return url.toString();
+  return buildAppUrl("/search", { ...context, q: query });
 }
