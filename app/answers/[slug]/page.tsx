@@ -3,7 +3,7 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { answerBySlug, answers, scriptures, topicBySlug } from "@/data";
 import { AppBridge, ContentBody, DatabaseDocument, PageHero, ScriptureMiniCard } from "@/components";
-import { ScriptureContextNote, StudyScriptures } from "@/study-guidance";
+import { extractScriptureReferences, ScriptureContextNote, StudyScriptures } from "@/study-guidance";
 import { ShareButton } from "@/share-button";
 import { getDatabaseContent } from "@/database-content";
 
@@ -23,10 +23,11 @@ export default async function AnswerPage({ params }: { params: Promise<{ slug: s
   if (!answer && !database) notFound();
 
   if (!answer && database) {
+    const databaseReferences = extractScriptureReferences([database.summary, database.body]);
     return (
       <>
         <PageHero variant="answers" eyebrow="Direct answer" title={database.title} text={database.summary} />
-        <section className="section"><div className="shell reading-layout"><div /><div><DatabaseDocument body={database.body} /><ShareButton title={database.title} contentKey={`answer:${slug}`} /><StudyScriptures /><AppBridge compact origin={`answer:${slug}`} /></div></div></section>
+        <section className="section"><div className="shell reading-layout"><div /><div><DatabaseDocument body={database.body} /><ShareButton title={database.title} contentKey={`answer:${slug}`} /><StudyScriptures references={databaseReferences} /><AppBridge compact origin={`answer:${slug}`} /></div></div></section>
       </>
     );
   }
