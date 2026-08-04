@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { answerBySlug, answers, scriptures, topicBySlug } from "@/data";
 import { AppBridge, ContentBody, DatabaseDocument, PageHero, ScriptureMiniCard } from "@/components";
+import { ScriptureContextNote, StudyScriptures } from "@/study-guidance";
 import { ShareButton } from "@/share-button";
 import { getDatabaseContent } from "@/database-content";
 
@@ -25,7 +26,7 @@ export default async function AnswerPage({ params }: { params: Promise<{ slug: s
     return (
       <>
         <PageHero variant="answers" eyebrow="Direct answer" title={database.title} text={database.summary} />
-        <section className="section"><div className="shell reading-layout"><div /><div><DatabaseDocument body={database.body} /><ShareButton title={database.title} contentKey={`answer:${slug}`} /><AppBridge compact origin={`answer:${slug}`} /></div></div></section>
+        <section className="section"><div className="shell reading-layout"><div /><div><DatabaseDocument body={database.body} /><ShareButton title={database.title} contentKey={`answer:${slug}`} /><StudyScriptures /><AppBridge compact origin={`answer:${slug}`} /></div></div></section>
       </>
     );
   }
@@ -51,6 +52,7 @@ export default async function AnswerPage({ params }: { params: Promise<{ slug: s
               <h3>Key Scriptures</h3>
               {linked.map((entry) => entry && <ScriptureMiniCard key={entry.slug} reference={entry.reference} point={entry.mainPoint} href={`/scripture/${entry.path}`} />)}
               {linked.length === 0 && resolvedAnswer.scriptures.map((reference) => <div className="scripture-mini" key={reference}><span><strong>{reference}</strong></span></div>)}
+              <ScriptureContextNote />
             </div>
             {topic && (
               <div className="sidebar-card related-topic-card">
@@ -62,6 +64,7 @@ export default async function AnswerPage({ params }: { params: Promise<{ slug: s
             )}
           </aside>
         </div>
+        <StudyScriptures references={resolvedAnswer.scriptures} />
         <AppBridge compact origin={`answer:${resolvedAnswer.slug}`} />
       </div>
     </section>

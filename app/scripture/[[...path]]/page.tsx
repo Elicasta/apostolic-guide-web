@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArrowLeft, ArrowRight, ExternalLink, Search } from "lucide-react";
 import { notFound } from "next/navigation";
 import { AppBridge, PageHero, SearchForm, ScriptureMiniCard } from "@/components";
+import { BibleReferenceLink, ScriptureContextNote, StudyScriptures } from "@/study-guidance";
 import { scriptureByPath, scriptures, topicBySlug } from "@/data";
 import { buildAppSearchUrl } from "@/urls";
 
@@ -30,7 +31,8 @@ export default async function ScripturePage({ params }: Props) {
         <section className="section scripture-index-section">
           <div className="shell scripture-directory-shell">
             <SearchForm />
-            <div className="scripture-directory-intro"><span className="eyebrow">Browse the current library</span><p>The public Scripture library is intentionally curated. The app will hold the larger working reference database.</p></div>
+            <div className="scripture-directory-intro"><span className="eyebrow">Browse the current library</span><p>The Scripture guide is intentionally curated. Use it to locate key passages, then open your Bible and read each one in context.</p></div>
+            <ScriptureContextNote />
             <div className="scripture-library scripture-library-full">
               {scriptures.map((entry) => <ScriptureMiniCard href={`/scripture/${entry.path}`} point={entry.mainPoint} reference={entry.reference} key={entry.slug} />)}
             </div>
@@ -45,6 +47,7 @@ export default async function ScripturePage({ params }: Props) {
   if (!entry) notFound();
   const relatedEntries = entry.related.map((reference) => scriptures.find((item) => item.reference === reference)).filter((item): item is (typeof scriptures)[number] => Boolean(item));
   const topics = entry.topicSlugs.map(topicBySlug).filter((item): item is NonNullable<ReturnType<typeof topicBySlug>> => Boolean(item));
+  const studyReferences = [entry.reference, ...entry.related];
 
   return (
     <>
@@ -53,7 +56,10 @@ export default async function ScripturePage({ params }: Props) {
           <Link className="back-link back-link-light" href="/scripture"><ArrowLeft size={15} /> Scripture library</Link>
           <div className="scripture-reference">{entry.reference}<span>{entry.translation}</span></div>
           <blockquote>“{entry.text}”</blockquote>
-          <a className="button button-paper" href={buildAppSearchUrl(entry.reference, { origin: "scripture-page" })}>Open in app <ExternalLink size={16} /></a>
+          <div className="scripture-hero-actions">
+            <a className="button button-paper" href={buildAppSearchUrl(entry.reference, { origin: "scripture-page" })}>Open in app <ExternalLink size={16} /></a>
+            <BibleReferenceLink reference={entry.reference} className="button button-outline ei-outline-light" />
+          </div>
         </div>
       </section>
 
@@ -70,9 +76,11 @@ export default async function ScripturePage({ params }: Props) {
             <div><strong>Related topics</strong>{topics.map((topic) => <Link href={`/topics/${topic.slug}`} key={topic.slug}>{topic.title}<ArrowRight size={14} /></Link>)}</div>
             <div><strong>Connected passages</strong>{relatedEntries.length ? relatedEntries.map((related) => <Link href={`/scripture/${related.path}`} key={related.slug}>{related.reference}<ArrowRight size={14} /></Link>) : entry.related.map((reference) => <span key={reference}>{reference}</span>)}</div>
             <div><strong>Search this idea</strong><Link href={`/search?q=${encodeURIComponent(entry.mainPoint)}`}><Search size={14} /> Find related content</Link></div>
+            <ScriptureContextNote />
           </aside>
         </div>
       </section>
+      <section className="section section-tight"><div className="shell"><StudyScriptures references={studyReferences} /></div></section>
       <section className="section section-tight"><div className="shell"><AppBridge origin={`scripture-${entry.slug}`} compact /></div></section>
     </>
   );

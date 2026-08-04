@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArrowLeft, ArrowRight, BookOpen, HelpCircle, Route } from "lucide-react";
 import { notFound } from "next/navigation";
 import { AppBridge, PageHero, ScriptureMiniCard, TopicCard } from "@/components";
+import { ScriptureContextNote, StudyScriptures } from "@/study-guidance";
 import { answers, articles, pathways, scriptures, topicBySlug, topics } from "@/data";
 
 export function generateStaticParams() { return topics.map((topic) => ({ slug: topic.slug })); }
@@ -42,6 +43,7 @@ export default async function TopicPage({ params }: Props) {
               <div className="scripture-library topic-scripture-list">
                 {topicScriptures.length ? topicScriptures.map((item) => <ScriptureMiniCard href={`/scripture/${item.path}`} point={item.mainPoint} reference={item.reference} key={item.slug} />) : topic.keyScriptures.map((reference) => <div className="scripture-mini" key={reference}><BookOpen size={19} /><span><strong>{reference}</strong><small>Included in the growing Scripture library.</small></span></div>)}
               </div>
+              <ScriptureContextNote />
             </div>
 
             {topicAnswers.length > 0 && <div className="topic-section-block"><span className="eyebrow">Common questions</span><h2>Answer the real objection.</h2><div className="topic-link-list">{topicAnswers.map((answer) => <Link href={`/answers/${answer.slug}`} key={answer.slug}><HelpCircle size={18} /><span><strong>{answer.question}</strong><small>{answer.shortAnswer}</small></span><ArrowRight size={16} /></Link>)}</div></div>}
@@ -56,6 +58,7 @@ export default async function TopicPage({ params }: Props) {
         </div>
       </section>
 
+      <section className="section section-tight"><div className="shell"><StudyScriptures references={topic.keyScriptures} /></div></section>
       {relatedTopics.length > 0 && <section className="section section-tight related-section"><div className="shell"><span className="eyebrow">Keep studying</span><h2 className="related-heading">Related topics</h2><div className="topic-grid topic-grid-two">{relatedTopics.map((item) => <TopicCard topic={item} key={item.slug} />)}</div></div></section>}
       <section className="section section-tight"><div className="shell"><AppBridge origin={`topic-${topic.slug}`} compact /></div></section>
     </>

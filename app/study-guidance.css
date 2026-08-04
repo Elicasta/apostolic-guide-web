@@ -1,0 +1,286 @@
+/* Scripture-first study guidance */
+
+.scripture-context-note {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 10px 12px;
+  align-items: center;
+  margin-top: 18px;
+  padding-top: 17px;
+  border-top: 1px solid rgba(15, 30, 45, .12);
+  color: #5a6871;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.scripture-context-note svg {
+  color: var(--ag-red, #b3212d);
+}
+
+.scripture-context-note strong {
+  color: var(--ag-navy, #0f1e2d);
+}
+
+.scripture-context-note a,
+.study-method-links a,
+.bible-reference-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ag-red, #b3212d);
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.study-scriptures {
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(300px, .95fr);
+  gap: clamp(34px, 6vw, 76px);
+  align-items: start;
+  margin: clamp(54px, 8vw, 88px) 0 18px;
+  padding: clamp(34px, 5vw, 54px) 0;
+  border-block: 1px solid rgba(15, 30, 45, .15);
+}
+
+.study-scriptures::after {
+  content: "";
+  position: absolute;
+  top: -80px;
+  right: 8%;
+  width: 240px;
+  height: 260px;
+  transform: rotate(20deg);
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(179, 33, 45, .055), transparent);
+}
+
+.study-scriptures-copy,
+.study-scriptures-actions {
+  position: relative;
+  z-index: 1;
+}
+
+.study-scriptures-copy h2 {
+  max-width: 680px;
+  margin: 17px 0 18px;
+  color: var(--ag-navy, #0f1e2d);
+  font-size: clamp(38px, 5vw, 64px);
+  line-height: .98;
+  letter-spacing: -.045em;
+  text-wrap: balance;
+}
+
+.study-scriptures-copy p {
+  max-width: 720px;
+  margin: 0;
+  color: #4f5d66;
+  font-size: clamp(16px, 1.7vw, 19px);
+  line-height: 1.65;
+}
+
+.study-reference-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+}
+
+.study-reference-list .bible-reference-link {
+  padding: 10px 13px;
+  border: 1px solid rgba(15, 30, 45, .14);
+  border-radius: 999px;
+  color: var(--ag-navy, #0f1e2d);
+  background: rgba(255, 255, 255, .72);
+  box-shadow: inset 0 1px rgba(255, 255, 255, .8);
+  font-size: 13px;
+  transition: border-color .2s ease, color .2s ease, transform .2s ease;
+}
+
+.study-reference-list .bible-reference-link:hover,
+.study-reference-list .bible-reference-link:focus-visible {
+  transform: translateY(-1px);
+  border-color: rgba(179, 33, 45, .42);
+  color: var(--ag-red, #b3212d);
+}
+
+.study-method-links {
+  display: grid;
+  gap: 12px;
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(15, 30, 45, .1);
+}
+
+.study-method-links a {
+  width: fit-content;
+}
+
+.pathway-study-actions,
+.scripture-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 18px;
+  align-items: center;
+  margin-top: 18px;
+}
+
+.pathway-study-actions .text-link {
+  margin: 0;
+}
+
+.pathway-study-actions .bible-reference-link {
+  font-size: 14px;
+}
+
+.scripture-hero-actions .bible-reference-link.button {
+  color: #fff;
+}
+
+/* How Apostolic Guide works */
+
+.how-method-intro {
+  padding-bottom: 26px;
+}
+
+.how-method-intro-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.12fr) minmax(280px, .88fr);
+  gap: clamp(36px, 7vw, 92px);
+  align-items: end;
+}
+
+.how-method-intro h2 {
+  max-width: 820px;
+  margin: 18px 0 0;
+  color: var(--ag-navy, #0f1e2d);
+  font-size: clamp(42px, 6vw, 76px);
+  line-height: .97;
+  letter-spacing: -.05em;
+  text-wrap: balance;
+}
+
+.how-method-intro p {
+  margin: 0;
+  color: #4f5d66;
+  font-size: clamp(18px, 2vw, 22px);
+  line-height: 1.65;
+}
+
+.study-method-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: clamp(38px, 7vw, 92px);
+}
+
+.study-method-step {
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr);
+  gap: 18px;
+  padding: 30px 0 34px;
+  border-top: 1px solid rgba(15, 30, 45, .16);
+}
+
+.study-method-step > span {
+  color: var(--ag-red, #b3212d);
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: .15em;
+}
+
+.study-method-step h2 {
+  margin: 0 0 10px;
+  color: var(--ag-navy, #0f1e2d);
+  font-size: clamp(26px, 3vw, 38px);
+  line-height: 1.04;
+  letter-spacing: -.035em;
+}
+
+.study-method-step p {
+  margin: 0;
+  color: #56636c;
+  line-height: 1.65;
+}
+
+.study-method-principle {
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(260px, .9fr);
+  gap: clamp(34px, 6vw, 72px);
+  padding: clamp(38px, 6vw, 68px);
+  border-radius: 28px;
+  color: #fff;
+  background:
+    radial-gradient(circle at 86% 14%, rgba(179, 33, 45, .25), transparent 28%),
+    var(--ag-navy, #0f1e2d);
+  box-shadow: 0 24px 64px rgba(15, 30, 45, .16);
+}
+
+.study-method-principle h2 {
+  max-width: 760px;
+  margin: 17px 0 0;
+  font-size: clamp(42px, 6vw, 72px);
+  line-height: .98;
+  letter-spacing: -.05em;
+  text-wrap: balance;
+}
+
+.study-method-principle p {
+  align-self: end;
+  margin: 0;
+  color: #c9d2d7;
+  font-size: 18px;
+  line-height: 1.65;
+}
+
+.how-method-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 28px;
+}
+
+@media (max-width: 760px) {
+  .scripture-context-note {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .scripture-context-note a {
+    grid-column: 2;
+  }
+
+  .study-scriptures,
+  .how-method-intro-grid,
+  .study-method-principle {
+    grid-template-columns: 1fr;
+  }
+
+  .study-scriptures {
+    gap: 30px;
+    margin-top: 46px;
+  }
+
+  .study-method-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .study-method-step {
+    grid-template-columns: 38px minmax(0, 1fr);
+    gap: 14px;
+  }
+
+  .study-method-principle {
+    border-radius: 22px;
+  }
+
+  .how-method-actions .button {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .study-reference-list .bible-reference-link {
+    transition: none;
+  }
+}

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArrowLeft, ArrowRight, Clock3, ExternalLink } from "lucide-react";
 import { notFound } from "next/navigation";
 import { AppBridge } from "@/components";
+import { BibleReferenceLink, StudyScriptures } from "@/study-guidance";
 import { pathwayBySlug, pathways, scriptures, topicBySlug } from "@/data";
 import { buildAppUrl } from "@/urls";
 
@@ -25,6 +26,7 @@ export default async function PathwayPage({ params }: Props) {
   const currentIndex = pathways.findIndex((item) => item.slug === pathway.slug);
   const previous = currentIndex > 0 ? pathways[currentIndex - 1] : null;
   const next = currentIndex < pathways.length - 1 ? pathways[currentIndex + 1] : null;
+  const pathwayReferences = pathway.steps.map((step) => step.reference);
 
   return (
     <>
@@ -53,7 +55,10 @@ export default async function PathwayPage({ params }: Props) {
                     <h2>{step.title}</h2>
                     <p>{step.explanation}</p>
                     {scripture && <blockquote>“{scripture.text}”</blockquote>}
-                    {scripture && <Link className="text-link" href={`/scripture/${scripture.path}`}>Study passage <ArrowRight size={15} /></Link>}
+                    <div className="pathway-study-actions">
+                      {scripture && <Link className="text-link" href={`/scripture/${scripture.path}`}>Study passage <ArrowRight size={15} /></Link>}
+                      <BibleReferenceLink reference={step.reference} />
+                    </div>
                   </div>
                 </article>
               );
@@ -70,6 +75,7 @@ export default async function PathwayPage({ params }: Props) {
         </div>
       </section>
 
+      <section className="section section-tight"><div className="shell"><StudyScriptures references={pathwayReferences} /></div></section>
       <section className="section section-tight pathway-pagination-section">
         <div className="shell pathway-pagination">
           {previous ? <Link href={`/pathways/${previous.slug}`}><span>Previous pathway</span><strong><ArrowLeft size={17} /> {previous.title}</strong></Link> : <span />}

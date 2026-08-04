@@ -44,7 +44,8 @@ export function SiteHeader() {
               {navLinks.map(([label, href]) => <Link key={href} href={href}>{label}</Link>)}
               <Link href="/answers">Common Questions</Link>
               <Link href="/beliefs">What We Believe</Link>
-              <a href={buildAppUrl("/", { placement: "mobile-menu" })}>Open App</a>
+              <Link href="/how-it-works">How Apostolic Guide Works</Link>
+              <a className="mobile-app-cta" href={buildAppUrl("/", { placement: "mobile-menu" })}>Try the App</a>
             </div>
           </details>
         </div>
@@ -59,10 +60,10 @@ export function SiteFooter() {
       <div className="shell footer-grid">
         <div className="footer-brand"><Brand reversed /><p>Search the Scriptures. Know what you believe.</p></div>
         <div><strong>Study</strong><Link href="/topics">Topics</Link><Link href="/answers">Answers</Link><Link href="/scripture">Scripture</Link><Link href="/pathways">Pathways</Link></div>
-        <div><strong>Project</strong><Link href="/articles">Articles</Link><Link href="/media">Media</Link><Link href="/beliefs">Beliefs</Link><Link href="/about">About</Link><Link href="/contact">Contact</Link></div>
-        <div><strong>Continue</strong><a href={buildAppUrl("/", { placement: "footer" })}>Open the app</a><Link href="/links">All links</Link><Link href="/admin">Admin</Link><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link></div>
+        <div><strong>Project</strong><Link href="/articles">Articles</Link><Link href="/media">Media</Link><Link href="/beliefs">Beliefs</Link><Link href="/how-it-works">How It Works</Link><Link href="/about">About</Link><Link href="/contact">Contact</Link></div>
+        <div><strong>Continue</strong><a href={buildAppUrl("/", { placement: "footer" })}>Try the app</a><Link href="/links">All links</Link><Link href="/admin">Admin</Link><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link></div>
       </div>
-      <div className="shell footer-bottom"><span>© {new Date().getFullYear()} Apostolic Guide</span><span>Scripture · Doctrine · Answers</span></div>
+      <div className="shell footer-bottom"><span>© {new Date().getFullYear()} Apostolic Guide</span><span>Scripture first. Read every passage for yourself.</span></div>
     </footer>
   );
 }

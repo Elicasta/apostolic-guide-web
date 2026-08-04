@@ -12,6 +12,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { path: "/scripture", priority: .9, changeFrequency: "weekly" },
     { path: "/pathways", priority: .85, changeFrequency: "weekly" },
     { path: "/articles", priority: .85, changeFrequency: "weekly" },
+    { path: "/how-it-works", priority: .82, changeFrequency: "monthly" },
     { path: "/media", priority: .7, changeFrequency: "monthly" },
     { path: "/beliefs", priority: .8, changeFrequency: "monthly" },
     { path: "/about", priority: .6, changeFrequency: "monthly" },
