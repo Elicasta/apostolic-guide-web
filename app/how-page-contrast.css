@@ -1,0 +1,63 @@
+/* How Apostolic Guide Works: deliberate contrast and depth */
+
+.how-page .page-hero {
+  background: #f4f5f3 !important;
+}
+
+.how-page .page-hero-art {
+  padding: clamp(10px, 2vw, 18px);
+  border: 1px solid rgba(15, 30, 45, .08);
+  border-radius: 28px;
+  background: #e8ebed;
+  box-shadow: 0 24px 64px rgba(15, 30, 45, .10);
+}
+
+.how-page .scripture-signal {
+  color: #f7f8f8 !important;
+  background:
+    radial-gradient(circle at 85% 18%, rgba(179, 33, 45, .18), transparent 30%),
+    #26333d !important;
+  border: 1px solid rgba(255, 255, 255, .14) !important;
+  box-shadow:
+    inset 0 1px rgba(255, 255, 255, .12),
+    0 20px 42px rgba(15, 30, 45, .18) !important;
+}
+
+.how-page .scripture-signal .signal-topline,
+.how-page .scripture-signal .signal-copy strong,
+.how-page .scripture-signal .signal-related {
+  color: #f6f7f8 !important;
+  opacity: 1 !important;
+}
+
+.how-page .scripture-signal .signal-copy span {
+  color: #e5eaed !important;
+}
+
+.how-page .scripture-signal .signal-reference,
+.how-page .scripture-signal .signal-related b {
+  color: #f2a0a8 !important;
+}
+
+.how-page .scripture-signal .signal-related > span {
+  border-color: rgba(255, 255, 255, .18) !important;
+}
+
+.how-page .page-hero-word {
+  color: rgba(255, 255, 255, .045) !important;
+}
+
+.how-page .how-method-intro {
+  background: #f7f7f5;
+}
+
+@media (max-width: 760px) {
+  .how-page .page-hero-art {
+    padding: 10px;
+    border-radius: 22px;
+  }
+
+  .how-page .scripture-signal {
+    min-height: 310px;
+  }
+}
