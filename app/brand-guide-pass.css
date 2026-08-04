@@ -1,0 +1,414 @@
+/* Apostolic Guide — brand guide alignment */
+:root {
+  --paper: #f6f6f4;
+  --white: #ffffff;
+  --ink: #0f1e2d;
+  --ink-2: #2c2f33;
+  --muted: #647079;
+  --line: #d7d9dc;
+  --crimson: #b3212d;
+  --blue: #0f1e2d;
+  --blue-soft: #e8ecef;
+  --ag-concrete: #d7d9dc;
+  --ag-charcoal: #2c2f33;
+  --ag-navy: #0f1e2d;
+  --ag-red: #b3212d;
+}
+
+html,
+body {
+  background: #f6f6f4;
+  color: var(--ag-navy);
+}
+
+body {
+  background-image:
+    radial-gradient(circle at 14% 18%, rgba(15,30,45,.025), transparent 22rem),
+    radial-gradient(circle at 88% 70%, rgba(44,47,51,.022), transparent 28rem);
+}
+
+::selection { background: var(--ag-red); color: white; }
+:focus-visible { outline-color: rgba(179,33,45,.45); }
+
+/* Remove the graph-paper and yellow cast entirely. */
+.ei-hero,
+.hr-hero,
+.hero,
+.page-hero {
+  background-color: #f6f6f4;
+  background-image: none !important;
+}
+
+.hero::before,
+.ei-hero::before,
+.hr-hero::before,
+.page-hero::before {
+  background-image: none !important;
+}
+
+.ei-hero {
+  position: relative;
+  isolation: isolate;
+}
+
+.ei-hero::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at 82% 20%, rgba(255,255,255,.92), transparent 23rem),
+    radial-gradient(ellipse at 16% 92%, rgba(15,30,45,.035), transparent 30rem);
+}
+
+.ei-system-label,
+.ei-library-header {
+  border-color: rgba(15,30,45,.17);
+  color: #6f7a82;
+}
+
+/* Exact brand color corrections. */
+.button-crimson,
+.search-form button {
+  background: var(--ag-red);
+}
+
+.button-dark,
+.ei-topics,
+.ei-declaration,
+.site-footer,
+.pathway-hero,
+.ei-article-header {
+  background-color: var(--ag-navy);
+}
+
+.ei-editorial,
+.ei-article-library {
+  background: var(--ag-concrete);
+}
+
+.ei-questions,
+.ei-search,
+.ei-pathway,
+.answer-detail-page {
+  background-color: #f6f6f4;
+}
+
+/* Crown mark */
+.ag-crown-mark {
+  display: block;
+  width: 100%;
+  height: auto;
+  color: currentColor;
+  overflow: visible;
+}
+
+.ag-crown-mark .ag-crown-underline {
+  color: var(--ag-red);
+}
+
+.ag-hero-crown {
+  width: 62px;
+  margin: 34px 0 4px;
+  color: var(--ag-navy);
+}
+
+.ag-declaration-crown {
+  width: 78px;
+  margin-bottom: 28px;
+  color: white;
+}
+
+.ag-article-crown {
+  width: 82px;
+  margin-top: 46px;
+  color: white;
+}
+
+/* Remove all orbit/globe and grid motifs. */
+.ei-orbit,
+.ei-article-header-orbits,
+.ei-article-header-grid {
+  display: none !important;
+}
+
+/* Poster system rebuilt from the brand guide. */
+.ei-article-poster {
+  border-color: rgba(15,30,45,.16);
+  border-radius: 18px;
+  box-shadow: 0 18px 44px rgba(15,30,45,.1);
+}
+
+.ei-poster-0 {
+  color: var(--ag-navy);
+  background: #ffffff;
+}
+
+.ei-poster-1 {
+  color: white;
+  background: var(--ag-navy);
+}
+
+.ei-poster-2 {
+  color: white;
+  background: var(--ag-red);
+}
+
+.ei-poster-3 {
+  color: white;
+  background: var(--ag-charcoal);
+}
+
+.ei-poster-0::before,
+.ei-poster-3::before {
+  display: none;
+}
+
+.ei-poster-2 .ei-poster-graphic {
+  transform: none;
+}
+
+.ag-poster-graphic {
+  position: absolute;
+  inset: 68px 22px auto;
+  height: 170px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  color: currentColor;
+}
+
+.ag-poster-crown {
+  position: relative;
+  z-index: 2;
+  width: 92px;
+  opacity: .95;
+}
+
+.ag-poster-slash {
+  position: absolute;
+  left: 0;
+  top: 112px;
+  width: 86px;
+  height: 5px;
+  background: var(--ag-red);
+  transform: rotate(-2deg);
+  transform-origin: left center;
+}
+
+.ei-poster-2 .ag-poster-slash {
+  background: white;
+}
+
+.ei-poster-2 .ag-crown-underline {
+  color: white;
+}
+
+.ei-poster-index {
+  color: currentColor;
+  opacity: .07;
+}
+
+.ei-poster-copy h3 {
+  letter-spacing: -.035em;
+  line-height: .96;
+}
+
+.ei-poster-copy p {
+  max-width: 34ch;
+  opacity: .75;
+}
+
+/* Dark editorial sections: mood comes from light breaking through, not yellow tint. */
+.ei-live-index,
+.ei-pathway-interface,
+.app-bridge,
+.ei-article-header,
+.pathway-hero,
+.ei-declaration {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background-color: var(--ag-navy);
+  background-image:
+    linear-gradient(118deg, transparent 0 55%, rgba(255,255,255,.08) 64%, rgba(255,255,255,.025) 73%, transparent 82%),
+    radial-gradient(ellipse at 82% 18%, rgba(255,255,255,.07), transparent 26rem);
+}
+
+.ei-live-index::before,
+.ei-pathway-interface::before,
+.app-bridge::before,
+.ei-article-header::before,
+.pathway-hero::before,
+.ei-declaration::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: .34;
+  background:
+    radial-gradient(circle at 8% 14%, rgba(255,255,255,.12) 0 1px, transparent 1.5px),
+    radial-gradient(circle at 62% 72%, rgba(255,255,255,.08) 0 1px, transparent 1.5px),
+    radial-gradient(circle at 92% 38%, rgba(255,255,255,.07) 0 1px, transparent 1.5px);
+}
+
+/* Preserve readable contrast on dark glass. */
+.ei-live-index,
+.ei-live-index h2,
+.ei-live-index strong,
+.ei-pathway-interface,
+.ei-pathway-interface strong,
+.app-bridge,
+.app-bridge h2,
+.pathway-hero,
+.pathway-hero h1,
+.ei-article-header,
+.ei-article-header h1,
+.ei-declaration,
+.ei-declaration h2 {
+  color: white;
+}
+
+.ei-live-index p,
+.ei-live-index small,
+.ei-pathway-interface small,
+.app-bridge p,
+.pathway-hero p,
+.ei-article-header p,
+.ei-declaration p {
+  color: #c7cdd2;
+}
+
+/* Neutral surfaces, no creamy paper cards. */
+.ei-index-featured,
+.answer-summary,
+.sidebar-card,
+.pathway-summary-card,
+.search-form,
+.mobile-menu-panel {
+  background: rgba(255,255,255,.88);
+  border-color: rgba(15,30,45,.13);
+}
+
+.ei-index-featured {
+  color: var(--ag-navy);
+}
+
+.app-bridge {
+  background-color: var(--ag-navy) !important;
+  border-color: rgba(255,255,255,.14) !important;
+}
+
+.app-bridge .button-paper {
+  background: white;
+  color: var(--ag-navy);
+}
+
+/* Brand-guide accents. */
+.ei-kicker,
+.eyebrow,
+.hr-kicker,
+.ei-topic-number,
+.ei-section-number,
+.text-link,
+.ei-editorial-link a,
+.ei-dark-link {
+  color: var(--ag-red);
+}
+
+.ei-kicker-light,
+.eyebrow-light,
+.hr-kicker-light {
+  color: #e6a5aa;
+}
+
+.ei-kicker::before,
+.eyebrow::before,
+.hr-kicker::before {
+  background: currentColor;
+}
+
+.ei-topic-row:hover .ei-topic-word {
+  color: rgba(179,33,45,.2);
+}
+
+/* Article header now uses the crown, not globe graphics. */
+.ei-article-header-inner {
+  padding-top: 70px;
+}
+
+.ei-article-header .eyebrow {
+  margin-top: 20px;
+}
+
+.ei-article-header h1 {
+  max-width: 11ch;
+}
+
+/* Subtle concrete texture through tone, not visible grid lines. */
+.ei-editorial,
+.ei-article-library {
+  position: relative;
+  isolation: isolate;
+}
+
+.ei-editorial::before,
+.ei-article-library::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  pointer-events: none;
+  opacity: .25;
+  background:
+    radial-gradient(circle at 12% 22%, rgba(44,47,51,.08), transparent 1px),
+    radial-gradient(circle at 72% 64%, rgba(44,47,51,.06), transparent 1px),
+    radial-gradient(circle at 92% 14%, rgba(255,255,255,.7), transparent 1px);
+  background-size: 19px 23px, 31px 37px, 43px 41px;
+}
+
+@media (max-width: 620px) {
+  .ag-hero-crown {
+    width: 52px;
+    margin-top: 26px;
+  }
+
+  .ag-declaration-crown,
+  .ag-article-crown {
+    width: 64px;
+  }
+
+  .ag-poster-crown {
+    width: 76px;
+  }
+
+  .ag-poster-graphic {
+    height: 146px;
+  }
+
+  .ag-poster-slash {
+    top: 96px;
+    width: 70px;
+  }
+
+  .ei-hero-copy h1,
+  .content-header h1,
+  .pathway-hero h1,
+  .ei-article-header h1 {
+    letter-spacing: -.025em;
+    line-height: .98;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .ei-live-index,
+  .ei-pathway-interface,
+  .app-bridge,
+  .site-header,
+  .mobile-menu-panel {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+}

@@ -1,0 +1,307 @@
+/* Apostolic Guide — overlap, contrast, and interaction cleanup */
+
+/* Remove failed decorative marks everywhere. */
+.ag-crown-mark,
+.ag-poster-crown,
+.ag-poster-monogram {
+  display: none !important;
+}
+
+/* Keep the glass header neutral instead of inheriting section colors. */
+.site-header {
+  background: rgba(246, 246, 244, .94) !important;
+  border-bottom-color: rgba(15, 30, 45, .12) !important;
+  box-shadow: 0 8px 28px rgba(15, 30, 45, .06) !important;
+}
+
+/* Public page heroes: readable type and visitor-facing labels. */
+.page-hero-default {
+  color: var(--ag-navy) !important;
+  background: #f6f6f4 !important;
+}
+
+.page-hero-default .page-hero-copy h1 {
+  color: var(--ag-navy) !important;
+}
+
+.page-hero-default .page-hero-copy p {
+  color: #4d5a63 !important;
+}
+
+.page-hero-default .page-hero-copy .eyebrow {
+  color: var(--ag-red) !important;
+}
+
+.page-hero-default .page-hero-word {
+  display: none !important;
+}
+
+.signal-topline span:first-child {
+  font-size: 0;
+}
+
+.signal-topline span:first-child::after {
+  content: "SCRIPTURE CONNECTIONS";
+  font-size: 9px;
+  letter-spacing: .14em;
+}
+
+/* Fix the pale result card inside the dark Scripture guide. */
+.ei-index-featured {
+  color: var(--ag-navy) !important;
+  background: rgba(248, 248, 247, .96) !important;
+  border-color: rgba(15, 30, 45, .12) !important;
+}
+
+.ei-index-featured h2 {
+  color: var(--ag-navy) !important;
+  text-shadow: none !important;
+}
+
+.ei-index-featured p {
+  color: #53616a !important;
+  opacity: 1 !important;
+}
+
+.ei-index-featured > div span:first-child,
+.ei-index-featured a {
+  color: var(--ag-red) !important;
+}
+
+.ei-index-featured > div span:last-child {
+  color: var(--ag-red) !important;
+}
+
+/* Study posters: no AG/crown collisions and less empty vertical space. */
+.ag-poster-graphic {
+  inset: 66px 24px auto !important;
+  height: 74px !important;
+  pointer-events: none;
+}
+
+.ag-poster-rule {
+  position: absolute;
+  left: 0;
+  top: 18px;
+  width: 52px;
+  height: 3px;
+  border-radius: 999px;
+  background: currentColor;
+  opacity: .72;
+}
+
+.ei-poster-2 .ag-poster-rule {
+  background: white;
+}
+
+.ei-poster-index {
+  top: -20px !important;
+  right: -2px !important;
+  font-size: 118px !important;
+  opacity: .045 !important;
+}
+
+.ei-article-poster {
+  min-height: 445px !important;
+  padding: 24px !important;
+}
+
+.ei-poster-copy {
+  margin-top: auto !important;
+  padding: 112px 0 22px !important;
+}
+
+.ei-poster-copy h3 {
+  margin: 0 0 16px !important;
+  font-size: clamp(34px, 3vw, 48px) !important;
+  line-height: 1 !important;
+  letter-spacing: -.03em !important;
+  text-wrap: balance;
+}
+
+.ei-poster-copy p {
+  color: currentColor;
+  opacity: .76 !important;
+}
+
+/* Remove accidental decorative overlap in article headers. */
+.ei-article-header .ag-article-crown {
+  display: none !important;
+}
+
+.ei-article-header .eyebrow {
+  margin-top: 34px !important;
+}
+
+/* Search suggestions now behave as interface controls. */
+.ei-search-suggestions button,
+.search-prompt-grid button {
+  appearance: none;
+  border: 1px solid rgba(15, 30, 45, .16);
+  color: var(--ag-navy);
+  background: rgba(255, 255, 255, .68);
+  font: inherit;
+  cursor: pointer;
+  transition: transform .22s ease, border-color .22s ease, background-color .22s ease, color .22s ease;
+}
+
+.ei-search-suggestions button {
+  padding: 8px 12px;
+  border-radius: 999px;
+  font-size: 13px;
+}
+
+.ei-search-suggestions button:hover,
+.search-prompt-grid button:hover {
+  transform: translateY(-2px);
+  color: white;
+  border-color: var(--ag-red);
+  background: var(--ag-red);
+}
+
+.search-prompt-panel {
+  margin-top: 54px;
+  padding: clamp(30px, 5vw, 56px);
+  border: 1px solid rgba(15, 30, 45, .13);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, .72);
+  box-shadow: 0 20px 50px rgba(15, 30, 45, .06);
+}
+
+.search-prompt-panel h2 {
+  max-width: 620px;
+  margin: 20px 0 28px;
+  color: var(--ag-navy);
+  font-size: clamp(32px, 5vw, 56px);
+  line-height: 1;
+  letter-spacing: -.04em;
+}
+
+.search-prompt-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.search-prompt-grid button {
+  min-height: 66px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 14px 18px;
+  border-radius: 16px;
+  text-align: left;
+  font-weight: 800;
+}
+
+/* Improve placeholder and form contrast. */
+.search-form input {
+  color: var(--ag-navy) !important;
+}
+
+.search-form input::placeholder {
+  color: #7a8389 !important;
+  opacity: 1;
+}
+
+/* Reduce overly technical visual noise. */
+.ei-system-label,
+.ei-live-index > header,
+.ei-live-index > footer,
+.ei-pathway-interface > header,
+.ei-pathway-interface > footer,
+.ei-library-header,
+.ei-article-header-meta {
+  text-transform: uppercase;
+  letter-spacing: .11em !important;
+}
+
+/* Mobile-specific overlap and scale corrections. */
+@media (max-width: 620px) {
+  .ei-system-label {
+    display: none !important;
+  }
+
+  .ei-hero-grid {
+    padding-top: 54px !important;
+  }
+
+  .ei-live-index {
+    margin-top: 12px;
+  }
+
+  .ei-index-featured {
+    padding: 24px !important;
+  }
+
+  .ei-index-featured h2 {
+    font-size: 28px !important;
+    line-height: 1.04 !important;
+  }
+
+  .ei-index-featured p {
+    font-size: 17px !important;
+    line-height: 1.45 !important;
+  }
+
+  .ei-article-poster {
+    min-height: 400px !important;
+    padding: 20px !important;
+  }
+
+  .ag-poster-graphic {
+    inset: 62px 20px auto !important;
+    height: 58px !important;
+  }
+
+  .ag-poster-rule {
+    top: 12px;
+    width: 44px;
+  }
+
+  .ei-poster-index {
+    top: -14px !important;
+    font-size: 100px !important;
+  }
+
+  .ei-poster-copy {
+    padding-top: 82px !important;
+    padding-bottom: 18px !important;
+  }
+
+  .ei-poster-copy h3 {
+    font-size: clamp(34px, 10.5vw, 44px) !important;
+    line-height: 1.02 !important;
+  }
+
+  .ei-poster-copy p {
+    font-size: 15px !important;
+    line-height: 1.48 !important;
+  }
+
+  .search-prompt-panel {
+    margin-top: 34px;
+    padding: 26px 20px;
+    border-radius: 20px;
+  }
+
+  .search-prompt-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .search-prompt-grid button {
+    min-height: 58px;
+  }
+
+  .page-hero-default .page-hero-copy h1 {
+    font-size: clamp(48px, 14vw, 68px) !important;
+    line-height: 1 !important;
+    letter-spacing: -.02em !important;
+  }
+
+  .page-hero-default .page-hero-copy p {
+    font-size: 17px !important;
+    line-height: 1.5 !important;
+  }
+}

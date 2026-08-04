@@ -1,0 +1,55 @@
+/* Final spacing and card-density audit */
+.answers-list { margin-top:36px; }
+.answers-index-section { background:linear-gradient(to bottom,#f5f7f4,#eef2ef); }
+.answer-detail-page { padding-bottom:72px; }
+.related-topic-card { padding-top:30px; }
+.related-topic-card .eyebrow { margin-bottom:0; }
+.related-topic-card .eyebrow + h3 { margin-top:21px; margin-bottom:14px; }
+.related-topic-card h3 + p { margin-top:0; }
+
+.question-grid {
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:14px;
+  border:0;
+}
+.question-link {
+  min-height:155px;
+  gap:22px;
+  padding:22px 24px;
+  border:1px solid var(--line);
+  border-radius:17px;
+  background:rgba(255,255,255,.72);
+  transition:transform .2s ease, box-shadow .2s ease, background .2s ease;
+}
+.question-link:hover {
+  transform:translateY(-3px);
+  background:white;
+  box-shadow:0 18px 42px rgba(16,32,42,.08);
+}
+.question-link span { border:0; }
+
+.home-media-card,
+.study-step,
+.question-link { overflow:hidden; }
+.home-media-card { transition:transform .25s ease, background .25s ease; }
+.home-media-card:hover { transform:translateY(-5px); }
+.home-media-card:hover .home-media-number { transform:translate3d(-8px,7px,0); color:rgba(255,255,255,.13); }
+.home-media-number { transition:transform .6s cubic-bezier(.2,.7,.2,1), color .25s ease; }
+.study-step { transition:transform .2s ease, background .2s ease; }
+.study-step:hover { transform:translateX(5px); background:rgba(255,255,255,.075); }
+
+.scripture-detail-section { background:linear-gradient(90deg,#f5f7f4 0%,#f5f7f4 72%,#edf1ee 72%); }
+.scripture-sidebar > div { background:rgba(255,255,255,.7); backdrop-filter:blur(8px); }
+
+@media (max-width:650px) {
+  .question-grid { grid-template-columns:1fr; gap:11px; }
+  .question-link { min-height:118px; padding:19px 20px; gap:16px; font-size:20px; }
+  .question-link span { font-size:11px; }
+  .answers-list { margin-top:26px; }
+  .answers-list .list-row { padding:20px 18px; }
+  .answers-list .list-row h3 { font-size:25px; }
+  .answers-list .list-row p { margin-top:8px; font-size:14px; line-height:1.5; }
+  .answer-detail-page { padding-bottom:52px; }
+  .related-topic-card { padding-top:27px; }
+  .scripture-detail-section { background:var(--paper); }
+}

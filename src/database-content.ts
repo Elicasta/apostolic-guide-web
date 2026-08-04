@@ -15,9 +15,28 @@ export type DatabaseContentItem = {
   updatedAt?: string;
 };
 
-function mapItem(row: any): DatabaseContentItem {
+type PublicationRow = {
+  channel?: string;
+  status?: string;
+  published_at?: string | null;
+};
+
+type ContentRow = {
+  id: string;
+  kind: string;
+  slug: string;
+  title: string;
+  summary: string;
+  source_system?: string;
+  editorial_status?: string;
+  updated_at?: string;
+  documents?: { body_json?: unknown } | null;
+  publications?: PublicationRow[] | PublicationRow | null;
+};
+
+function mapItem(row: ContentRow): DatabaseContentItem {
   const publications = Array.isArray(row.publications) ? row.publications : row.publications ? [row.publications] : [];
-  const websitePublication = publications.find((publication: any) => publication.channel === "website");
+  const websitePublication = publications.find((publication) => publication.channel === "website");
   return {
     id: row.id,
     kind: row.kind,
@@ -46,7 +65,7 @@ export async function listDatabaseContent(kind?: string): Promise<DatabaseConten
     if (kind) query = query.eq("kind", kind);
     const { data, error } = await query;
     if (error || !data) return [];
-    return data.map(mapItem);
+    return (data as ContentRow[]).map(mapItem);
   } catch {
     return [];
   }
@@ -64,7 +83,7 @@ export async function listAdminContent(): Promise<DatabaseContentItem[]> {
       .is("deleted_at", null)
       .order("updated_at", { ascending: false });
     if (error || !data) return [];
-    return data.map(mapItem);
+    return (data as ContentRow[]).map(mapItem);
   } catch {
     return [];
   }

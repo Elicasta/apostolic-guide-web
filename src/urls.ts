@@ -1,5 +1,5 @@
 export const websiteUrl = process.env.NEXT_PUBLIC_WEBSITE_URL ?? "https://apostolicguide.com";
-export const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.apostolicguide.com";
+export const appUrl = "https://apostolicguide-updated.vercel.app";
 
 export function buildAppUrl(path = "/", context?: Record<string, string | undefined>) {
   const url = new URL(path, appUrl);

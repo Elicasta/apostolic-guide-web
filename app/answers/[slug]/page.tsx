@@ -24,7 +24,7 @@ export default async function AnswerPage({ params }: { params: Promise<{ slug: s
   if (!answer && database) {
     return (
       <>
-        <PageHero eyebrow="Direct answer" title={database.title} text={database.summary} />
+        <PageHero variant="answers" eyebrow="Direct answer" title={database.title} text={database.summary} />
         <section className="section"><div className="shell reading-layout"><div /><div><DatabaseDocument body={database.body} /><ShareButton title={database.title} contentKey={`answer:${slug}`} /><AppBridge compact origin={`answer:${slug}`} /></div></div></section>
       </>
     );
@@ -35,7 +35,7 @@ export default async function AnswerPage({ params }: { params: Promise<{ slug: s
   const linked = resolvedAnswer.scriptures.map((reference) => scriptures.find((entry) => entry.reference === reference || reference.includes(entry.reference.split("–")[0]))).filter(Boolean);
 
   return (
-    <section>
+    <section className="answer-detail-page">
       <div className="shell">
         <header className="content-header">
           <span className="eyebrow">Answer · {topic?.title}</span>
@@ -43,7 +43,7 @@ export default async function AnswerPage({ params }: { params: Promise<{ slug: s
           <p className="lede">{resolvedAnswer.summary}</p>
           <ShareButton title={resolvedAnswer.question} contentKey={`answer:${resolvedAnswer.slug}`} />
         </header>
-        <div className="answer-summary"><strong>Direct answer</strong><p>{resolvedAnswer.shortAnswer}</p></div>
+        <div className="answer-summary" data-reveal><strong>Direct answer</strong><p>{resolvedAnswer.shortAnswer}</p></div>
         <div className="topic-page-grid">
           <ContentBody sections={resolvedAnswer.sections} />
           <aside>
@@ -53,7 +53,7 @@ export default async function AnswerPage({ params }: { params: Promise<{ slug: s
               {linked.length === 0 && resolvedAnswer.scriptures.map((reference) => <div className="scripture-mini" key={reference}><span><strong>{reference}</strong></span></div>)}
             </div>
             {topic && (
-              <div className="sidebar-card" style={{ marginTop: 18 }}>
+              <div className="sidebar-card related-topic-card">
                 <span className="eyebrow">Related topic</span>
                 <h3>{topic.title}</h3>
                 <p>{topic.claim}</p>

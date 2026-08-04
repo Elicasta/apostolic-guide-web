@@ -7,8 +7,10 @@ import { listDatabaseContent } from "@/database-content";
 import { SearchAnalytics } from "@/search-analytics";
 
 export const metadata: Metadata = {
-  title: "Search",
-  description: "Search Apostolic Guide by question, doctrine, Scripture, objection, or phrase."
+  title: "Search Scripture and Apostolic Doctrine",
+  description: "Search Apostolic Guide by question, doctrine, Scripture reference, objection, or phrase.",
+  robots: { index: false, follow: true },
+  alternates: { canonical: "/search" }
 };
 
 type Props = { searchParams: Promise<{ q?: string }> };
@@ -22,6 +24,12 @@ type SearchResult = {
 };
 
 const icons = { Topic: BookOpen, Answer: HelpCircle, Article: FileText, Scripture: BookOpen, Pathway: Route };
+const searchPrompts = [
+  "Why did Jesus pray?",
+  "John 14:9",
+  "Right hand of God",
+  "Baptism in Jesus' name"
+];
 
 function normalize(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
@@ -69,16 +77,24 @@ export default async function SearchPage({ searchParams }: Props) {
   return (
     <>
       <PageHero
-        eyebrow="Search the library"
+        eyebrow="Search Scripture and doctrine"
         title="Find the question, passage, or doctrine."
-        text="Use the words you would actually use. Search results connect common phrasing to Apostolic Guide's structured library."
+        text={"Use the words you would actually use. Search connects common phrasing to Scripture, topics, answers, and guided studies."}
       />
       <section className="section section-tight">
         <div className="shell search-page">
           <SearchForm defaultValue={q} />
           {query && <SearchAnalytics query={query} resultCount={results.length} />}
           {query && <div className="search-result-summary" data-search-result-count={results.length}><strong>{results.length}</strong> result{results.length === 1 ? "" : "s"} for “{q}”</div>}
-          {!query && <div className="empty-state"><h2>Start with a real question.</h2><p>Try “Why did Jesus pray?”, “John 14:9”, “right hand,” or “baptism in Jesus' name.”</p></div>}
+          {!query && (
+            <section className="search-prompt-panel" aria-labelledby="search-prompt-title">
+              <span className="eyebrow">Popular starting points</span>
+              <h2 id="search-prompt-title">Choose a question to place it in the search field.</h2>
+              <div className="search-prompt-grid">
+                {searchPrompts.map((prompt) => <button type="button" data-search-prompt={prompt} key={prompt}>{prompt}<ArrowRight size={16} /></button>)}
+              </div>
+            </section>
+          )}
           {query && !results.length && <div className="empty-state"><h2>No useful result yet.</h2><p>This search has been recorded as a content gap. Try a shorter phrase or a Scripture reference.</p></div>}
           <div className="search-results">
             {results.map((result) => {

@@ -34,6 +34,7 @@ export default async function ArticlePage({ params }: Props) {
   const title = local?.title ?? database!.title;
   const summary = local?.summary ?? database!.summary;
   const topic = local ? topicBySlug(local.topicSlug) : null;
+  const issue = String(Math.max(1, articles.findIndex((article) => article.slug === slug) + 1)).padStart(2, "0");
   const structuredData = {
     "@context": "https://schema.org",
     "@type": "Article",
@@ -50,9 +51,12 @@ export default async function ArticlePage({ params }: Props) {
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }} />
       <article className="article-page">
-        <header className="article-header">
-          <div className="shell article-header-inner">
-            <Link className="back-link" href="/articles"><ArrowLeft size={16} /> All articles</Link>
+        <header className="article-header ei-article-header">
+          <div className="shell article-header-inner ei-article-header-inner">
+            <div className="ei-article-header-meta">
+              <Link className="back-link" href="/articles"><ArrowLeft size={16} /> All studies</Link>
+              <span>Study / {issue}</span>
+            </div>
             <span className="eyebrow eyebrow-light">{local?.eyebrow ?? "Published study"}</span>
             <h1>{title}</h1>
             <p>{summary}</p>
@@ -62,6 +66,7 @@ export default async function ArticlePage({ params }: Props) {
               {topic && <Link href={`/topics/${topic.slug}`}>{topic.title}</Link>}
               <ShareButton title={title} contentKey={`article:${slug}`} />
             </div>
+            <span className="ei-article-watermark" aria-hidden>{issue}</span>
           </div>
         </header>
         <div className="shell reading-layout">
