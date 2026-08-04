@@ -7,8 +7,10 @@ import { listDatabaseContent } from "@/database-content";
 import { SearchAnalytics } from "@/search-analytics";
 
 export const metadata: Metadata = {
-  title: "Search",
-  description: "Search Apostolic Guide by question, doctrine, Scripture, objection, or phrase."
+  title: "Search Scripture and Apostolic Doctrine",
+  description: "Search Apostolic Guide by question, doctrine, Scripture reference, objection, or phrase.",
+  robots: { index: false, follow: true },
+  alternates: { canonical: "/search" }
 };
 
 type Props = { searchParams: Promise<{ q?: string }> };
@@ -75,7 +77,7 @@ export default async function SearchPage({ searchParams }: Props) {
   return (
     <>
       <PageHero
-        eyebrow="Search"
+        eyebrow="Search Scripture and doctrine"
         title="Find the question, passage, or doctrine."
         text={"Use the words you would actually use. Search connects common phrasing to Scripture, topics, answers, and guided studies."}
       />
@@ -85,17 +87,15 @@ export default async function SearchPage({ searchParams }: Props) {
           {query && <SearchAnalytics query={query} resultCount={results.length} />}
           {query && <div className="search-result-summary" data-search-result-count={results.length}><strong>{results.length}</strong> result{results.length === 1 ? "" : "s"} for “{q}”</div>}
           {!query && (
-            <div className="search-prompt-panel">
-              <span className="eyebrow">Start with a question</span>
-              <h2>Choose a prompt or type your own.</h2>
-              <div className="search-prompt-grid" aria-label="Suggested searches">
-                {searchPrompts.map((prompt) => (
-                  <button type="button" data-search-fill={prompt} key={prompt}>{prompt}<ArrowRight size={17} /></button>
-                ))}
+            <section className="search-prompt-panel" aria-labelledby="search-prompt-title">
+              <span className="eyebrow">Popular starting points</span>
+              <h2 id="search-prompt-title">Choose a question to place it in the search field.</h2>
+              <div className="search-prompt-grid">
+                {searchPrompts.map((prompt) => <button type="button" data-search-prompt={prompt} key={prompt}>{prompt}<ArrowRight size={16} /></button>)}
               </div>
-            </div>
+            </section>
           )}
-          {query && !results.length && <div className="empty-state"><h2>No useful result yet.</h2><p>Try a shorter phrase, a Scripture reference, or one of the suggested questions.</p></div>}
+          {query && !results.length && <div className="empty-state"><h2>No useful result yet.</h2><p>This search has been recorded as a content gap. Try a shorter phrase or a Scripture reference.</p></div>}
           <div className="search-results">
             {results.map((result) => {
               const Icon = icons[result.type as keyof typeof icons] ?? FileText;
