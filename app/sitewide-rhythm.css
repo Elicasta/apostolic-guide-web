@@ -1,0 +1,621 @@
+/* Apostolic Guide — sitewide spacing, contrast, and rhythm system */
+
+:root {
+  --space-1: 8px;
+  --space-2: 12px;
+  --space-3: 16px;
+  --space-4: 24px;
+  --space-5: 32px;
+  --space-6: 48px;
+  --space-7: 64px;
+  --space-8: 88px;
+  --text-muted-light: #53616a;
+  --text-muted-dark: #cbd4da;
+  --surface-light: #f6f6f4;
+  --surface-white: #ffffff;
+}
+
+/* Shared section rhythm */
+.section,
+.ei-search,
+.ei-questions,
+.ei-topics,
+.ei-pathway,
+.ei-editorial,
+.ei-declaration {
+  padding-block: clamp(64px, 8vw, 96px);
+}
+
+.section-tight {
+  padding-block: clamp(48px, 6vw, 72px);
+}
+
+.section-heading,
+.ei-section-heading,
+.ei-editorial-heading {
+  margin-bottom: clamp(32px, 5vw, 56px);
+}
+
+.section-heading h2,
+.ei-section-heading h2,
+.ei-editorial-heading h2,
+.ei-section-intro h2,
+.ei-pathway-copy h2 {
+  margin-top: 18px;
+  margin-bottom: 0;
+}
+
+.section-heading p,
+.ei-section-heading > p,
+.ei-editorial-heading > p,
+.ei-section-intro > p,
+.ei-pathway-copy > p {
+  color: var(--text-muted-light);
+  line-height: 1.65;
+}
+
+/* All public heroes use one readable light system. */
+.page-hero,
+.page-hero-default,
+.page-hero-topics,
+.page-hero-scripture,
+.page-hero-pathways,
+.page-hero-media,
+.page-hero-answers {
+  color: var(--ag-navy) !important;
+  background: var(--surface-light) !important;
+}
+
+.page-hero-inner {
+  grid-template-columns: minmax(0, .9fr) minmax(360px, .72fr);
+  gap: clamp(44px, 7vw, 92px);
+  align-items: center;
+  padding-block: clamp(58px, 7vw, 84px) !important;
+}
+
+.page-hero-copy {
+  min-width: 0;
+}
+
+.page-hero-copy .eyebrow,
+.page-hero .eyebrow-light {
+  color: var(--ag-red) !important;
+}
+
+.page-hero-copy h1,
+.page-hero h1 {
+  max-width: 900px;
+  margin: 20px 0 24px;
+  color: var(--ag-navy) !important;
+  line-height: .98;
+  letter-spacing: -.045em;
+  text-wrap: balance;
+}
+
+.page-hero-copy p,
+.page-hero p {
+  max-width: 680px;
+  margin: 0;
+  color: var(--text-muted-light) !important;
+  line-height: 1.62;
+}
+
+.page-hero-art {
+  min-width: 0;
+}
+
+.scripture-signal {
+  color: #f7f8f8;
+  background-color: #4f5960;
+  border-color: rgba(15, 30, 45, .12);
+  box-shadow: 0 22px 54px rgba(15, 30, 45, .12);
+}
+
+.scripture-signal .signal-topline,
+.scripture-signal .signal-related,
+.scripture-signal .signal-copy strong {
+  color: #f5f7f8;
+}
+
+.scripture-signal .signal-reference,
+.scripture-signal .signal-related b {
+  color: #f0a3aa;
+}
+
+/* Directory controls should sit close enough to their hero. */
+.page-hero + .section,
+.page-hero + .section-tight {
+  padding-top: clamp(48px, 6vw, 72px);
+}
+
+.interactive-directory,
+.search-page {
+  gap: 28px;
+}
+
+.directory-toolbar {
+  gap: 16px;
+  padding-bottom: 22px;
+}
+
+.directory-search,
+.search-form {
+  border-color: rgba(15, 30, 45, .15);
+  background: rgba(255, 255, 255, .94);
+  box-shadow: 0 12px 30px rgba(15, 30, 45, .05);
+}
+
+.directory-search input,
+.search-form input {
+  color: var(--ag-navy) !important;
+}
+
+.directory-search input::placeholder,
+.search-form input::placeholder {
+  color: #707b82 !important;
+  opacity: 1;
+}
+
+.filter-pills {
+  gap: 8px;
+}
+
+.filter-pills button {
+  color: #53616a;
+  border-color: rgba(15, 30, 45, .15);
+  background: rgba(255, 255, 255, .6);
+}
+
+/* Homepage interface contrast */
+.ei-live-index,
+.ei-pathway-interface,
+.app-bridge,
+.ei-article-header,
+.pathway-hero,
+.ei-declaration {
+  color: white;
+}
+
+.ei-live-index p,
+.ei-live-index small,
+.ei-pathway-interface small,
+.app-bridge p,
+.ei-article-header p,
+.pathway-hero p,
+.ei-declaration p {
+  color: var(--text-muted-dark) !important;
+}
+
+.ei-live-index > header,
+.ei-live-index > footer,
+.ei-pathway-interface > header,
+.ei-pathway-interface > footer {
+  color: #dce3e7;
+}
+
+.ei-index-query {
+  color: #eef2f4;
+}
+
+.ei-index-featured {
+  color: var(--ag-navy) !important;
+  background: #f8f8f7 !important;
+}
+
+.ei-index-featured h2 {
+  color: var(--ag-navy) !important;
+}
+
+.ei-index-featured p {
+  color: #53616a !important;
+}
+
+.ei-index-links a {
+  color: #f5f7f8;
+}
+
+.ei-index-links a strong {
+  color: #ffffff;
+}
+
+/* Article library and poster spacing */
+.ei-article-library {
+  padding-block: clamp(56px, 7vw, 82px) !important;
+}
+
+.ei-library-header {
+  margin-bottom: clamp(28px, 4vw, 42px);
+  padding-bottom: 18px;
+  color: #59666f;
+}
+
+.ei-poster-grid-library,
+.ei-poster-grid {
+  margin-top: 0 !important;
+  gap: clamp(16px, 2vw, 22px);
+}
+
+.ei-article-poster {
+  min-height: 410px !important;
+  padding: 24px !important;
+}
+
+.ei-poster-copy {
+  padding-top: 72px !important;
+  padding-bottom: 22px !important;
+}
+
+.ei-poster-copy h3 {
+  margin-bottom: 16px !important;
+  line-height: 1.01 !important;
+  letter-spacing: -.025em !important;
+}
+
+.ei-poster-copy p {
+  max-width: 35ch;
+  line-height: 1.55;
+}
+
+.ei-article-poster > footer {
+  padding-top: 18px;
+}
+
+/* Article detail header: stop clipping and crowded metadata. */
+.ei-article-header {
+  min-height: auto !important;
+}
+
+.ei-article-header-inner {
+  width: min(100% - 48px, 1180px) !important;
+  padding-block: clamp(48px, 7vw, 76px) !important;
+}
+
+.ei-article-header-meta {
+  padding-bottom: 20px;
+}
+
+.ei-article-header .eyebrow {
+  margin-top: 34px !important;
+}
+
+.ei-article-header h1 {
+  max-width: 920px !important;
+  margin: 22px 0 26px !important;
+  font-size: clamp(54px, 8vw, 108px) !important;
+  line-height: .94 !important;
+  letter-spacing: -.045em !important;
+  text-wrap: balance;
+}
+
+.ei-article-header-inner > p {
+  max-width: 760px;
+  margin: 0 0 30px;
+  color: var(--text-muted-dark) !important;
+  line-height: 1.58;
+}
+
+.article-byline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px !important;
+  align-items: center;
+}
+
+.article-byline > span,
+.article-byline > a,
+.article-byline > button {
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border: 1px solid rgba(255, 255, 255, .2);
+  border-radius: 999px;
+  color: #e4eaed !important;
+  background: rgba(255, 255, 255, .035);
+  line-height: 1;
+  text-decoration: none;
+}
+
+/* Reading pages: one predictable vertical rhythm. */
+.reading-layout,
+.topic-page-grid,
+.scripture-detail-grid,
+.pathway-study-layout {
+  padding-block: clamp(60px, 8vw, 96px);
+}
+
+.reading-layout {
+  gap: clamp(48px, 7vw, 80px) !important;
+}
+
+.reading-aside {
+  padding-top: 22px;
+  border-top: 2px solid var(--ag-navy);
+}
+
+.reading-aside strong {
+  display: block;
+  margin-bottom: 22px;
+}
+
+.reading-aside a {
+  display: block;
+  margin-bottom: 14px;
+  color: #5b6871;
+  line-height: 1.45;
+}
+
+.prose-content {
+  display: grid;
+  gap: clamp(44px, 6vw, 68px);
+}
+
+.prose-content section {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.prose-content section + section {
+  margin-top: 0 !important;
+}
+
+.prose-content h2 {
+  margin: 0 0 20px !important;
+  color: var(--ag-navy);
+  line-height: 1.05;
+  letter-spacing: -.035em;
+}
+
+.prose-content p {
+  margin: 0;
+  color: #263642;
+}
+
+.prose-content p + p {
+  margin-top: 18px;
+}
+
+.prose-content blockquote {
+  margin: 26px 0 0;
+}
+
+.prose-content + .app-bridge {
+  margin-top: clamp(56px, 7vw, 82px) !important;
+}
+
+.app-bridge {
+  padding: clamp(34px, 5vw, 54px) !important;
+  border-radius: 24px !important;
+}
+
+.app-bridge h2 {
+  margin: 18px 0 18px;
+  line-height: .98;
+  letter-spacing: -.04em;
+}
+
+.app-bridge p {
+  max-width: 620px;
+  margin: 0 0 28px;
+  line-height: 1.58;
+}
+
+.app-bridge .button {
+  margin-top: 4px;
+}
+
+/* Cards and detail sections */
+.topic-summary,
+.content-section,
+.topic-section-block,
+.pathway-study-step,
+.scripture-explanation section {
+  scroll-margin-top: 110px;
+}
+
+.topic-summary {
+  padding-bottom: 46px;
+}
+
+.content-section,
+.topic-section-block {
+  padding-block: clamp(40px, 5vw, 56px);
+}
+
+.content-section-heading {
+  margin-bottom: 26px;
+}
+
+.topic-sidebar,
+.scripture-explanation,
+.pathway-study-layout {
+  gap: clamp(36px, 5vw, 58px);
+}
+
+/* Search prompt and result spacing */
+.search-prompt-panel {
+  margin-top: 36px !important;
+}
+
+.search-results {
+  display: grid;
+  gap: 14px;
+  margin-top: 32px;
+}
+
+.search-result-summary {
+  margin-top: 24px;
+  color: #5b6871;
+}
+
+/* Mobile */
+@media (max-width: 720px) {
+  .shell,
+  .ei-article-header-inner {
+    width: min(100% - 32px, 1180px) !important;
+  }
+
+  .section,
+  .ei-search,
+  .ei-questions,
+  .ei-topics,
+  .ei-pathway,
+  .ei-editorial,
+  .ei-declaration {
+    padding-block: 64px;
+  }
+
+  .section-tight {
+    padding-block: 48px;
+  }
+
+  .page-hero-inner {
+    grid-template-columns: 1fr;
+    gap: 38px;
+    padding-block: 52px !important;
+  }
+
+  .page-hero-copy h1,
+  .page-hero h1 {
+    margin: 18px 0 20px;
+    font-size: clamp(48px, 13vw, 66px) !important;
+    line-height: .98 !important;
+    letter-spacing: -.028em !important;
+  }
+
+  .page-hero-copy p,
+  .page-hero p {
+    font-size: 17px !important;
+    line-height: 1.55 !important;
+  }
+
+  .page-hero-art {
+    width: 100%;
+  }
+
+  .scripture-signal {
+    width: 100%;
+  }
+
+  .page-hero + .section,
+  .page-hero + .section-tight {
+    padding-top: 48px;
+  }
+
+  .directory-toolbar {
+    gap: 14px;
+  }
+
+  .filter-pills {
+    padding-bottom: 8px;
+  }
+
+  .ei-article-library {
+    padding-block: 52px !important;
+  }
+
+  .ei-library-header {
+    margin-bottom: 28px;
+  }
+
+  .ei-article-poster {
+    min-height: 360px !important;
+    padding: 20px !important;
+  }
+
+  .ei-poster-copy {
+    padding-top: 54px !important;
+    padding-bottom: 18px !important;
+  }
+
+  .ei-poster-copy h3 {
+    font-size: clamp(34px, 10vw, 43px) !important;
+  }
+
+  .ei-article-header-inner {
+    padding-block: 44px 52px !important;
+  }
+
+  .ei-article-header-meta {
+    gap: 16px;
+  }
+
+  .ei-article-header .eyebrow {
+    margin-top: 28px !important;
+  }
+
+  .ei-article-header h1 {
+    margin: 18px 0 22px !important;
+    font-size: clamp(50px, 13vw, 70px) !important;
+    line-height: .98 !important;
+  }
+
+  .ei-article-header-inner > p {
+    font-size: 18px;
+    line-height: 1.55;
+  }
+
+  .article-byline {
+    gap: 8px !important;
+  }
+
+  .article-byline > span,
+  .article-byline > a,
+  .article-byline > button {
+    min-height: 36px;
+    padding: 7px 10px;
+    font-size: 13px;
+  }
+
+  .reading-layout,
+  .topic-page-grid,
+  .scripture-detail-grid,
+  .pathway-study-layout {
+    padding-block: 58px;
+  }
+
+  .reading-layout {
+    gap: 46px !important;
+  }
+
+  .prose-content {
+    gap: 50px;
+  }
+
+  .prose-content h2 {
+    margin-bottom: 18px !important;
+    font-size: clamp(34px, 9vw, 44px);
+  }
+
+  .prose-content p {
+    font-size: 18px;
+    line-height: 1.7;
+  }
+
+  .prose-content + .app-bridge {
+    margin-top: 58px !important;
+  }
+
+  .app-bridge {
+    padding: 30px 24px !important;
+  }
+
+  .app-bridge h2 {
+    margin: 16px 0;
+    font-size: 40px !important;
+  }
+
+  .app-bridge p {
+    margin-bottom: 24px;
+    font-size: 17px;
+  }
+
+  .search-form {
+    padding: 14px !important;
+  }
+
+  .search-prompt-panel {
+    margin-top: 28px !important;
+  }
+}
