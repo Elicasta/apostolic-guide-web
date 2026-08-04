@@ -19,6 +19,7 @@ import "./moody-light.css";
 import "./brand-guide-pass.css";
 import "./final-polish.css";
 import "./cleanup-pass.css";
+import "./sitewide-rhythm.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL(websiteUrl),
