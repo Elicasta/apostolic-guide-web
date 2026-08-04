@@ -3,7 +3,6 @@ import Link from "next/link";
 import { ArrowLeft, Clock3 } from "lucide-react";
 import { notFound } from "next/navigation";
 import { AppBridge, ContentBody, DatabaseDocument } from "@/components";
-import { BrandCrown } from "@/brand-marks";
 import { ShareButton } from "@/share-button";
 import { articleBySlug, articles, topicBySlug } from "@/data";
 import { getDatabaseContent } from "@/database-content";
@@ -56,9 +55,8 @@ export default async function ArticlePage({ params }: Props) {
           <div className="shell article-header-inner ei-article-header-inner">
             <div className="ei-article-header-meta">
               <Link className="back-link" href="/articles"><ArrowLeft size={16} /> All studies</Link>
-              <span>AG / STUDY {issue}</span>
+              <span>Study / {issue}</span>
             </div>
-            <BrandCrown className="ag-article-crown" />
             <span className="eyebrow eyebrow-light">{local?.eyebrow ?? "Published study"}</span>
             <h1>{title}</h1>
             <p>{summary}</p>
