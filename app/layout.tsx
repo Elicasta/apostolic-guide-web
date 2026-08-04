@@ -26,6 +26,7 @@ import "./app-conversion.css";
 import "./app-conversion-fix.css";
 import "./study-guidance.css";
 import "./reading-rhythm-final.css";
+import "./how-page-contrast.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL(websiteUrl),
