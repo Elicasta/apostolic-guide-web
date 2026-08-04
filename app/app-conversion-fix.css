@@ -1,0 +1,43 @@
+/* Final app CTA integration */
+
+.mobile-menu-panel > a:last-child {
+  margin-top: 12px;
+  padding: 16px 18px !important;
+  border: 0 !important;
+  border-radius: 14px;
+  color: transparent !important;
+  background: var(--ag-red, #b3212d) !important;
+  box-shadow: 0 14px 30px rgba(179, 33, 45, .22);
+  font-size: 0;
+}
+
+.mobile-menu-panel > a:last-child::before {
+  content: "Try the App";
+  color: #fff;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.mobile-menu-panel > a:last-child:hover,
+.mobile-menu-panel > a:last-child:focus-visible {
+  background: #971b25 !important;
+}
+
+.app-promo-ticker {
+  margin: 0;
+}
+
+.app-promo-track > span {
+  flex: 0 0 auto;
+}
+
+@media (max-width: 720px) {
+  .app-promo-track > span {
+    min-height: 52px;
+    padding-inline: 18px;
+  }
+
+  .app-promo-track b {
+    font-size: 11px;
+  }
+}
