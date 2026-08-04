@@ -3,7 +3,7 @@ import Link from "next/link";
 import { ArrowLeft, Clock3 } from "lucide-react";
 import { notFound } from "next/navigation";
 import { AppBridge, ContentBody, DatabaseDocument } from "@/components";
-import { StudyScriptures } from "@/study-guidance";
+import { extractScriptureReferences, StudyScriptures } from "@/study-guidance";
 import { ShareButton } from "@/share-button";
 import { articleBySlug, articles, topicBySlug } from "@/data";
 import { getDatabaseContent } from "@/database-content";
@@ -35,7 +35,12 @@ export default async function ArticlePage({ params }: Props) {
   const title = local?.title ?? database!.title;
   const summary = local?.summary ?? database!.summary;
   const topic = local ? topicBySlug(local.topicSlug) : null;
-  const references = local?.sections.flatMap((section) => section.scripture ? [section.scripture.reference] : []) ?? [];
+  const references = local
+    ? Array.from(new Set([
+        ...local.sections.flatMap((section) => section.scripture ? [section.scripture.reference] : []),
+        ...extractScriptureReferences(local.sections)
+      ]))
+    : extractScriptureReferences([database!.summary, database!.body]);
   const issue = String(Math.max(1, articles.findIndex((article) => article.slug === slug) + 1)).padStart(2, "0");
   const structuredData = {
     "@context": "https://schema.org",
