@@ -39,7 +39,7 @@ const steps = [
 
 export default function HowItWorksPage() {
   return (
-    <>
+    <div className="how-page">
       <PageHero
         variant="scripture"
         eyebrow="How Apostolic Guide works"
@@ -95,6 +95,6 @@ export default function HowItWorksPage() {
           <Link className="text-link" href="/topics">Begin with a doctrine <ArrowRight size={15} /></Link>
         </div>
       </section>
-    </>
+    </div>
   );
 }
