@@ -1,0 +1,155 @@
+/* Final long-form reading rhythm. Loaded last to override legacy page spacing. */
+
+.prose-content,
+.answer-detail-page .prose-content,
+.article-page .prose-content {
+  gap: clamp(32px, 4.5vw, 48px) !important;
+}
+
+.prose-content section,
+.answer-detail-page .prose-content section,
+.article-page .prose-content section,
+.content-section,
+.scripture-explanation section {
+  min-height: 0 !important;
+  height: auto !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.prose-content h2 {
+  margin: 0 0 14px !important;
+}
+
+.prose-content p {
+  line-height: 1.62 !important;
+}
+
+.prose-content p + p {
+  margin-top: 14px !important;
+}
+
+.prose-content blockquote {
+  margin-top: 20px !important;
+}
+
+.answer-detail-page .topic-page-grid,
+.topic-page-grid,
+.reading-layout,
+.scripture-detail-grid,
+.pathway-study-layout {
+  align-items: start !important;
+  row-gap: clamp(28px, 4vw, 44px) !important;
+}
+
+.answer-detail-page .topic-page-grid > aside,
+.topic-page-grid > aside,
+.reading-layout > aside,
+.scripture-sidebar,
+.topic-sidebar {
+  margin-top: 0 !important;
+  align-self: start !important;
+}
+
+.sidebar-card {
+  padding: clamp(22px, 3vw, 30px) !important;
+}
+
+.sidebar-card h3 {
+  margin: 0 0 18px !important;
+}
+
+.scripture-mini {
+  min-height: 0 !important;
+  padding-block: 15px !important;
+}
+
+.scripture-context-note {
+  margin-top: 12px !important;
+  padding-top: 14px !important;
+}
+
+.study-scriptures {
+  margin-top: clamp(38px, 5vw, 58px) !important;
+  padding-block: clamp(30px, 4vw, 44px) !important;
+}
+
+.prose-content + .study-scriptures,
+.prose-content + .app-bridge,
+.study-scriptures + .app-bridge {
+  margin-top: clamp(36px, 5vw, 58px) !important;
+}
+
+@media (max-width: 760px) {
+  .reading-layout,
+  .topic-page-grid,
+  .scripture-detail-grid,
+  .pathway-study-layout {
+    padding-block: 42px !important;
+    gap: 30px !important;
+  }
+
+  .answer-detail-page .topic-page-grid {
+    gap: 28px !important;
+  }
+
+  .prose-content,
+  .answer-detail-page .prose-content,
+  .article-page .prose-content {
+    gap: 32px !important;
+  }
+
+  .prose-content h2 {
+    margin-bottom: 12px !important;
+    font-size: clamp(32px, 8.6vw, 42px) !important;
+    line-height: 1.03 !important;
+  }
+
+  .prose-content p {
+    font-size: 18px !important;
+    line-height: 1.58 !important;
+  }
+
+  .prose-content p + p {
+    margin-top: 12px !important;
+  }
+
+  .sidebar-card {
+    padding: 24px 20px !important;
+    border-radius: 22px !important;
+  }
+
+  .sidebar-card h3 {
+    margin-bottom: 14px !important;
+  }
+
+  .scripture-mini {
+    padding-block: 14px !important;
+  }
+
+  .scripture-context-note {
+    gap: 8px 10px !important;
+    margin-top: 10px !important;
+    padding-top: 13px !important;
+  }
+
+  .study-scriptures {
+    gap: 24px !important;
+    margin-top: 34px !important;
+    padding-block: 30px !important;
+  }
+
+  .study-scriptures-copy h2 {
+    margin: 14px 0 14px !important;
+    font-size: clamp(36px, 10vw, 48px) !important;
+  }
+
+  .study-scriptures-copy p {
+    line-height: 1.55 !important;
+  }
+
+  .study-method-links {
+    margin-top: 18px !important;
+    padding-top: 16px !important;
+  }
+}
