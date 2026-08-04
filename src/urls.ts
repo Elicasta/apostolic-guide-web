@@ -12,7 +12,7 @@ export function buildDirectAppUrl(path = "/", context?: Record<string, string | 
 
 export function buildAppUrl(path = "/", context?: Record<string, string | undefined>) {
   const destination = buildDirectAppUrl(path, context);
-  const handoff = new URL("/app", websiteUrl);
+  const handoff = new URL("/install-app", websiteUrl);
   handoff.searchParams.set("destination", destination);
   return handoff.pathname + handoff.search;
 }
