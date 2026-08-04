@@ -24,8 +24,7 @@
 }
 
 .how-page .scripture-signal .signal-topline,
-.how-page .scripture-signal .signal-copy strong,
-.how-page .scripture-signal .signal-related {
+.how-page .scripture-signal .signal-copy strong {
   color: #f6f7f8 !important;
   opacity: 1 !important;
 }
@@ -36,11 +35,29 @@
 
 .how-page .scripture-signal .signal-reference,
 .how-page .scripture-signal .signal-related b {
-  color: #f2a0a8 !important;
+  color: #f3a6ad !important;
+  opacity: 1 !important;
+}
+
+.how-page .scripture-signal .signal-related {
+  color: #b7c4ce !important;
+  opacity: 1 !important;
+}
+
+.how-page .scripture-signal .signal-related span,
+.how-page .scripture-signal .signal-related small,
+.how-page .scripture-signal .signal-related em,
+.how-page .scripture-signal .signal-related a {
+  color: #b7c4ce !important;
+  opacity: 1 !important;
 }
 
 .how-page .scripture-signal .signal-related > span {
-  border-color: rgba(255, 255, 255, .18) !important;
+  border-color: rgba(183, 196, 206, .34) !important;
+}
+
+.how-page .scripture-signal .signal-related > span + span {
+  border-left-color: rgba(183, 196, 206, .34) !important;
 }
 
 .how-page .page-hero-word {
