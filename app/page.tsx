@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowRight, ArrowUpRight, BookOpen, Route, Search } from "lucide-react";
 import { SearchForm } from "@/components";
+import { AppPromoBanner } from "@/app-promo-banner";
 import { ArticlePoster } from "@/article-poster";
 import { answers, articles, pathways, scriptures, topics } from "@/data";
 import { buildAppUrl } from "@/urls";
@@ -56,6 +57,8 @@ export default function HomePage() {
           </aside>
         </div>
       </section>
+
+      <AppPromoBanner />
 
       <section className="ei-search" id="search">
         <div className="shell ei-section-grid">
