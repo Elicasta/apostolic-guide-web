@@ -45,7 +45,6 @@ export default async function ScripturePage({ params }: Props) {
 
   const entry = scriptureByPath(path.join("/"));
   if (!entry) notFound();
-  const relatedEntries = entry.related.map((reference) => scriptures.find((item) => item.reference === reference)).filter((item): item is (typeof scriptures)[number] => Boolean(item));
   const topics = entry.topicSlugs.map(topicBySlug).filter((item): item is NonNullable<ReturnType<typeof topicBySlug>> => Boolean(item));
   const studyReferences = [entry.reference, ...entry.related];
 
@@ -74,7 +73,15 @@ export default async function ScripturePage({ params }: Props) {
 
           <aside className="scripture-sidebar">
             <div><strong>Related topics</strong>{topics.map((topic) => <Link href={`/topics/${topic.slug}`} key={topic.slug}>{topic.title}<ArrowRight size={14} /></Link>)}</div>
-            <div><strong>Connected passages</strong>{relatedEntries.length ? relatedEntries.map((related) => <Link href={`/scripture/${related.path}`} key={related.slug}>{related.reference}<ArrowRight size={14} /></Link>) : entry.related.map((reference) => <span key={reference}>{reference}</span>)}</div>
+            <div>
+              <strong>Connected passages</strong>
+              {entry.related.map((reference) => {
+                const related = scriptures.find((item) => item.reference === reference);
+                return related
+                  ? <Link href={`/scripture/${related.path}`} key={reference}>{reference}<ArrowRight size={14} /></Link>
+                  : <Link href={`/search?q=${encodeURIComponent(reference)}`} key={reference}>{reference}<Search size={14} /></Link>;
+              })}
+            </div>
             <div><strong>Search this idea</strong><Link href={`/search?q=${encodeURIComponent(entry.mainPoint)}`}><Search size={14} /> Find related content</Link></div>
             <ScriptureContextNote />
           </aside>
