@@ -1,0 +1,224 @@
+/* Apostolic Guide — editorial divider system
+   One accent rule, one neutral rule, and one pathway transition language. */
+
+:root {
+  --ag-accent-rule-width: clamp(38px, 5vw, 62px);
+  --ag-accent-rule-thickness: 3px;
+  --ag-neutral-rule: rgba(15, 30, 45, 0.14);
+  --ag-neutral-rule-dark: rgba(255, 255, 255, 0.15);
+}
+
+/* --------------------------------------------------------------------------
+   Short editorial accent rules
+   -------------------------------------------------------------------------- */
+
+.eyebrow {
+  max-width: 100%;
+  gap: clamp(12px, 1.8vw, 18px) !important;
+  line-height: 1.3;
+}
+
+.eyebrow::before {
+  width: var(--ag-accent-rule-width) !important;
+  min-width: var(--ag-accent-rule-width) !important;
+  height: var(--ag-accent-rule-thickness) !important;
+  flex: 0 0 var(--ag-accent-rule-width) !important;
+  border-radius: 999px;
+}
+
+/* Components that previously drew their own accent line now use the same size. */
+.pathway-app-card::before,
+.article-conclusion::before,
+.smart-next-intro::before {
+  width: var(--ag-accent-rule-width) !important;
+  height: var(--ag-accent-rule-thickness) !important;
+  border-radius: 999px;
+}
+
+/* --------------------------------------------------------------------------
+   Neutral divider rules
+   -------------------------------------------------------------------------- */
+
+.study-method-links,
+.pathway-sequence-nav,
+.scripture-context-note,
+.scripture-directory-intro,
+.topic-section-block,
+.related-section > .shell,
+.search-prompt-panel,
+.article-conclusion-actions,
+.smart-next-secondary {
+  border-color: var(--ag-neutral-rule) !important;
+}
+
+.pathway-app-card,
+.smart-next,
+.article-conclusion {
+  --ag-neutral-rule: var(--ag-neutral-rule-dark);
+}
+
+.study-method-links,
+.pathway-sequence-nav,
+.scripture-directory-intro,
+.topic-section-block,
+.article-conclusion-actions,
+.smart-next-secondary {
+  width: 100%;
+  max-width: none;
+  margin-inline: 0;
+}
+
+/* Keep rules inside their parent instead of letting old pseudo-elements run out. */
+.study-method-links::before,
+.study-method-links::after,
+.pathway-sequence-nav::before,
+.pathway-sequence-nav::after,
+.scripture-context-note::before,
+.scripture-directory-intro::before,
+.topic-section-block::before,
+.related-section > .shell::before {
+  max-width: 100%;
+  inset-inline: 0;
+}
+
+/* --------------------------------------------------------------------------
+   Pathway hero-to-study bridge
+   -------------------------------------------------------------------------- */
+
+.pathway-entry-bridge {
+  position: relative;
+  z-index: 3;
+  background: linear-gradient(to bottom, #0f1e2d 0 18px, #f5f7f4 18px 100%);
+}
+
+.pathway-entry-bridge-inner {
+  position: relative;
+  min-height: 94px;
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 18px;
+  padding-block: 17px 15px;
+  border-bottom: 1px solid var(--ag-neutral-rule);
+}
+
+.pathway-entry-bridge-inner::after {
+  content: "";
+  position: absolute;
+  left: 32px;
+  top: 60px;
+  bottom: -30px;
+  width: 1px;
+  background: linear-gradient(to bottom, rgba(15, 30, 45, 0.28), rgba(15, 30, 45, 0.08));
+  pointer-events: none;
+}
+
+.pathway-entry-node {
+  position: relative;
+  z-index: 1;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  margin-left: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 50%;
+  color: #ffffff;
+  background: #0f1e2d;
+  box-shadow: 0 0 0 8px #f5f7f4;
+}
+
+.pathway-entry-bridge-inner > div {
+  min-width: 0;
+}
+
+.pathway-entry-bridge-inner > div > span,
+.pathway-entry-bridge-inner > small {
+  display: block;
+  color: #b3212d;
+  font-size: 0.7rem;
+  font-weight: 900;
+  letter-spacing: 0.15em;
+  line-height: 1.25;
+  text-transform: uppercase;
+}
+
+.pathway-entry-bridge-inner strong {
+  display: block;
+  margin-top: 5px;
+  color: #0f1e2d;
+  font-size: clamp(1rem, 2vw, 1.16rem);
+  line-height: 1.35;
+}
+
+.pathway-entry-bridge-inner > small {
+  color: #71808a;
+  text-align: right;
+}
+
+.pathway-core-section {
+  padding-top: 8px !important;
+}
+
+.pathway-core-section .pathway-study-layout {
+  padding-top: 0 !important;
+}
+
+.pathway-core-section .pathway-study-step:first-child {
+  padding-top: 14px !important;
+}
+
+/* The first timeline line visually receives the bridge above it. */
+.pathway-core-section .pathway-timeline {
+  position: relative;
+}
+
+@media (max-width: 760px) {
+  :root {
+    --ag-accent-rule-width: 38px;
+  }
+
+  .eyebrow {
+    gap: 12px !important;
+  }
+
+  .pathway-entry-bridge {
+    background: linear-gradient(to bottom, #0f1e2d 0 14px, #f5f7f4 14px 100%);
+  }
+
+  .pathway-entry-bridge-inner {
+    min-height: 86px;
+    grid-template-columns: 62px minmax(0, 1fr);
+    gap: 12px;
+    padding-block: 14px 12px;
+  }
+
+  .pathway-entry-bridge-inner::after {
+    left: 27px;
+    top: 54px;
+    bottom: -24px;
+  }
+
+  .pathway-entry-node {
+    width: 40px;
+    height: 40px;
+    margin-left: 7px;
+    box-shadow: 0 0 0 6px #f5f7f4;
+  }
+
+  .pathway-entry-bridge-inner > small {
+    display: none;
+  }
+
+  .pathway-entry-bridge-inner strong {
+    font-size: 0.98rem;
+  }
+
+  .pathway-core-section {
+    padding-top: 4px !important;
+  }
+
+  .pathway-core-section .pathway-study-step:first-child {
+    padding-top: 10px !important;
+  }
+}
