@@ -1,0 +1,151 @@
+/* Step 3: real app imagery + Scripture reference cleanup */
+
+/* Replace oversized chips with an editorial reference row. */
+.topic-sidebar .scripture-chip-row {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0 !important;
+  width: 100%;
+  margin: 26px 0 0 !important;
+  padding-top: 0;
+  border-top: 1px solid var(--ag-card-border);
+}
+
+.topic-sidebar .scripture-chip-row span {
+  min-width: 0;
+  min-height: 0 !important;
+  display: block !important;
+  padding: 14px 10px 0 !important;
+  border: 0 !important;
+  border-left: 1px solid var(--ag-card-border) !important;
+  border-radius: 0 !important;
+  color: var(--ag-card-copy) !important;
+  background: transparent !important;
+  font-size: 11px !important;
+  font-weight: 850 !important;
+  letter-spacing: .015em;
+  line-height: 1.35 !important;
+  text-align: left;
+  white-space: normal;
+}
+
+.topic-sidebar .scripture-chip-row span:first-child {
+  padding-left: 0 !important;
+  border-left: 0 !important;
+}
+
+/* Real app screenshot in the homepage hero. */
+.ei-app-screen {
+  position: relative;
+  width: min(100%, 430px);
+  display: grid;
+  gap: 13px;
+  justify-self: end;
+  color: var(--ink);
+}
+
+.ei-app-screen-label,
+.ei-app-screen-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #68777f;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+}
+
+.ei-app-screen-action {
+  justify-self: end;
+  color: var(--crimson);
+}
+
+.ei-app-screen-frame {
+  position: relative;
+  height: clamp(600px, 63vw, 735px);
+  display: block;
+  overflow: hidden;
+  border: 1px solid rgba(15, 30, 45, .18);
+  border-radius: 34px;
+  background: #07151f;
+  box-shadow:
+    0 34px 90px rgba(15, 30, 45, .2),
+    0 4px 14px rgba(15, 30, 45, .09);
+  transform: rotate(.6deg);
+  transition: transform .22s ease, box-shadow .22s ease;
+}
+
+.ei-app-screen-frame::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 7px rgba(255, 255, 255, .045);
+  pointer-events: none;
+}
+
+.ei-app-screen img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  object-position: top center;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .ei-app-screen:hover .ei-app-screen-frame {
+    transform: translateY(-5px) rotate(.25deg);
+    box-shadow:
+      0 42px 105px rgba(15, 30, 45, .24),
+      0 6px 18px rgba(15, 30, 45, .1);
+  }
+}
+
+@media (max-width: 850px) {
+  .ei-app-screen {
+    width: min(100%, 470px);
+    justify-self: start;
+  }
+
+  .ei-app-screen-frame {
+    height: 720px;
+  }
+}
+
+@media (max-width: 620px) {
+  .topic-sidebar .scripture-chip-row {
+    margin-top: 22px !important;
+  }
+
+  .topic-sidebar .scripture-chip-row span {
+    padding: 12px 7px 0 !important;
+    font-size: 10px !important;
+  }
+
+  .topic-sidebar .scripture-chip-row span:first-child {
+    padding-left: 0 !important;
+  }
+
+  .ei-app-screen {
+    width: 100%;
+    gap: 11px;
+  }
+
+  .ei-app-screen-frame {
+    height: min(690px, 105vh);
+    border-radius: 28px;
+    transform: none;
+  }
+
+  .ei-app-screen-label,
+  .ei-app-screen-action {
+    font-size: 9px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ei-app-screen-frame {
+    transition: none;
+  }
+}
