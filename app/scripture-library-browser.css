@@ -1,0 +1,353 @@
+/* Apostolic Guide — organized Scripture library */
+
+.scripture-browser {
+  display: grid;
+  gap: clamp(30px, 4vw, 44px);
+  margin-top: clamp(28px, 4vw, 42px);
+}
+
+.scripture-filter-panel {
+  display: grid;
+  gap: 24px;
+  padding: clamp(24px, 3.5vw, 34px);
+  border: 1px solid rgba(15, 30, 45, .13);
+  border-radius: 22px;
+  background: rgba(255, 255, 255, .78);
+  box-shadow: 0 14px 36px rgba(15, 30, 45, .055);
+  backdrop-filter: blur(10px);
+}
+
+.scripture-filter-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid rgba(15, 30, 45, .12);
+}
+
+.scripture-filter-heading > div {
+  display: grid;
+  gap: 5px;
+}
+
+.scripture-filter-heading span,
+.scripture-filter-label {
+  color: #b3212d;
+  font-size: .7rem;
+  font-weight: 900;
+  letter-spacing: .15em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.scripture-filter-heading strong {
+  color: #0f1e2d;
+  font-size: clamp(1.08rem, 2vw, 1.3rem);
+  line-height: 1.25;
+}
+
+.scripture-filter-reset {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 38px;
+  padding: 0 12px;
+  border: 1px solid rgba(15, 30, 45, .14);
+  border-radius: 10px;
+  color: #52616b;
+  background: #fff;
+  font: inherit;
+  font-size: .82rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.scripture-filter-section {
+  display: grid;
+  gap: 11px;
+  min-width: 0;
+}
+
+.scripture-filter-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+}
+
+.scripture-filter-button,
+.scripture-testament-options button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-height: 42px;
+  padding: 0 14px;
+  border: 1px solid rgba(15, 30, 45, .14);
+  border-radius: 12px;
+  color: #40505b;
+  background: rgba(255, 255, 255, .88);
+  font: inherit;
+  font-size: .84rem;
+  font-weight: 800;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: transform 180ms ease, border-color 180ms ease, color 180ms ease, background 180ms ease;
+}
+
+.scripture-filter-button small {
+  color: #7b8790;
+  font-size: .7rem;
+}
+
+.scripture-filter-button[aria-pressed="true"],
+.scripture-testament-options button[aria-pressed="true"] {
+  color: #fff;
+  border-color: #0f1e2d;
+  background: #0f1e2d;
+}
+
+.scripture-filter-button[aria-pressed="true"] small {
+  color: #d1d9de;
+}
+
+.scripture-filter-button:hover,
+.scripture-testament-options button:hover,
+.scripture-filter-reset:hover {
+  transform: translateY(-1px);
+  border-color: rgba(179, 33, 45, .42);
+}
+
+.scripture-filter-lower {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, .55fr);
+  gap: 22px;
+  align-items: end;
+}
+
+.scripture-testament-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.scripture-testament-options button {
+  width: 100%;
+  padding-inline: 10px;
+}
+
+.scripture-book-filter {
+  display: grid;
+  gap: 11px;
+}
+
+.scripture-book-filter select {
+  width: 100%;
+  min-height: 42px;
+  padding: 0 38px 0 13px;
+  border: 1px solid rgba(15, 30, 45, .14);
+  border-radius: 12px;
+  color: #0f1e2d;
+  background: #fff;
+  font: inherit;
+  font-size: .86rem;
+  font-weight: 750;
+}
+
+.scripture-book-groups {
+  display: grid;
+  gap: 14px;
+}
+
+.scripture-book-group {
+  overflow: hidden;
+  border: 1px solid rgba(15, 30, 45, .13);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, .72);
+  box-shadow: 0 10px 28px rgba(15, 30, 45, .045);
+}
+
+.scripture-book-group summary {
+  list-style: none;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 16px;
+  align-items: center;
+  min-height: 82px;
+  padding: 17px 22px;
+  cursor: pointer;
+}
+
+.scripture-book-group summary::-webkit-details-marker {
+  display: none;
+}
+
+.scripture-book-group summary > span:first-child {
+  display: grid;
+  gap: 3px;
+}
+
+.scripture-book-group summary small {
+  color: #b3212d;
+  font-size: .66rem;
+  font-weight: 900;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+}
+
+.scripture-book-group summary strong {
+  color: #0f1e2d;
+  font-size: clamp(1.35rem, 3vw, 1.8rem);
+  line-height: 1.05;
+}
+
+.scripture-book-count {
+  color: #687680;
+  font-size: .82rem;
+  font-weight: 750;
+  white-space: nowrap;
+}
+
+.scripture-book-group summary > svg {
+  color: #52616b;
+  transition: transform 180ms ease;
+}
+
+.scripture-book-group[open] summary {
+  border-bottom: 1px solid rgba(15, 30, 45, .11);
+}
+
+.scripture-book-group[open] summary > svg {
+  transform: rotate(180deg);
+}
+
+.scripture-book-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  padding: 16px;
+}
+
+.scripture-book-grid .scripture-mini {
+  min-height: 112px;
+  box-shadow: none !important;
+}
+
+.scripture-filter-empty {
+  display: grid;
+  justify-items: start;
+  gap: 10px;
+  padding: 34px;
+  border: 1px dashed rgba(15, 30, 45, .2);
+  border-radius: 20px;
+  color: #52616b;
+  background: rgba(255, 255, 255, .55);
+}
+
+.scripture-filter-empty strong {
+  color: #0f1e2d;
+  font-size: 1.2rem;
+}
+
+.scripture-filter-empty p {
+  margin: 0;
+}
+
+.scripture-filter-empty button {
+  min-height: 42px;
+  margin-top: 4px;
+  padding: 0 15px;
+  border: 0;
+  border-radius: 10px;
+  color: #fff;
+  background: #0f1e2d;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+@media (max-width: 760px) {
+  .scripture-browser {
+    gap: 26px;
+    margin-top: 26px;
+  }
+
+  .scripture-filter-panel {
+    gap: 20px;
+    padding: 21px;
+    border-radius: 18px;
+  }
+
+  .scripture-filter-heading {
+    gap: 12px;
+    padding-bottom: 17px;
+  }
+
+  .scripture-filter-heading strong {
+    font-size: 1rem;
+  }
+
+  .scripture-filter-options {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    margin-inline: -21px;
+    padding-inline: 21px;
+    padding-bottom: 4px;
+    scrollbar-width: none;
+  }
+
+  .scripture-filter-options::-webkit-scrollbar {
+    display: none;
+  }
+
+  .scripture-filter-button {
+    flex: 0 0 auto;
+  }
+
+  .scripture-filter-lower {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+
+  .scripture-testament-options {
+    grid-template-columns: 1fr;
+  }
+
+  .scripture-testament-options button {
+    justify-content: flex-start;
+    min-height: 40px;
+  }
+
+  .scripture-book-group {
+    border-radius: 18px;
+  }
+
+  .scripture-book-group summary {
+    min-height: 74px;
+    gap: 10px;
+    padding: 15px 17px;
+  }
+
+  .scripture-book-count {
+    font-size: .75rem;
+  }
+
+  .scripture-book-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .scripture-book-grid .scripture-mini {
+    min-height: 96px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scripture-filter-button,
+  .scripture-testament-options button,
+  .scripture-filter-reset,
+  .scripture-book-group summary > svg {
+    transition: none;
+  }
+}
