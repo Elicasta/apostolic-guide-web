@@ -1,0 +1,168 @@
+/* Final polish for related-content cards and study guidance rows. */
+
+.related-topic-card {
+  display: flex !important;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0 !important;
+  padding: clamp(24px, 4vw, 34px) !important;
+}
+
+.related-topic-card .eyebrow {
+  margin: 0 0 18px !important;
+}
+
+.related-topic-card h3 {
+  margin: 0 0 16px !important;
+  line-height: 1.04 !important;
+}
+
+.related-topic-card p {
+  margin: 0 0 28px !important;
+  line-height: 1.62 !important;
+}
+
+.related-topic-card .text-link {
+  margin-top: auto !important;
+  padding-top: 0 !important;
+}
+
+.scripture-sidebar {
+  display: grid;
+  gap: 18px;
+  align-content: start;
+}
+
+.scripture-sidebar > div {
+  display: grid;
+  gap: 0;
+  padding: 24px !important;
+}
+
+.scripture-sidebar > div > strong {
+  margin: 0 0 14px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba(15, 30, 45, .13);
+}
+
+.scripture-sidebar > div > a,
+.scripture-sidebar > div > span {
+  min-height: 46px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+  margin: 0 !important;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(15, 30, 45, .11);
+  color: #52616b;
+  line-height: 1.35;
+}
+
+.scripture-sidebar > div > a:last-child,
+.scripture-sidebar > div > span:last-child {
+  border-bottom: 0;
+}
+
+.scripture-sidebar > div > a:hover {
+  color: var(--ag-red, #b3212d);
+}
+
+.scripture-context-note {
+  position: relative;
+  display: grid !important;
+  grid-template-columns: 22px minmax(0, 1fr) !important;
+  gap: 10px 12px !important;
+  align-items: start !important;
+  margin: 0 !important;
+  padding: 22px 0 0 !important;
+  border-top: 1px solid rgba(15, 30, 45, .13) !important;
+}
+
+.scripture-context-note > svg {
+  margin-top: 2px;
+}
+
+.scripture-context-note > span {
+  min-width: 0;
+  color: #52616b;
+  line-height: 1.55;
+}
+
+.scripture-context-note > span strong {
+  display: inline;
+  margin: 0;
+}
+
+.scripture-context-note > a {
+  grid-column: 2;
+  width: fit-content;
+  margin-top: 4px;
+}
+
+.study-scriptures {
+  margin: 0 !important;
+  padding-block: clamp(42px, 6vw, 64px) !important;
+}
+
+.study-scriptures-actions {
+  min-width: 0;
+}
+
+.study-reference-list {
+  align-items: stretch;
+}
+
+.study-method-links {
+  position: relative;
+  z-index: 1;
+  gap: 0 !important;
+  margin-top: 28px !important;
+  padding-top: 0 !important;
+  border-top: 1px solid rgba(15, 30, 45, .13) !important;
+}
+
+.study-method-links a {
+  width: 100% !important;
+  min-height: 52px;
+  display: flex !important;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 0;
+  border-bottom: 1px solid rgba(15, 30, 45, .11);
+  line-height: 1.3;
+}
+
+.study-method-links a:last-child {
+  border-bottom: 0;
+}
+
+@media (max-width: 760px) {
+  .related-topic-card {
+    padding: 24px !important;
+  }
+
+  .related-topic-card .eyebrow {
+    margin-bottom: 16px !important;
+  }
+
+  .related-topic-card p {
+    margin-bottom: 24px !important;
+  }
+
+  .scripture-sidebar > div {
+    padding: 22px !important;
+  }
+
+  .scripture-context-note {
+    padding-top: 20px !important;
+  }
+
+  .study-scriptures {
+    padding-block: 42px !important;
+  }
+
+  .study-method-links a {
+    min-height: 50px;
+  }
+}
