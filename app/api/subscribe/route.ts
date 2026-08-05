@@ -1,0 +1,154 @@
+import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
+import { createServiceClient } from "@/supabase";
+
+export const runtime = "nodejs";
+
+const subscriberSchema = z.object({
+  email: z.string().trim().toLowerCase().email().max(320),
+  liveTeachings: z.boolean().default(true),
+  newArticles: z.boolean().default(true),
+  source: z.string().trim().max(120).default("website"),
+  path: z.string().trim().max(500).default("/"),
+  website: z.string().max(0).optional().default("")
+});
+
+type SubscriberInput = z.infer<typeof subscriberSchema>;
+
+async function addResendContact(input: SubscriberInput) {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) return { id: null, synced: false, error: "RESEND_API_KEY is not configured" };
+
+  const topics = [
+    input.liveTeachings && process.env.RESEND_LIVE_TEACHINGS_TOPIC_ID
+      ? { id: process.env.RESEND_LIVE_TEACHINGS_TOPIC_ID, subscription: "opt_in" as const }
+      : null,
+    input.newArticles && process.env.RESEND_NEW_ARTICLES_TOPIC_ID
+      ? { id: process.env.RESEND_NEW_ARTICLES_TOPIC_ID, subscription: "opt_in" as const }
+      : null
+  ].filter((item): item is { id: string; subscription: "opt_in" } => Boolean(item));
+
+  const response = await fetch("https://api.resend.com/contacts", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      email: input.email,
+      unsubscribed: false,
+      ...(topics.length ? { topics } : {})
+    })
+  });
+
+  if (response.status === 409) return { id: null, synced: true, error: null };
+  if (!response.ok) return { id: null, synced: false, error: await response.text() };
+  const data = await response.json() as { id?: string };
+  return { id: data.id ?? null, synced: true, error: null };
+}
+
+async function sendWelcomeEmail(input: SubscriberInput) {
+  const apiKey = process.env.RESEND_API_KEY;
+  const from = process.env.RESEND_FROM_EMAIL;
+  if (!apiKey || !from) return { id: null, sent: false, error: "Welcome email is not configured" };
+
+  const interests = [
+    input.liveTeachings ? "live teaching invitations" : null,
+    input.newArticles ? "new Scripture studies" : null
+  ].filter(Boolean).join(" and ");
+
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+      "Idempotency-Key": `apostolic-guide-welcome-${input.email}`.slice(0, 256)
+    },
+    body: JSON.stringify({
+      from,
+      to: [input.email],
+      subject: "Welcome to Apostolic Guide",
+      html: `
+        <div style="font-family:Arial,sans-serif;max-width:620px;margin:0 auto;padding:32px;color:#0f1e2d;line-height:1.65">
+          <p style="font-size:12px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:#b3212d">Apostolic Guide</p>
+          <h1 style="font-size:34px;line-height:1.05;margin:18px 0">Scripture first. Questions welcome.</h1>
+          <p>You are now signed up for ${interests || "Apostolic Guide updates"}.</p>
+          <p>We built Apostolic Guide to help believers search the Scriptures, follow connected passages, and understand not only what they believe, but why they believe it.</p>
+          <p style="margin-top:28px"><a href="https://apostolicguide.com" style="display:inline-block;background:#0f1e2d;color:#fff;text-decoration:none;padding:13px 20px;border-radius:10px;font-weight:700">Continue studying</a></p>
+          <p style="margin-top:34px;color:#65727c;font-size:13px">You received this because you signed up at apostolicguide.com.</p>
+        </div>`,
+      text: `Welcome to Apostolic Guide. You are signed up for ${interests || "Apostolic Guide updates"}. Continue studying at https://apostolicguide.com`,
+      tags: [{ name: "category", value: "subscriber_welcome" }]
+    })
+  });
+
+  if (!response.ok) return { id: null, sent: false, error: await response.text() };
+  const data = await response.json() as { id?: string };
+  return { id: data.id ?? null, sent: true, error: null };
+}
+
+export async function POST(request: NextRequest) {
+  let input: SubscriberInput;
+  try {
+    input = subscriberSchema.parse(await request.json());
+  } catch {
+    return NextResponse.json({ ok: false, message: "Enter a valid email address." }, { status: 400 });
+  }
+
+  const supabase = createServiceClient();
+  if (!supabase) {
+    return NextResponse.json({ ok: false, message: "Email signup is not configured yet." }, { status: 503 });
+  }
+
+  const now = new Date().toISOString();
+  const { data: existing } = await supabase
+    .from("email_subscribers")
+    .select("id,status")
+    .eq("email", input.email)
+    .maybeSingle();
+
+  const { data: subscriber, error: databaseError } = await supabase
+    .from("email_subscribers")
+    .upsert({
+      email: input.email,
+      status: "subscribed",
+      wants_live_teachings: input.liveTeachings,
+      wants_new_articles: input.newArticles,
+      source: input.source,
+      signup_path: input.path,
+      consented_at: existing?.status === "subscribed" ? undefined : now,
+      last_signup_at: now,
+      updated_at: now
+    }, { onConflict: "email" })
+    .select("id,email")
+    .single();
+
+  if (databaseError || !subscriber) {
+    console.error("Subscriber database error", databaseError);
+    return NextResponse.json({ ok: false, message: "We could not save your signup. Please try again." }, { status: 500 });
+  }
+
+  const resendContact = await addResendContact(input);
+  const welcome = existing?.status === "subscribed"
+    ? { id: null, sent: false, error: null }
+    : await sendWelcomeEmail(input);
+
+  await supabase
+    .from("email_subscribers")
+    .update({
+      resend_contact_id: resendContact.id,
+      resend_synced_at: resendContact.synced ? now : null,
+      resend_error: resendContact.error ?? welcome.error,
+      welcome_email_id: welcome.id,
+      welcome_sent_at: welcome.sent ? now : null,
+      updated_at: now
+    })
+    .eq("id", subscriber.id);
+
+  return NextResponse.json({
+    ok: true,
+    message: existing?.status === "subscribed"
+      ? "Your preferences have been updated."
+      : "Check your inbox for a welcome from Apostolic Guide."
+  });
+}
