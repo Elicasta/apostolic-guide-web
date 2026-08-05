@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createServiceClient } from "@/supabase";
 
+export const runtime = "nodejs";
+
 const eventSchema = z.object({
   name: z.enum([
     "page_viewed",
@@ -52,15 +54,25 @@ export async function POST(request: Request) {
     catch { return null; }
   })();
 
-  const { error } = await service.schema("analytics").rpc("ingest_event", {
-    p_event_name: parsed.data.name,
-    p_session_id: parsed.data.sessionId,
-    p_anonymous_id: parsed.data.anonymousId,
-    p_page_path: parsed.data.path,
-    p_referrer_host: referrerHost,
-    p_source: "WEBSITE",
-    p_device_class: deviceClass,
-    p_properties: parsed.data.properties ?? {}
+  const analytics = service.schema("analytics");
+  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+  const { count } = await analytics
+    .from("events")
+    .select("id", { head: true, count: "exact" })
+    .eq("session_id", parsed.data.sessionId)
+    .gte("occurred_at", oneHourAgo);
+
+  if ((count ?? 0) >= 240) return new NextResponse(null, { status: 204 });
+
+  const { error } = await analytics.from("events").insert({
+    event_name: parsed.data.name,
+    session_id: parsed.data.sessionId,
+    anonymous_id: parsed.data.anonymousId,
+    page_path: parsed.data.path,
+    referrer_host: referrerHost,
+    source: "WEBSITE",
+    device_class: deviceClass,
+    properties: parsed.data.properties ?? {}
   });
 
   if (error) console.error("analytics ingestion failed", { code: error.code });
