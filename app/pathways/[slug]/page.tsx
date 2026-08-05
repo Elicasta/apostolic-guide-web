@@ -47,7 +47,7 @@ export default async function PathwayPage({ params }: Props) {
         </div>
       </section>
 
-      <section className="section">
+      <section className="section pathway-core-section">
         <div className="shell pathway-study-layout">
           <div className="pathway-timeline">
             {pathway.steps.map((step, index) => {
@@ -70,35 +70,31 @@ export default async function PathwayPage({ params }: Props) {
             })}
           </div>
 
-          <aside className="pathway-summary-card">
-            <span className="eyebrow eyebrow-light">Website preview</span>
-            <h2>{pathway.title}</h2>
-            <p>This page gives you the key biblical progression. Continue in the app for the full pathway, more passages, objections, branches, and deeper context.</p>
-            {topic && <Link href={`/topics/${topic.slug}`}>Related topic: {topic.title}</Link>}
-            <a className="button button-paper" href={appHref}>Continue this pathway in app <ExternalLink size={15} /></a>
+          <aside className="pathway-app-card">
+            <span className="eyebrow eyebrow-light">Continue this study in the app</span>
+            <h2>Open the complete {pathway.title} pathway.</h2>
+            <p>Continue with the expanded passage sequence, common objections, study branches, and deeper context.</p>
+            {topic && <Link className="pathway-app-topic" href={`/topics/${topic.slug}`}>Review topic: {topic.title}</Link>}
+            <a className="button button-paper" href={appHref}>Open full pathway in app <ExternalLink size={16} /></a>
           </aside>
         </div>
       </section>
 
       <section className="section section-tight"><div className="shell"><StudyScriptures references={pathwayReferences} /></div></section>
-      <section className="section section-tight pathway-pagination-section">
-        <div className="shell pathway-pagination">
-          {previous ? <Link href={`/pathways/${previous.slug}`}><span>Previous in collection</span><strong><ArrowLeft size={17} /> {previous.title}</strong></Link> : <span />}
-          {next ? <Link className="next" href={`/pathways/${next.slug}`}><span>Next in collection</span><strong>{next.title} <ArrowRight size={17} /></strong></Link> : <span />}
-        </div>
-      </section>
-      <section className="section section-tight">
-        <div className="shell">
-          <section className="app-bridge app-bridge-compact" data-reveal>
-            <div>
-              <span className="eyebrow eyebrow-light">Continue this study in the app</span>
-              <h2>Go deeper without turning this page into a textbook.</h2>
-              <p>Open the exact {pathway.title} pathway for its complete passage sequence, objections, branches, and further context.</p>
-            </div>
-            <a className="button button-paper" href={appHref}>Open full pathway in app <ExternalLink size={17} /></a>
-          </section>
-        </div>
-      </section>
+
+      {(previous || next) && (
+        <section className="section section-tight pathway-pagination-section">
+          <nav className="shell pathway-sequence-nav" aria-label="Pathway collection navigation">
+            {previous
+              ? <Link href={`/pathways/${previous.slug}`}><ArrowLeft size={15} /><span><small>Previous</small><strong>{previous.title}</strong></span></Link>
+              : <span />}
+            {next
+              ? <Link className="next" href={`/pathways/${next.slug}`}><span><small>Next</small><strong>{next.title}</strong></span><ArrowRight size={15} /></Link>
+              : <span />}
+          </nav>
+        </section>
+      )}
+
       <section className="section section-tight"><div className="shell"><SmartNext currentPath={`/pathways/${pathway.slug}`} candidates={suggestions} eyebrow="Continue the pathway library" heading="Follow the next connected study." /></div></section>
     </>
   );
