@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, BookOpen, HelpCircle, Route } from "lucide-react";
+import { ArrowLeft, ArrowRight, BookOpen, ExternalLink, HelpCircle, Route } from "lucide-react";
 import { notFound } from "next/navigation";
 import { AppBridge, PageHero, ScriptureMiniCard, TopicCard } from "@/components";
 import { ScriptureContextNote, StudyScriptures } from "@/study-guidance";
-import { answers, articles, pathways, scriptures, topicBySlug, topics } from "@/data";
+import { answers, articles, scriptures, topicBySlug, topics } from "@/data";
+import { allPathways } from "@/pathway-catalog";
+import { buildAppUrl } from "@/urls";
 
 export function generateStaticParams() { return topics.map((topic) => ({ slug: topic.slug })); }
 
@@ -25,8 +27,11 @@ export default async function TopicPage({ params }: Props) {
   const topicScriptures = scriptures.filter((item) => item.topicSlugs.includes(topic.slug));
   const topicAnswers = answers.filter((item) => item.topicSlug === topic.slug);
   const topicArticles = articles.filter((item) => item.topicSlug === topic.slug);
-  const topicPathways = pathways.filter((item) => item.topicSlug === topic.slug);
+  const topicPathway = allPathways.find((item) => item.topicSlug === topic.slug);
   const relatedTopics = topics.filter((item) => item.slug !== topic.slug && item.category === topic.category).slice(0, 2);
+  const appPathwayHref = topicPathway
+    ? buildAppUrl(`/paths/${topicPathway.appSlug}`, { origin: `website-topic-${topic.slug}` })
+    : null;
 
   return (
     <>
@@ -53,7 +58,7 @@ export default async function TopicPage({ params }: Props) {
 
           <aside className="topic-sidebar">
             <div className="sidebar-card"><span className="eyebrow">Study summary</span><h3>{topic.title}</h3><p>{topic.summary}</p><div className="scripture-chip-row">{topic.keyScriptures.map((reference) => <span key={reference}>{reference}</span>)}</div></div>
-            {topicPathways.map((pathway) => <div className="sidebar-card sidebar-card-dark" key={pathway.slug}><Route size={23} /><span className="eyebrow eyebrow-light">Guided pathway</span><h3>{pathway.title}</h3><p>{pathway.summary}</p><Link className="button button-paper" href={`/pathways/${pathway.slug}`}>Begin study <ArrowRight size={16} /></Link></div>)}
+            {topicPathway && <div className="sidebar-card sidebar-card-dark"><Route size={23} /><span className="eyebrow eyebrow-light">Guided pathway</span><h3>{topicPathway.title}</h3><p>{topicPathway.summary}</p><Link className="button button-paper" href={`/pathways/${topicPathway.slug}`}>Begin study <ArrowRight size={16} /></Link>{appPathwayHref && <a className="text-link" href={appPathwayHref}>Open full path in app <ExternalLink size={15} /></a>}</div>}
           </aside>
         </div>
       </section>
