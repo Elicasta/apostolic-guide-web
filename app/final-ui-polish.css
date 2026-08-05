@@ -1,0 +1,353 @@
+/* Apostolic Guide final UI polish: one spacing and sizing system */
+
+:root {
+  --ag-section-y: clamp(64px, 7vw, 88px);
+  --ag-section-y-tight: clamp(44px, 5vw, 64px);
+  --ag-card-pad: clamp(24px, 3.5vw, 40px);
+  --ag-card-radius: 24px;
+  --ag-card-border: 1px solid rgba(15, 30, 45, .12);
+  --ag-card-shadow: 0 18px 48px rgba(15, 30, 45, .08);
+  --ag-content-gap: clamp(36px, 5vw, 56px);
+}
+
+/* One section rhythm */
+.section,
+.ei-search,
+.ei-questions,
+.ei-topics,
+.ei-pathway,
+.ei-editorial,
+.ei-declaration {
+  padding-block: var(--ag-section-y) !important;
+}
+
+.section-tight {
+  padding-block: var(--ag-section-y-tight) !important;
+}
+
+.section + .section,
+.section + .section-tight,
+.section-tight + .section,
+.section-tight + .section-tight {
+  border-top-color: rgba(15, 30, 45, .08);
+}
+
+/* Shared type rhythm */
+.page-hero-copy h1,
+.page-hero h1,
+.section-heading h2,
+.ei-section-heading h2,
+.prose-content h2,
+.topic-section-block h2,
+.scripture-explanation h2,
+.study-scriptures-copy h2,
+.how-method-intro h2 {
+  text-wrap: balance;
+}
+
+.page-hero-copy p,
+.page-hero p,
+.section-heading p,
+.prose-content p,
+.topic-section-block p,
+.scripture-explanation p,
+.study-scriptures-copy p {
+  max-width: 68ch;
+}
+
+/* Hero: keep copy and example visually connected */
+.page-hero-inner {
+  gap: clamp(32px, 5vw, 64px) !important;
+  padding-block: clamp(52px, 6vw, 76px) !important;
+}
+
+.page-hero-copy h1,
+.page-hero h1 {
+  margin: 18px 0 22px !important;
+}
+
+.page-hero-copy p,
+.page-hero p {
+  line-height: 1.58 !important;
+}
+
+.page-hero-art {
+  align-self: center;
+}
+
+/* Remove unexplained interface numbering. */
+.scripture-signal .signal-topline span:last-child {
+  display: none !important;
+}
+
+.scripture-signal .signal-topline {
+  justify-content: flex-start !important;
+}
+
+/* Scripture signal: equal cells, aligned references, no dead height */
+.scripture-signal {
+  min-height: 0 !important;
+  height: auto !important;
+  padding: clamp(26px, 3.5vw, 38px) !important;
+  border-radius: var(--ag-card-radius) !important;
+}
+
+.scripture-signal .signal-reference {
+  margin-top: clamp(28px, 4vw, 44px) !important;
+}
+
+.scripture-signal .signal-copy {
+  margin-top: 14px !important;
+}
+
+.scripture-signal .signal-related {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  align-items: stretch !important;
+  margin-top: clamp(28px, 4vw, 42px) !important;
+  border-top: 1px solid rgba(255, 255, 255, .22) !important;
+}
+
+.scripture-signal .signal-related > span {
+  display: grid !important;
+  align-content: center !important;
+  gap: 7px !important;
+  min-height: 76px !important;
+  padding: 14px 14px 12px !important;
+  border-top: 0 !important;
+  border-left: 1px solid rgba(255, 255, 255, .22) !important;
+  line-height: 1.25 !important;
+}
+
+.scripture-signal .signal-related > span:first-child {
+  border-left: 0 !important;
+}
+
+.scripture-signal .signal-related b {
+  display: block;
+  line-height: 1 !important;
+}
+
+/* Cards: shared geometry */
+.topic-card,
+.article-card,
+.scripture-mini,
+.topic-sidebar > div,
+.scripture-sidebar > div,
+.pathway-summary-card,
+.callout,
+.search-form,
+.directory-search,
+.app-bridge,
+.study-method-principle {
+  border-radius: var(--ag-card-radius) !important;
+}
+
+.topic-sidebar > div,
+.scripture-sidebar > div,
+.pathway-summary-card,
+.callout {
+  padding: var(--ag-card-pad) !important;
+  border: var(--ag-card-border);
+  box-shadow: var(--ag-card-shadow);
+}
+
+/* Reading content: connected, not floating */
+.reading-layout,
+.topic-page-grid,
+.scripture-detail-grid,
+.pathway-study-layout {
+  padding-block: var(--ag-section-y) !important;
+}
+
+.prose-content {
+  gap: var(--ag-content-gap) !important;
+}
+
+.prose-content h2 {
+  margin: 0 0 16px !important;
+  line-height: 1.04 !important;
+}
+
+.prose-content p {
+  line-height: 1.68 !important;
+}
+
+.prose-content p + p {
+  margin-top: 14px !important;
+}
+
+.prose-content blockquote {
+  margin-top: 22px !important;
+}
+
+.content-section,
+.topic-section-block,
+.scripture-explanation section,
+.pathway-study-step {
+  padding-block: clamp(28px, 4vw, 44px) !important;
+}
+
+.content-section + .content-section,
+.topic-section-block + .topic-section-block,
+.scripture-explanation section + section {
+  margin-top: 0 !important;
+}
+
+/* Sidebar and Scripture lists */
+.topic-sidebar,
+.scripture-sidebar {
+  gap: 22px !important;
+}
+
+.topic-sidebar > div > strong,
+.scripture-sidebar > div > strong {
+  margin-bottom: 16px !important;
+}
+
+.topic-sidebar a,
+.topic-sidebar span,
+.scripture-sidebar a,
+.scripture-sidebar span {
+  min-height: 48px;
+  padding-block: 13px !important;
+  line-height: 1.35;
+}
+
+.scripture-context-note {
+  margin-top: 16px !important;
+  padding-top: 16px !important;
+}
+
+/* Study invitation should attach to the content before it. */
+.study-scriptures {
+  gap: clamp(26px, 4vw, 48px) !important;
+  margin: clamp(38px, 5vw, 58px) 0 0 !important;
+  padding-block: clamp(32px, 4vw, 48px) !important;
+}
+
+.study-scriptures-copy h2 {
+  margin: 14px 0 16px !important;
+}
+
+.study-method-links {
+  margin-top: 20px !important;
+  padding-top: 18px !important;
+}
+
+/* Buttons and actions */
+.how-method-actions,
+.pathway-study-actions,
+.scripture-hero-actions {
+  gap: 12px !important;
+}
+
+.button,
+.search-form button {
+  min-height: 50px;
+}
+
+/* How-it-works page relationship spacing */
+.how-page .page-hero + .how-method-intro {
+  padding-top: var(--ag-section-y-tight) !important;
+}
+
+.how-page .how-method-intro-grid {
+  gap: clamp(28px, 4vw, 48px) !important;
+}
+
+.how-page .study-method-grid {
+  row-gap: 0 !important;
+}
+
+.how-page .study-method-step {
+  padding-block: 26px !important;
+}
+
+/* Mobile */
+@media (max-width: 720px) {
+  :root {
+    --ag-section-y: 54px;
+    --ag-section-y-tight: 38px;
+    --ag-card-pad: 22px;
+    --ag-card-radius: 22px;
+    --ag-content-gap: 34px;
+  }
+
+  .page-hero-inner {
+    gap: 28px !important;
+    padding-block: 44px !important;
+  }
+
+  .page-hero-copy h1,
+  .page-hero h1 {
+    margin: 16px 0 18px !important;
+  }
+
+  .page-hero-copy p,
+  .page-hero p {
+    font-size: 17px !important;
+    line-height: 1.55 !important;
+  }
+
+  .page-hero-art {
+    margin-top: 2px !important;
+  }
+
+  .scripture-signal {
+    padding: 22px !important;
+  }
+
+  .scripture-signal .signal-reference {
+    margin-top: 24px !important;
+  }
+
+  .scripture-signal .signal-related {
+    margin-top: 24px !important;
+  }
+
+  .scripture-signal .signal-related > span {
+    min-height: 72px !important;
+    padding: 12px 10px 10px !important;
+    font-size: 11px !important;
+  }
+
+  .reading-layout,
+  .topic-page-grid,
+  .scripture-detail-grid,
+  .pathway-study-layout {
+    padding-block: 52px !important;
+  }
+
+  .prose-content h2 {
+    margin-bottom: 14px !important;
+  }
+
+  .prose-content p {
+    font-size: 18px !important;
+    line-height: 1.62 !important;
+  }
+
+  .topic-sidebar,
+  .scripture-sidebar {
+    gap: 18px !important;
+  }
+
+  .study-scriptures {
+    margin-top: 34px !important;
+    padding-block: 30px !important;
+    gap: 24px !important;
+  }
+
+  .study-reference-list {
+    gap: 8px !important;
+  }
+
+  .study-reference-list .bible-reference-link {
+    padding: 9px 12px !important;
+  }
+
+  .how-method-actions {
+    gap: 12px !important;
+  }
+}
