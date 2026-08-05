@@ -12,6 +12,7 @@ export function EmailCapture() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState("");
+  const [website, setWebsite] = useState("");
   const [liveTeachings, setLiveTeachings] = useState(true);
   const [newArticles, setNewArticles] = useState(true);
   const [state, setState] = useState<"idle" | "submitting" | "success" | "error">("idle");
@@ -46,6 +47,20 @@ export function EmailCapture() {
     };
   }, [pathname]);
 
+  useEffect(() => {
+    if (!open) return;
+    const previousOverflow = document.body.style.overflow;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") dismiss();
+    };
+    document.body.style.overflow = "hidden";
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [open]);
+
   const dismiss = () => {
     setOpen(false);
     try { window.localStorage.setItem(DISMISS_KEY, String(Date.now())); } catch {}
@@ -66,7 +81,7 @@ export function EmailCapture() {
           newArticles,
           source: "email-capture-popup",
           path: pathname,
-          website: ""
+          website
         })
       });
       const result = await response.json() as { ok?: boolean; message?: string };
@@ -117,7 +132,7 @@ export function EmailCapture() {
               />
               <button type="submit" disabled={state === "submitting"}>{state === "submitting" ? "Joining…" : "Join the list"}<ArrowRight size={16} /></button>
             </div>
-            <input className="email-capture-honeypot" name="website" tabIndex={-1} autoComplete="off" aria-hidden="true" />
+            <input className="email-capture-honeypot" name="website" tabIndex={-1} autoComplete="off" aria-hidden="true" value={website} onChange={(event) => setWebsite(event.target.value)} />
             <div className="email-capture-options">
               <label><input type="checkbox" checked={liveTeachings} onChange={(event) => setLiveTeachings(event.target.checked)} /> Live teaching invitations</label>
               <label><input type="checkbox" checked={newArticles} onChange={(event) => setNewArticles(event.target.checked)} /> New article notifications</label>
