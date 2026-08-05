@@ -87,6 +87,22 @@ async function sendWelcomeEmail(input: SubscriberInput) {
   return { id: data.id ?? null, sent: true, error: null };
 }
 
+export async function GET() {
+  const supabase = createServiceClient();
+  if (!supabase || !process.env.RESEND_API_KEY || !process.env.RESEND_FROM_EMAIL) {
+    return NextResponse.json({ enabled: false });
+  }
+
+  try {
+    const { error } = await supabase
+      .from("email_subscribers")
+      .select("id", { head: true, count: "exact" });
+    return NextResponse.json({ enabled: !error });
+  } catch {
+    return NextResponse.json({ enabled: false });
+  }
+}
+
 export async function POST(request: NextRequest) {
   let input: SubscriberInput;
   try {
@@ -107,19 +123,21 @@ export async function POST(request: NextRequest) {
     .eq("email", input.email)
     .maybeSingle();
 
+  const subscriberPayload = {
+    email: input.email,
+    status: "subscribed",
+    wants_live_teachings: input.liveTeachings,
+    wants_new_articles: input.newArticles,
+    source: input.source,
+    signup_path: input.path,
+    last_signup_at: now,
+    updated_at: now,
+    ...(existing?.status === "subscribed" ? {} : { consented_at: now })
+  };
+
   const { data: subscriber, error: databaseError } = await supabase
     .from("email_subscribers")
-    .upsert({
-      email: input.email,
-      status: "subscribed",
-      wants_live_teachings: input.liveTeachings,
-      wants_new_articles: input.newArticles,
-      source: input.source,
-      signup_path: input.path,
-      consented_at: existing?.status === "subscribed" ? undefined : now,
-      last_signup_at: now,
-      updated_at: now
-    }, { onConflict: "email" })
+    .upsert(subscriberPayload, { onConflict: "email" })
     .select("id,email")
     .single();
 
