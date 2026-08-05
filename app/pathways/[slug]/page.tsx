@@ -3,10 +3,11 @@ import Link from "next/link";
 import { ArrowLeft, ArrowRight, Clock3, ExternalLink } from "lucide-react";
 import { notFound } from "next/navigation";
 import { BibleReferenceLink, StudyScriptures } from "@/study-guidance";
-import { pathwayBySlug, pathways, scriptures, topicBySlug } from "@/data";
+import { scriptures, topicBySlug } from "@/data";
+import { allPathways, pathwayBySlug } from "@/pathway-catalog";
 import { buildAppUrl } from "@/urls";
 
-export function generateStaticParams() { return pathways.map((pathway) => ({ slug: pathway.slug })); }
+export function generateStaticParams() { return allPathways.map((pathway) => ({ slug: pathway.slug })); }
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -22,9 +23,10 @@ export default async function PathwayPage({ params }: Props) {
   const pathway = pathwayBySlug(slug);
   if (!pathway) notFound();
   const topic = topicBySlug(pathway.topicSlug);
-  const currentIndex = pathways.findIndex((item) => item.slug === pathway.slug);
-  const previous = currentIndex > 0 ? pathways[currentIndex - 1] : null;
-  const next = currentIndex < pathways.length - 1 ? pathways[currentIndex + 1] : null;
+  const collectionItems = allPathways.filter((item) => item.collection === pathway.collection);
+  const currentIndex = collectionItems.findIndex((item) => item.slug === pathway.slug);
+  const previous = currentIndex > 0 ? collectionItems[currentIndex - 1] : null;
+  const next = currentIndex < collectionItems.length - 1 ? collectionItems[currentIndex + 1] : null;
   const pathwayReferences = pathway.steps.map((step) => step.reference);
   const appHref = buildAppUrl("/paths", { origin: `website-pathway-${pathway.slug}` });
 
@@ -34,11 +36,11 @@ export default async function PathwayPage({ params }: Props) {
         <div className="shell">
           <div className="pathway-hero-topline">
             <Link className="back-link back-link-light" href="/pathways"><ArrowLeft size={15} /> All pathways</Link>
-            <span className="eyebrow eyebrow-light">Guided Scripture pathway</span>
+            <span className="eyebrow eyebrow-light">{pathway.collection}</span>
           </div>
           <h1>{pathway.title}</h1>
           <p>{pathway.summary}</p>
-          <div className="study-metrics"><span><Clock3 size={13} /> {pathway.estimatedMinutes} minutes</span><span>{pathway.steps.length} steps</span><span>{pathway.level}</span></div>
+          <div className="study-metrics"><span><Clock3 size={13} /> {pathway.estimatedMinutes} minutes</span><span>{pathway.steps.length} key steps</span><span>{pathway.level}</span></div>
         </div>
       </section>
 
@@ -66,11 +68,11 @@ export default async function PathwayPage({ params }: Props) {
           </div>
 
           <aside className="pathway-summary-card">
-            <span className="eyebrow eyebrow-light">Pathway overview</span>
+            <span className="eyebrow eyebrow-light">Website preview</span>
             <h2>{pathway.title}</h2>
-            <p>{pathway.summary}</p>
+            <p>This page gives you the key biblical progression. Continue in the app for the full pathway, more passages, objections, branches, and deeper context.</p>
             {topic && <Link href={`/topics/${topic.slug}`}>Related topic: {topic.title}</Link>}
-            <a className="button button-paper" href={appHref}>Browse pathways in app <ExternalLink size={15} /></a>
+            <a className="button button-paper" href={appHref}>Continue full pathway in app <ExternalLink size={15} /></a>
           </aside>
         </div>
       </section>
@@ -78,8 +80,8 @@ export default async function PathwayPage({ params }: Props) {
       <section className="section section-tight"><div className="shell"><StudyScriptures references={pathwayReferences} /></div></section>
       <section className="section section-tight pathway-pagination-section">
         <div className="shell pathway-pagination">
-          {previous ? <Link href={`/pathways/${previous.slug}`}><span>Previous pathway</span><strong><ArrowLeft size={17} /> {previous.title}</strong></Link> : <span />}
-          {next ? <Link className="next" href={`/pathways/${next.slug}`}><span>Next pathway</span><strong>{next.title} <ArrowRight size={17} /></strong></Link> : <span />}
+          {previous ? <Link href={`/pathways/${previous.slug}`}><span>Previous in collection</span><strong><ArrowLeft size={17} /> {previous.title}</strong></Link> : <span />}
+          {next ? <Link className="next" href={`/pathways/${next.slug}`}><span>Next in collection</span><strong>{next.title} <ArrowRight size={17} /></strong></Link> : <span />}
         </div>
       </section>
       <section className="section section-tight">
@@ -87,10 +89,10 @@ export default async function PathwayPage({ params }: Props) {
           <section className="app-bridge app-bridge-compact" data-reveal>
             <div>
               <span className="eyebrow eyebrow-light">Continue in the study app</span>
-              <h2>Explore the full pathway library.</h2>
-              <p>Open Apostolic Guide to browse the pathways currently available in the app.</p>
+              <h2>Go deeper without turning this page into a textbook.</h2>
+              <p>The app carries the complete pathway library, expanded steps, connected objections, and further study branches.</p>
             </div>
-            <a className="button button-paper" href={appHref}>Browse app pathways <ExternalLink size={17} /></a>
+            <a className="button button-paper" href={appHref}>Open app pathways <ExternalLink size={17} /></a>
           </section>
         </div>
       </section>
