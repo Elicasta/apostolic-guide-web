@@ -13,6 +13,8 @@
 }
 
 .how-page .scripture-signal {
+  min-height: 0 !important;
+  padding: clamp(22px, 3vw, 32px) !important;
   color: #f7f8f8 !important;
   background:
     radial-gradient(circle at 85% 18%, rgba(179, 33, 45, .18), transparent 30%),
@@ -29,35 +31,35 @@
   opacity: 1 !important;
 }
 
+.how-page .scripture-signal .signal-copy {
+  margin-top: clamp(22px, 3vw, 34px) !important;
+}
+
 .how-page .scripture-signal .signal-copy span {
   color: #e5eaed !important;
 }
 
 .how-page .scripture-signal .signal-reference,
 .how-page .scripture-signal .signal-related b {
-  color: #f3a6ad !important;
-  opacity: 1 !important;
+  color: #f2a0a8 !important;
 }
 
 .how-page .scripture-signal .signal-related {
-  color: #b7c4ce !important;
-  opacity: 1 !important;
-}
-
-.how-page .scripture-signal .signal-related span,
-.how-page .scripture-signal .signal-related small,
-.how-page .scripture-signal .signal-related em,
-.how-page .scripture-signal .signal-related a {
-  color: #b7c4ce !important;
+  margin-top: clamp(22px, 3vw, 30px) !important;
+  color: #b8c6d2 !important;
   opacity: 1 !important;
 }
 
 .how-page .scripture-signal .signal-related > span {
-  border-color: rgba(183, 196, 206, .34) !important;
+  min-height: auto !important;
+  padding-block: 11px !important;
+  border-color: rgba(184, 198, 210, .30) !important;
+  color: #b8c6d2 !important;
+  opacity: 1 !important;
 }
 
-.how-page .scripture-signal .signal-related > span + span {
-  border-left-color: rgba(183, 196, 206, .34) !important;
+.how-page .scripture-signal .signal-related > span:last-child {
+  padding-bottom: 4px !important;
 }
 
 .how-page .page-hero-word {
@@ -75,6 +77,15 @@
   }
 
   .how-page .scripture-signal {
-    min-height: 310px;
+    min-height: 0 !important;
+    padding: 22px 20px !important;
+  }
+
+  .how-page .scripture-signal .signal-copy {
+    margin-top: 22px !important;
+  }
+
+  .how-page .scripture-signal .signal-related {
+    margin-top: 20px !important;
   }
 }
