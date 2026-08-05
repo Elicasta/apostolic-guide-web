@@ -2,35 +2,37 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight, Clock3, Route } from "lucide-react";
 import { AppBridge, PageHero } from "@/components";
-import { pathways, topicBySlug } from "@/data";
+import { allPathways, pathwayCollections } from "@/pathway-catalog";
 
 export const metadata: Metadata = {
   title: "Scripture Pathways",
   description: "Follow guided sequences of connected Scriptures through Apostolic doctrine and common questions."
 };
 
-const categoryOrder = ["God and Christ", "Salvation", "Biblical interpretation"] as const;
-
 export default function PathwaysPage() {
-  const grouped = categoryOrder.map((category) => ({
-    category,
-    items: pathways.filter((pathway) => topicBySlug(pathway.topicSlug)?.category === category)
-  })).filter((group) => group.items.length > 0);
+  const grouped = pathwayCollections.map((collection) => ({
+    ...collection,
+    items: allPathways.filter((pathway) => pathway.collection === collection.title)
+  }));
 
   return (
     <>
-      <PageHero variant="pathways" eyebrow="Guided Scripture studies" title="Do not collect isolated verses. Follow the pathway." text="Each pathway establishes the starting point, moves through connected passages, and shows how the biblical argument develops." />
+      <PageHero variant="pathways" eyebrow="Guided Scripture studies" title="Do not collect isolated verses. Follow the pathway." text="Website pathways give you the biblical structure without overwhelming you. Continue in the app for the full sequence, objections, branches, and deeper context." />
       <section className="section pathways-index-section">
         <div className="shell pathway-directory">
           <nav className="pathway-category-nav" aria-label="Pathway categories">
-            {grouped.map((group) => <a key={group.category} href={`#${group.category.toLowerCase().replaceAll(" ", "-")}`}>{group.category}<span>{group.items.length}</span></a>)}
+            {grouped.map((group) => (
+              <a key={group.title} href={`#${group.title.toLowerCase().replaceAll(" ", "-")}`}>
+                {group.title}<span>{group.items.length}</span>
+              </a>
+            ))}
           </nav>
 
           {grouped.map((group) => (
-            <section className="pathway-category-section" id={group.category.toLowerCase().replaceAll(" ", "-")} key={group.category}>
+            <section className="pathway-category-section" id={group.title.toLowerCase().replaceAll(" ", "-")} key={group.title}>
               <header className="pathway-category-heading">
-                <div><span className="eyebrow">Pathway collection</span><h2>{group.category}</h2></div>
-                <p>{group.category === "God and Christ" ? "Begin with who God is, who Jesus is, and how Scripture explains the incarnation." : group.category === "Salvation" ? "Follow the gospel response, the saving name, and the apostolic pattern." : "Study difficult biblical language through the way Scripture itself uses it."}</p>
+                <div><span className="eyebrow">Pathway collection</span><h2>{group.title}</h2></div>
+                <p>{group.description}</p>
               </header>
               <div className="pathway-grid">
                 {group.items.map((pathway, index) => (
@@ -40,8 +42,8 @@ export default function PathwaysPage() {
                     <span className="eyebrow">Scripture pathway</span>
                     <h2>{pathway.title}</h2>
                     <p>{pathway.summary}</p>
-                    <div className="pathway-meta"><span><Clock3 size={12} /> {pathway.estimatedMinutes} min</span><span>{pathway.steps.length} steps</span><span>{pathway.level}</span></div>
-                    <span className="text-link">Begin pathway <ArrowRight size={16} /></span>
+                    <div className="pathway-meta"><span><Clock3 size={12} /> {pathway.estimatedMinutes} min</span><span>{pathway.steps.length} key steps</span><span>{pathway.level}</span></div>
+                    <span className="text-link">Preview pathway <ArrowRight size={16} /></span>
                   </Link>
                 ))}
               </div>
