@@ -40,6 +40,7 @@ import "./content-links-polish.css";
 import "./pathway-directory.css";
 import "./article-conclusion.css";
 import "./retention-system.css";
+import "./smart-navigation.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL(websiteUrl),
