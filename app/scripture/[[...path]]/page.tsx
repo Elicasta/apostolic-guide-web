@@ -2,8 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft, ArrowRight, ExternalLink, Search } from "lucide-react";
 import { notFound } from "next/navigation";
-import { AppBridge, PageHero, SearchForm, ScriptureMiniCard } from "@/components";
+import { AppBridge, PageHero, SearchForm } from "@/components";
 import { BibleReferenceLink, ScriptureContextNote, StudyScriptures } from "@/study-guidance";
+import { ScriptureLibraryBrowser } from "@/scripture-library-browser";
 import { SmartNext } from "@/smart-next";
 import { scriptureSuggestions } from "@/suggestion-data";
 import { scriptureByPath, scriptures, topicBySlug } from "@/data";
@@ -33,11 +34,9 @@ export default async function ScripturePage({ params }: Props) {
         <section className="section scripture-index-section">
           <div className="shell scripture-directory-shell">
             <SearchForm />
-            <div className="scripture-directory-intro"><span className="eyebrow">Browse the current library</span><p>The Scripture guide is intentionally curated. Use it to locate key passages, then open your Bible and read each one in context.</p></div>
+            <div className="scripture-directory-intro"><span className="eyebrow">Browse the current library</span><p>The Scripture guide is intentionally curated. Filter by doctrine, testament, or Bible book, then open each passage and read it in context.</p></div>
             <ScriptureContextNote />
-            <div className="scripture-library scripture-library-full">
-              {scriptures.map((entry) => <ScriptureMiniCard href={`/scripture/${entry.path}`} point={entry.mainPoint} reference={entry.reference} key={entry.slug} />)}
-            </div>
+            <ScriptureLibraryBrowser entries={scriptures} />
           </div>
         </section>
         <section className="section section-tight"><div className="shell"><AppBridge origin="scripture-index" /></div></section>
