@@ -1,10 +1,9 @@
-import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, ArrowUpRight, BookOpen, Route, Search } from "lucide-react";
 import { SearchForm } from "@/components";
 import { AppPromoBanner } from "@/app-promo-banner";
 import { ArticlePoster } from "@/article-poster";
-import { answers, articles, pathways, topics } from "@/data";
+import { answers, articles, pathways, scriptures, topics } from "@/data";
 import { buildAppUrl } from "@/urls";
 
 const searchPrompts = [
@@ -16,10 +15,10 @@ const searchPrompts = [
 
 export default function HomePage() {
   const featuredPathway = pathways[0];
+  const spotlight = scriptures.find((item) => item.reference === "John 14:9–11") ?? scriptures[0];
   const featuredAnswers = answers.slice(0, 5);
   const featuredTopics = topics.slice(0, 5);
   const featuredArticles = articles.slice(0, 4);
-  const appHomeHref = buildAppUrl("/", { placement: "homepage-real-app-preview" });
 
   return (
     <div className="editorial-interface">
@@ -36,20 +35,26 @@ export default function HomePage() {
             </div>
           </div>
 
-          <Link className="ei-app-screen" href={appHomeHref} aria-label="Open the Apostolic Guide app">
-            <span className="ei-app-screen-label">Actual app home screen</span>
-            <span className="ei-app-screen-frame">
-              <Image
-                src="/app/app-home.webp"
-                width={220}
-                height={447}
-                alt="Apostolic Guide app home screen showing Scripture search and today's Scripture"
-                priority
-                sizes="(max-width: 720px) 88vw, 430px"
-              />
-            </span>
-            <span className="ei-app-screen-action">Open the app <ArrowUpRight size={16} /></span>
-          </Link>
+          <aside className="ei-live-index" aria-label="Connected Scripture guide">
+            <header><span>Scripture guide</span><span>8 connected entries</span></header>
+            <div className="ei-index-query"><Search size={16} /><span>Why did Jesus pray?</span><b>↵</b></div>
+            <div className="ei-index-result ei-index-featured">
+              <div><span>Best match</span><span>{spotlight.reference}</span></div>
+              <h2>{spotlight.mainPoint}</h2>
+              <p>“{spotlight.text}”</p>
+              <Link href={`/scripture/${spotlight.path}`}>Open passage <ArrowRight size={15} /></Link>
+            </div>
+            <div className="ei-index-links">
+              {featuredAnswers.slice(0, 3).map((answer, index) => (
+                <Link href={`/answers/${answer.slug}`} key={answer.slug}>
+                  <span>{String(index + 1).padStart(2, "0")}</span>
+                  <strong>{answer.question}</strong>
+                  <ArrowRight size={14} />
+                </Link>
+              ))}
+            </div>
+            <footer><span>Scripture · Doctrine · Answers</span><span>Follow the evidence</span></footer>
+          </aside>
         </div>
       </section>
 
