@@ -100,6 +100,51 @@
   margin-top: 4px;
 }
 
+/* The context note is also a direct child of the Scripture sidebar. These
+   rules prevent the generic sidebar-row styles from turning its sentence
+   into a second grid and placing the copy over its dividers. */
+.scripture-sidebar > .scripture-context-note {
+  grid-template-columns: 24px minmax(0, 1fr) !important;
+  gap: 12px 14px !important;
+  padding: 24px !important;
+  border-top: 1px solid rgba(15, 30, 45, .13) !important;
+}
+
+.scripture-sidebar > .scripture-context-note > svg {
+  grid-column: 1;
+  grid-row: 1;
+  margin-top: 3px;
+}
+
+.scripture-sidebar > .scripture-context-note > span {
+  display: block !important;
+  grid-template-columns: none !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  color: #52616b;
+  line-height: 1.55 !important;
+}
+
+.scripture-sidebar > .scripture-context-note > span strong {
+  display: block;
+  margin: 0 0 4px;
+  color: var(--ag-navy, #0f1e2d);
+  line-height: 1.25;
+}
+
+.scripture-sidebar > .scripture-context-note > a {
+  grid-column: 2;
+  display: inline-flex !important;
+  grid-template-columns: none !important;
+  width: fit-content !important;
+  min-height: 0 !important;
+  margin: 5px 0 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+}
+
 .study-scriptures {
   margin: 0 !important;
   padding-block: clamp(42px, 6vw, 64px) !important;
@@ -156,6 +201,11 @@
 
   .scripture-context-note {
     padding-top: 20px !important;
+  }
+
+  .scripture-sidebar > .scripture-context-note {
+    grid-template-columns: 22px minmax(0, 1fr) !important;
+    padding: 22px !important;
   }
 
   .study-scriptures {
