@@ -26,8 +26,13 @@
   border-radius: 999px;
 }
 
-/* Components that previously drew their own accent line now use the same size. */
-.pathway-app-card::before,
+/* The pathway app card already receives its accent from the eyebrow. */
+.pathway-app-card::before {
+  content: none !important;
+  display: none !important;
+}
+
+/* Components with a deliberate standalone accent line use the same size. */
 .article-conclusion::before,
 .smart-next-intro::before {
   width: var(--ag-accent-rule-width) !important;
@@ -82,56 +87,8 @@
 }
 
 /* --------------------------------------------------------------------------
-   Pathway hero-to-study bridge
+   Pathway hero-to-study spacing
    -------------------------------------------------------------------------- */
-
-.pathway-entry-bridge {
-  position: relative;
-  z-index: 3;
-  background: #f5f7f4;
-}
-
-.pathway-entry-bridge-inner {
-  position: relative;
-  min-height: 34px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 6px 0 0 74px;
-}
-
-.pathway-entry-bridge-inner::before {
-  content: "";
-  position: absolute;
-  left: 32px;
-  top: 0;
-  bottom: -15px;
-  width: 1px;
-  background: linear-gradient(to bottom, rgba(15, 30, 45, 0.24), rgba(15, 30, 45, 0.08));
-  pointer-events: none;
-}
-
-.pathway-entry-bridge-inner > span,
-.pathway-entry-bridge-inner > small {
-  flex: 0 0 auto;
-  color: #b3212d;
-  font-size: 0.68rem;
-  font-weight: 900;
-  letter-spacing: 0.15em;
-  line-height: 1.2;
-  text-transform: uppercase;
-}
-
-.pathway-entry-bridge-inner > i {
-  min-width: 28px;
-  height: 1px;
-  flex: 1 1 auto;
-  background: var(--ag-neutral-rule);
-}
-
-.pathway-entry-bridge-inner > small {
-  color: #71808a;
-}
 
 .pathway-core-section {
   padding-top: 0 !important;
@@ -158,27 +115,6 @@
 
   .eyebrow {
     gap: 12px !important;
-  }
-
-  .pathway-entry-bridge-inner {
-    min-height: 28px;
-    gap: 8px;
-    padding: 4px 0 0 62px;
-  }
-
-  .pathway-entry-bridge-inner::before {
-    left: 27px;
-    bottom: -12px;
-  }
-
-  .pathway-entry-bridge-inner > span,
-  .pathway-entry-bridge-inner > small {
-    font-size: 0.62rem;
-    letter-spacing: 0.13em;
-  }
-
-  .pathway-entry-bridge-inner > i {
-    min-width: 14px;
   }
 
   .pathway-core-section .pathway-timeline {
