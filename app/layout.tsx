@@ -27,7 +27,7 @@ import "./app-conversion-fix.css";
 import "./study-guidance.css";
 import "./reading-rhythm-final.css";
 import "./how-page-contrast.css";
-import "./ui-polish-final.css";
+import "./final-ui-polish.css";
 import "./contrast-rhythm-final.css";
 
 export const metadata: Metadata = {
