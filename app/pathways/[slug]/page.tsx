@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft, ArrowRight, Clock3, ExternalLink } from "lucide-react";
 import { notFound } from "next/navigation";
-import { AppBridge } from "@/components";
 import { BibleReferenceLink, StudyScriptures } from "@/study-guidance";
 import { pathwayBySlug, pathways, scriptures, topicBySlug } from "@/data";
 import { buildAppUrl } from "@/urls";
@@ -27,6 +26,8 @@ export default async function PathwayPage({ params }: Props) {
   const previous = currentIndex > 0 ? pathways[currentIndex - 1] : null;
   const next = currentIndex < pathways.length - 1 ? pathways[currentIndex + 1] : null;
   const pathwayReferences = pathway.steps.map((step) => step.reference);
+  const appPath = `/pathways/${pathway.appSlug}`;
+  const appHref = buildAppUrl(appPath, { origin: `website-pathway-${pathway.slug}` });
 
   return (
     <>
@@ -70,7 +71,7 @@ export default async function PathwayPage({ params }: Props) {
             <h2>{pathway.title}</h2>
             <p>{pathway.summary}</p>
             {topic && <Link href={`/topics/${topic.slug}`}>Related topic: {topic.title}</Link>}
-            <a className="button button-paper" href={buildAppUrl(`/pathways/${pathway.appSlug}`, { origin: "website-pathway" })}>Open in app <ExternalLink size={15} /></a>
+            <a className="button button-paper" href={appHref}>Open this pathway in app <ExternalLink size={15} /></a>
           </aside>
         </div>
       </section>
@@ -82,7 +83,18 @@ export default async function PathwayPage({ params }: Props) {
           {next ? <Link className="next" href={`/pathways/${next.slug}`}><span>Next pathway</span><strong>{next.title} <ArrowRight size={17} /></strong></Link> : <span />}
         </div>
       </section>
-      <section className="section section-tight"><div className="shell"><AppBridge origin={`pathway-${pathway.slug}`} compact /></div></section>
+      <section className="section section-tight">
+        <div className="shell">
+          <section className="app-bridge app-bridge-compact" data-reveal>
+            <div>
+              <span className="eyebrow eyebrow-light">Continue in the study app</span>
+              <h2>Continue this exact pathway.</h2>
+              <p>Open {pathway.title} in Apostolic Guide and continue through the same guided sequence.</p>
+            </div>
+            <a className="button button-paper" href={appHref}>Open {pathway.title} <ExternalLink size={17} /></a>
+          </section>
+        </div>
+      </section>
     </>
   );
 }
