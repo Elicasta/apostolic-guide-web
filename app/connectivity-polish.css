@@ -1,0 +1,314 @@
+/* Connectivity hierarchy polish.
+   App handoffs stay compact; reading-aware recommendations remain immersive. */
+
+/* --------------------------------------------------------------------------
+   Pathway opening and exact app continuation
+   -------------------------------------------------------------------------- */
+
+.pathway-hero > .shell {
+  padding-bottom: clamp(34px, 4vw, 50px) !important;
+}
+
+.pathway-core-section {
+  padding-top: clamp(22px, 3vw, 34px) !important;
+}
+
+.pathway-core-section .pathway-study-layout {
+  align-items: start !important;
+}
+
+.pathway-core-section .pathway-study-step:first-child {
+  padding-top: 0 !important;
+}
+
+.pathway-app-card {
+  position: sticky;
+  top: 108px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
+  padding: clamp(28px, 4vw, 38px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 24px;
+  color: #ffffff;
+  background:
+    radial-gradient(circle at 86% 9%, rgba(179, 33, 45, 0.22), transparent 32%),
+    linear-gradient(145deg, #14293a 0%, #0d1c29 70%, #101820 100%);
+  box-shadow: 0 22px 54px rgba(7, 18, 27, 0.18);
+}
+
+.pathway-app-card::before {
+  content: "";
+  width: 62px;
+  height: 3px;
+  margin-bottom: 22px;
+  background: #e59aa4;
+}
+
+.pathway-app-card .eyebrow {
+  margin: 0 0 20px !important;
+  color: #efa6ae !important;
+}
+
+.pathway-app-card h2 {
+  max-width: 12ch;
+  margin: 0 !important;
+  color: #ffffff !important;
+  font-size: clamp(2rem, 3.6vw, 3.15rem);
+  line-height: 0.98;
+  letter-spacing: -0.05em;
+}
+
+.pathway-app-card p {
+  margin: 22px 0 0 !important;
+  color: #c4cfd5 !important;
+  font-size: 1.03rem;
+  line-height: 1.62;
+}
+
+.pathway-app-topic {
+  display: inline-flex;
+  margin-top: 22px;
+  color: #ffffff;
+  font-weight: 800;
+  text-decoration: underline;
+  text-decoration-color: rgba(255, 255, 255, 0.28);
+  text-underline-offset: 4px;
+}
+
+.pathway-app-card .button {
+  width: 100%;
+  margin-top: 26px;
+  justify-content: center;
+}
+
+/* Compact sequence navigation replaces two oversized cards. */
+.pathway-pagination-section {
+  padding-block: 12px !important;
+}
+
+.pathway-sequence-nav {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border-block: 1px solid rgba(15, 30, 45, 0.14);
+}
+
+.pathway-sequence-nav > a {
+  min-width: 0;
+  min-height: 72px;
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 14px 8px;
+  color: #0f1e2d;
+  text-decoration: none;
+}
+
+.pathway-sequence-nav > a.next {
+  justify-content: flex-end;
+  text-align: right;
+}
+
+.pathway-sequence-nav > a + a,
+.pathway-sequence-nav > span + a {
+  border-left: 1px solid rgba(15, 30, 45, 0.12);
+  padding-left: 22px;
+}
+
+.pathway-sequence-nav > a:first-child {
+  padding-right: 22px;
+}
+
+.pathway-sequence-nav small,
+.pathway-sequence-nav strong {
+  display: block;
+}
+
+.pathway-sequence-nav small {
+  margin-bottom: 4px;
+  color: #7a8790;
+  font-size: 0.68rem;
+  font-weight: 850;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.pathway-sequence-nav strong {
+  overflow: hidden;
+  color: #0f1e2d;
+  font-size: 0.98rem;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* --------------------------------------------------------------------------
+   Generic app handoff: a compact product strip, not another hero card
+   -------------------------------------------------------------------------- */
+
+.app-bridge,
+.app-bridge.app-bridge-compact {
+  position: relative;
+  overflow: hidden;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  gap: 24px !important;
+  align-items: center !important;
+  min-height: 0 !important;
+  padding: clamp(24px, 3.5vw, 34px) !important;
+  border: 1px solid rgba(15, 30, 45, 0.14) !important;
+  border-left: 5px solid #b3212d !important;
+  border-radius: 20px !important;
+  color: #0f1e2d !important;
+  background:
+    linear-gradient(115deg, rgba(225, 232, 236, 0.92), rgba(255, 255, 255, 0.98)) !important;
+  box-shadow: 0 14px 34px rgba(15, 30, 45, 0.07) !important;
+}
+
+.app-bridge > div:first-child {
+  min-width: 0;
+}
+
+.app-bridge .eyebrow,
+.app-bridge .eyebrow-light {
+  color: #b3212d !important;
+}
+
+.app-bridge h2 {
+  max-width: 19ch !important;
+  margin: 10px 0 8px !important;
+  color: #0f1e2d !important;
+  font-size: clamp(1.8rem, 3.2vw, 2.75rem) !important;
+  line-height: 1 !important;
+  letter-spacing: -0.045em !important;
+}
+
+.app-bridge p {
+  max-width: 46rem !important;
+  margin: 0 !important;
+  color: #52616b !important;
+  font-size: 1rem !important;
+  line-height: 1.55 !important;
+}
+
+.app-bridge .app-feature-list {
+  display: none !important;
+}
+
+.app-bridge .button-paper {
+  flex: 0 0 auto;
+  min-width: max-content;
+  margin: 0 !important;
+  color: #ffffff !important;
+  background: #0f1e2d !important;
+  border-color: #0f1e2d !important;
+}
+
+/* The smart recommendation is the only large closing destination. */
+.section > .shell > .smart-next:first-child:last-child {
+  margin-top: 0 !important;
+}
+
+/* --------------------------------------------------------------------------
+   Answer sidebar overlap repair
+   -------------------------------------------------------------------------- */
+
+.answer-detail-page .topic-page-grid > aside {
+  position: relative;
+  z-index: 1;
+  margin-top: 0 !important;
+}
+
+.answer-detail-page .sidebar-card {
+  overflow: visible !important;
+  padding-bottom: 28px !important;
+}
+
+.answer-detail-page .sidebar-card > .scripture-mini + .scripture-mini {
+  margin-top: 11px !important;
+}
+
+.answer-detail-page .sidebar-card > .scripture-context-note {
+  position: relative;
+  z-index: 2;
+  clear: both;
+  margin-top: 20px !important;
+  padding-top: 18px !important;
+}
+
+@media (max-width: 850px) {
+  .pathway-app-card {
+    position: relative;
+    top: auto;
+  }
+}
+
+@media (max-width: 760px) {
+  .pathway-hero > .shell {
+    padding-bottom: 30px !important;
+  }
+
+  .pathway-core-section {
+    padding-top: 18px !important;
+  }
+
+  .pathway-core-section .pathway-study-layout {
+    gap: 26px !important;
+  }
+
+  .pathway-app-card {
+    padding: 26px 22px 24px;
+    border-radius: 20px;
+  }
+
+  .pathway-app-card h2 {
+    max-width: 13ch;
+    font-size: clamp(2.15rem, 10vw, 3.05rem);
+  }
+
+  .pathway-sequence-nav {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .pathway-sequence-nav > a {
+    min-height: 64px;
+    padding-block: 12px;
+  }
+
+  .pathway-sequence-nav strong {
+    font-size: 0.9rem;
+  }
+
+  .app-bridge,
+  .app-bridge.app-bridge-compact {
+    grid-template-columns: 1fr !important;
+    gap: 20px !important;
+    padding: 23px 20px !important;
+    border-radius: 18px !important;
+  }
+
+  .app-bridge h2 {
+    max-width: 15ch !important;
+    font-size: clamp(2rem, 9vw, 2.7rem) !important;
+  }
+
+  .app-bridge .button-paper {
+    width: 100%;
+    min-width: 0;
+    justify-content: center;
+  }
+
+  .answer-detail-page .topic-page-grid {
+    row-gap: 20px !important;
+  }
+
+  .answer-detail-page .topic-page-grid > aside {
+    margin-top: 0 !important;
+  }
+
+  .answer-detail-page .sidebar-card {
+    padding-bottom: 26px !important;
+  }
+}
