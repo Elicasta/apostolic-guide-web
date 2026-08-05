@@ -28,7 +28,7 @@ export default async function PathwayPage({ params }: Props) {
   const previous = currentIndex > 0 ? collectionItems[currentIndex - 1] : null;
   const next = currentIndex < collectionItems.length - 1 ? collectionItems[currentIndex + 1] : null;
   const pathwayReferences = pathway.steps.map((step) => step.reference);
-  const appHref = buildAppUrl("/paths", { origin: `website-pathway-${pathway.slug}` });
+  const appHref = buildAppUrl(`/paths/${pathway.appSlug}`, { origin: `website-pathway-${pathway.slug}` });
 
   return (
     <>
@@ -72,7 +72,7 @@ export default async function PathwayPage({ params }: Props) {
             <h2>{pathway.title}</h2>
             <p>This page gives you the key biblical progression. Continue in the app for the full pathway, more passages, objections, branches, and deeper context.</p>
             {topic && <Link href={`/topics/${topic.slug}`}>Related topic: {topic.title}</Link>}
-            <a className="button button-paper" href={appHref}>Continue full pathway in app <ExternalLink size={15} /></a>
+            <a className="button button-paper" href={appHref}>Continue this pathway in app <ExternalLink size={15} /></a>
           </aside>
         </div>
       </section>
@@ -88,11 +88,11 @@ export default async function PathwayPage({ params }: Props) {
         <div className="shell">
           <section className="app-bridge app-bridge-compact" data-reveal>
             <div>
-              <span className="eyebrow eyebrow-light">Continue in the study app</span>
+              <span className="eyebrow eyebrow-light">Continue this study in the app</span>
               <h2>Go deeper without turning this page into a textbook.</h2>
-              <p>The app carries the complete pathway library, expanded steps, connected objections, and further study branches.</p>
+              <p>Open the exact {pathway.title} pathway for its complete passage sequence, objections, branches, and further context.</p>
             </div>
-            <a className="button button-paper" href={appHref}>Open app pathways <ExternalLink size={17} /></a>
+            <a className="button button-paper" href={appHref}>Open full pathway in app <ExternalLink size={17} /></a>
           </section>
         </div>
       </section>
