@@ -3,7 +3,7 @@ import { ArrowRight, ArrowUpRight, BookOpen, Route, Search } from "lucide-react"
 import { SearchForm } from "@/components";
 import { AppPromoBanner } from "@/app-promo-banner";
 import { ArticlePoster } from "@/article-poster";
-import { answers, articles, pathways, scriptures, topics } from "@/data";
+import { answers, articles, scriptures, topics } from "@/data";
 import { buildAppUrl } from "@/urls";
 
 const searchPrompts = [
@@ -13,8 +13,28 @@ const searchPrompts = [
   "Baptism in Jesus' name"
 ];
 
+const featuredPathway = {
+  title: "Who Is Jesus Christ?",
+  summary: "Move from the one God of Israel to the full revelation of God in Jesus Christ.",
+  estimatedMinutes: 12,
+  level: "Foundational",
+  href: "/pathways/jesus-is-god",
+  steps: [
+    { title: "Confess the one God", reference: "Deuteronomy 6:4" },
+    { title: "No God beside YHWH", reference: "Isaiah 44:6" },
+    { title: "The Word was God", reference: "John 1:1–14" },
+    { title: "See the Father in Christ", reference: "John 14:9–11" },
+    { title: "All fullness bodily", reference: "Colossians 2:9" }
+  ]
+};
+
+function scriptureHref(reference: string) {
+  const exact = scriptures.find((item) => item.reference === reference);
+  if (exact) return `/scripture/${exact.path}`;
+  return `/search?q=${encodeURIComponent(reference)}`;
+}
+
 export default function HomePage() {
-  const featuredPathway = pathways[0];
   const spotlight = scriptures.find((item) => item.reference === "John 14:9–11") ?? scriptures[0];
   const featuredAnswers = answers.slice(0, 5);
   const featuredTopics = topics.slice(0, 5);
@@ -146,21 +166,24 @@ export default function HomePage() {
               <span>{featuredPathway.estimatedMinutes} min</span>
               <span>{featuredPathway.level}</span>
             </div>
-            <Link className="button button-dark" href={`/pathways/${featuredPathway.slug}`}>Begin pathway <Route size={17} /></Link>
+            <Link className="button button-dark" href={featuredPathway.href}>Begin pathway <Route size={17} /></Link>
           </div>
 
           <div className="ei-pathway-interface" data-reveal>
             <header><span>{featuredPathway.title}</span><span>Step sequence</span></header>
             <div className="ei-pathway-track">
               {featuredPathway.steps.map((step, index) => (
-                <Link href={`/pathways/${featuredPathway.slug}`} className="ei-pathway-step" key={`${step.reference}-${index}`}>
+                <Link href={scriptureHref(step.reference)} className="ei-pathway-step" key={`${step.reference}-${index}`}>
                   <span>{String(index + 1).padStart(2, "0")}</span>
                   <div><strong>{step.title}</strong><small>{step.reference}</small></div>
                   <ArrowRight size={16} />
                 </Link>
               ))}
             </div>
-            <footer><span>Open in sequence</span><span>Follow the evidence →</span></footer>
+            <footer>
+              <span>Open each passage</span>
+              <Link href={featuredPathway.href}>Follow the full evidence <ArrowRight size={14} /></Link>
+            </footer>
           </div>
         </div>
       </section>
