@@ -99,9 +99,13 @@ export default async function SearchPage({ searchParams }: Props) {
           {!query && (
             <section className="search-prompt-panel" aria-labelledby="search-prompt-title">
               <span className="eyebrow">Popular starting points</span>
-              <h2 id="search-prompt-title">Choose a question to place it in the search field.</h2>
+              <h2 id="search-prompt-title">Choose a question and open the results.</h2>
               <div className="search-prompt-grid">
-                {searchPrompts.map((prompt) => <button type="button" data-search-prompt={prompt} key={prompt}>{prompt}<ArrowRight size={16} /></button>)}
+                {searchPrompts.map((prompt) => (
+                  <Link className="search-prompt-link" href={`/search?q=${encodeURIComponent(prompt)}`} key={prompt}>
+                    {prompt}<ArrowRight size={16} />
+                  </Link>
+                ))}
               </div>
             </section>
           )}
