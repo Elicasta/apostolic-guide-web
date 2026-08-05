@@ -35,6 +35,7 @@ export function ReadingProgress() {
 
     const key = storageKey(pathname);
     let frame = 0;
+    let revealTimer = 0;
     let lastSavedAt = 0;
 
     try {
@@ -44,12 +45,12 @@ export function ReadingProgress() {
         const fresh = Date.now() - parsed.updatedAt < MAX_AGE;
         if (fresh && parsed.ratio >= 0.08 && parsed.ratio < 0.96) {
           setSaved(parsed);
-          const timer = window.setTimeout(() => {
+          revealTimer = window.setTimeout(() => {
             if (window.scrollY < 120) setVisible(true);
           }, 900);
-          return () => window.clearTimeout(timer);
+        } else if (!fresh || parsed.ratio >= 0.96) {
+          window.localStorage.removeItem(key);
         }
-        if (!fresh || parsed.ratio >= 0.96) window.localStorage.removeItem(key);
       }
     } catch {}
 
@@ -86,6 +87,7 @@ export function ReadingProgress() {
     window.addEventListener("pagehide", persist);
 
     return () => {
+      window.clearTimeout(revealTimer);
       window.removeEventListener("scroll", onScroll);
       window.removeEventListener("pagehide", persist);
       if (frame) window.cancelAnimationFrame(frame);
