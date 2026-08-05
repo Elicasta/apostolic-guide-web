@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowLeft, Clock3 } from "lucide-react";
+import { ArrowLeft, ArrowRight, Clock3 } from "lucide-react";
 import { notFound } from "next/navigation";
 import { AppBridge, ContentBody, DatabaseDocument } from "@/components";
 import { extractScriptureReferences, StudyScriptures } from "@/study-guidance";
@@ -42,6 +42,9 @@ export default async function ArticlePage({ params }: Props) {
       ]))
     : extractScriptureReferences([database!.summary, database!.body]);
   const issue = String(Math.max(1, articles.findIndex((article) => article.slug === slug) + 1)).padStart(2, "0");
+  const conclusionText = topic
+    ? `The passages in this study establish the central claim clearly: ${topic.claim} Read the surrounding chapters, compare every connected passage, and let the explicit testimony of Scripture control the conclusion.`
+    : `The evidence in this study reaches a clear biblical conclusion. Read the surrounding chapters, compare every connected passage, and let the explicit testimony of Scripture control the conclusion.`;
   const structuredData = {
     "@context": "https://schema.org",
     "@type": "Article",
@@ -84,7 +87,18 @@ export default async function ArticlePage({ params }: Props) {
           </aside>
           <div>
             {local ? <ContentBody sections={local.sections} /> : <DatabaseDocument body={database!.body} />}
-            <StudyScriptures references={references} />
+            <section className="article-conclusion" aria-labelledby={`article-conclusion-${slug}`} data-reveal>
+              <span className="article-conclusion-kicker">Conclusion</span>
+              <h2 id={`article-conclusion-${slug}`}>What this study establishes.</h2>
+              <p><strong>{conclusionText}</strong></p>
+              <div className="article-conclusion-actions">
+                {topic && <Link className="article-conclusion-link" href={`/topics/${topic.slug}`}>Explore {topic.title}<ArrowRight size={16} /></Link>}
+                <a className="article-conclusion-link" href="#study-the-scriptures">Open the passages<ArrowRight size={16} /></a>
+              </div>
+            </section>
+            <div id="study-the-scriptures">
+              <StudyScriptures references={references} />
+            </div>
             <AppBridge compact origin={`article:${slug}`} />
           </div>
         </div>
