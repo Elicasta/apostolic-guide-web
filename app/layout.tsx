@@ -4,7 +4,9 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Suspense } from "react";
 import { SiteFooter, SiteHeader } from "@/components";
 import { ProductAnalytics } from "@/analytics";
+import { EmailCapture } from "@/email-capture";
 import { GlobalBackNav } from "@/global-back-nav";
+import { ReadingProgress } from "@/reading-progress";
 import { SiteBehavior } from "@/site-behavior";
 import { websiteUrl } from "@/urls";
 import "./globals.css";
@@ -37,6 +39,7 @@ import "./motion-system-v1.css";
 import "./content-links-polish.css";
 import "./pathway-directory.css";
 import "./article-conclusion.css";
+import "./retention-system.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL(websiteUrl),
@@ -113,7 +116,11 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <main id="main-content">{children}</main>
         <SiteFooter />
         <SiteBehavior />
-        <Suspense fallback={null}><ProductAnalytics /></Suspense>
+        <Suspense fallback={null}>
+          <ReadingProgress />
+          <EmailCapture />
+          <ProductAnalytics />
+        </Suspense>
         <Analytics />
         <SpeedInsights />
       </body>
