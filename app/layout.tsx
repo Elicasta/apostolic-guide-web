@@ -36,6 +36,7 @@ import "./app-screenshot-v1.css";
 import "./motion-system-v1.css";
 import "./content-links-polish.css";
 import "./pathway-directory.css";
+import "./article-conclusion.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL(websiteUrl),
