@@ -2,7 +2,7 @@
 
 import { ArrowRight, Check, Mail, X } from "lucide-react";
 import { usePathname } from "next/navigation";
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useState } from "react";
 
 const DISMISS_KEY = "apostolic-guide:email-capture-dismissed";
 const SIGNED_UP_KEY = "apostolic-guide:email-capture-signed-up";
@@ -18,6 +18,11 @@ export function EmailCapture() {
   const [state, setState] = useState<"idle" | "submitting" | "success" | "error">("idle");
   const [message, setMessage] = useState("");
 
+  const dismiss = useCallback(() => {
+    setOpen(false);
+    try { window.localStorage.setItem(DISMISS_KEY, String(Date.now())); } catch {}
+  }, []);
+
   useEffect(() => {
     if (pathname.startsWith("/admin") || pathname.startsWith("/login") || pathname.startsWith("/api")) return;
 
@@ -27,23 +32,38 @@ export function EmailCapture() {
       if (dismissed && Date.now() - dismissed < DISMISS_FOR) return;
     } catch {}
 
+    let cancelled = false;
+    let timer = 0;
+    let listening = false;
     let opened = false;
+
     const reveal = () => {
-      if (opened) return;
+      if (opened || cancelled) return;
       opened = true;
       setOpen(true);
     };
 
-    const timer = window.setTimeout(reveal, 26000);
     const onScroll = () => {
       const maxScroll = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
       if (window.scrollY / maxScroll >= 0.34) reveal();
     };
 
-    window.addEventListener("scroll", onScroll, { passive: true });
+    const prepare = async () => {
+      try {
+        const response = await fetch("/api/subscribe", { cache: "no-store" });
+        const result = await response.json() as { enabled?: boolean };
+        if (cancelled || !result.enabled) return;
+        timer = window.setTimeout(reveal, 26000);
+        window.addEventListener("scroll", onScroll, { passive: true });
+        listening = true;
+      } catch {}
+    };
+
+    void prepare();
     return () => {
+      cancelled = true;
       window.clearTimeout(timer);
-      window.removeEventListener("scroll", onScroll);
+      if (listening) window.removeEventListener("scroll", onScroll);
     };
   }, [pathname]);
 
@@ -59,12 +79,7 @@ export function EmailCapture() {
       document.body.style.overflow = previousOverflow;
       document.removeEventListener("keydown", onKeyDown);
     };
-  }, [open]);
-
-  const dismiss = () => {
-    setOpen(false);
-    try { window.localStorage.setItem(DISMISS_KEY, String(Date.now())); } catch {}
-  };
+  }, [dismiss, open]);
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
