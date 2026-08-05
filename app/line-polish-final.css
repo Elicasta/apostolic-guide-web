@@ -1,0 +1,246 @@
+/* Apostolic Guide — final sitewide line polish
+   One accent rule, one separator per relationship, and no decorative doubles. */
+
+:root {
+  --ag-line-soft: rgba(15, 30, 45, 0.12);
+  --ag-line-strong: rgba(15, 30, 45, 0.17);
+  --ag-line-dark: rgba(255, 255, 255, 0.15);
+  --ag-line-accent: #b3212d;
+  --ag-line-accent-soft: #efa6ae;
+  --ag-line-width: 48px;
+  --ag-line-thickness: 3px;
+}
+
+/* --------------------------------------------------------------------------
+   Editorial accent rules
+   -------------------------------------------------------------------------- */
+
+.eyebrow,
+.article-conclusion-kicker {
+  align-items: center !important;
+  column-gap: 14px !important;
+  row-gap: 7px !important;
+  line-height: 1.3 !important;
+}
+
+.eyebrow::before,
+.article-conclusion-kicker::before {
+  width: var(--ag-line-width) !important;
+  min-width: var(--ag-line-width) !important;
+  height: var(--ag-line-thickness) !important;
+  flex: 0 0 var(--ag-line-width) !important;
+  margin: 0 !important;
+  border-radius: 999px !important;
+  background: currentColor !important;
+}
+
+/* These surfaces already contain an eyebrow/kicker. Their old standalone
+   top rules were the source of the visible double-line treatment. */
+.pathway-app-card::before,
+.article-conclusion::before,
+.smart-next-intro::before {
+  display: none !important;
+  content: none !important;
+}
+
+/* --------------------------------------------------------------------------
+   Study Scriptures: the label is the divider; do not box it between rules
+   -------------------------------------------------------------------------- */
+
+.study-scriptures {
+  border-top: 0 !important;
+  border-bottom: 0 !important;
+}
+
+.study-method-links {
+  gap: 0 !important;
+  padding-top: 0 !important;
+  border-top: 1px solid var(--ag-line-soft) !important;
+  border-bottom: 0 !important;
+}
+
+.study-method-links > a {
+  border: 0 !important;
+}
+
+.study-method-links > a + a {
+  border-top: 1px solid var(--ag-line-soft) !important;
+}
+
+/* A feature card or study close already creates its own visual boundary. */
+.section-tight:has(> .shell > .study-scriptures),
+.section-tight:has(> .shell > .app-bridge),
+.section-tight:has(> .shell > .smart-next) {
+  border-top: 0 !important;
+}
+
+/* --------------------------------------------------------------------------
+   Scripture sidebars: heading rule OR row rule, never both
+   -------------------------------------------------------------------------- */
+
+.scripture-sidebar > div > strong {
+  display: block !important;
+  margin: 0 !important;
+  padding: 0 0 14px !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--ag-line-soft) !important;
+}
+
+.scripture-sidebar > div > a,
+.scripture-sidebar > div > span {
+  border: 0 !important;
+}
+
+.scripture-sidebar > div > a + a,
+.scripture-sidebar > div > span + span,
+.scripture-sidebar > div > a + span,
+.scripture-sidebar > div > span + a {
+  border-top: 1px solid var(--ag-line-soft) !important;
+}
+
+/* A standalone context note is already a card. A context note attached to a
+   list receives one separator above it. */
+.scripture-context-note {
+  border-top-color: var(--ag-line-soft) !important;
+}
+
+.scripture-sidebar > .scripture-context-note {
+  border-top: 0 !important;
+}
+
+.sidebar-card > .scripture-context-note,
+.scripture-directory-shell > .scripture-context-note {
+  border-top: 1px solid var(--ag-line-soft) !important;
+}
+
+/* --------------------------------------------------------------------------
+   Topic and reading sections
+   -------------------------------------------------------------------------- */
+
+.topic-section-block {
+  border-top: 1px solid var(--ag-line-soft) !important;
+  border-bottom: 0 !important;
+}
+
+.topic-link-list {
+  border-top: 1px solid var(--ag-line-soft) !important;
+  border-bottom: 0 !important;
+}
+
+.topic-link-list > a {
+  border: 0 !important;
+}
+
+.topic-link-list > a + a {
+  border-top: 1px solid var(--ag-line-soft) !important;
+}
+
+.related-section > .shell {
+  border-top: 1px solid var(--ag-line-soft) !important;
+}
+
+.scripture-directory-intro {
+  border-bottom: 1px solid var(--ag-line-soft) !important;
+}
+
+.scripture-directory-intro + .scripture-context-note {
+  border-top: 0 !important;
+}
+
+/* Keep reading-aside rows clean: one line between links, none above the first. */
+.article-page .reading-aside a {
+  border-top: 0 !important;
+}
+
+.article-page .reading-aside a + a {
+  border-top: 1px solid var(--ag-line-soft) !important;
+}
+
+/* --------------------------------------------------------------------------
+   Pathway collection navigation
+   -------------------------------------------------------------------------- */
+
+.pathway-pagination-section {
+  border-top: 0 !important;
+}
+
+.pathway-sequence-nav {
+  border-top: 1px solid var(--ag-line-soft) !important;
+  border-bottom: 1px solid var(--ag-line-soft) !important;
+}
+
+.pathway-sequence-nav > span {
+  display: none !important;
+}
+
+.pathway-sequence-nav > a {
+  border: 0 !important;
+}
+
+.pathway-sequence-nav > a + a {
+  border-left: 1px solid var(--ag-line-soft) !important;
+}
+
+/* First and last pathways should not render an empty half-cell. */
+.pathway-sequence-nav:has(> a:only-of-type) {
+  display: flex !important;
+  grid-template-columns: none !important;
+}
+
+.pathway-sequence-nav:has(> a.next:only-of-type) {
+  justify-content: flex-end !important;
+}
+
+.pathway-sequence-nav:has(> a:only-of-type) > a {
+  width: min(100%, 430px) !important;
+  border-left: 0 !important;
+  padding-inline: 10px !important;
+}
+
+/* --------------------------------------------------------------------------
+   Dark closing surfaces
+   -------------------------------------------------------------------------- */
+
+.article-conclusion p,
+.smart-next-secondary {
+  border-color: var(--ag-line-dark) !important;
+}
+
+.smart-next-secondary a + a {
+  border-color: var(--ag-line-dark) !important;
+}
+
+/* --------------------------------------------------------------------------
+   Small-screen spacing around rules
+   -------------------------------------------------------------------------- */
+
+@media (max-width: 760px) {
+  :root {
+    --ag-line-width: 38px;
+  }
+
+  .eyebrow,
+  .article-conclusion-kicker {
+    column-gap: 12px !important;
+  }
+
+  .topic-section-block {
+    padding-top: 28px !important;
+  }
+
+  .related-section > .shell {
+    padding-top: 28px !important;
+  }
+
+  .study-method-links {
+    margin-top: 24px !important;
+  }
+
+  .scripture-sidebar > div > strong {
+    padding-bottom: 13px !important;
+  }
+
+  .pathway-sequence-nav:has(> a:only-of-type) > a {
+    width: 100% !important;
+  }
+}
