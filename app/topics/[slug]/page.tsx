@@ -4,6 +4,8 @@ import { ArrowLeft, ArrowRight, BookOpen, ExternalLink, HelpCircle, Route } from
 import { notFound } from "next/navigation";
 import { AppBridge, PageHero, ScriptureMiniCard, TopicCard } from "@/components";
 import { ScriptureContextNote, StudyScriptures } from "@/study-guidance";
+import { SmartNext } from "@/smart-next";
+import { topicSuggestions } from "@/suggestion-data";
 import { answers, articles, scriptures, topicBySlug, topics } from "@/data";
 import { allPathways } from "@/pathway-catalog";
 import { buildAppUrl } from "@/urls";
@@ -29,6 +31,7 @@ export default async function TopicPage({ params }: Props) {
   const topicArticles = articles.filter((item) => item.topicSlug === topic.slug);
   const topicPathway = allPathways.find((item) => item.topicSlug === topic.slug);
   const relatedTopics = topics.filter((item) => item.slug !== topic.slug && item.category === topic.category).slice(0, 2);
+  const suggestions = topicSuggestions(topic.slug);
   const appPathwayHref = topicPathway
     ? buildAppUrl(`/paths/${topicPathway.appSlug}`, { origin: `website-topic-${topic.slug}` })
     : null;
@@ -66,6 +69,7 @@ export default async function TopicPage({ params }: Props) {
       <section className="section section-tight"><div className="shell"><StudyScriptures references={topic.keyScriptures} /></div></section>
       {relatedTopics.length > 0 && <section className="section section-tight related-section"><div className="shell"><span className="eyebrow">Keep studying</span><h2 className="related-heading">Related topics</h2><div className="topic-grid topic-grid-two">{relatedTopics.map((item) => <TopicCard topic={item} key={item.slug} />)}</div></div></section>}
       <section className="section section-tight"><div className="shell"><AppBridge origin={`topic-${topic.slug}`} compact /></div></section>
+      <section className="section section-tight"><div className="shell"><SmartNext currentPath={`/topics/${topic.slug}`} candidates={suggestions} /></div></section>
     </>
   );
 }
