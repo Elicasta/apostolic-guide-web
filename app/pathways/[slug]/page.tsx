@@ -26,7 +26,7 @@ export default async function PathwayPage({ params }: Props) {
   const previous = currentIndex > 0 ? pathways[currentIndex - 1] : null;
   const next = currentIndex < pathways.length - 1 ? pathways[currentIndex + 1] : null;
   const pathwayReferences = pathway.steps.map((step) => step.reference);
-  const appHref = buildAppUrl("/pathways", { origin: `website-pathway-${pathway.slug}` });
+  const appHref = buildAppUrl("/paths", { origin: `website-pathway-${pathway.slug}` });
 
   return (
     <>
