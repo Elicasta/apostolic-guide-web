@@ -5,6 +5,8 @@ import { notFound } from "next/navigation";
 import { AppBridge, ContentBody, DatabaseDocument } from "@/components";
 import { extractScriptureReferences, StudyScriptures } from "@/study-guidance";
 import { ShareButton } from "@/share-button";
+import { SmartNext } from "@/smart-next";
+import { articleSuggestions } from "@/suggestion-data";
 import { articleBySlug, articles, topicBySlug } from "@/data";
 import { getDatabaseContent } from "@/database-content";
 import { websiteUrl } from "@/urls";
@@ -42,6 +44,7 @@ export default async function ArticlePage({ params }: Props) {
       ]))
     : extractScriptureReferences([database!.summary, database!.body]);
   const issue = String(Math.max(1, articles.findIndex((article) => article.slug === slug) + 1)).padStart(2, "0");
+  const suggestions = articleSuggestions(slug);
   const conclusionText = topic
     ? `The passages in this study establish the central claim clearly: ${topic.claim} Read the surrounding chapters, compare every connected passage, and let the explicit testimony of Scripture control the conclusion.`
     : `The evidence in this study reaches a clear biblical conclusion. Read the surrounding chapters, compare every connected passage, and let the explicit testimony of Scripture control the conclusion.`;
@@ -100,6 +103,14 @@ export default async function ArticlePage({ params }: Props) {
               <StudyScriptures references={references} />
             </div>
             <AppBridge compact origin={`article:${slug}`} />
+            <SmartNext
+              currentPath={`/articles/${slug}`}
+              candidates={suggestions}
+              eyebrow="Continue reading"
+              heading="Read the next article."
+              intro="Move through the studies as a connected series, then branch into the pathway or question that helps most."
+              primaryLabel="Read next article"
+            />
           </div>
         </div>
       </article>
