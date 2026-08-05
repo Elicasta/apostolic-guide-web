@@ -1,0 +1,488 @@
+/* Apostolic Guide — authoritative spacing system v2
+   This file is intentionally spacing-only. Card surfaces, contrast, radius,
+   elevation, and motion are handled in their own passes. */
+
+:root {
+  --ag-space-1: 8px;
+  --ag-space-2: 12px;
+  --ag-space-3: 16px;
+  --ag-space-4: 24px;
+  --ag-space-5: 32px;
+  --ag-space-6: 40px;
+  --ag-space-7: 52px;
+  --ag-space-8: 68px;
+  --ag-section-y: clamp(54px, 6vw, 76px);
+  --ag-section-y-compact: clamp(34px, 4vw, 48px);
+  --ag-layout-gap: clamp(34px, 5vw, 64px);
+  --ag-content-gap: clamp(30px, 4vw, 46px);
+}
+
+/* --------------------------------------------------------------------------
+   Global section rhythm
+   -------------------------------------------------------------------------- */
+
+main > .section,
+.editorial-interface > section:not(.ei-hero),
+.how-page > .section {
+  min-height: 0 !important;
+  padding-block: var(--ag-section-y) !important;
+}
+
+main > .section.section-tight,
+.how-page > .section.section-tight {
+  padding-block: var(--ag-section-y-compact) !important;
+}
+
+/* Adjacent sections should read as one continuous page, not separate screens. */
+main > .section + .section,
+.how-page > .section + .section {
+  padding-top: clamp(18px, 2.5vw, 30px) !important;
+}
+
+main > .section + .section.section-tight,
+main > .section.section-tight + .section,
+main > .section.section-tight + .section.section-tight,
+.how-page > .section + .section.section-tight,
+.how-page > .section.section-tight + .section,
+.how-page > .section.section-tight + .section.section-tight {
+  padding-top: clamp(14px, 2vw, 24px) !important;
+}
+
+/* A layout grid inside a padded section must not add another page-sized pad. */
+.section > .shell.reading-layout,
+.section > .shell.topic-page-grid,
+.section > .shell.scripture-detail-grid,
+.section > .shell.pathway-study-layout {
+  padding-block: 0 !important;
+}
+
+.page-hero-inner {
+  padding-block: clamp(46px, 5.5vw, 68px) !important;
+  gap: clamp(28px, 4.5vw, 56px) !important;
+}
+
+.page-hero + .section,
+.page-hero + .section-tight {
+  padding-top: var(--ag-section-y-compact) !important;
+}
+
+/* --------------------------------------------------------------------------
+   Homepage
+   -------------------------------------------------------------------------- */
+
+.ei-hero-grid {
+  padding-block: clamp(56px, 7vw, 88px) !important;
+}
+
+.ei-search,
+.ei-questions,
+.ei-topics,
+.ei-pathway,
+.ei-editorial,
+.ei-declaration {
+  padding-block: var(--ag-section-y) !important;
+}
+
+.ei-section-grid,
+.ei-pathway-grid,
+.ei-declaration-grid {
+  gap: var(--ag-layout-gap) !important;
+}
+
+.ei-section-heading,
+.ei-editorial-heading {
+  margin-bottom: clamp(28px, 4vw, 42px) !important;
+}
+
+.ei-question-index,
+.ei-topic-interface,
+.ei-poster-grid {
+  margin-top: 0 !important;
+}
+
+.ei-editorial-link {
+  margin-top: var(--ag-space-5) !important;
+}
+
+/* --------------------------------------------------------------------------
+   Directory pages and search
+   -------------------------------------------------------------------------- */
+
+.scripture-index-section,
+.answers-index-section,
+.topics-page-section,
+.pathways-index-section,
+.media-index-section {
+  padding-top: var(--ag-section-y-compact) !important;
+}
+
+.scripture-directory-shell,
+.interactive-directory,
+.search-page {
+  gap: var(--ag-space-4) !important;
+}
+
+.scripture-directory-intro,
+.directory-toolbar {
+  margin: 0 !important;
+}
+
+.scripture-library,
+.topic-grid,
+.answer-grid,
+.pathway-grid,
+.media-grid,
+.search-results {
+  margin-top: var(--ag-space-4) !important;
+}
+
+/* --------------------------------------------------------------------------
+   Long-form answers and articles
+   -------------------------------------------------------------------------- */
+
+.answer-detail-page > .shell {
+  padding-block: var(--ag-section-y) !important;
+}
+
+.content-header {
+  margin-bottom: var(--ag-space-5) !important;
+}
+
+.content-header h1 {
+  margin-block: var(--ag-space-3) var(--ag-space-4) !important;
+}
+
+.content-header .lede {
+  margin-bottom: var(--ag-space-4) !important;
+}
+
+.answer-summary {
+  margin: 0 0 var(--ag-space-6) !important;
+}
+
+.answer-detail-page .topic-page-grid {
+  padding-block: 0 !important;
+}
+
+.article-page > .shell.reading-layout {
+  padding-block: var(--ag-section-y) !important;
+}
+
+.reading-layout,
+.topic-page-grid,
+.scripture-detail-grid,
+.pathway-study-layout {
+  gap: var(--ag-layout-gap) !important;
+}
+
+.prose-content {
+  gap: var(--ag-content-gap) !important;
+}
+
+.prose-content section {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.prose-content h2 {
+  margin: 0 0 var(--ag-space-3) !important;
+}
+
+.prose-content p {
+  margin: 0 !important;
+}
+
+.prose-content p + p {
+  margin-top: var(--ag-space-3) !important;
+}
+
+.prose-content blockquote {
+  margin: var(--ag-space-4) 0 0 !important;
+}
+
+.reading-aside {
+  padding-top: var(--ag-space-4) !important;
+}
+
+.reading-aside strong {
+  margin-bottom: var(--ag-space-3) !important;
+}
+
+.reading-aside a {
+  margin-bottom: var(--ag-space-2) !important;
+}
+
+/* --------------------------------------------------------------------------
+   Topic pages
+   -------------------------------------------------------------------------- */
+
+.topic-page-grid > div > .back-link {
+  margin-bottom: var(--ag-space-4) !important;
+}
+
+.topic-claim {
+  margin: 0 0 var(--ag-space-5) !important;
+}
+
+.topic-section-block {
+  margin: 0 !important;
+  padding-block: var(--ag-space-5) !important;
+}
+
+.topic-section-block:first-of-type {
+  padding-top: 0 !important;
+}
+
+.topic-section-block h2 {
+  margin: var(--ag-space-3) 0 var(--ag-space-4) !important;
+}
+
+.topic-link-list,
+.topic-scripture-list {
+  margin-top: 0 !important;
+}
+
+.topic-sidebar,
+.scripture-sidebar {
+  gap: var(--ag-space-4) !important;
+}
+
+/* --------------------------------------------------------------------------
+   Scripture detail pages
+   -------------------------------------------------------------------------- */
+
+.scripture-page-hero > .shell {
+  padding-block: clamp(48px, 6vw, 76px) !important;
+}
+
+.scripture-page-hero .scripture-reference {
+  margin-top: var(--ag-space-5) !important;
+}
+
+.scripture-page-hero blockquote {
+  margin-block: var(--ag-space-4) var(--ag-space-5) !important;
+}
+
+.scripture-explanation {
+  gap: 0 !important;
+}
+
+.scripture-main-point {
+  margin-bottom: var(--ag-space-4) !important;
+}
+
+.scripture-explanation > section {
+  margin: 0 !important;
+  padding-block: var(--ag-space-5) !important;
+}
+
+.scripture-explanation > section h2 {
+  margin: var(--ag-space-3) 0 var(--ag-space-3) !important;
+}
+
+/* --------------------------------------------------------------------------
+   Pathways
+   -------------------------------------------------------------------------- */
+
+.pathway-hero > .shell {
+  padding-block: clamp(48px, 6vw, 76px) !important;
+}
+
+.pathway-hero h1 {
+  margin-block: var(--ag-space-4) var(--ag-space-3) !important;
+}
+
+.study-metrics {
+  margin-top: var(--ag-space-4) !important;
+}
+
+.pathway-timeline {
+  gap: 0 !important;
+}
+
+.pathway-study-step {
+  margin: 0 !important;
+  padding-block: var(--ag-space-5) !important;
+}
+
+.pathway-study-step:first-child {
+  padding-top: 0 !important;
+}
+
+.pathway-study-step h2 {
+  margin: var(--ag-space-3) 0 var(--ag-space-3) !important;
+}
+
+.pathway-study-step p {
+  margin: 0 !important;
+}
+
+.pathway-study-step blockquote {
+  margin: var(--ag-space-4) 0 0 !important;
+}
+
+.pathway-study-actions {
+  margin-top: var(--ag-space-4) !important;
+}
+
+.pathway-pagination-section,
+.related-section {
+  padding-top: var(--ag-space-4) !important;
+}
+
+/* --------------------------------------------------------------------------
+   Study guidance and app handoff
+   -------------------------------------------------------------------------- */
+
+/* When the component is the only content of an outer section, the section
+   supplies the breathing room. Do not pad the component a second time. */
+.section > .shell > .study-scriptures:first-child:last-child {
+  margin: 0 !important;
+  padding-block: 0 !important;
+}
+
+/* In long-form content, it should remain attached to what was just read. */
+.reading-layout .study-scriptures,
+.answer-detail-page > .shell > .study-scriptures {
+  margin-top: var(--ag-space-7) !important;
+  margin-bottom: 0 !important;
+}
+
+.reading-layout .app-bridge,
+.answer-detail-page > .shell > .app-bridge {
+  margin-top: var(--ag-space-6) !important;
+}
+
+.study-scriptures-copy h2 {
+  margin: var(--ag-space-3) 0 var(--ag-space-3) !important;
+}
+
+.study-reference-list {
+  margin-top: var(--ag-space-4) !important;
+}
+
+.study-method-links {
+  margin-top: var(--ag-space-4) !important;
+  padding-top: var(--ag-space-3) !important;
+}
+
+/* --------------------------------------------------------------------------
+   How it works
+   -------------------------------------------------------------------------- */
+
+.how-method-intro-grid {
+  gap: var(--ag-layout-gap) !important;
+}
+
+.how-method-intro h2 {
+  margin-top: var(--ag-space-3) !important;
+}
+
+.study-method-grid {
+  row-gap: 0 !important;
+}
+
+.study-method-step {
+  margin: 0 !important;
+  padding-block: var(--ag-space-5) !important;
+}
+
+.study-method-step h2 {
+  margin: 0 0 var(--ag-space-3) !important;
+}
+
+.study-method-step p {
+  margin: 0 !important;
+}
+
+.how-page .section > .shell > .study-scriptures {
+  margin: 0 !important;
+  padding-block: 0 !important;
+}
+
+.how-page .section > .shell > .study-scriptures + .text-link {
+  display: inline-flex;
+  margin-top: var(--ag-space-4) !important;
+}
+
+/* --------------------------------------------------------------------------
+   Mobile
+   -------------------------------------------------------------------------- */
+
+@media (max-width: 720px) {
+  :root {
+    --ag-section-y: 46px;
+    --ag-section-y-compact: 30px;
+    --ag-layout-gap: 32px;
+    --ag-content-gap: 32px;
+  }
+
+  main > .section + .section,
+  .how-page > .section + .section {
+    padding-top: 14px !important;
+  }
+
+  main > .section + .section.section-tight,
+  main > .section.section-tight + .section,
+  main > .section.section-tight + .section.section-tight,
+  .how-page > .section + .section.section-tight,
+  .how-page > .section.section-tight + .section,
+  .how-page > .section.section-tight + .section.section-tight {
+    padding-top: 10px !important;
+  }
+
+  .page-hero-inner {
+    padding-block: 38px 34px !important;
+    gap: 26px !important;
+  }
+
+  .ei-hero-grid {
+    padding-block: 48px 54px !important;
+  }
+
+  .ei-search,
+  .ei-questions,
+  .ei-topics,
+  .ei-pathway,
+  .ei-editorial,
+  .ei-declaration {
+    padding-block: 52px !important;
+  }
+
+  .ei-section-heading,
+  .ei-editorial-heading {
+    margin-bottom: 28px !important;
+  }
+
+  .answer-detail-page > .shell,
+  .article-page > .shell.reading-layout,
+  .scripture-page-hero > .shell,
+  .pathway-hero > .shell {
+    padding-block: 42px !important;
+  }
+
+  .content-header {
+    margin-bottom: 26px !important;
+  }
+
+  .answer-summary {
+    margin-bottom: 32px !important;
+  }
+
+  .topic-section-block,
+  .scripture-explanation > section,
+  .pathway-study-step,
+  .study-method-step {
+    padding-block: 26px !important;
+  }
+
+  .reading-layout .study-scriptures,
+  .answer-detail-page > .shell > .study-scriptures {
+    margin-top: 38px !important;
+  }
+
+  .reading-layout .app-bridge,
+  .answer-detail-page > .shell > .app-bridge {
+    margin-top: 30px !important;
+  }
+}
