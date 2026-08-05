@@ -41,6 +41,7 @@ import "./pathway-directory.css";
 import "./article-conclusion.css";
 import "./retention-system.css";
 import "./smart-navigation.css";
+import "./connectivity-polish.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL(websiteUrl),
