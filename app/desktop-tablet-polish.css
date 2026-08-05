@@ -72,17 +72,55 @@
   box-shadow: 0 8px 20px rgba(15, 30, 45, .14);
 }
 
-/* Square editorial cards on desktop/tablet. */
+/* Authoritative article card geometry. */
+.article-library-view-cards .ei-poster-grid-library {
+  display: grid;
+  gap: 18px;
+  align-items: stretch;
+}
+
 .article-library-view-cards .ei-article-poster {
+  width: 100%;
+  min-width: 0;
+  min-height: 0 !important;
+  height: auto !important;
   aspect-ratio: 1 / 1;
-  min-height: 0;
-  height: auto;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  padding: 22px;
+  overflow: hidden;
+  transform: none !important;
+}
+
+.article-library-view-cards .ei-article-poster:hover {
+  transform: translateY(-4px) !important;
+}
+
+.article-library-view-cards .ei-article-poster > header {
+  grid-row: 1;
+  min-width: 0;
+}
+
+.article-library-view-cards .ei-poster-graphic {
+  position: absolute;
+  inset: 58px 18px auto;
+  height: 36%;
+  max-height: 180px;
+}
+
+.article-library-view-cards .ei-poster-copy {
+  grid-row: 2;
+  align-self: end;
+  min-width: 0;
+  margin-top: 0;
+  padding: 18px 0 18px;
 }
 
 .article-library-view-cards .ei-article-poster h3 {
-  font-size: clamp(25px, 2.25vw, 38px);
+  margin: 0 0 12px;
+  font-size: clamp(25px, 2.05vw, 36px);
   line-height: .98;
-  text-transform: none;
+  text-transform: none !important;
 }
 
 .article-library-view-cards .ei-article-poster p {
@@ -90,6 +128,20 @@
   overflow: hidden;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 4;
+  margin: 0;
+}
+
+.article-library-view-cards .ei-article-poster > footer {
+  grid-row: 3;
+  min-height: 42px;
+  margin-top: 0;
+  padding-top: 16px;
+  align-self: end;
+}
+
+.article-library-view-cards .ei-article-poster > footer span:first-child {
+  min-width: 92px;
+  white-space: nowrap;
 }
 
 /* Compact list mode for scanning and binge reading. */
@@ -107,6 +159,7 @@
   column-gap: 28px;
   padding: 22px 26px;
   border-radius: 18px;
+  transform: none !important;
 }
 
 .article-library-view-list .ei-article-poster > header {
@@ -298,7 +351,8 @@
 
   .article-library-view-cards .ei-article-poster {
     aspect-ratio: auto;
-    min-height: 470px;
+    min-height: 470px !important;
+    display: flex;
   }
 
   .article-library-view-list .ei-article-poster {
