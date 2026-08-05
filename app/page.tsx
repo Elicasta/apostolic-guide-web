@@ -4,6 +4,7 @@ import { SearchForm } from "@/components";
 import { AppPromoBanner } from "@/app-promo-banner";
 import { ArticlePoster } from "@/article-poster";
 import { answers, articles, scriptures, topics } from "@/data";
+import { allPathways } from "@/pathway-catalog";
 import { buildAppUrl } from "@/urls";
 
 const searchPrompts = [
@@ -13,26 +14,21 @@ const searchPrompts = [
   "Baptism in Jesus' name"
 ];
 
-const featuredPathway = {
-  title: "Who Is Jesus Christ?",
-  summary: "Move from the one God of Israel to the full revelation of God in Jesus Christ.",
-  estimatedMinutes: 12,
-  level: "Foundational",
-  href: "/pathways/jesus-is-god",
-  steps: [
-    { title: "Confess the one God", reference: "Deuteronomy 6:4" },
-    { title: "No God beside YHWH", reference: "Isaiah 44:6" },
-    { title: "The Word was God", reference: "John 1:1–14" },
-    { title: "See the Father in Christ", reference: "John 14:9–11" },
-    { title: "All fullness bodily", reference: "Colossians 2:9" }
-  ]
-};
+const pathwayPaletteConfig = [
+  { slug: "god-is-one", label: "Doctrine · Divine identity" },
+  { slug: "jesus-is-god", label: "Christology · Incarnation" },
+  { slug: "new-birth", label: "Salvation · New birth" },
+  { slug: "matthew-28-and-acts-2", label: "Baptism · Apostolic practice" },
+  { slug: "right-hand-of-god", label: "Interpretation · Common question" }
+] as const;
 
-function scriptureHref(reference: string) {
-  const exact = scriptures.find((item) => item.reference === reference);
-  if (exact) return `/scripture/${exact.path}`;
-  return `/search?q=${encodeURIComponent(reference)}`;
-}
+const pathwayPalette = pathwayPaletteConfig.map(({ slug, label }) => {
+  const item = allPathways.find((pathway) => pathway.slug === slug);
+  if (!item) throw new Error(`Missing homepage pathway: ${slug}`);
+  return { ...item, label };
+});
+
+const pathwayCollectionCount = new Set(allPathways.map((pathway) => pathway.collection)).size;
 
 export default function HomePage() {
   const spotlight = scriptures.find((item) => item.reference === "John 14:9–11") ?? scriptures[0];
@@ -158,31 +154,31 @@ export default function HomePage() {
         <div className="shell ei-pathway-grid">
           <div className="ei-pathway-copy">
             <span className="ei-section-number">04</span>
-            <span className="ei-kicker">Guided pathway</span>
-            <h2>{featuredPathway.title}</h2>
-            <p>{featuredPathway.summary}</p>
+            <span className="ei-kicker">Guided pathways</span>
+            <h2>Build the doctrine. Follow the pathway.</h2>
+            <p>Choose the study that matches the question in front of you. Each pathway establishes a complete biblical core, then points toward deeper study.</p>
             <div className="ei-pathway-meta">
-              <span>{featuredPathway.steps.length} passages</span>
-              <span>{featuredPathway.estimatedMinutes} min</span>
-              <span>{featuredPathway.level}</span>
+              <span>{allPathways.length} pathways</span>
+              <span>{pathwayCollectionCount} collections</span>
+              <span>Scripture first</span>
             </div>
-            <Link className="button button-dark" href={featuredPathway.href}>Begin pathway <Route size={17} /></Link>
+            <Link className="button button-dark" href="/pathways">Browse pathways <Route size={17} /></Link>
           </div>
 
           <div className="ei-pathway-interface" data-reveal>
-            <header><span>{featuredPathway.title}</span><span>Step sequence</span></header>
+            <header><span>Pathway library</span><span>Choose a study</span></header>
             <div className="ei-pathway-track">
-              {featuredPathway.steps.map((step, index) => (
-                <Link href={scriptureHref(step.reference)} className="ei-pathway-step" key={`${step.reference}-${index}`}>
+              {pathwayPalette.map((pathway, index) => (
+                <Link href={`/pathways/${pathway.slug}`} className="ei-pathway-step" key={pathway.slug}>
                   <span>{String(index + 1).padStart(2, "0")}</span>
-                  <div><strong>{step.title}</strong><small>{step.reference}</small></div>
+                  <div><strong>{pathway.title}</strong><small>{pathway.label}</small></div>
                   <ArrowRight size={16} />
                 </Link>
               ))}
             </div>
             <footer>
-              <span>Open each passage</span>
-              <Link href={featuredPathway.href}>Follow the full evidence <ArrowRight size={14} /></Link>
+              <span>Doctrine · Salvation · Questions</span>
+              <Link href="/pathways">Browse all pathways <ArrowRight size={14} /></Link>
             </footer>
           </div>
         </div>
