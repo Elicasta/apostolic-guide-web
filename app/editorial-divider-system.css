@@ -88,76 +88,53 @@
 .pathway-entry-bridge {
   position: relative;
   z-index: 3;
-  background: linear-gradient(to bottom, #0f1e2d 0 18px, #f5f7f4 18px 100%);
+  background: #f5f7f4;
 }
 
 .pathway-entry-bridge-inner {
   position: relative;
-  min-height: 94px;
-  display: grid;
-  grid-template-columns: 72px minmax(0, 1fr) auto;
+  min-height: 48px;
+  display: flex;
   align-items: center;
-  gap: 18px;
-  padding-block: 17px 15px;
-  border-bottom: 1px solid var(--ag-neutral-rule);
+  gap: 14px;
+  padding: 12px 0 4px 74px;
 }
 
-.pathway-entry-bridge-inner::after {
+.pathway-entry-bridge-inner::before {
   content: "";
   position: absolute;
   left: 32px;
-  top: 60px;
-  bottom: -30px;
+  top: 0;
+  bottom: -26px;
   width: 1px;
-  background: linear-gradient(to bottom, rgba(15, 30, 45, 0.28), rgba(15, 30, 45, 0.08));
+  background: linear-gradient(to bottom, rgba(15, 30, 45, 0.24), rgba(15, 30, 45, 0.08));
   pointer-events: none;
 }
 
-.pathway-entry-node {
-  position: relative;
-  z-index: 1;
-  width: 44px;
-  height: 44px;
-  display: grid;
-  place-items: center;
-  margin-left: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 50%;
-  color: #ffffff;
-  background: #0f1e2d;
-  box-shadow: 0 0 0 8px #f5f7f4;
-}
-
-.pathway-entry-bridge-inner > div {
-  min-width: 0;
-}
-
-.pathway-entry-bridge-inner > div > span,
+.pathway-entry-bridge-inner > span,
 .pathway-entry-bridge-inner > small {
-  display: block;
+  flex: 0 0 auto;
   color: #b3212d;
-  font-size: 0.7rem;
+  font-size: 0.68rem;
   font-weight: 900;
   letter-spacing: 0.15em;
-  line-height: 1.25;
+  line-height: 1.2;
   text-transform: uppercase;
 }
 
-.pathway-entry-bridge-inner strong {
-  display: block;
-  margin-top: 5px;
-  color: #0f1e2d;
-  font-size: clamp(1rem, 2vw, 1.16rem);
-  line-height: 1.35;
+.pathway-entry-bridge-inner > i {
+  min-width: 28px;
+  height: 1px;
+  flex: 1 1 auto;
+  background: var(--ag-neutral-rule);
 }
 
 .pathway-entry-bridge-inner > small {
   color: #71808a;
-  text-align: right;
 }
 
 .pathway-core-section {
-  padding-top: 8px !important;
+  padding-top: 0 !important;
 }
 
 .pathway-core-section .pathway-study-layout {
@@ -165,10 +142,9 @@
 }
 
 .pathway-core-section .pathway-study-step:first-child {
-  padding-top: 14px !important;
+  padding-top: 6px !important;
 }
 
-/* The first timeline line visually receives the bridge above it. */
 .pathway-core-section .pathway-timeline {
   position: relative;
 }
@@ -182,43 +158,28 @@
     gap: 12px !important;
   }
 
-  .pathway-entry-bridge {
-    background: linear-gradient(to bottom, #0f1e2d 0 14px, #f5f7f4 14px 100%);
-  }
-
   .pathway-entry-bridge-inner {
-    min-height: 86px;
-    grid-template-columns: 62px minmax(0, 1fr);
-    gap: 12px;
-    padding-block: 14px 12px;
+    min-height: 42px;
+    gap: 10px;
+    padding: 10px 0 2px 62px;
   }
 
-  .pathway-entry-bridge-inner::after {
+  .pathway-entry-bridge-inner::before {
     left: 27px;
-    top: 54px;
-    bottom: -24px;
+    bottom: -22px;
   }
 
-  .pathway-entry-node {
-    width: 40px;
-    height: 40px;
-    margin-left: 7px;
-    box-shadow: 0 0 0 6px #f5f7f4;
-  }
-
+  .pathway-entry-bridge-inner > span,
   .pathway-entry-bridge-inner > small {
-    display: none;
+    font-size: 0.62rem;
+    letter-spacing: 0.13em;
   }
 
-  .pathway-entry-bridge-inner strong {
-    font-size: 0.98rem;
-  }
-
-  .pathway-core-section {
-    padding-top: 4px !important;
+  .pathway-entry-bridge-inner > i {
+    min-width: 18px;
   }
 
   .pathway-core-section .pathway-study-step:first-child {
-    padding-top: 10px !important;
+    padding-top: 4px !important;
   }
 }
