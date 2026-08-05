@@ -30,6 +30,7 @@ import "./how-page-contrast.css";
 import "./final-ui-polish.css";
 import "./contrast-rhythm-final.css";
 import "./home-result-contrast.css";
+import "./spacing-system-v2.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL(websiteUrl),
