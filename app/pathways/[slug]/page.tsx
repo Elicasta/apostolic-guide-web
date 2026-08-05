@@ -3,6 +3,8 @@ import Link from "next/link";
 import { ArrowLeft, ArrowRight, Clock3, ExternalLink } from "lucide-react";
 import { notFound } from "next/navigation";
 import { BibleReferenceLink, StudyScriptures } from "@/study-guidance";
+import { SmartNext } from "@/smart-next";
+import { pathwaySuggestions } from "@/suggestion-data";
 import { scriptures, topicBySlug } from "@/data";
 import { allPathways, pathwayBySlug } from "@/pathway-catalog";
 import { buildAppUrl } from "@/urls";
@@ -28,6 +30,7 @@ export default async function PathwayPage({ params }: Props) {
   const previous = currentIndex > 0 ? collectionItems[currentIndex - 1] : null;
   const next = currentIndex < collectionItems.length - 1 ? collectionItems[currentIndex + 1] : null;
   const pathwayReferences = pathway.steps.map((step) => step.reference);
+  const suggestions = pathwaySuggestions(pathway.slug);
   const appHref = buildAppUrl(`/paths/${pathway.appSlug}`, { origin: `website-pathway-${pathway.slug}` });
 
   return (
@@ -96,6 +99,7 @@ export default async function PathwayPage({ params }: Props) {
           </section>
         </div>
       </section>
+      <section className="section section-tight"><div className="shell"><SmartNext currentPath={`/pathways/${pathway.slug}`} candidates={suggestions} eyebrow="Continue the pathway library" heading="Follow the next connected study." /></div></section>
     </>
   );
 }
