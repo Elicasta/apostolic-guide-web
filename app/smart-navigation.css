@@ -1,0 +1,295 @@
+/* Search starting points, study-card rhythm, and reading-aware continuation. */
+
+/* Real search links replace inert prompt buttons. */
+.search-prompt-grid .search-prompt-link {
+  width: 100%;
+  min-height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 16px 22px;
+  border: 1px solid rgba(15, 30, 45, 0.15);
+  border-radius: 18px;
+  color: #0f1e2d;
+  background: #ffffff;
+  font-size: clamp(1rem, 2vw, 1.18rem);
+  font-weight: 850;
+  line-height: 1.25;
+  text-decoration: none;
+  box-shadow: 0 8px 22px rgba(15, 30, 45, 0.04);
+  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.search-prompt-grid .search-prompt-link:first-child {
+  color: #ffffff;
+  border-color: #b3212d;
+  background: #b3212d;
+  box-shadow: 0 12px 28px rgba(179, 33, 45, 0.16);
+}
+
+.search-prompt-grid .search-prompt-link:hover {
+  transform: translateY(-2px);
+  border-color: rgba(179, 33, 45, 0.48);
+  box-shadow: 0 14px 30px rgba(15, 30, 45, 0.08);
+}
+
+/* Key Scripture cards should breathe without becoming oversized. */
+.answer-detail-page .prose-content,
+.answer-detail-page .prose-content > section:last-child,
+.answer-detail-page .prose-content > section:last-child > :last-child {
+  min-height: 0 !important;
+  margin-bottom: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+.answer-detail-page .topic-page-grid {
+  row-gap: 18px !important;
+}
+
+.answer-detail-page .topic-page-grid > aside {
+  margin-top: 0 !important;
+}
+
+.answer-detail-page .sidebar-card > .scripture-mini {
+  padding-block: 17px !important;
+}
+
+.answer-detail-page .sidebar-card > .scripture-mini + .scripture-mini {
+  margin-top: 10px !important;
+}
+
+.answer-detail-page .sidebar-card > .scripture-context-note {
+  margin-top: 16px !important;
+}
+
+.topic-scripture-list {
+  gap: 12px !important;
+}
+
+/* Smart next-step system. */
+.smart-next {
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: minmax(230px, 0.74fr) minmax(300px, 1.08fr);
+  gap: clamp(18px, 3vw, 30px);
+  margin-top: clamp(34px, 5vw, 56px);
+  padding: clamp(26px, 4vw, 42px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 24px;
+  color: #ffffff;
+  background:
+    radial-gradient(circle at 88% 8%, rgba(179, 33, 45, 0.2), transparent 31%),
+    linear-gradient(145deg, #14293a 0%, #0d1c29 66%, #101820 100%);
+  box-shadow: 0 24px 62px rgba(7, 18, 27, 0.17);
+}
+
+.smart-next::after {
+  content: "NEXT";
+  position: absolute;
+  right: -10px;
+  bottom: -30px;
+  color: rgba(255, 255, 255, 0.035);
+  font-size: clamp(4.2rem, 10vw, 8.6rem);
+  font-weight: 950;
+  letter-spacing: -0.07em;
+  pointer-events: none;
+}
+
+.smart-next > * {
+  position: relative;
+  z-index: 1;
+}
+
+.smart-next-intro {
+  align-self: start;
+}
+
+.smart-next-icon {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 50%;
+  color: #f0a1ab;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.smart-next-intro h2 {
+  max-width: 11ch;
+  margin: 16px 0 16px;
+  color: #ffffff;
+  font-size: clamp(2rem, 4vw, 3.65rem);
+  line-height: 0.98;
+  letter-spacing: -0.05em;
+}
+
+.smart-next-intro p {
+  max-width: 31rem;
+  margin: 0;
+  color: #bdc9d1;
+  line-height: 1.58;
+}
+
+.smart-next-primary {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  padding: clamp(22px, 3vw, 30px);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 19px;
+  color: #0f1e2d;
+  background: #ffffff;
+  text-decoration: none;
+  box-shadow: 0 18px 42px rgba(4, 13, 20, 0.2);
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+
+.smart-next-primary:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 24px 54px rgba(4, 13, 20, 0.25);
+}
+
+.smart-next-kind {
+  color: #b3212d;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.smart-next-primary h3 {
+  margin: 18px 0 12px;
+  color: #0f1e2d;
+  font-size: clamp(1.7rem, 3vw, 2.65rem);
+  line-height: 1;
+  letter-spacing: -0.045em;
+}
+
+.smart-next-primary p {
+  margin: 0;
+  color: #52616b;
+  line-height: 1.58;
+}
+
+.smart-next-primary small {
+  display: block;
+  margin-top: 16px;
+  color: #73808a;
+  line-height: 1.45;
+}
+
+.smart-next-primary > strong {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: auto;
+  padding-top: 24px;
+  color: #b3212d;
+  font-size: 0.98rem;
+}
+
+.smart-next-secondary {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border-top: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.smart-next-secondary a {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  min-height: 76px;
+  padding: 18px 20px;
+  color: #ffffff;
+  text-decoration: none;
+}
+
+.smart-next-secondary a + a {
+  border-left: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.smart-next-secondary small,
+.smart-next-secondary strong {
+  display: block;
+}
+
+.smart-next-secondary small {
+  margin-bottom: 5px;
+  color: #efa6ae;
+  font-size: 0.68rem;
+  font-weight: 850;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.smart-next-secondary strong {
+  color: #ffffff;
+  line-height: 1.25;
+}
+
+.article-page .smart-next,
+.answer-detail-page .smart-next {
+  margin-bottom: 0;
+}
+
+@media (max-width: 760px) {
+  .search-prompt-grid .search-prompt-link {
+    min-height: 58px;
+    padding: 15px 18px;
+    border-radius: 16px;
+  }
+
+  .answer-detail-page .topic-page-grid {
+    row-gap: 10px !important;
+    padding-bottom: 0 !important;
+  }
+
+  .answer-detail-page .topic-page-grid > aside {
+    margin-top: -14px !important;
+  }
+
+  .answer-detail-page .sidebar-card > .scripture-mini {
+    padding-block: 16px !important;
+  }
+
+  .smart-next {
+    grid-template-columns: 1fr;
+    gap: 20px;
+    padding: 24px 20px 20px;
+    border-radius: 20px;
+  }
+
+  .smart-next-intro h2 {
+    max-width: 12ch;
+    font-size: clamp(2.25rem, 10vw, 3.15rem);
+  }
+
+  .smart-next-primary {
+    min-height: 270px;
+    padding: 22px;
+    border-radius: 17px;
+  }
+
+  .smart-next-secondary {
+    grid-template-columns: 1fr;
+  }
+
+  .smart-next-secondary a + a {
+    border-top: 1px solid rgba(255, 255, 255, 0.14);
+    border-left: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .search-prompt-grid .search-prompt-link,
+  .smart-next-primary {
+    transition: none;
+  }
+}
