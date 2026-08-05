@@ -1,0 +1,365 @@
+/* Apostolic Guide: authoritative contrast and spacing layer */
+
+:root {
+  --ag-page: #f6f6f4;
+  --ag-card: #ffffff;
+  --ag-ink: #0f1e2d;
+  --ag-copy: #45545f;
+  --ag-muted: #66737c;
+  --ag-line: rgba(15, 30, 45, .14);
+  --ag-dark: #0f1e2d;
+  --ag-dark-copy: #c9d3d9;
+  --ag-red: #b3212d;
+}
+
+/* Stop multiple adjacent sections from creating double-sized blank zones. */
+.section,
+.section-tight {
+  min-height: 0 !important;
+}
+
+.section {
+  padding-block: clamp(52px, 6vw, 76px) !important;
+}
+
+.section-tight {
+  padding-block: clamp(34px, 4vw, 52px) !important;
+}
+
+.section + .section,
+.section + .section-tight,
+.section-tight + .section,
+.section-tight + .section-tight {
+  padding-top: clamp(26px, 3vw, 42px) !important;
+}
+
+.page-hero + .section,
+.page-hero + .section-tight {
+  padding-top: clamp(30px, 4vw, 48px) !important;
+}
+
+/* One dependable light-card contrast system. */
+.sidebar-card:not(.sidebar-card-dark),
+.related-topic-card,
+.scripture-sidebar > div,
+.search-form,
+.directory-search,
+.search-prompt-panel,
+.topic-directory-card,
+.scripture-mini,
+.pathway-pagination a,
+.answer-summary,
+.callout {
+  color: var(--ag-ink) !important;
+  background: rgba(255, 255, 255, .96) !important;
+  border-color: var(--ag-line) !important;
+  opacity: 1 !important;
+}
+
+.sidebar-card:not(.sidebar-card-dark) h1,
+.sidebar-card:not(.sidebar-card-dark) h2,
+.sidebar-card:not(.sidebar-card-dark) h3,
+.sidebar-card:not(.sidebar-card-dark) strong,
+.related-topic-card h1,
+.related-topic-card h2,
+.related-topic-card h3,
+.related-topic-card strong,
+.scripture-sidebar > div strong,
+.search-prompt-panel h2,
+.topic-directory-card h2,
+.scripture-mini strong,
+.pathway-pagination strong,
+.answer-summary p,
+.callout h2 {
+  color: var(--ag-ink) !important;
+  opacity: 1 !important;
+}
+
+.sidebar-card:not(.sidebar-card-dark) p,
+.related-topic-card p,
+.scripture-sidebar > div a,
+.scripture-sidebar > div span,
+.topic-directory-card p,
+.scripture-mini small,
+.pathway-pagination span,
+.callout p {
+  color: var(--ag-copy) !important;
+  opacity: 1 !important;
+}
+
+/* Dark product cards never inherit pale-on-pale combinations. */
+.pathway-summary-card,
+.app-bridge,
+.sidebar-card-dark,
+.ei-live-index,
+.ei-pathway-interface {
+  color: #fff !important;
+  background:
+    radial-gradient(circle at 82% 10%, rgba(179, 33, 45, .12), transparent 30%),
+    linear-gradient(145deg, #142838, #0d1c28) !important;
+  border: 1px solid rgba(255,255,255,.14) !important;
+  opacity: 1 !important;
+}
+
+.pathway-summary-card h1,
+.pathway-summary-card h2,
+.pathway-summary-card h3,
+.pathway-summary-card strong,
+.app-bridge h1,
+.app-bridge h2,
+.app-bridge h3,
+.sidebar-card-dark h1,
+.sidebar-card-dark h2,
+.sidebar-card-dark h3,
+.ei-live-index h1,
+.ei-live-index h2,
+.ei-live-index h3,
+.ei-pathway-interface strong {
+  color: #fff !important;
+  opacity: 1 !important;
+}
+
+.pathway-summary-card p,
+.pathway-summary-card > a:not(.button),
+.app-bridge p,
+.app-bridge .app-feature-list,
+.sidebar-card-dark p,
+.ei-live-index p,
+.ei-live-index small,
+.ei-pathway-interface small {
+  color: var(--ag-dark-copy) !important;
+  opacity: 1 !important;
+}
+
+.pathway-summary-card .eyebrow,
+.pathway-summary-card .eyebrow::before,
+.app-bridge .eyebrow,
+.app-bridge .eyebrow::before,
+.sidebar-card-dark .eyebrow,
+.sidebar-card-dark .eyebrow::before {
+  color: #efa6ae !important;
+}
+
+.pathway-summary-card .button-paper,
+.app-bridge .button-paper,
+.sidebar-card-dark .button-paper {
+  color: var(--ag-ink) !important;
+  background: #fff !important;
+  border-color: rgba(255,255,255,.75) !important;
+}
+
+/* Page hero sample cards are always readable, regardless of route variant. */
+.page-hero .page-hero-art {
+  margin-top: 0 !important;
+}
+
+.page-hero .scripture-signal {
+  color: #fff !important;
+  background:
+    radial-gradient(circle at 84% 12%, rgba(179, 33, 45, .12), transparent 28%),
+    #25333e !important;
+  border-color: rgba(255,255,255,.14) !important;
+  box-shadow: 0 20px 48px rgba(15,30,45,.14) !important;
+}
+
+.page-hero .scripture-signal .signal-topline,
+.page-hero .scripture-signal .signal-copy strong {
+  color: #f8fafb !important;
+  opacity: 1 !important;
+}
+
+.page-hero .scripture-signal .signal-copy span,
+.page-hero .scripture-signal .signal-related > span {
+  color: #bdcad2 !important;
+  opacity: 1 !important;
+}
+
+.page-hero .scripture-signal .signal-reference,
+.page-hero .scripture-signal .signal-related b {
+  color: #f1a0a8 !important;
+  opacity: 1 !important;
+}
+
+.page-hero .scripture-signal .signal-related,
+.page-hero .scripture-signal .signal-related > span,
+.page-hero .scripture-signal .signal-topline {
+  border-color: rgba(255,255,255,.2) !important;
+}
+
+/* Reading and pathway rhythm. */
+.reading-layout,
+.topic-page-grid,
+.scripture-detail-grid,
+.pathway-study-layout {
+  padding-block: clamp(44px, 5vw, 68px) !important;
+}
+
+.prose-content,
+.scripture-explanation,
+.pathway-timeline {
+  gap: clamp(30px, 4vw, 46px) !important;
+}
+
+.prose-content section,
+.scripture-explanation section,
+.pathway-study-step {
+  min-height: 0 !important;
+}
+
+.prose-content section + section,
+.scripture-explanation section + section {
+  margin-top: 0 !important;
+}
+
+.pathway-study-step {
+  padding-bottom: clamp(34px, 4vw, 48px) !important;
+}
+
+.pathway-study-step h2 {
+  margin: 14px 0 14px !important;
+}
+
+.pathway-study-step p {
+  margin-bottom: 18px !important;
+}
+
+.pathway-summary-card {
+  padding: clamp(28px, 4vw, 40px) !important;
+  border-radius: 24px !important;
+}
+
+.pathway-summary-card h2 {
+  margin: 18px 0 16px !important;
+}
+
+.pathway-summary-card p {
+  margin: 0 0 22px !important;
+}
+
+.pathway-summary-card > a:not(.button) {
+  display: inline-flex;
+  margin-bottom: 24px;
+}
+
+/* Study guidance belongs to the content above it, not a separate floating page. */
+.study-scriptures {
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  padding-block: clamp(30px, 4vw, 46px) !important;
+}
+
+.study-scriptures-copy h2 {
+  margin: 14px 0 16px !important;
+}
+
+.study-method-links {
+  margin-top: 20px !important;
+}
+
+.app-bridge {
+  margin-top: 0 !important;
+  padding: clamp(30px, 4vw, 46px) !important;
+  border-radius: 24px !important;
+}
+
+.app-bridge h2 {
+  margin: 14px 0 16px !important;
+}
+
+.app-bridge p {
+  margin-bottom: 24px !important;
+}
+
+/* Forms and controls should attach to the content above. */
+.scripture-index-section,
+.answers-index-section,
+.topics-page-section,
+.pathways-index-section {
+  padding-top: clamp(30px, 4vw, 48px) !important;
+}
+
+.scripture-directory-shell,
+.search-page,
+.interactive-directory {
+  gap: 22px !important;
+}
+
+/* Mobile: compact but not cramped. */
+@media (max-width: 720px) {
+  .section {
+    padding-block: 46px !important;
+  }
+
+  .section-tight {
+    padding-block: 30px !important;
+  }
+
+  .section + .section,
+  .section + .section-tight,
+  .section-tight + .section,
+  .section-tight + .section-tight {
+    padding-top: 22px !important;
+  }
+
+  .page-hero-inner {
+    gap: 26px !important;
+    padding-block: 38px 30px !important;
+  }
+
+  .page-hero + .section,
+  .page-hero + .section-tight {
+    padding-top: 28px !important;
+  }
+
+  .page-hero .scripture-signal {
+    min-height: 0 !important;
+    padding: 20px !important;
+  }
+
+  .page-hero .scripture-signal .signal-related {
+    margin-top: 18px !important;
+  }
+
+  .reading-layout,
+  .topic-page-grid,
+  .scripture-detail-grid,
+  .pathway-study-layout {
+    gap: 32px !important;
+    padding-block: 42px !important;
+  }
+
+  .prose-content,
+  .scripture-explanation,
+  .pathway-timeline {
+    gap: 34px !important;
+  }
+
+  .pathway-study-step {
+    padding-bottom: 32px !important;
+  }
+
+  .pathway-summary-card,
+  .app-bridge,
+  .sidebar-card,
+  .scripture-sidebar > div,
+  .answer-summary {
+    padding: 26px 22px !important;
+    border-radius: 20px !important;
+  }
+
+  .study-scriptures {
+    padding-block: 30px !important;
+  }
+
+  .study-scriptures-copy h2 {
+    font-size: clamp(38px, 11vw, 52px) !important;
+    line-height: .98 !important;
+  }
+
+  .scripture-index-section,
+  .answers-index-section,
+  .topics-page-section,
+  .pathways-index-section {
+    padding-top: 28px !important;
+  }
+}
