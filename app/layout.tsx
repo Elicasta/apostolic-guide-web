@@ -32,6 +32,7 @@ import "./contrast-rhythm-final.css";
 import "./home-result-contrast.css";
 import "./spacing-system-v2.css";
 import "./card-system-v2.css";
+import "./app-screenshot-v1.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL(websiteUrl),
