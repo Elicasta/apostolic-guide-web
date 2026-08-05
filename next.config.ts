@@ -14,11 +14,18 @@ const nextConfig: NextConfig = {
     return [{ source: "/(.*)", headers: securityHeaders }];
   },
   async redirects() {
-    return [{
-      source: "/app",
-      destination: process.env.NEXT_PUBLIC_APP_URL ?? "https://app.apostolicguide.com",
-      permanent: false
-    }];
+    return [
+      {
+        source: "/index",
+        destination: "/",
+        permanent: true
+      },
+      {
+        source: "/app",
+        destination: process.env.NEXT_PUBLIC_APP_URL ?? "https://app.apostolicguide.com",
+        permanent: false
+      }
+    ];
   }
 };
 
