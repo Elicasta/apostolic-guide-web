@@ -11,8 +11,19 @@ type StoredProgress = {
   updatedAt: number;
 };
 
+type ReadingHistoryItem = {
+  ratio: number;
+  completed: boolean;
+  title: string;
+  updatedAt: number;
+};
+
+type ReadingHistory = Record<string, ReadingHistoryItem>;
+
 const READING_PREFIXES = ["/articles/", "/answers/", "/topics/", "/scripture/", "/pathways/"];
+const HISTORY_KEY = "apostolic-guide:reading-history:v1";
 const MAX_AGE = 1000 * 60 * 60 * 24 * 90;
+const MAX_HISTORY_ITEMS = 60;
 
 function isReadingPage(pathname: string) {
   return READING_PREFIXES.some((prefix) => pathname.startsWith(prefix) && pathname.length > prefix.length);
@@ -20,6 +31,51 @@ function isReadingPage(pathname: string) {
 
 function storageKey(pathname: string) {
   return `apostolic-guide:reading:${pathname}`;
+}
+
+function pageTitle() {
+  return document.title.replace(/ \| Apostolic Guide$/, "");
+}
+
+function readHistory(): ReadingHistory {
+  try {
+    const raw = window.localStorage.getItem(HISTORY_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as unknown;
+    return parsed && typeof parsed === "object" ? parsed as ReadingHistory : {};
+  } catch {
+    return {};
+  }
+}
+
+function recordHistory(pathname: string, ratio: number, title: string, updatedAt = Date.now()) {
+  try {
+    const history = readHistory();
+    history[pathname] = {
+      ratio: Math.min(1, Math.max(history[pathname]?.ratio ?? 0, ratio)),
+      completed: ratio >= 0.94 || Boolean(history[pathname]?.completed),
+      title,
+      updatedAt
+    };
+
+    const trimmed = Object.fromEntries(
+      Object.entries(history)
+        .sort(([, a], [, b]) => b.updatedAt - a.updatedAt)
+        .slice(0, MAX_HISTORY_ITEMS)
+    );
+
+    window.localStorage.setItem(HISTORY_KEY, JSON.stringify(trimmed));
+    window.dispatchEvent(new CustomEvent("apostolic-guide:reading-history"));
+  } catch {}
+}
+
+function clearHistoryItem(pathname: string) {
+  try {
+    const history = readHistory();
+    delete history[pathname];
+    window.localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+    window.dispatchEvent(new CustomEvent("apostolic-guide:reading-history"));
+  } catch {}
 }
 
 export function ReadingProgress() {
@@ -36,6 +92,7 @@ export function ReadingProgress() {
     const key = storageKey(pathname);
     let frame = 0;
     let revealTimer = 0;
+    let engagementTimer = 0;
     let lastSavedAt = 0;
 
     try {
@@ -54,6 +111,10 @@ export function ReadingProgress() {
       }
     } catch {}
 
+    engagementTimer = window.setTimeout(() => {
+      recordHistory(pathname, 0.03, pageTitle());
+    }, 8000);
+
     const persist = () => {
       frame = 0;
       const now = Date.now();
@@ -62,9 +123,11 @@ export function ReadingProgress() {
 
       const maxScroll = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
       const ratio = Math.min(1, Math.max(0, window.scrollY / maxScroll));
+      const title = pageTitle();
 
       try {
         if (ratio >= 0.96) {
+          recordHistory(pathname, 1, title, now);
           window.localStorage.removeItem(key);
           return;
         }
@@ -72,10 +135,11 @@ export function ReadingProgress() {
         const value: StoredProgress = {
           ratio,
           scrollY: window.scrollY,
-          title: document.title.replace(/ \| Apostolic Guide$/, ""),
+          title,
           updatedAt: now
         };
         window.localStorage.setItem(key, JSON.stringify(value));
+        recordHistory(pathname, ratio, title, now);
       } catch {}
     };
 
@@ -88,6 +152,7 @@ export function ReadingProgress() {
 
     return () => {
       window.clearTimeout(revealTimer);
+      window.clearTimeout(engagementTimer);
       window.removeEventListener("scroll", onScroll);
       window.removeEventListener("pagehide", persist);
       if (frame) window.cancelAnimationFrame(frame);
@@ -105,6 +170,7 @@ export function ReadingProgress() {
 
   const restart = () => {
     try { window.localStorage.removeItem(storageKey(pathname)); } catch {}
+    clearHistoryItem(pathname);
     setVisible(false);
     setSaved(null);
     window.scrollTo({ top: 0, behavior: "smooth" });
