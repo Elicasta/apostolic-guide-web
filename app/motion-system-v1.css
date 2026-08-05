@@ -1,0 +1,230 @@
+/* Apostolic Guide motion system — subtle, editorial, and accessible */
+
+:root {
+  --ag-motion-fast: 140ms;
+  --ag-motion-base: 200ms;
+  --ag-motion-slow: 320ms;
+  --ag-motion-ease: cubic-bezier(.22, .61, .36, 1);
+  --ag-motion-ease-soft: cubic-bezier(.16, 1, .3, 1);
+}
+
+/* Route content entrance */
+#main-content > * {
+  animation: ag-page-enter var(--ag-motion-slow) var(--ag-motion-ease-soft) both;
+}
+
+@keyframes ag-page-enter {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Viewport reveals */
+[data-reveal] {
+  opacity: 0;
+  transform: translateY(14px);
+  transition:
+    opacity var(--ag-motion-slow) var(--ag-motion-ease-soft),
+    transform var(--ag-motion-slow) var(--ag-motion-ease-soft);
+  will-change: opacity, transform;
+}
+
+[data-reveal].is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Small stagger without adding JS bookkeeping */
+[data-reveal]:nth-child(2) { transition-delay: 35ms; }
+[data-reveal]:nth-child(3) { transition-delay: 70ms; }
+[data-reveal]:nth-child(4) { transition-delay: 105ms; }
+[data-reveal]:nth-child(5) { transition-delay: 140ms; }
+[data-reveal]:nth-child(6) { transition-delay: 175ms; }
+
+/* Buttons and tappable controls */
+:where(
+  .button,
+  .icon-link,
+  .mobile-menu summary,
+  .search-form button,
+  .filter-pills button,
+  .ei-row-action,
+  .ei-topic-arrow
+) {
+  transition:
+    transform var(--ag-motion-fast) var(--ag-motion-ease),
+    box-shadow var(--ag-motion-base) var(--ag-motion-ease),
+    background-color var(--ag-motion-base) var(--ag-motion-ease),
+    border-color var(--ag-motion-base) var(--ag-motion-ease),
+    color var(--ag-motion-base) var(--ag-motion-ease),
+    opacity var(--ag-motion-base) var(--ag-motion-ease) !important;
+}
+
+@media (hover: hover) {
+  :where(.button, .icon-link, .mobile-menu summary, .search-form button):hover {
+    transform: translateY(-2px);
+  }
+
+  :where(
+    .topic-card,
+    .topic-directory-card,
+    .article-card,
+    .question-card,
+    .scripture-mini,
+    .pathway-pagination a,
+    .media-card,
+    .media-library-card,
+    .sidebar-card-dark,
+    .pathway-summary-card,
+    .ei-article-poster,
+    .ei-live-index,
+    .ei-pathway-interface
+  ):hover {
+    transform: translateY(-4px);
+  }
+}
+
+:where(
+  .button,
+  .icon-link,
+  .mobile-menu summary,
+  .search-form button,
+  .filter-pills button,
+  .topic-card,
+  .topic-directory-card,
+  .article-card,
+  .question-card,
+  .scripture-mini,
+  .pathway-pagination a,
+  .media-card,
+  .media-library-card,
+  .sidebar-card-dark,
+  .pathway-summary-card,
+  .ei-article-poster,
+  .ei-live-index,
+  .ei-pathway-interface
+):active {
+  transform: scale(.985);
+}
+
+/* Cards */
+:where(
+  .topic-card,
+  .topic-directory-card,
+  .article-card,
+  .question-card,
+  .scripture-mini,
+  .pathway-pagination a,
+  .media-card,
+  .media-library-card,
+  .sidebar-card-dark,
+  .pathway-summary-card,
+  .ei-article-poster,
+  .ei-live-index,
+  .ei-pathway-interface
+) {
+  transition:
+    transform var(--ag-motion-base) var(--ag-motion-ease-soft),
+    box-shadow var(--ag-motion-base) var(--ag-motion-ease),
+    border-color var(--ag-motion-base) var(--ag-motion-ease) !important;
+  will-change: transform;
+}
+
+/* Arrow movement */
+:where(
+  .text-link,
+  .ei-index-footer-link,
+  .ei-dark-link,
+  .ei-editorial-link a,
+  .ei-index-featured a,
+  .topic-link-list a,
+  .scripture-mini,
+  .pathway-pagination a,
+  .ei-question-row,
+  .ei-topic-row,
+  .ei-pathway-step
+) svg {
+  transition: transform var(--ag-motion-base) var(--ag-motion-ease) !important;
+}
+
+@media (hover: hover) {
+  :where(
+    .text-link,
+    .ei-index-footer-link,
+    .ei-dark-link,
+    .ei-editorial-link a,
+    .ei-index-featured a,
+    .topic-link-list a,
+    .scripture-mini,
+    .pathway-pagination a,
+    .ei-question-row,
+    .ei-topic-row,
+    .ei-pathway-step
+  ):hover svg {
+    transform: translateX(4px);
+  }
+}
+
+/* Search focus */
+.search-form,
+.directory-search {
+  transition:
+    border-color var(--ag-motion-base) var(--ag-motion-ease),
+    box-shadow var(--ag-motion-base) var(--ag-motion-ease),
+    transform var(--ag-motion-base) var(--ag-motion-ease) !important;
+}
+
+.search-form:focus-within,
+.directory-search:focus-within {
+  border-color: rgba(179, 33, 45, .4) !important;
+  box-shadow:
+    0 0 0 4px rgba(179, 33, 45, .09),
+    var(--ag-card-shadow-compact) !important;
+}
+
+/* Mobile menu */
+.mobile-menu-panel {
+  transform-origin: top right;
+  animation: ag-menu-open var(--ag-motion-base) var(--ag-motion-ease-soft) both;
+}
+
+@keyframes ag-menu-open {
+  from { opacity: 0; transform: translateY(-8px) scale(.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Header movement */
+.site-header {
+  transition:
+    transform var(--ag-motion-base) var(--ag-motion-ease-soft),
+    background-color var(--ag-motion-base) var(--ag-motion-ease),
+    box-shadow var(--ag-motion-base) var(--ag-motion-ease) !important;
+}
+
+/* Continuous ticker, pause on hover */
+.app-promo-track {
+  animation-timing-function: linear !important;
+}
+
+@media (hover: hover) {
+  .app-promo-ticker:hover .app-promo-track {
+    animation-play-state: paused;
+  }
+}
+
+/* Respect user preference */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+    transition-delay: 0ms !important;
+  }
+
+  [data-reveal] {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
