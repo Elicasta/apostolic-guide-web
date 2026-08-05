@@ -29,6 +29,7 @@ import "./reading-rhythm-final.css";
 import "./how-page-contrast.css";
 import "./final-ui-polish.css";
 import "./contrast-rhythm-final.css";
+import "./home-result-contrast.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL(websiteUrl),
