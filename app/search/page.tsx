@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArrowRight, BookOpen, FileText, HelpCircle, Route } from "lucide-react";
 import { PageHero, SearchForm } from "@/components";
 import { searchContent } from "@/data";
+import { allPathways } from "@/pathway-catalog";
 import { listDatabaseContent } from "@/database-content";
 import { SearchAnalytics } from "@/search-analytics";
 
@@ -47,8 +48,17 @@ export default async function SearchPage({ searchParams }: Props) {
         score: item.score
       }))
     : [];
-  const databaseItems = query ? await listDatabaseContent() : [];
   const terms = normalize(query).split(" ").filter(Boolean);
+  const pathwayResults: SearchResult[] = query
+    ? allPathways.map((item) => {
+        const title = normalize(item.title);
+        const summary = normalize(item.summary);
+        const references = normalize(item.steps.map((step) => step.reference).join(" "));
+        const score = terms.reduce((total, term) => total + (title.includes(term) ? 6 : 0) + (summary.includes(term) ? 3 : 0) + (references.includes(term) ? 2 : 0), 0);
+        return score > 0 ? { type: "Pathway", title: item.title, summary: item.summary, href: `/pathways/${item.slug}`, score } : null;
+      }).filter((item): item is SearchResult => Boolean(item))
+    : [];
+  const databaseItems = query ? await listDatabaseContent() : [];
   const databaseResults: SearchResult[] = databaseItems
     .map((item) => {
       const title = normalize(item.title);
@@ -66,7 +76,7 @@ export default async function SearchPage({ searchParams }: Props) {
     .filter((item): item is SearchResult => Boolean(item));
 
   const seen = new Set<string>();
-  const results = [...databaseResults, ...localResults]
+  const results = [...databaseResults, ...pathwayResults, ...localResults]
     .sort((a, b) => b.score - a.score)
     .filter((result) => {
       if (seen.has(result.href)) return false;
