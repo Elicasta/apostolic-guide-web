@@ -60,11 +60,29 @@
   max-width: 45rem;
 }
 
+/* The final teaching block should hand directly into the conclusion. Legacy
+   reading styles previously left a large empty area after the last quote. */
+.article-page .prose-content {
+  min-height: 0 !important;
+  margin-bottom: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+.article-page .prose-content > section:last-child {
+  min-height: 0 !important;
+  margin-bottom: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+.article-page .prose-content > section:last-child > :last-child {
+  margin-bottom: 0 !important;
+}
+
 /* Conclusive article ending */
 .article-conclusion {
   position: relative;
   overflow: hidden;
-  margin: clamp(54px, 7vw, 88px) 0 clamp(38px, 5vw, 60px);
+  margin: clamp(22px, 3vw, 34px) 0 clamp(38px, 5vw, 60px);
   padding: clamp(32px, 5vw, 52px);
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 24px;
@@ -219,7 +237,7 @@
   }
 
   .article-conclusion {
-    margin-top: 58px;
+    margin-top: 22px !important;
     padding: 30px 23px 26px;
     border-radius: 20px;
   }
