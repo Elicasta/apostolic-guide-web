@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowDown, ArrowLeft, ArrowRight, Clock3, ExternalLink } from "lucide-react";
+import { ArrowLeft, ArrowRight, Clock3, ExternalLink } from "lucide-react";
 import { notFound } from "next/navigation";
 import { BibleReferenceLink, StudyScriptures } from "@/study-guidance";
 import { SmartNext } from "@/smart-next";
@@ -49,11 +49,8 @@ export default async function PathwayPage({ params }: Props) {
 
       <div className="pathway-entry-bridge">
         <div className="shell pathway-entry-bridge-inner">
-          <span className="pathway-entry-node" aria-hidden="true"><ArrowDown size={16} /></span>
-          <div>
-            <span>Core Scripture sequence</span>
-            <strong>Follow the evidence one passage at a time.</strong>
-          </div>
+          <span>Core Scripture sequence</span>
+          <i aria-hidden="true" />
           <small>{String(pathway.steps.length).padStart(2, "0")} steps</small>
         </div>
       </div>
