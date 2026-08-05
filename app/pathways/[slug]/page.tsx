@@ -47,14 +47,6 @@ export default async function PathwayPage({ params }: Props) {
         </div>
       </section>
 
-      <div className="pathway-entry-bridge">
-        <div className="shell pathway-entry-bridge-inner">
-          <span>Core Scripture sequence</span>
-          <i aria-hidden="true" />
-          <small>{String(pathway.steps.length).padStart(2, "0")} steps</small>
-        </div>
-      </div>
-
       <section className="section pathway-core-section">
         <div className="shell pathway-study-layout">
           <div className="pathway-timeline">
