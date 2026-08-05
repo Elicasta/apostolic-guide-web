@@ -1,0 +1,31 @@
+/* Homepage Scripture guide result must remain readable on its light card. */
+.ei-live-index .ei-index-featured,
+.ei-live-index .ei-index-featured * {
+  text-shadow: none !important;
+}
+
+.ei-live-index .ei-index-featured {
+  color: #0f1e2d !important;
+  background: #f8f8f7 !important;
+  border-color: rgba(15, 30, 45, .14) !important;
+}
+
+.ei-live-index .ei-index-featured h2 {
+  color: #0f1e2d !important;
+  opacity: 1 !important;
+}
+
+.ei-live-index .ei-index-featured p {
+  color: #52616b !important;
+  opacity: 1 !important;
+}
+
+.ei-live-index .ei-index-featured > div span,
+.ei-live-index .ei-index-featured a {
+  color: #b3212d !important;
+  opacity: 1 !important;
+}
+
+.ei-live-index .ei-index-featured::after {
+  color: rgba(15, 30, 45, .055) !important;
+}
