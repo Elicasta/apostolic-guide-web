@@ -10,6 +10,19 @@ type ArticlePosterProps = {
   index?: number;
 };
 
+function displayTitle(title: string) {
+  if (title !== title.toUpperCase()) return title;
+  const smallWords = new Set(["a", "an", "and", "as", "at", "but", "by", "for", "in", "of", "on", "or", "the", "to"]);
+  return title
+    .toLowerCase()
+    .split(" ")
+    .map((word, index) => {
+      if (index > 0 && smallWords.has(word)) return word;
+      return word.charAt(0).toUpperCase() + word.slice(1);
+    })
+    .join(" ");
+}
+
 export function ArticlePoster({
   slug,
   title,
@@ -32,7 +45,7 @@ export function ArticlePoster({
         <span className="ei-poster-index">{issue}</span>
       </div>
       <div className="ei-poster-copy">
-        <h3>{title}</h3>
+        <h3>{displayTitle(title)}</h3>
         <p>{summary}</p>
       </div>
       <footer>
