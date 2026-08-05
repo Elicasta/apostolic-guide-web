@@ -5,6 +5,8 @@ import { answerBySlug, answers, scriptures, topicBySlug } from "@/data";
 import { AppBridge, ContentBody, DatabaseDocument, PageHero, ScriptureMiniCard } from "@/components";
 import { extractScriptureReferences, ScriptureContextNote, StudyScriptures } from "@/study-guidance";
 import { ShareButton } from "@/share-button";
+import { SmartNext } from "@/smart-next";
+import { answerSuggestions } from "@/suggestion-data";
 import { getDatabaseContent } from "@/database-content";
 
 export function generateStaticParams() { return answers.map((answer) => ({ slug: answer.slug })); }
@@ -21,13 +23,25 @@ export default async function AnswerPage({ params }: { params: Promise<{ slug: s
   const answer = answerBySlug(slug);
   const database = answer ? null : await getDatabaseContent("answer", slug);
   if (!answer && !database) notFound();
+  const suggestions = answerSuggestions(slug);
 
   if (!answer && database) {
     const databaseReferences = extractScriptureReferences([database.summary, database.body]);
     return (
       <>
         <PageHero variant="answers" eyebrow="Direct answer" title={database.title} text={database.summary} />
-        <section className="section"><div className="shell reading-layout"><div /><div><DatabaseDocument body={database.body} /><ShareButton title={database.title} contentKey={`answer:${slug}`} /><StudyScriptures references={databaseReferences} /><AppBridge compact origin={`answer:${slug}`} /></div></div></section>
+        <section className="section">
+          <div className="shell reading-layout">
+            <div />
+            <div>
+              <DatabaseDocument body={database.body} />
+              <ShareButton title={database.title} contentKey={`answer:${slug}`} />
+              <StudyScriptures references={databaseReferences} />
+              <AppBridge compact origin={`answer:${slug}`} />
+              <SmartNext currentPath={`/answers/${slug}`} candidates={suggestions} />
+            </div>
+          </div>
+        </section>
       </>
     );
   }
@@ -67,6 +81,7 @@ export default async function AnswerPage({ params }: { params: Promise<{ slug: s
         </div>
         <StudyScriptures references={resolvedAnswer.scriptures} />
         <AppBridge compact origin={`answer:${resolvedAnswer.slug}`} />
+        <SmartNext currentPath={`/answers/${resolvedAnswer.slug}`} candidates={suggestions} />
       </div>
     </section>
   );
