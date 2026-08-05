@@ -93,11 +93,11 @@
 
 .pathway-entry-bridge-inner {
   position: relative;
-  min-height: 48px;
+  min-height: 34px;
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 12px 0 4px 74px;
+  gap: 12px;
+  padding: 6px 0 0 74px;
 }
 
 .pathway-entry-bridge-inner::before {
@@ -105,7 +105,7 @@
   position: absolute;
   left: 32px;
   top: 0;
-  bottom: -26px;
+  bottom: -15px;
   width: 1px;
   background: linear-gradient(to bottom, rgba(15, 30, 45, 0.24), rgba(15, 30, 45, 0.08));
   pointer-events: none;
@@ -141,12 +141,14 @@
   padding-top: 0 !important;
 }
 
-.pathway-core-section .pathway-study-step:first-child {
-  padding-top: 6px !important;
-}
-
 .pathway-core-section .pathway-timeline {
   position: relative;
+  margin-top: -8px !important;
+}
+
+.pathway-core-section .pathway-study-step:first-child {
+  margin-top: 0 !important;
+  padding-top: 0 !important;
 }
 
 @media (max-width: 760px) {
@@ -159,14 +161,14 @@
   }
 
   .pathway-entry-bridge-inner {
-    min-height: 42px;
-    gap: 10px;
-    padding: 10px 0 2px 62px;
+    min-height: 28px;
+    gap: 8px;
+    padding: 4px 0 0 62px;
   }
 
   .pathway-entry-bridge-inner::before {
     left: 27px;
-    bottom: -22px;
+    bottom: -12px;
   }
 
   .pathway-entry-bridge-inner > span,
@@ -176,10 +178,15 @@
   }
 
   .pathway-entry-bridge-inner > i {
-    min-width: 18px;
+    min-width: 14px;
+  }
+
+  .pathway-core-section .pathway-timeline {
+    margin-top: -12px !important;
   }
 
   .pathway-core-section .pathway-study-step:first-child {
-    padding-top: 4px !important;
+    margin-top: 0 !important;
+    padding-top: 0 !important;
   }
 }
