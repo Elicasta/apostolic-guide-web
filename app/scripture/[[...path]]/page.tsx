@@ -4,6 +4,8 @@ import { ArrowLeft, ArrowRight, ExternalLink, Search } from "lucide-react";
 import { notFound } from "next/navigation";
 import { AppBridge, PageHero, SearchForm, ScriptureMiniCard } from "@/components";
 import { BibleReferenceLink, ScriptureContextNote, StudyScriptures } from "@/study-guidance";
+import { SmartNext } from "@/smart-next";
+import { scriptureSuggestions } from "@/suggestion-data";
 import { scriptureByPath, scriptures, topicBySlug } from "@/data";
 import { buildAppSearchUrl } from "@/urls";
 
@@ -43,10 +45,12 @@ export default async function ScripturePage({ params }: Props) {
     );
   }
 
-  const entry = scriptureByPath(path.join("/"));
+  const joinedPath = path.join("/");
+  const entry = scriptureByPath(joinedPath);
   if (!entry) notFound();
   const topics = entry.topicSlugs.map(topicBySlug).filter((item): item is NonNullable<ReturnType<typeof topicBySlug>> => Boolean(item));
   const studyReferences = [entry.reference, ...entry.related];
+  const suggestions = scriptureSuggestions(joinedPath);
 
   return (
     <>
@@ -89,6 +93,7 @@ export default async function ScripturePage({ params }: Props) {
       </section>
       <section className="section section-tight"><div className="shell"><StudyScriptures references={studyReferences} /></div></section>
       <section className="section section-tight"><div className="shell"><AppBridge origin={`scripture-${entry.slug}`} compact /></div></section>
+      <section className="section section-tight"><div className="shell"><SmartNext currentPath={`/scripture/${entry.path}`} candidates={suggestions} eyebrow="Follow the connection" heading="Keep tracing the passage." /></div></section>
     </>
   );
 }
