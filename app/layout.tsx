@@ -3,6 +3,7 @@ import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Suspense } from "react";
 import { SiteFooter, SiteHeader } from "@/components";
+import { FooterConnect } from "@/footer-connect";
 import { ProductAnalytics } from "@/analytics";
 import { EmailCapture } from "@/email-capture";
 import { GlobalBackNav } from "@/global-back-nav";
@@ -46,6 +47,7 @@ import "./editorial-divider-system.css";
 import "./line-polish-final.css";
 import "./scripture-library-browser.css";
 import "./about-page-v2.css";
+import "./footer-connect.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL(websiteUrl),
@@ -120,6 +122,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <SiteHeader />
         <GlobalBackNav />
         <main id="main-content">{children}</main>
+        <FooterConnect />
         <SiteFooter />
         <SiteBehavior />
         <Suspense fallback={null}>
