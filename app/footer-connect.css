@@ -1,0 +1,236 @@
+.footer-connect {
+  position: relative;
+  overflow: hidden;
+  border-bottom: 1px solid rgba(255, 255, 255, .11);
+  background:
+    radial-gradient(circle at 78% 18%, rgba(122, 58, 78, .22), transparent 28%),
+    linear-gradient(135deg, #102432 0%, #0d1d29 58%, #111c2a 100%);
+  color: #fff;
+}
+
+.footer-connect::after {
+  content: "CONNECT";
+  position: absolute;
+  right: -22px;
+  bottom: -50px;
+  color: rgba(255, 255, 255, .025);
+  font-size: clamp(110px, 16vw, 230px);
+  font-weight: 950;
+  line-height: .8;
+  letter-spacing: -.08em;
+  pointer-events: none;
+}
+
+.footer-connect-inner {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(250px, .85fr) minmax(360px, 1.2fr) auto;
+  align-items: end;
+  gap: clamp(34px, 5vw, 72px);
+  padding-block: clamp(54px, 6vw, 82px);
+}
+
+.footer-connect-copy h2 {
+  max-width: 480px;
+  margin: 10px 0 12px;
+  font-size: clamp(32px, 4vw, 52px);
+  line-height: .98;
+  letter-spacing: -.055em;
+}
+
+.footer-connect-copy p {
+  max-width: 480px;
+  margin: 0;
+  color: #afbdc4;
+  font-size: 16px;
+  line-height: 1.55;
+}
+
+.footer-connect-label {
+  color: #f2a9b2;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+}
+
+.footer-connect-actions {
+  min-width: 0;
+}
+
+.footer-connect-form {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  min-height: 62px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, .14);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, .07);
+  box-shadow: 0 22px 52px rgba(0, 0, 0, .16);
+}
+
+.footer-connect-form input[type="email"] {
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  padding: 0 20px;
+  color: #fff;
+  background: transparent;
+}
+
+.footer-connect-form input[type="email"]::placeholder {
+  color: #9aaab3;
+}
+
+.footer-connect-form button {
+  min-width: 142px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  border: 0;
+  padding: 0 20px;
+  color: #fff;
+  background: #b52c3d;
+  font-weight: 850;
+  cursor: pointer;
+  transition: background .18s ease, transform .18s ease;
+}
+
+.footer-connect-form button:hover:not(:disabled) {
+  background: #c43246;
+}
+
+.footer-connect-form button:disabled {
+  cursor: wait;
+  opacity: .72;
+}
+
+.footer-connect-honeypot {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  overflow: hidden !important;
+  clip: rect(0 0 0 0) !important;
+}
+
+.footer-connect-actions small {
+  display: block;
+  margin-top: 11px;
+  color: #8598a2;
+  font-size: 12px;
+}
+
+.footer-connect-error {
+  margin: 10px 0 0;
+  color: #ffbdc5;
+  font-size: 13px;
+}
+
+.footer-connect-success {
+  min-height: 62px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 20px;
+  border: 1px solid rgba(255, 255, 255, .14);
+  border-radius: 16px;
+  color: #fff;
+  background: rgba(255, 255, 255, .08);
+  font-weight: 800;
+}
+
+.footer-connect-success svg {
+  color: #84d5a5;
+}
+
+.footer-socials {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.footer-socials a {
+  width: 52px;
+  height: 52px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, .11);
+  border-radius: 50%;
+  color: #edf2f4;
+  background: rgba(255, 255, 255, .055);
+  transition: transform .18s ease, background .18s ease, border-color .18s ease;
+}
+
+.footer-socials a:hover {
+  transform: translateY(-2px);
+  border-color: rgba(255, 255, 255, .24);
+  background: rgba(255, 255, 255, .11);
+}
+
+.footer-socials span {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+@media (max-width: 980px) {
+  .footer-connect-inner {
+    grid-template-columns: 1fr 1.25fr;
+    align-items: center;
+  }
+
+  .footer-socials {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 680px) {
+  .footer-connect-inner {
+    grid-template-columns: 1fr;
+    gap: 28px;
+    padding-block: 48px;
+  }
+
+  .footer-connect-copy h2 {
+    font-size: clamp(34px, 11vw, 48px);
+  }
+
+  .footer-connect-form {
+    grid-template-columns: 1fr;
+    overflow: visible;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    gap: 10px;
+  }
+
+  .footer-connect-form input[type="email"] {
+    min-height: 58px;
+    border: 1px solid rgba(255, 255, 255, .14);
+    border-radius: 14px;
+    background: rgba(255, 255, 255, .07);
+  }
+
+  .footer-connect-form button {
+    min-height: 56px;
+    border-radius: 14px;
+  }
+
+  .footer-socials {
+    justify-content: flex-start;
+  }
+
+  .footer-socials a {
+    width: 48px;
+    height: 48px;
+  }
+}
