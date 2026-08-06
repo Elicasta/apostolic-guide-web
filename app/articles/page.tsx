@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { articles } from "@/data";
 import { PageHero } from "@/components";
 import { ArticlePoster } from "@/article-poster";
-import { ArticleLibraryView } from "@/article-library-view";
 import { listDatabaseContent } from "@/database-content";
 
 export const metadata: Metadata = {
@@ -12,7 +11,6 @@ export const metadata: Metadata = {
 
 export default async function ArticlesPage() {
   const databaseArticles = await listDatabaseContent("article");
-  const total = databaseArticles.length + articles.length;
 
   return (
     <>
@@ -24,33 +22,31 @@ export default async function ArticlesPage() {
       <section className="section ei-article-library">
         <div className="shell ei-library-header">
           <span>Study library</span>
-          <span>{total} published studies</span>
+          <span>{databaseArticles.length + articles.length} published studies</span>
         </div>
-        <ArticleLibraryView>
-          <div className="shell ei-poster-grid ei-poster-grid-library">
-            {databaseArticles.map((article, index) => (
-              <ArticlePoster
-                key={article.id}
-                slug={article.slug}
-                title={article.title}
-                eyebrow="Published study"
-                summary={article.summary}
-                index={index}
-              />
-            ))}
-            {articles.map((article, index) => (
-              <ArticlePoster
-                key={article.slug}
-                slug={article.slug}
-                title={article.title}
-                eyebrow={article.eyebrow}
-                summary={article.summary}
-                readingMinutes={article.readingMinutes}
-                index={databaseArticles.length + index}
-              />
-            ))}
-          </div>
-        </ArticleLibraryView>
+        <div className="shell ei-poster-grid ei-poster-grid-library">
+          {databaseArticles.map((article, index) => (
+            <ArticlePoster
+              key={article.id}
+              slug={article.slug}
+              title={article.title}
+              eyebrow="Published study"
+              summary={article.summary}
+              index={index}
+            />
+          ))}
+          {articles.map((article, index) => (
+            <ArticlePoster
+              key={article.slug}
+              slug={article.slug}
+              title={article.title}
+              eyebrow={article.eyebrow}
+              summary={article.summary}
+              readingMinutes={article.readingMinutes}
+              index={databaseArticles.length + index}
+            />
+          ))}
+        </div>
       </section>
     </>
   );

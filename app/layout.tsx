@@ -46,7 +46,6 @@ import "./editorial-divider-system.css";
 import "./line-polish-final.css";
 import "./scripture-library-browser.css";
 import "./about-page-v2.css";
-import "./desktop-tablet-polish.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL(websiteUrl),
