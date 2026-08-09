@@ -1,0 +1,45 @@
+import { NextResponse } from "next/server";
+import { z } from "zod";
+import { getAdminAccess } from "@/auth";
+import { createBroadcastDraft, sendBroadcastDraft, sendBroadcastTest } from "@/resend-broadcasts";
+
+const campaignSchema = z.object({
+  type: z.enum(["article", "topic", "answer", "pathway", "youtube", "podcast", "announcement"]),
+  subject: z.string().trim().min(3).max(180),
+  previewText: z.string().trim().min(3).max(220),
+  eyebrow: z.string().trim().min(2).max(80),
+  title: z.string().trim().min(3).max(220),
+  summary: z.string().trim().min(10).max(1200),
+  ctaLabel: z.string().trim().min(2).max(60),
+  url: z.string().url().max(2000)
+});
+
+const requestSchema = z.discriminatedUnion("action", [
+  z.object({ action: z.literal("create"), audience: z.enum(["general", "content", "media"]), campaign: campaignSchema }),
+  z.object({ action: z.literal("send"), broadcastId: z.string().uuid() }),
+  z.object({ action: z.literal("test"), campaign: campaignSchema })
+]);
+
+export async function POST(request: Request) {
+  const access = await getAdminAccess();
+  if (access.state !== "allowed" || !access.user?.email) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const parsed = requestSchema.safeParse(await request.json().catch(() => null));
+  if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Invalid campaign request." }, { status: 400 });
+
+  try {
+    if (parsed.data.action === "create") {
+      const result = await createBroadcastDraft({ campaign: parsed.data.campaign, audience: parsed.data.audience });
+      return NextResponse.json({ ok: true, broadcastId: result.id, status: "draft" });
+    }
+    if (parsed.data.action === "send") {
+      const result = await sendBroadcastDraft(parsed.data.broadcastId);
+      return NextResponse.json({ ok: true, broadcastId: result.id, status: "sending" });
+    }
+    const result = await sendBroadcastTest({ campaign: parsed.data.campaign, to: access.user.email });
+    return NextResponse.json({ ok: true, emailId: result.id ?? null, sentTo: access.user.email });
+  } catch (error) {
+    console.error("Broadcast operation failed", error);
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Broadcast operation failed." }, { status: 502 });
+  }
+}
