@@ -113,10 +113,20 @@ export function EmailCapture() {
   if (!open) return null;
 
   return (
-    <div className="email-capture-backdrop" role="presentation" onMouseDown={(event) => {
-      if (event.target === event.currentTarget) dismiss();
-    }}>
-      <section className="email-capture" role="dialog" aria-modal="true" aria-labelledby="email-capture-title">
+    <div
+      className="email-capture-backdrop"
+      role="presentation"
+      onPointerDown={(event) => {
+        if (event.target === event.currentTarget) dismiss();
+      }}
+    >
+      <section
+        className="email-capture"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="email-capture-title"
+        onPointerDown={(event) => event.stopPropagation()}
+      >
         <button className="email-capture-close" type="button" onClick={dismiss} aria-label="Close signup"><X size={18} /></button>
         <span className="email-capture-icon"><Mail size={21} /></span>
         <span className="eyebrow eyebrow-light">Stay connected</span>
