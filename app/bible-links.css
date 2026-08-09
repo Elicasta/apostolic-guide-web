@@ -1,67 +1,79 @@
 .bible-open-wrap {
   position: relative;
-  display: inline-flex;
+  display: inline-block;
 }
 
-button.bible-reference-link {
+.bible-open-wrap > summary {
+  list-style: none;
+}
+
+.bible-open-wrap > summary::-webkit-details-marker {
+  display: none;
+}
+
+summary.bible-reference-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
   appearance: none;
   font: inherit;
   cursor: pointer;
+  user-select: none;
 }
 
 .bible-open-menu {
   position: absolute;
-  z-index: 60;
+  z-index: 80;
   left: 0;
   top: calc(100% + 10px);
   width: min(320px, calc(100vw - 40px));
   padding: 10px;
   border: 1px solid rgba(15, 30, 45, .14);
   border-radius: 16px;
-  background: rgba(255, 255, 255, .98);
+  background: #fff;
   box-shadow: 0 20px 60px rgba(15, 30, 45, .18);
   color: #0f1e2d;
 }
 
-.bible-open-menu-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-  padding: 6px 8px 10px;
+.bible-open-menu-reference {
+  display: block;
+  padding: 7px 9px 10px;
   border-bottom: 1px solid rgba(15, 30, 45, .1);
-}
-
-.bible-open-menu-head strong {
-  font-size: 13px;
-}
-
-.bible-open-menu-head button {
-  width: 30px;
-  height: 30px;
-  display: grid;
-  place-items: center;
-  border: 0;
-  border-radius: 50%;
-  background: transparent;
-  color: inherit;
-  cursor: pointer;
+  color: #0f1e2d;
+  font-size: 12px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
 }
 
 .bible-open-menu > a {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 11px;
   padding: 12px 10px;
   border-radius: 10px;
   color: #0f1e2d;
-  font-size: 14px;
-  font-weight: 800;
   text-decoration: none;
 }
 
-.bible-open-menu > a:hover {
+.bible-open-menu > a:hover,
+.bible-open-menu > a:focus-visible {
   background: rgba(15, 30, 45, .06);
+}
+
+.bible-open-menu > a > span {
+  display: grid;
+  gap: 2px;
+}
+
+.bible-open-menu > a b {
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.bible-open-menu > a small {
+  color: #65717a;
+  font-size: 11px;
+  font-weight: 600;
 }
 
 .scripture-page-hero .bible-open-menu {
@@ -69,12 +81,14 @@ button.bible-reference-link {
 }
 
 @media (max-width: 680px) {
+  .bible-open-wrap[open] {
+    display: block;
+    width: min(100%, 340px);
+  }
+
   .bible-open-menu {
-    position: fixed;
-    left: 20px;
-    right: 20px;
-    top: auto;
-    bottom: 20px;
-    width: auto;
+    position: static;
+    width: min(100%, 340px);
+    margin-top: 10px;
   }
 }
