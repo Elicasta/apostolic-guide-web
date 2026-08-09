@@ -30,6 +30,7 @@ type EventPayload = {
 
 const ANONYMOUS_KEY = "ag_anonymous_id";
 const SESSION_KEY = "ag_session_id";
+const ATTRIBUTION_KEY = "ag_campaign_attribution";
 
 function getAnonymousId() {
   const stored = window.localStorage.getItem(ANONYMOUS_KEY);
@@ -47,6 +48,31 @@ function getSessionId() {
   return value;
 }
 
+function getCampaignAttribution(): EventProperties {
+  const search = new URLSearchParams(location.search);
+  const campaign = search.get("utm_campaign");
+  if (campaign) {
+    const attribution: EventProperties = {
+      _utm_source: search.get("utm_source"),
+      _utm_medium: search.get("utm_medium"),
+      _utm_campaign: campaign,
+      _utm_content: search.get("utm_content"),
+      _utm_term: search.get("utm_term")
+    };
+    try { window.sessionStorage.setItem(ATTRIBUTION_KEY, JSON.stringify(attribution)); } catch {}
+    return attribution;
+  }
+
+  try {
+    const stored = window.sessionStorage.getItem(ATTRIBUTION_KEY);
+    if (!stored) return {};
+    const parsed = JSON.parse(stored) as EventProperties;
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
 function setCrossDomainAnonymousCookie(id: string) {
   const isProductionDomain = location.hostname === "apostolicguide.com"
     || location.hostname.endsWith(".apostolicguide.com");
@@ -58,6 +84,7 @@ function setCrossDomainAnonymousCookie(id: string) {
 function sendEvent(payload: EventPayload) {
   const body = JSON.stringify({
     ...payload,
+    properties: { ...(payload.properties ?? {}), ...getCampaignAttribution() },
     sessionId: getSessionId(),
     referrer: document.referrer || null,
     viewportWidth: window.innerWidth
