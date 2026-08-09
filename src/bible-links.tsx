@@ -1,7 +1,4 @@
-"use client";
-
-import { useState } from "react";
-import { BookOpen, ExternalLink, X } from "lucide-react";
+import { BookOpen, ExternalLink } from "lucide-react";
 
 const youVersionBooks: Record<string, string> = {
   Genesis: "GEN", Exodus: "EXO", Leviticus: "LEV", Numbers: "NUM", Deuteronomy: "DEU", Joshua: "JOS", Judges: "JDG", Ruth: "RUT",
@@ -26,29 +23,44 @@ export function youVersionUrl(reference: string) {
   const normalized = normalizeBibleReference(reference);
   const match = normalized.match(/^((?:[1-3]\s)?[A-Za-z]+(?:\s(?:of|Solomon))?)\s+(\d{1,3}):(\d{1,3}(?:-\d{1,3})?)$/i);
   if (!match) return null;
+
   const [, rawBook, chapter, verses] = match;
   const canonicalBook = Object.keys(youVersionBooks).find((book) => book.toLowerCase() === rawBook.toLowerCase());
   if (!canonicalBook) return null;
+
   return `https://bible.com/bible/1/${youVersionBooks[canonicalBook]}.${chapter}.${verses}.KJV`;
 }
 
-export function BibleReferenceLink({ reference, label = "Open Bible", className = "" }: { reference: string; label?: string; className?: string }) {
-  const [open, setOpen] = useState(false);
+export function BibleReferenceLink({
+  reference,
+  label = "Open Bible",
+  className = ""
+}: {
+  reference: string;
+  label?: string;
+  className?: string;
+}) {
   const youVersion = youVersionUrl(reference);
   const gateway = bibleGatewayUrl(reference);
 
   return (
-    <span className="bible-open-wrap">
-      <button type="button" className={`bible-reference-link ${className}`.trim()} onClick={() => setOpen(true)}>
+    <details className="bible-open-wrap">
+      <summary className={`bible-reference-link ${className}`.trim()}>
         {label} <ExternalLink size={14} />
-      </button>
-      {open && (
-        <span className="bible-open-menu" role="dialog" aria-label={`Open ${reference} in Bible`}>
-          <span className="bible-open-menu-head"><strong>{reference}</strong><button type="button" onClick={() => setOpen(false)} aria-label="Close"><X size={15} /></button></span>
-          {youVersion && <a href={youVersion} onClick={() => setOpen(false)}><BookOpen size={16} /> Open in Bible app</a>}
-          <a href={gateway} target="_blank" rel="noopener noreferrer" onClick={() => setOpen(false)}><ExternalLink size={16} /> Open in Bible Gateway</a>
-        </span>
-      )}
-    </span>
+      </summary>
+      <div className="bible-open-menu">
+        <strong className="bible-open-menu-reference">{reference}</strong>
+        {youVersion && (
+          <a href={youVersion}>
+            <BookOpen size={16} />
+            <span><b>Open in Bible app</b><small>YouVersion / Bible.com</small></span>
+          </a>
+        )}
+        <a href={gateway} target="_blank" rel="noopener noreferrer">
+          <ExternalLink size={16} />
+          <span><b>Open in Bible Gateway</b><small>Browser fallback · KJV</small></span>
+        </a>
+      </div>
+    </details>
   );
 }
