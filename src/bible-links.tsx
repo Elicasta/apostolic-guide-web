@@ -11,6 +11,8 @@ const youVersionBooks: Record<string, string> = {
   "1 Peter": "1PE", "2 Peter": "2PE", "1 John": "1JN", "2 John": "2JN", "3 John": "3JN", Jude: "JUD", Revelation: "REV"
 };
 
+const canonicalBooks = Object.keys(youVersionBooks).sort((a, b) => b.length - a.length);
+
 export function normalizeBibleReference(reference: string) {
   return reference.replace(/[–—]/g, "-").replace(/\s+/g, " ").trim();
 }
@@ -21,13 +23,16 @@ export function bibleGatewayUrl(reference: string) {
 
 export function youVersionUrl(reference: string) {
   const normalized = normalizeBibleReference(reference);
-  const match = normalized.match(/^((?:[1-3]\s)?[A-Za-z]+(?:\s(?:of|Solomon))?)\s+(\d{1,3}):(\d{1,3}(?:-\d{1,3})?)$/i);
-  if (!match) return null;
-
-  const [, rawBook, chapter, verses] = match;
-  const canonicalBook = Object.keys(youVersionBooks).find((book) => book.toLowerCase() === rawBook.toLowerCase());
+  const canonicalBook = canonicalBooks.find((book) =>
+    normalized.toLowerCase().startsWith(`${book.toLowerCase()} `)
+  );
   if (!canonicalBook) return null;
 
+  const passage = normalized.slice(canonicalBook.length).trim();
+  const match = passage.match(/^(\d{1,3}):(\d{1,3}(?:-\d{1,3})?)$/);
+  if (!match) return null;
+
+  const [, chapter, verses] = match;
   return `https://bible.com/bible/1/${youVersionBooks[canonicalBook]}.${chapter}.${verses}.KJV`;
 }
 
