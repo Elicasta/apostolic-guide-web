@@ -7,6 +7,7 @@ export const runtime = "nodejs";
 const eventSchema = z.object({
   name: z.enum([
     "page_viewed",
+    "presence_heartbeat",
     "topic_opened",
     "answer_opened",
     "article_opened",
