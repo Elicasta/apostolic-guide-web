@@ -10,6 +10,13 @@ import {
 } from "../src/data";
 import { allPathways } from "../src/pathway-catalog";
 import { bibleGatewayUrl, youVersionUrl } from "../src/bible-links";
+import {
+  answerSuggestions,
+  articleSuggestions,
+  pathwaySuggestions,
+  scriptureSuggestions,
+  topicSuggestions
+} from "../src/suggestion-data";
 
 test("launch inventory is not empty", () => {
   assert.ok(topics.length >= 8);
@@ -74,4 +81,43 @@ test("every pathway step generates a YouVersion and Bible Gateway link", () => {
       assert.ok(bibleGatewayUrl(step.reference), `${pathway.slug}: ${step.reference}`);
     });
   });
+});
+
+function assertInternalHrefResolves(href: string) {
+  const cleanHref = href.split("?")[0].split("#")[0];
+  if (cleanHref === "" || cleanHref === "/") return;
+
+  const [section, ...rest] = cleanHref.replace(/^\//, "").split("/");
+  const tail = rest.join("/");
+
+  if (section === "topics") {
+    assert.ok(topics.some((item) => item.slug === tail), href);
+    return;
+  }
+  if (section === "answers") {
+    assert.ok(answers.some((item) => item.slug === tail), href);
+    return;
+  }
+  if (section === "articles") {
+    assert.ok(articles.some((item) => item.slug === tail), href);
+    return;
+  }
+  if (section === "pathways") {
+    assert.ok(allPathways.some((item) => item.slug === tail), href);
+    return;
+  }
+  if (section === "scripture") {
+    assert.ok(scriptures.some((item) => item.path === tail), href);
+    return;
+  }
+
+  assert.fail(`Unexpected generated internal href: ${href}`);
+}
+
+test("every smart recommendation points to an existing content route", () => {
+  articles.forEach((article) => articleSuggestions(article.slug).forEach((item) => assertInternalHrefResolves(item.href)));
+  answers.forEach((answer) => answerSuggestions(answer.slug).forEach((item) => assertInternalHrefResolves(item.href)));
+  topics.forEach((topic) => topicSuggestions(topic.slug).forEach((item) => assertInternalHrefResolves(item.href)));
+  allPathways.forEach((pathway) => pathwaySuggestions(pathway.slug).forEach((item) => assertInternalHrefResolves(item.href)));
+  scriptures.forEach((entry) => scriptureSuggestions(entry.path).forEach((item) => assertInternalHrefResolves(item.href)));
 });
