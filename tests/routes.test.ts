@@ -8,6 +8,7 @@ const publicRouteFiles = [
   "app/about/page.tsx",
   "app/answers/page.tsx",
   "app/answers/[slug]/page.tsx",
+  "app/app/page.tsx",
   "app/articles/page.tsx",
   "app/articles/[slug]/page.tsx",
   "app/beliefs/page.tsx",
@@ -19,10 +20,20 @@ const publicRouteFiles = [
   "app/pathways/[slug]/page.tsx",
   "app/privacy/page.tsx",
   "app/scripture/[[...path]]/page.tsx",
+  "app/search/page.tsx",
   "app/subscribe/page.tsx",
   "app/terms/page.tsx",
   "app/topics/page.tsx",
   "app/topics/[slug]/page.tsx"
+];
+
+const authAndAdminRouteFiles = [
+  "app/admin/page.tsx",
+  "app/admin/layout.tsx",
+  "app/login/page.tsx",
+  "app/forgot-password/page.tsx",
+  "app/update-password/page.tsx",
+  "app/auth/callback/route.ts"
 ];
 
 const publicApiRoutes = [
@@ -33,6 +44,12 @@ const publicApiRoutes = [
 
 test("public navigation routes have page implementations", () => {
   publicRouteFiles.forEach((routeFile) => {
+    assert.ok(existsSync(join(process.cwd(), routeFile)), `${routeFile} is missing`);
+  });
+});
+
+test("auth and admin navigation routes have implementations", () => {
+  authAndAdminRouteFiles.forEach((routeFile) => {
     assert.ok(existsSync(join(process.cwd(), routeFile)), `${routeFile} is missing`);
   });
 });
