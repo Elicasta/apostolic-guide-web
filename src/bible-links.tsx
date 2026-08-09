@@ -29,7 +29,7 @@ export function youVersionUrl(reference: string) {
   const [, rawBook, chapter, verses] = match;
   const canonicalBook = Object.keys(youVersionBooks).find((book) => book.toLowerCase() === rawBook.toLowerCase());
   if (!canonicalBook) return null;
-  return `https://www.bible.com/bible/1/${youVersionBooks[canonicalBook]}.${chapter}.${verses}.KJV`;
+  return `https://bible.com/bible/1/${youVersionBooks[canonicalBook]}.${chapter}.${verses}.KJV`;
 }
 
 export function BibleReferenceLink({ reference, label = "Open Bible", className = "" }: { reference: string; label?: string; className?: string }) {
@@ -45,8 +45,8 @@ export function BibleReferenceLink({ reference, label = "Open Bible", className 
       {open && (
         <span className="bible-open-menu" role="dialog" aria-label={`Open ${reference} in Bible`}>
           <span className="bible-open-menu-head"><strong>{reference}</strong><button type="button" onClick={() => setOpen(false)} aria-label="Close"><X size={15} /></button></span>
-          {youVersion && <a href={youVersion} target="_blank" rel="noopener noreferrer"><BookOpen size={16} /> Open in Bible / YouVersion</a>}
-          <a href={gateway} target="_blank" rel="noopener noreferrer"><ExternalLink size={16} /> Open in Bible Gateway</a>
+          {youVersion && <a href={youVersion} onClick={() => setOpen(false)}><BookOpen size={16} /> Open in Bible app</a>}
+          <a href={gateway} target="_blank" rel="noopener noreferrer" onClick={() => setOpen(false)}><ExternalLink size={16} /> Open in Bible Gateway</a>
         </span>
       )}
     </span>
