@@ -29,8 +29,8 @@ export async function POST(request: Request) {
 
   try {
     if (parsed.data.action === "create") {
-      const result = await createBroadcastDraft({ campaign: parsed.data.campaign, audience: parsed.data.audience });
-      return NextResponse.json({ ok: true, broadcastId: result.id, status: "draft" });
+      const result = await createBroadcastDraft({ campaign: parsed.data.campaign, audience: parsed.data.audience, createdBy: access.user.email });
+      return NextResponse.json({ ok: true, broadcastId: result.id, campaignId: result.campaignId, status: "draft" });
     }
     if (parsed.data.action === "send") {
       const result = await sendBroadcastDraft(parsed.data.broadcastId);
