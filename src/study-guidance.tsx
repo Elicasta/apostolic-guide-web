@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { ArrowRight, BookOpen, ExternalLink } from "lucide-react";
+import { ArrowRight, BookOpen } from "lucide-react";
+import { BibleReferenceLink } from "./bible-links";
 
 const bibleBooks = [
   "Genesis", "Exodus", "Leviticus", "Numbers", "Deuteronomy", "Joshua", "Judges", "Ruth",
@@ -38,31 +39,9 @@ export function extractScriptureReferences(value: unknown) {
   return Array.from(new Set(references.map((reference) => reference.replace(/\s+/g, " ").trim())));
 }
 
-export function biblePassageUrl(reference: string) {
-  const normalized = reference.replace(/[–—]/g, "-");
-  return `https://www.biblegateway.com/passage/?search=${encodeURIComponent(normalized)}&version=KJV`;
-}
+export { bibleGatewayUrl as biblePassageUrl } from "./bible-links";
 
-export function BibleReferenceLink({
-  reference,
-  label = "Read in Bible",
-  className = ""
-}: {
-  reference: string;
-  label?: string;
-  className?: string;
-}) {
-  return (
-    <a
-      className={`bible-reference-link ${className}`.trim()}
-      href={biblePassageUrl(reference)}
-      target="_blank"
-      rel="noopener noreferrer"
-    >
-      {label} <ExternalLink size={14} />
-    </a>
-  );
-}
+export { BibleReferenceLink };
 
 export function ScriptureContextNote() {
   return (
