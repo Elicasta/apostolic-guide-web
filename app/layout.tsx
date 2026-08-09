@@ -49,6 +49,7 @@ import "./scripture-library-browser.css";
 import "./about-page-v2.css";
 import "./footer-connect.css";
 import "./bible-links.css";
+import "./contact-form.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL(websiteUrl),
