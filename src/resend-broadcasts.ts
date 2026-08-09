@@ -1,4 +1,7 @@
+import { randomUUID } from "node:crypto";
 import { buildBroadcastEmail, type BroadcastCampaign } from "./broadcast-email";
+import { addCampaignTracking, type CampaignIntelligenceRow, type CampaignLinkRow } from "./campaign-intelligence";
+import { createServiceClient } from "./supabase";
 
 export const RESEND_SEGMENTS = {
   general: process.env.RESEND_GENERAL_SEGMENT_ID ?? "9120e755-2e0a-4315-a663-fb169040fc0f",
@@ -20,23 +23,66 @@ function sender() {
   return from.includes("<") ? from : `Apostolic Guide <${from}>`;
 }
 
-export async function createBroadcastDraft(input: { campaign: BroadcastCampaign; audience: AudienceKey }) {
-  const email = buildBroadcastEmail(input.campaign);
-  const response = await fetch("https://api.resend.com/broadcasts", {
-    method: "POST",
-    headers: headers(),
-    body: JSON.stringify({
-      segment_id: RESEND_SEGMENTS[input.audience],
-      from: sender(),
-      name: `${input.campaign.eyebrow}: ${input.campaign.title}`.slice(0, 180),
+async function updateCampaignByBroadcast(broadcastId: string, values: Record<string, unknown>) {
+  const service = createServiceClient();
+  if (!service) return;
+  const { error } = await service.schema("analytics").from("email_campaigns")
+    .update({ ...values, updated_at: new Date().toISOString() })
+    .eq("resend_broadcast_id", broadcastId);
+  if (error) console.error("campaign intelligence update failed", { code: error.code, message: error.message });
+}
+
+export async function createBroadcastDraft(input: { campaign: BroadcastCampaign; audience: AudienceKey; createdBy?: string }) {
+  const campaignId = randomUUID();
+  const trackedUrl = addCampaignTracking(input.campaign.url, campaignId, input.campaign.type);
+  const trackedCampaign = { ...input.campaign, url: trackedUrl };
+  const email = buildBroadcastEmail(trackedCampaign);
+  const campaignName = `${input.campaign.eyebrow}: ${input.campaign.title}`.slice(0, 180);
+  const service = createServiceClient();
+
+  if (service) {
+    const { error } = await service.schema("analytics").from("email_campaigns").insert({
+      id: campaignId,
+      campaign_type: input.campaign.type,
+      audience: input.audience,
+      name: campaignName,
       subject: input.campaign.subject,
-      preview_text: input.campaign.previewText,
-      html: email.html,
-      text: email.text
-    })
-  });
-  if (!response.ok) throw new Error(await response.text());
-  return response.json() as Promise<{ id: string }>;
+      title: input.campaign.title,
+      destination_url: input.campaign.url,
+      tracked_url: trackedUrl,
+      status: "creating",
+      created_by: input.createdBy ?? null
+    });
+    if (error) console.error("campaign ledger insert failed", { code: error.code, message: error.message });
+  }
+
+  try {
+    const response = await fetch("https://api.resend.com/broadcasts", {
+      method: "POST",
+      headers: headers(),
+      body: JSON.stringify({
+        segment_id: RESEND_SEGMENTS[input.audience],
+        from: sender(),
+        name: campaignName,
+        subject: input.campaign.subject,
+        preview_text: input.campaign.previewText,
+        html: email.html,
+        text: email.text
+      })
+    });
+    if (!response.ok) throw new Error(await response.text());
+    const result = await response.json() as { id: string };
+    if (service) {
+      const { error } = await service.schema("analytics").from("email_campaigns")
+        .update({ resend_broadcast_id: result.id, status: "draft", updated_at: new Date().toISOString() })
+        .eq("id", campaignId);
+      if (error) console.error("campaign ledger link failed", { code: error.code, message: error.message });
+    }
+    return { ...result, campaignId };
+  } catch (error) {
+    if (service) await service.schema("analytics").from("email_campaigns").update({ status: "failed", updated_at: new Date().toISOString() }).eq("id", campaignId);
+    throw error;
+  }
 }
 
 export async function sendBroadcastDraft(id: string) {
@@ -46,7 +92,9 @@ export async function sendBroadcastDraft(id: string) {
     body: "{}"
   });
   if (!response.ok) throw new Error(await response.text());
-  return response.json() as Promise<{ id: string }>;
+  const result = await response.json() as { id: string };
+  await updateCampaignByBroadcast(id, { status: "sending" });
+  return result;
 }
 
 export async function listBroadcasts() {
@@ -59,6 +107,34 @@ export async function listBroadcasts() {
   } catch {
     return [];
   }
+}
+
+export async function listCampaignIntelligence(limit = 12) {
+  const service = createServiceClient();
+  if (!service) return [] as CampaignIntelligenceRow[];
+  const { data, error } = await service.schema("analytics").from("email_campaign_intelligence")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error) {
+    console.error("campaign intelligence query failed", { code: error.code, message: error.message });
+    return [];
+  }
+  return (data ?? []) as CampaignIntelligenceRow[];
+}
+
+export async function listCampaignLinks(campaignIds: string[]) {
+  const service = createServiceClient();
+  if (!service || !campaignIds.length) return [] as CampaignLinkRow[];
+  const { data, error } = await service.schema("analytics").from("email_campaign_link_rollups")
+    .select("campaign_id,clicked_url,click_events,unique_clickers")
+    .in("campaign_id", campaignIds)
+    .order("unique_clickers", { ascending: false });
+  if (error) {
+    console.error("campaign links query failed", { code: error.code, message: error.message });
+    return [];
+  }
+  return (data ?? []) as CampaignLinkRow[];
 }
 
 export async function sendBroadcastTest(input: { campaign: BroadcastCampaign; to: string }) {
