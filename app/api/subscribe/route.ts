@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createServiceClient } from "@/supabase";
+import { buildWelcomeEmail } from "@/welcome-email";
 
 export const runtime = "nodejs";
 
@@ -52,11 +53,7 @@ async function sendWelcomeEmail(input: SubscriberInput) {
   const from = process.env.RESEND_FROM_EMAIL;
   if (!apiKey || !from) return { id: null, sent: false, error: "Welcome email is not configured" };
 
-  const interests = [
-    input.liveTeachings ? "live teaching invitations" : null,
-    input.newArticles ? "new Scripture studies" : null
-  ].filter(Boolean).join(" and ");
-
+  const welcome = buildWelcomeEmail(input);
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
@@ -67,17 +64,9 @@ async function sendWelcomeEmail(input: SubscriberInput) {
     body: JSON.stringify({
       from,
       to: [input.email],
-      subject: "Welcome to Apostolic Guide",
-      html: `
-        <div style="font-family:Arial,sans-serif;max-width:620px;margin:0 auto;padding:32px;color:#0f1e2d;line-height:1.65">
-          <p style="font-size:12px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:#b3212d">Apostolic Guide</p>
-          <h1 style="font-size:34px;line-height:1.05;margin:18px 0">Scripture first. Questions welcome.</h1>
-          <p>You are now signed up for ${interests || "Apostolic Guide updates"}.</p>
-          <p>We built Apostolic Guide to help believers search the Scriptures, follow connected passages, and understand not only what they believe, but why they believe it.</p>
-          <p style="margin-top:28px"><a href="https://apostolicguide.com" style="display:inline-block;background:#0f1e2d;color:#fff;text-decoration:none;padding:13px 20px;border-radius:10px;font-weight:700">Continue studying</a></p>
-          <p style="margin-top:34px;color:#65727c;font-size:13px">You received this because you signed up at apostolicguide.com.</p>
-        </div>`,
-      text: `Welcome to Apostolic Guide. You are signed up for ${interests || "Apostolic Guide updates"}. Continue studying at https://apostolicguide.com`,
+      subject: welcome.subject,
+      html: welcome.html,
+      text: welcome.text,
       tags: [{ name: "category", value: "subscriber_welcome" }]
     })
   });
