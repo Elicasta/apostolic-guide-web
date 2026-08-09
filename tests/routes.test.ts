@@ -30,6 +30,8 @@ const publicRouteFiles = [
 const authAndAdminRouteFiles = [
   "app/admin/page.tsx",
   "app/admin/layout.tsx",
+  "app/admin/social/page.tsx",
+  "app/api/admin/social/route.ts",
   "app/login/page.tsx",
   "app/forgot-password/page.tsx",
   "app/update-password/page.tsx",
@@ -39,7 +41,8 @@ const authAndAdminRouteFiles = [
 const publicApiRoutes = [
   "app/api/analytics/events/route.ts",
   "app/api/health/route.ts",
-  "app/api/subscribe/route.ts"
+  "app/api/subscribe/route.ts",
+  "app/api/webhooks/meta/instagram/route.ts"
 ];
 
 test("public navigation routes have page implementations", () => {
