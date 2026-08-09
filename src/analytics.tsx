@@ -5,6 +5,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 
 export type EventName =
   | "page_viewed"
+  | "presence_heartbeat"
   | "topic_opened"
   | "answer_opened"
   | "article_opened"
@@ -77,6 +78,7 @@ function sendEvent(payload: EventPayload) {
 
 export function trackEvent(name: EventName, properties?: EventProperties) {
   if (typeof window === "undefined" || navigator.doNotTrack === "1") return;
+  if (location.pathname.startsWith("/admin")) return;
   const anonymousId = getAnonymousId();
   setCrossDomainAnonymousCookie(anonymousId);
   sendEvent({
@@ -107,6 +109,7 @@ export function ProductAnalytics() {
   const lastPage = useRef("");
 
   useEffect(() => {
+    if (pathname.startsWith("/admin")) return;
     const path = `${pathname}${search ? `?${search}` : ""}`;
     if (lastPage.current === path) return;
     lastPage.current = path;
@@ -115,6 +118,24 @@ export function ProductAnalytics() {
     const opened = contentOpenEvent(pathname);
     if (opened) trackEvent(opened.name, { contentKey: opened.key });
   }, [pathname, search]);
+
+  useEffect(() => {
+    if (pathname.startsWith("/admin")) return;
+
+    const heartbeat = () => {
+      if (document.visibilityState !== "visible") return;
+      trackEvent("presence_heartbeat", { visible: true });
+    };
+
+    heartbeat();
+    const interval = window.setInterval(heartbeat, 30_000);
+    document.addEventListener("visibilitychange", heartbeat);
+
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", heartbeat);
+    };
+  }, [pathname]);
 
   useEffect(() => {
     if (!pathname.startsWith("/articles/")) return;
