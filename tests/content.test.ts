@@ -10,6 +10,7 @@ import {
 } from "../src/data";
 import { allPathways } from "../src/pathway-catalog";
 import { bibleGatewayUrl, youVersionUrl } from "../src/bible-links";
+import { buildWelcomeEmail } from "../src/welcome-email";
 import {
   answerSuggestions,
   articleSuggestions,
@@ -120,4 +121,15 @@ test("every smart recommendation points to an existing content route", () => {
   topics.forEach((topic) => topicSuggestions(topic.slug).forEach((item) => assertInternalHrefResolves(item.href)));
   allPathways.forEach((pathway) => pathwaySuggestions(pathway.slug).forEach((item) => assertInternalHrefResolves(item.href)));
   scriptures.forEach((entry) => scriptureSuggestions(entry.path).forEach((item) => assertInternalHrefResolves(item.href)));
+});
+
+test("subscriber welcome email contains the branded onboarding path", () => {
+  const email = buildWelcomeEmail({ liveTeachings: true, newArticles: true });
+
+  assert.match(email.subject, /Welcome to Apostolic Guide/);
+  assert.match(email.html, /<!DOCTYPE html>/);
+  assert.match(email.html, /https:\/\/apostolicguide\.com\/pathways/);
+  assert.match(email.html, /https:\/\/apostolicguide\.com\/install-app\?destination=/);
+  assert.match(email.html, /Truth deserves to be understood, not merely repeated/);
+  assert.match(email.text, /A word from the Apostolic Guide team/);
 });
