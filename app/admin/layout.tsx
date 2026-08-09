@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { BarChart3, BookOpen, FileText, Home, LogOut, Settings } from "lucide-react";
 import { getAdminAccess } from "@/auth";
+import "./publishing.css";
 
 export const dynamic = "force-dynamic";
 
