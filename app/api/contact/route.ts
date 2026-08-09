@@ -13,16 +13,19 @@ const categories = [
   "Other"
 ] as const;
 
+const optionalText = (max: number, fallback = "") =>
+  z.preprocess((value) => value == null ? fallback : value, z.string().trim().max(max));
+
 const contactSchema = z.object({
   name: z.string().trim().min(2).max(120),
   email: z.string().trim().toLowerCase().email().max(320),
   location: z.string().trim().min(2).max(160),
   category: z.enum(categories),
-  otherCategory: z.string().trim().max(160).optional().default(""),
-  context: z.string().trim().max(240).optional().default(""),
+  otherCategory: optionalText(160),
+  context: optionalText(240),
   question: z.string().trim().min(12).max(6000),
-  website: z.string().max(0).optional().default(""),
-  path: z.string().trim().max(500).optional().default("/contact")
+  website: optionalText(0),
+  path: optionalText(500, "/contact")
 }).superRefine((value, ctx) => {
   if (value.category === "Other" && value.otherCategory.length < 2) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["otherCategory"], message: "Tell us what the inquiry is about." });
