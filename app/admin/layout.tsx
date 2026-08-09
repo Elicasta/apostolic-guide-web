@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { BarChart3, BookOpen, FileText, Home, LogOut, Mail, Settings } from "lucide-react";
 import { getAdminAccess } from "@/auth";
 import "./publishing.css";
+import "./campaign-intelligence.css";
 
 export const dynamic = "force-dynamic";
 
