@@ -48,6 +48,7 @@ import "./line-polish-final.css";
 import "./scripture-library-browser.css";
 import "./about-page-v2.css";
 import "./footer-connect.css";
+import "./bible-links.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL(websiteUrl),
