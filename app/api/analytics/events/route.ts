@@ -57,6 +57,11 @@ function header(request: Request, name: string) {
   return value || null;
 }
 
+function stringProperty(properties: Record<string, string | number | boolean | null> | undefined, key: string) {
+  const value = properties?.[key];
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
 export async function POST(request: Request) {
   const length = Number(request.headers.get("content-length") ?? "0");
   if (length > 16_384) return NextResponse.json({ error: "Payload too large" }, { status: 413 });
@@ -90,6 +95,7 @@ export async function POST(request: Request) {
 
   if ((count ?? 0) >= 240) return new NextResponse(null, { status: 204 });
 
+  const properties = parsed.data.properties ?? {};
   const { error } = await analytics.from("events").insert({
     event_name: parsed.data.name,
     session_id: parsed.data.sessionId,
@@ -104,12 +110,12 @@ export async function POST(request: Request) {
     user_agent: userAgent.slice(0, 1000) || null,
     browser: classifyBrowser(userAgent),
     os: classifyOs(userAgent),
-    utm_source: url.searchParams.get("utm_source"),
-    utm_medium: url.searchParams.get("utm_medium"),
-    utm_campaign: url.searchParams.get("utm_campaign"),
-    utm_content: url.searchParams.get("utm_content"),
-    utm_term: url.searchParams.get("utm_term"),
-    properties: parsed.data.properties ?? {}
+    utm_source: url.searchParams.get("utm_source") ?? stringProperty(properties, "_utm_source"),
+    utm_medium: url.searchParams.get("utm_medium") ?? stringProperty(properties, "_utm_medium"),
+    utm_campaign: url.searchParams.get("utm_campaign") ?? stringProperty(properties, "_utm_campaign"),
+    utm_content: url.searchParams.get("utm_content") ?? stringProperty(properties, "_utm_content"),
+    utm_term: url.searchParams.get("utm_term") ?? stringProperty(properties, "_utm_term"),
+    properties
   });
 
   if (error) console.error("analytics ingestion failed", { code: error.code, message: error.message });
