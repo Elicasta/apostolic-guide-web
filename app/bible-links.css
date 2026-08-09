@@ -1,0 +1,80 @@
+.bible-open-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+button.bible-reference-link {
+  appearance: none;
+  font: inherit;
+  cursor: pointer;
+}
+
+.bible-open-menu {
+  position: absolute;
+  z-index: 60;
+  left: 0;
+  top: calc(100% + 10px);
+  width: min(320px, calc(100vw - 40px));
+  padding: 10px;
+  border: 1px solid rgba(15, 30, 45, .14);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, .98);
+  box-shadow: 0 20px 60px rgba(15, 30, 45, .18);
+  color: #0f1e2d;
+}
+
+.bible-open-menu-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 6px 8px 10px;
+  border-bottom: 1px solid rgba(15, 30, 45, .1);
+}
+
+.bible-open-menu-head strong {
+  font-size: 13px;
+}
+
+.bible-open-menu-head button {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.bible-open-menu > a {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 10px;
+  border-radius: 10px;
+  color: #0f1e2d;
+  font-size: 14px;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.bible-open-menu > a:hover {
+  background: rgba(15, 30, 45, .06);
+}
+
+.scripture-page-hero .bible-open-menu {
+  color: #0f1e2d;
+}
+
+@media (max-width: 680px) {
+  .bible-open-menu {
+    position: fixed;
+    left: 20px;
+    right: 20px;
+    top: auto;
+    bottom: 20px;
+    width: auto;
+  }
+}
