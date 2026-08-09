@@ -1,4 +1,4 @@
-import { BookOpen, ExternalLink } from "lucide-react";
+import { BibleReferenceChooser } from "./bible-reference-chooser";
 
 const youVersionBooks: Record<string, string> = {
   Genesis: "GEN", Exodus: "EXO", Leviticus: "LEV", Numbers: "NUM", Deuteronomy: "DEU", Joshua: "JOS", Judges: "JDG", Ruth: "RUT",
@@ -45,27 +45,13 @@ export function BibleReferenceLink({
   label?: string;
   className?: string;
 }) {
-  const youVersion = youVersionUrl(reference);
-  const gateway = bibleGatewayUrl(reference);
-
   return (
-    <details className="bible-open-wrap">
-      <summary className={`bible-reference-link ${className}`.trim()}>
-        {label} <ExternalLink size={14} />
-      </summary>
-      <div className="bible-open-menu">
-        <strong className="bible-open-menu-reference">{reference}</strong>
-        {youVersion && (
-          <a href={youVersion}>
-            <BookOpen size={16} />
-            <span><b>Open in Bible app</b><small>YouVersion / Bible.com</small></span>
-          </a>
-        )}
-        <a href={gateway} target="_blank" rel="noopener noreferrer">
-          <ExternalLink size={16} />
-          <span><b>Open in Bible Gateway</b><small>Browser fallback · KJV</small></span>
-        </a>
-      </div>
-    </details>
+    <BibleReferenceChooser
+      reference={reference}
+      label={label}
+      className={className}
+      youVersion={youVersionUrl(reference)}
+      gateway={bibleGatewayUrl(reference)}
+    />
   );
 }
