@@ -15,6 +15,11 @@ const categories = [
 
 type FormState = "idle" | "submitting" | "success" | "error";
 
+function formValue(data: FormData, key: string) {
+  const value = data.get(key);
+  return typeof value === "string" ? value : "";
+}
+
 export function ContactForm() {
   const [category, setCategory] = useState<(typeof categories)[number]>(categories[0]);
   const [state, setState] = useState<FormState>("idle");
@@ -34,14 +39,14 @@ export function ContactForm() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: data.get("name"),
-          email: data.get("email"),
-          location: data.get("location"),
-          category: data.get("category"),
-          otherCategory: data.get("otherCategory"),
-          context: data.get("context"),
-          question: data.get("question"),
-          website: data.get("website"),
+          name: formValue(data, "name"),
+          email: formValue(data, "email"),
+          location: formValue(data, "location"),
+          category: formValue(data, "category"),
+          otherCategory: formValue(data, "otherCategory"),
+          context: formValue(data, "context"),
+          question: formValue(data, "question"),
+          website: formValue(data, "website"),
           path: window.location.pathname
         })
       });
