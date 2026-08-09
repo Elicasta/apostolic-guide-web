@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { BarChart3, BookOpen, FileText, Home, LogOut, Mail, Settings } from "lucide-react";
+import { BarChart3, BookOpen, FileText, Home, Instagram, LogOut, Mail, Settings } from "lucide-react";
 import { getAdminAccess } from "@/auth";
 import "./publishing.css";
 import "./campaign-intelligence.css";
+import "./social-messaging.css";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +26,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           <Link href="/admin/content"><FileText size={17} /> Website content</Link>
           <Link href="/admin/app-content"><BookOpen size={17} /> App content</Link>
           <Link href="/admin/broadcasts"><Mail size={17} /> Broadcasts</Link>
+          <Link href="/admin/social"><Instagram size={17} /> Social automations</Link>
           <Link href="/admin/analytics"><BarChart3 size={17} /> Analytics</Link>
           <Link href="/admin/setup"><Settings size={17} /> Setup</Link>
           <form action="/auth/signout" method="post"><button className="admin-signout" type="submit"><LogOut size={17} /> Sign out</button></form>
