@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import { Bell, Home, LogOut } from "lucide-react";
 import { getAdminAccess } from "@/auth";
 import { StudioNav } from "@/studio-nav";
+import { StudioCommandPalette } from "@/studio-command-palette";
+import { STUDIO_ROLE_LABELS, type StudioRole } from "@/studio-permissions";
 import { getNotificationUnreadCount } from "@/studio-notifications";
 import "./publishing.css";
 import "./campaign-intelligence.css";
@@ -15,6 +17,7 @@ import "./inbox.css";
 import "./segments.css";
 import "./notifications.css";
 import "./studio-system.css";
+import "./system.css";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +26,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   if (access.state === "signed_out") redirect("/login");
   if (access.state === "forbidden") redirect("/");
   const configured = access.state !== "unconfigured";
+  const role: StudioRole = access.state === "allowed" && access.role ? access.role : "owner";
   const unreadNotifications = configured ? await getNotificationUnreadCount() : 0;
 
   return (
@@ -33,14 +37,15 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           <span className="studio-brand-copy"><strong>Apostolic Guide</strong><small>Studio</small></span>
         </Link>
         <div className="studio-header-actions">
-          <span className="studio-user-email">{access.user?.email ?? "Local setup mode"}</span>
+          <StudioCommandPalette role={role}/>
+          <span className="studio-user-email">{access.user?.email ?? "Local setup mode"}<small>{STUDIO_ROLE_LABELS[role]}</small></span>
           <Link className="studio-notification-link" href="/admin/notifications" aria-label={`${unreadNotifications} unread notifications`}><Bell size={16}/>{unreadNotifications > 0 ? <span>{unreadNotifications > 99 ? "99+" : unreadNotifications}</span> : null}</Link>
           <Link className="studio-view-site" href="/"><Home size={16} /> View site</Link>
         </div>
       </header>
       <div className="admin-shell">
         <nav className="admin-nav" aria-label="Admin navigation">
-          <StudioNav />
+          <StudioNav role={role}/>
           <div className="studio-nav-group studio-nav-account">
             <form action="/auth/signout" method="post"><button className="admin-signout" type="submit"><LogOut size={17} /><span>Sign out</span></button></form>
           </div>
