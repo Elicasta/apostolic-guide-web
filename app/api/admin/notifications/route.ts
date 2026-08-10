@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { getAdminAccess } from "@/auth";
+import { getStudioPermission } from "@/auth";
 import { markAllStudioNotificationsRead, markStudioNotificationRead } from "@/studio-notifications";
 
 const bodySchema = z.discriminatedUnion("action", [
@@ -9,8 +9,8 @@ const bodySchema = z.discriminatedUnion("action", [
 ]);
 
 export async function POST(request: Request) {
-  const access = await getAdminAccess();
-  if (access.state !== "allowed") return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { access, allowed } = await getStudioPermission("view_notifications");
+  if (!allowed && access.state !== "unconfigured") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const parsed = bodySchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Invalid request." }, { status: 400 });
   if (parsed.data.action === "read_all") await markAllStudioNotificationsRead();
