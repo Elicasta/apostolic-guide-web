@@ -14,8 +14,12 @@ grant all on public.studio_members to service_role;
 
 create index if not exists studio_members_role_idx on public.studio_members(role);
 
+-- Bootstrap only the earliest existing Auth user as the initial workspace owner.
+-- Every additional operator must be invited explicitly from Studio.
 insert into public.studio_members (user_id,email,role)
 select id, lower(email), 'owner'
 from auth.users
 where deleted_at is null and email is not null
+order by created_at asc
+limit 1
 on conflict (user_id) do nothing;
