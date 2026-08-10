@@ -19,6 +19,7 @@ import "./notifications.css";
 import "./studio-system.css";
 import "./system.css";
 import "./system-polish.css";
+import "./audit.css";
 
 export const dynamic = "force-dynamic";
 
