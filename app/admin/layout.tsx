@@ -8,6 +8,7 @@ import "./social-messaging.css";
 import "./growth.css";
 import "./people.css";
 import "./journeys.css";
+import "./relationship.css";
 
 export const dynamic = "force-dynamic";
 
