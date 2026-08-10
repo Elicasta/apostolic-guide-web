@@ -4,6 +4,7 @@ import { getAdminAccess } from "@/auth";
 import { hasStudioPermission } from "@/studio-permissions";
 import { createServiceClient } from "@/supabase";
 import { saveInstagramConfig, verifyAndSubscribeInstagram } from "@/social-messaging";
+import { recordStudioAudit } from "@/studio-audit";
 
 const automationFields = z.object({
   name: z.string().trim().min(2).max(120),
@@ -61,31 +62,37 @@ export async function POST(request: Request) {
       if (body.action === "create_automation") {
         const { data, error } = await service.from("social_automations").insert(record).select("*").single();
         if (error) throw new Error(error.message);
+        await recordStudioAudit({ actorUserId: access.user.id, action: "social.automation_created", resourceType: "social_automation", resourceId: data.id, metadata: { name: body.automation.name, trigger_type: body.automation.triggerType, match_type: body.automation.matchType, keyword_count: record.keywords.length, enabled: body.automation.enabled } });
         return NextResponse.json({ ok: true, automation: data });
       }
       const { data, error } = await service.from("social_automations").update(record).eq("id", body.id).select("*").single();
       if (error) throw new Error(error.message);
+      await recordStudioAudit({ actorUserId: access.user.id, action: "social.automation_updated", resourceType: "social_automation", resourceId: body.id, metadata: { name: body.automation.name, trigger_type: body.automation.triggerType, match_type: body.automation.matchType, keyword_count: record.keywords.length, enabled: body.automation.enabled } });
       return NextResponse.json({ ok: true, automation: data });
     }
 
     if (body.action === "toggle_automation") {
       const { error } = await service.from("social_automations").update({ enabled: body.enabled, updated_at: new Date().toISOString() }).eq("id", body.id);
       if (error) throw new Error(error.message);
+      await recordStudioAudit({ actorUserId: access.user.id, action: "social.automation_toggled", resourceType: "social_automation", resourceId: body.id, metadata: { enabled: body.enabled } });
       return NextResponse.json({ ok: true });
     }
 
     if (body.action === "delete_automation") {
       const { error } = await service.from("social_automations").delete().eq("id", body.id);
       if (error) throw new Error(error.message);
+      await recordStudioAudit({ actorUserId: access.user.id, action: "social.automation_deleted", resourceType: "social_automation", resourceId: body.id });
       return NextResponse.json({ ok: true });
     }
 
     if (body.action === "save_connection") {
       await saveInstagramConfig(body);
+      await recordStudioAudit({ actorUserId: access.user.id, action: "social.connection_saved", resourceType: "integration", metadata: { platform: "instagram", instagram_user_id: body.instagramUserId || null, graph_version: body.graphVersion || null, app_secret_updated: Boolean(body.appSecret), access_token_updated: Boolean(body.accessToken), verify_token_updated: Boolean(body.verifyToken) } });
       return NextResponse.json({ ok: true });
     }
 
     const result = await verifyAndSubscribeInstagram();
+    await recordStudioAudit({ actorUserId: access.user.id, action: "social.connection_verified", resourceType: "integration", metadata: { platform: "instagram", instagram_user_id: result.instagramUserId, username: result.username, webhook_subscribed: result.webhookSubscribed } });
     return NextResponse.json({ ok: true, connection: result });
   } catch (error) {
     console.error("Social automation operation failed", error);
