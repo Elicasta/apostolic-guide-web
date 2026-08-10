@@ -2,6 +2,7 @@ import { createServiceClient } from "./supabase";
 import type { Person } from "./people-crm";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+const ACTIVE_JOURNEY_STATES = ["active", "waiting", "paused"];
 
 export type SegmentCategory = "Lifecycle" | "Engagement" | "Channels" | "Follow-up" | "Journeys" | "Interests";
 
@@ -14,11 +15,11 @@ export type SegmentDefinition = {
   dynamic?: boolean;
 };
 
-type PersonSignals = {
+export type PersonSignals = {
   identities: Set<string>;
   tags: Set<string>;
   journeyStatuses: Set<string>;
-  journeyIds: Set<string>;
+  journeyStatusById: Map<string, Set<string>>;
   unreadInbox: number;
   followUpInbox: boolean;
   analytics: Array<{ event_name: string; occurred_at: string }>;
@@ -80,8 +81,12 @@ function analyticsHas(signals: PersonSignals, names: string[], days: number, now
   return signals.analytics.some((event) => names.includes(event.event_name) && within(event.occurred_at, days, now));
 }
 
+function hasActiveJourney(signals: PersonSignals) {
+  return ACTIVE_JOURNEY_STATES.some((status) => signals.journeyStatuses.has(status));
+}
+
 export function matchesSystemSegment(key: string, person: Person, signals: PersonSignals, now = Date.now()) {
-  const activeJourney = ["active", "waiting", "paused"].some((status) => signals.journeyStatuses.has(status));
+  const activeJourney = hasActiveJourney(signals);
   if (key === "all") return person.status !== "archived";
   if (key === "new_7d") return within(person.first_seen_at, 7, now);
   if (key === "lead") return person.status === "lead";
@@ -113,8 +118,8 @@ export function matchesSystemSegment(key: string, person: Person, signals: Perso
   return false;
 }
 
-function emptySignals(): PersonSignals {
-  return { identities: new Set(), tags: new Set(), journeyStatuses: new Set(), journeyIds: new Set(), unreadInbox: 0, followUpInbox: false, analytics: [] };
+export function emptyPersonSignals(): PersonSignals {
+  return { identities: new Set(), tags: new Set(), journeyStatuses: new Set(), journeyStatusById: new Map(), unreadInbox: 0, followUpInbox: false, analytics: [] };
 }
 
 export async function loadSegments() {
@@ -136,7 +141,7 @@ export async function loadSegments() {
   const people = (peopleResult.data ?? []) as Person[];
   const signals = new Map<string, PersonSignals>();
   const ensure = (personId: string) => {
-    const current = signals.get(personId) ?? emptySignals();
+    const current = signals.get(personId) ?? emptyPersonSignals();
     signals.set(personId, current);
     return current;
   };
@@ -146,8 +151,12 @@ export async function loadSegments() {
   for (const row of tagsResult.data ?? []) ensure(String(row.person_id)).tags.add(String(row.tag));
   for (const row of enrollmentResult.data ?? []) {
     const current = ensure(String(row.person_id));
-    current.journeyStatuses.add(String(row.status));
-    current.journeyIds.add(String(row.journey_id));
+    const journeyId = String(row.journey_id);
+    const status = String(row.status);
+    current.journeyStatuses.add(status);
+    const journeyStatuses = current.journeyStatusById.get(journeyId) ?? new Set<string>();
+    journeyStatuses.add(status);
+    current.journeyStatusById.set(journeyId, journeyStatuses);
   }
   for (const row of inboxResult.data ?? []) {
     const current = ensure(String(row.person_id));
@@ -186,7 +195,10 @@ export async function loadSegments() {
   const journeyRows = (journeysResult.data ?? []) as JourneyRow[];
   const journeyDefinitions: SegmentDefinition[] = journeyRows.map((journey) => {
     const ids = new Set<string>();
-    for (const [personId, current] of signals.entries()) if (current.journeyIds.has(journey.id) && ["active", "waiting", "paused"].some((status) => current.journeyStatuses.has(status))) ids.add(personId);
+    for (const [personId, current] of signals.entries()) {
+      const statuses = current.journeyStatusById.get(journey.id);
+      if (statuses && ACTIVE_JOURNEY_STATES.some((status) => statuses.has(status))) ids.add(personId);
+    }
     const key = `journey:${journey.id}`;
     memberIds.set(key, ids);
     return { key, label: journey.name, description: "People currently active, waiting, or paused in this journey.", category: "Journeys", count: ids.size, dynamic: true };
@@ -196,11 +208,12 @@ export async function loadSegments() {
   const definitions = [...systemDefinitions, ...journeyDefinitions, ...interestDefinitions];
   const segmentedPeople: SegmentedPerson[] = people.map((person) => {
     const current = ensure(person.id);
+    const activeJourneyCount = [...current.journeyStatusById.values()].filter((statuses) => ACTIVE_JOURNEY_STATES.some((status) => statuses.has(status))).length;
     return {
       ...person,
       tags: [...current.tags].sort(),
       identityProviders: [...current.identities].sort(),
-      activeJourneyCount: ["active", "waiting", "paused"].reduce((count, status) => count + (current.journeyStatuses.has(status) ? 1 : 0), 0),
+      activeJourneyCount,
       unreadCount: current.unreadInbox
     };
   });
