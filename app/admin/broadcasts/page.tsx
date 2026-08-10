@@ -1,4 +1,7 @@
+import { redirect } from "next/navigation";
 import { BroadcastEditor, type BroadcastSourceOption } from "@/broadcast-editor";
+import { getStudioPermission } from "@/auth";
+import { hasStudioPermission } from "@/studio-permissions";
 import { rate } from "@/campaign-intelligence";
 import { articles, answers, pathways, topics } from "@/data";
 import { listAdminContent } from "@/database-content";
@@ -10,6 +13,10 @@ function siteUrl(path: string) { return `https://apostolicguide.com${path}`; }
 function number(value: number) { return new Intl.NumberFormat("en-US").format(value); }
 
 export default async function BroadcastsPage() {
+  const permission = await getStudioPermission("view_distribution");
+  if (!permission.allowed && permission.access.state !== "unconfigured") redirect("/admin");
+  const canManage = permission.access.state === "unconfigured" || hasStudioPermission(permission.access.role, "manage_distribution");
+
   const databaseItems = await listAdminContent();
   const databaseSources: BroadcastSourceOption[] = databaseItems
     .filter((item) => item.websiteStatus === "published" && ["article", "topic", "answer"].includes(item.kind))
@@ -70,10 +77,10 @@ export default async function BroadcastsPage() {
         <div><Radio size={18} /><strong>{counts.media}</strong><span>Teachings & media</span></div>
       </div>
 
-      <section className="admin-card publishing-card">
+      {canManage ? <section className="admin-card publishing-card">
         <div className="card-heading"><div><span className="section-kicker">Campaign composer</span><h2>Send an update</h2></div><p>Choose a template. Published site content is linked automatically. Every mass email is created as a draft first, so nothing goes out accidentally.</p></div>
         <BroadcastEditor sources={sources} audienceCounts={counts} />
-      </section>
+      </section> : <section className="admin-card role-readonly-note"><strong>Read-only access</strong><p>Your Studio role can review broadcast performance but cannot create, test, or send campaigns.</p></section>}
 
       <section className="admin-card publishing-card campaign-intelligence-section">
         <div className="card-heading"><div><span className="section-kicker">Campaign intelligence</span><h2>What happened after send</h2></div><p>Email events come from Resend. Website and app-transition activity comes from Apostolic Guide&apos;s first-party analytics.</p></div>
