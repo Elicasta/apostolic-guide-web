@@ -6,6 +6,7 @@ import { verifyMetaWebhookSignature } from "@/meta-webhook-signature";
 import { ingestInstagramPeople } from "@/people-crm";
 import { ingestInstagramJourneys } from "@/social-journey-ingest";
 import { runDueJourneys } from "@/growth-journeys";
+import { ingestInstagramInbox } from "@/inbox";
 
 export const runtime = "nodejs";
 
@@ -70,28 +71,18 @@ export async function POST(request: Request) {
   const payloadObject = typeof root?.object === "string" ? root.object : null;
   const entryCount = Array.isArray(root?.entry) ? root.entry.length : 0;
   const service = createServiceClient();
-  if (service) {
-    await service.from("social_connection_status").upsert({ platform: "instagram", last_webhook_at: new Date().toISOString(), updated_at: new Date().toISOString() }, { onConflict: "platform" });
-  }
+  if (service) await service.from("social_connection_status").upsert({ platform: "instagram", last_webhook_at: new Date().toISOString(), updated_at: new Date().toISOString() }, { onConflict: "platform" });
 
   try {
-    const [result, peopleRecorded, journeysEnrolled, dueJourneysRun] = await Promise.all([
+    const [result, peopleRecorded, journeysEnrolled, inboxStored, dueJourneysRun] = await Promise.all([
       processInstagramWebhookAttributed(payload),
       ingestInstagramPeople(payload),
       ingestInstagramJourneys(payload),
+      ingestInstagramInbox(payload),
       runDueJourneys(50)
     ]);
-    await logIngress({
-      method: "POST",
-      signaturePresent: true,
-      signatureValid: true,
-      payloadObject,
-      entryCount,
-      parsedTriggerCount: result.processed,
-      outcome: result.processed > 0 ? "processed" : "accepted_no_trigger",
-      detail: `sent=${result.sent}; people_recorded=${peopleRecorded}; journeys_enrolled=${journeysEnrolled}; due_journeys=${dueJourneysRun}`
-    });
-    return NextResponse.json({ ok: true, ...result, peopleRecorded, journeysEnrolled, dueJourneysRun });
+    await logIngress({ method: "POST", signaturePresent: true, signatureValid: true, payloadObject, entryCount, parsedTriggerCount: result.processed, outcome: result.processed > 0 ? "processed" : "accepted_no_trigger", detail: `sent=${result.sent}; people_recorded=${peopleRecorded}; journeys_enrolled=${journeysEnrolled}; inbox=${inboxStored}; due_journeys=${dueJourneysRun}` });
+    return NextResponse.json({ ok: true, ...result, peopleRecorded, journeysEnrolled, inboxStored, dueJourneysRun });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Webhook processing failed.";
     await logIngress({ method: "POST", signaturePresent: true, signatureValid: true, payloadObject, entryCount, outcome: "processing_failed", detail: message });
