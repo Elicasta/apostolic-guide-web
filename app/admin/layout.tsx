@@ -13,6 +13,7 @@ import "./growth.css";
 import "./people.css";
 import "./journeys.css";
 import "./relationship.css";
+import "./relationship-intelligence.css";
 import "./inbox.css";
 import "./segments.css";
 import "./notifications.css";
