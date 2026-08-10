@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { Activity, Instagram, MessageSquareReply, Send } from "lucide-react";
 import { getStudioPermission } from "@/auth";
+import { hasStudioPermission } from "@/studio-permissions";
 import { SocialAutomationManager, type SocialLinkSource } from "@/social-automation-manager";
 import { getInstagramConnection, listRecentSocialEvents, listSocialAutomations, socialMetrics } from "@/social-messaging";
 import { articles, answers, pathways, topics } from "@/data";
@@ -11,6 +12,8 @@ function siteUrl(path: string) { return `https://apostolicguide.com${path}`; }
 export default async function SocialMessagingPage() {
   const permission = await getStudioPermission("view_distribution");
   if (!permission.allowed && permission.access.state !== "unconfigured") redirect("/admin");
+  const canManageAutomations = permission.access.state === "unconfigured" || hasStudioPermission(permission.access.role, "manage_distribution");
+  const canManageConnection = permission.access.state === "unconfigured" || hasStudioPermission(permission.access.role, "manage_integrations");
   const [automations, connection, metrics, recentEvents, databaseItems] = await Promise.all([
     listSocialAutomations(),
     getInstagramConnection(),
@@ -52,7 +55,7 @@ export default async function SocialMessagingPage() {
         <div><Send size={18} /><strong>{metrics.totalSent}</strong><span>Replies sent</span></div>
       </div>
 
-      <SocialAutomationManager automations={automations} connection={connection} sources={sources} />
+      <SocialAutomationManager automations={automations} connection={connection} sources={sources} canManageAutomations={canManageAutomations} canManageConnection={canManageConnection}/>
 
       <section className="admin-card publishing-card social-event-section">
         <div className="card-heading"><div><span className="section-kicker">Activity</span><h2>Recent automation events</h2></div><p>Privacy-first delivery logs. We keep the rule, keyword, status, and time, not the person’s Instagram username or message body.</p></div>
