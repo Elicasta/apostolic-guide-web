@@ -8,6 +8,7 @@ test("owner and admin can manage the workspace", () => {
     assert.equal(hasStudioPermission(role, "manage_integrations"), true);
     assert.equal(hasStudioPermission(role, "manage_content"), true);
     assert.equal(hasStudioPermission(role, "manage_inbox"), true);
+    assert.equal(hasStudioPermission(role, "view_audit"), true);
   }
 });
 
@@ -16,6 +17,7 @@ test("editor can publish and distribute but cannot read private Inbox or manage 
   assert.equal(hasStudioPermission("editor", "manage_distribution"), true);
   assert.equal(hasStudioPermission("editor", "view_inbox"), false);
   assert.equal(hasStudioPermission("editor", "manage_team"), false);
+  assert.equal(hasStudioPermission("editor", "view_audit"), false);
 });
 
 test("moderator owns relationship operations without publishing access", () => {
@@ -24,6 +26,7 @@ test("moderator owns relationship operations without publishing access", () => {
   assert.equal(hasStudioPermission("moderator", "manage_journeys"), true);
   assert.equal(hasStudioPermission("moderator", "manage_content"), false);
   assert.equal(hasStudioPermission("moderator", "manage_distribution"), false);
+  assert.equal(hasStudioPermission("moderator", "view_audit"), false);
 });
 
 test("viewer permissions remain read only", () => {
@@ -31,4 +34,5 @@ test("viewer permissions remain read only", () => {
   assert.equal(permissions.some((permission) => permission.startsWith("manage_")), false);
   assert.equal(hasStudioPermission("viewer", "view_people"), true);
   assert.equal(hasStudioPermission("viewer", "view_analytics"), true);
+  assert.equal(hasStudioPermission("viewer", "view_audit"), false);
 });
