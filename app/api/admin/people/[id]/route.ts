@@ -5,6 +5,7 @@ import { createServiceClient } from "@/supabase";
 import { enrollPersonInJourney } from "@/growth-journeys";
 import { enrollJourneysForTag } from "@/journey-triggers";
 import { mergePeople } from "@/people-crm";
+import { recordStudioAudit } from "@/studio-audit";
 
 const bodySchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("status"), status: z.enum(["lead","subscriber","app_user","inactive","archived"]) }),
@@ -29,21 +30,27 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (body.action === "status") {
     const { error } = await service.from("people").update({ status: body.status, updated_at: new Date().toISOString() }).eq("id", id);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    await recordStudioAudit({ actorUserId: access.user.id, action: "person.status_changed", resourceType: "person", resourceId: id, metadata: { status: body.status } });
   } else if (body.action === "add_tag") {
     const { error } = await service.from("person_tags").upsert({ person_id: id, tag: body.tag }, { onConflict: "person_id,tag", ignoreDuplicates: true });
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     await enrollJourneysForTag(id, body.tag);
+    await recordStudioAudit({ actorUserId: access.user.id, action: "person.tag_added", resourceType: "person", resourceId: id, metadata: { tag: body.tag } });
   } else if (body.action === "remove_tag") {
     const { error } = await service.from("person_tags").delete().eq("person_id", id).eq("tag", body.tag);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    await recordStudioAudit({ actorUserId: access.user.id, action: "person.tag_removed", resourceType: "person", resourceId: id, metadata: { tag: body.tag } });
   } else if (body.action === "add_note") {
     const { error } = await service.from("person_notes").insert({ person_id: id, note: body.note, created_by: access.user.email });
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    await recordStudioAudit({ actorUserId: access.user.id, action: "person.note_added", resourceType: "person", resourceId: id, metadata: { note_length: body.note.length } });
   } else if (body.action === "enroll_journey") {
     const enrollmentId = await enrollPersonInJourney({ journeyId: body.journeyId, personId: id, context: { trigger_type: "manual", enrolled_by: access.user.email } });
     if (!enrollmentId) return NextResponse.json({ error: "Could not enroll person." }, { status: 500 });
+    await recordStudioAudit({ actorUserId: access.user.id, action: "person.journey_enrolled", resourceType: "person", resourceId: id, metadata: { journey_id: body.journeyId, enrollment_id: enrollmentId } });
   } else {
     await mergePeople(id, body.duplicateId);
+    await recordStudioAudit({ actorUserId: access.user.id, action: "person.merged", resourceType: "person", resourceId: id, metadata: { duplicate_person_id: body.duplicateId } });
   }
 
   return NextResponse.json({ ok: true });
