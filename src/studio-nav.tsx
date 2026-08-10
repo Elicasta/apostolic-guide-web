@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, Bell, BookOpen, FileText, HeartPulse, Inbox, Instagram, ListFilter, Mail, Route, Settings, Sparkles, UserCog, Users } from "lucide-react";
+import { BarChart3, Bell, BookOpen, FileClock, FileText, HeartPulse, Inbox, Instagram, ListFilter, Mail, Route, Settings, Sparkles, UserCog, Users } from "lucide-react";
 import { hasStudioPermission, type StudioPermission, type StudioRole } from "@/studio-permissions";
 
 const sections: Array<{ label: string; items: Array<{ href: string; label: string; icon: typeof BarChart3; permission: StudioPermission; exact?: boolean }> }> = [
@@ -28,6 +28,7 @@ const sections: Array<{ label: string; items: Array<{ href: string; label: strin
   ]},
   { label: "System", items: [
     { href: "/admin/health", label: "Health", icon: HeartPulse, permission: "view_health" },
+    { href: "/admin/audit", label: "Audit Log", icon: FileClock, permission: "view_audit" },
     { href: "/admin/team", label: "Team & roles", icon: UserCog, permission: "manage_team" },
     { href: "/admin/setup", label: "Setup", icon: Settings, permission: "manage_integrations" }
   ]}
