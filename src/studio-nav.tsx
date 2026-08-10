@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, BookOpen, FileText, Inbox, Instagram, Mail, Route, Settings, Sparkles, Users } from "lucide-react";
+import { BarChart3, BookOpen, FileText, Inbox, Instagram, ListFilter, Mail, Route, Settings, Sparkles, Users } from "lucide-react";
 
 const sections = [
   { label: "Workspace", items: [
@@ -11,6 +11,7 @@ const sections = [
   ]},
   { label: "Relationships", items: [
     { href: "/admin/people", label: "People", icon: Users },
+    { href: "/admin/segments", label: "Segments", icon: ListFilter },
     { href: "/admin/inbox", label: "Inbox", icon: Inbox },
     { href: "/admin/journeys", label: "Journeys", icon: Route }
   ]},
