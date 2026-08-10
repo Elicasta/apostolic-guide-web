@@ -18,15 +18,7 @@ async function ensureConversation(personId: string, at: string, inbound = false)
     const result = await service.from("inbox_conversations").update(updates).eq("id", existing.data.id).select("*").single();
     return result.data;
   }
-  const result = await service.from("inbox_conversations").insert({
-    person_id: personId,
-    platform: "instagram",
-    status: "open",
-    unread_count: inbound ? 1 : 0,
-    last_message_at: at,
-    last_inbound_at: inbound ? at : null,
-    last_outbound_at: inbound ? null : at
-  }).select("*").single();
+  const result = await service.from("inbox_conversations").insert({ person_id: personId, platform: "instagram", status: "open", unread_count: inbound ? 1 : 0, last_message_at: at, last_inbound_at: inbound ? at : null, last_outbound_at: inbound ? null : at }).select("*").single();
   return result.data;
 }
 
@@ -36,24 +28,15 @@ export async function ingestInstagramInbox(payload: unknown) {
   const triggers = parseInstagramWebhook(payload).filter((trigger) => trigger.triggerType === "dm_keyword" && trigger.senderId);
   let stored = 0;
   for (const trigger of triggers) {
+    const externalEventId = `inbox:${trigger.externalEventId}`;
+    const duplicate = await service.from("inbox_messages").select("id").eq("external_event_id", externalEventId).maybeSingle();
+    if (duplicate.data) continue;
     const person = await upsertInstagramPerson({ instagramUserId: trigger.senderId, sourceDetail: "instagram_dm", seenAt: trigger.eventAt });
     if (!person) continue;
     const conversation = await ensureConversation(person.id, trigger.eventAt, true);
     if (!conversation) continue;
-    const { error } = await service.from("inbox_messages").insert({
-      conversation_id: conversation.id,
-      person_id: person.id,
-      platform: "instagram",
-      direction: "inbound",
-      kind: "text",
-      body: trigger.text.slice(0, 10000),
-      provider_message_id: trigger.externalEventId.replace(/^message:/, ""),
-      external_event_id: `inbox:${trigger.externalEventId}`,
-      delivery_status: "received",
-      sent_at: trigger.eventAt,
-      metadata: {}
-    });
-    if (!error || error.code === "23505") stored += error ? 0 : 1;
+    const { error } = await service.from("inbox_messages").insert({ conversation_id: conversation.id, person_id: person.id, platform: "instagram", direction: "inbound", kind: "text", body: trigger.text.slice(0, 10000), provider_message_id: trigger.externalEventId.replace(/^message:/, ""), external_event_id: externalEventId, delivery_status: "received", sent_at: trigger.eventAt, metadata: {} });
+    if (!error) stored += 1;
   }
   return stored;
 }
@@ -61,22 +44,14 @@ export async function ingestInstagramInbox(payload: unknown) {
 export async function recordInboxOutbound(input: { personId: string; body: string; providerMessageId?: string | null; externalEventId?: string | null; kind?: "text" | "automation"; at?: string; metadata?: Record<string, unknown> }) {
   const service = createServiceClient();
   if (!service) return;
+  if (input.externalEventId) {
+    const existing = await service.from("inbox_messages").select("id").eq("external_event_id", input.externalEventId).maybeSingle();
+    if (existing.data) return;
+  }
   const at = input.at ?? new Date().toISOString();
   const conversation = await ensureConversation(input.personId, at, false);
   if (!conversation) return;
-  await service.from("inbox_messages").upsert({
-    conversation_id: conversation.id,
-    person_id: input.personId,
-    platform: "instagram",
-    direction: "outbound",
-    kind: input.kind ?? "text",
-    body: input.body.slice(0, 10000),
-    provider_message_id: input.providerMessageId ?? null,
-    external_event_id: input.externalEventId ?? null,
-    delivery_status: "sent",
-    sent_at: at,
-    metadata: input.metadata ?? {}
-  }, { onConflict: input.externalEventId ? "external_event_id" : "platform,provider_message_id", ignoreDuplicates: true });
+  await service.from("inbox_messages").insert({ conversation_id: conversation.id, person_id: input.personId, platform: "instagram", direction: "outbound", kind: input.kind ?? "text", body: input.body.slice(0, 10000), provider_message_id: input.providerMessageId ?? null, external_event_id: input.externalEventId ?? null, delivery_status: "sent", sent_at: at, metadata: input.metadata ?? {} });
 }
 
 export async function listInboxConversations(status?: InboxStatus | "all") {
@@ -126,13 +101,7 @@ export async function sendManualInstagramReply(conversationId: string, body: str
   const personRaw = conversation.people as unknown as { instagram_user_id?: string | null } | null;
   const recipientId = personRaw?.instagram_user_id;
   if (!recipientId) throw new Error("This person has no Instagram recipient ID.");
-
-  const response = await fetch(`https://graph.instagram.com/${config.graphVersion}/${encodeURIComponent(config.instagramUserId)}/messages`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${config.accessToken}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ recipient: { id: recipientId }, message: { text: body.trim() } }),
-    cache: "no-store"
-  });
+  const response = await fetch(`https://graph.instagram.com/${config.graphVersion}/${encodeURIComponent(config.instagramUserId)}/messages`, { method: "POST", headers: { Authorization: `Bearer ${config.accessToken}`, "Content-Type": "application/json" }, body: JSON.stringify({ recipient: { id: recipientId }, message: { text: body.trim() } }), cache: "no-store" });
   const json = await response.json().catch(() => ({})) as { message_id?: string; error?: { message?: string } };
   if (!response.ok) throw new Error(json.error?.message ?? `Instagram send failed (${response.status}).`);
   const now = new Date().toISOString();
