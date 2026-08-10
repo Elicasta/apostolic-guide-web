@@ -11,6 +11,7 @@ import "./people.css";
 import "./journeys.css";
 import "./relationship.css";
 import "./inbox.css";
+import "./segments.css";
 import "./studio-system.css";
 
 export const dynamic = "force-dynamic";
