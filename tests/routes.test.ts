@@ -34,6 +34,8 @@ const authAndAdminRouteFiles = [
   "app/admin/people/page.tsx",
   "app/admin/people/[id]/page.tsx",
   "app/api/admin/people/[id]/route.ts",
+  "app/admin/segments/page.tsx",
+  "app/admin/inbox/page.tsx",
   "app/admin/journeys/page.tsx",
   "app/admin/journeys/[id]/page.tsx",
   "app/api/admin/journeys/route.ts",
