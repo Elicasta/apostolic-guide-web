@@ -62,16 +62,34 @@ function stringProperty(properties: Record<string, string | number | boolean | n
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
+async function resolvePersonId(service: NonNullable<ReturnType<typeof createServiceClient>>, anonymousId: string, url: URL) {
+  const token = url.searchParams.get("agp");
+  let personId: string | null = null;
+
+  if (token && z.string().uuid().safeParse(token).success) {
+    const person = await service.from("people").select("id").eq("attribution_token", token).maybeSingle();
+    personId = person.data?.id ? String(person.data.id) : null;
+    if (personId) await service.rpc("link_browser_identity", { p_person_id: personId, p_anonymous_id: anonymousId });
+  }
+
+  if (!personId) {
+    const identity = await service.from("person_browser_identities").select("person_id").eq("anonymous_id", anonymousId).maybeSingle();
+    personId = identity.data?.person_id ? String(identity.data.person_id) : null;
+    if (personId) {
+      await service.from("person_browser_identities").update({ last_seen_at: new Date().toISOString() }).eq("anonymous_id", anonymousId);
+    }
+  }
+
+  return personId;
+}
+
 export async function POST(request: Request) {
   const length = Number(request.headers.get("content-length") ?? "0");
   if (length > 16_384) return NextResponse.json({ error: "Payload too large" }, { status: 413 });
 
   let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
-  }
+  try { body = await request.json(); }
+  catch { return NextResponse.json({ error: "Invalid JSON" }, { status: 400 }); }
 
   const parsed = eventSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: "Invalid event" }, { status: 400 });
@@ -87,19 +105,16 @@ export async function POST(request: Request) {
   const url = new URL(parsed.data.path, "https://apostolicguide.com");
   const analytics = service.schema("analytics");
   const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-  const { count } = await analytics
-    .from("events")
-    .select("id", { head: true, count: "exact" })
-    .eq("session_id", parsed.data.sessionId)
-    .gte("occurred_at", oneHourAgo);
-
+  const { count } = await analytics.from("events").select("id", { head: true, count: "exact" }).eq("session_id", parsed.data.sessionId).gte("occurred_at", oneHourAgo);
   if ((count ?? 0) >= 240) return new NextResponse(null, { status: 204 });
 
+  const personId = await resolvePersonId(service, parsed.data.anonymousId, url);
   const properties = parsed.data.properties ?? {};
   const { error } = await analytics.from("events").insert({
     event_name: parsed.data.name,
     session_id: parsed.data.sessionId,
     anonymous_id: parsed.data.anonymousId,
+    person_id: personId,
     page_path: parsed.data.path,
     referrer_host: safeHost(parsed.data.referrer),
     source: "WEBSITE",
@@ -118,6 +133,7 @@ export async function POST(request: Request) {
     properties
   });
 
+  if (personId) await service.from("people").update({ last_seen_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("id", personId);
   if (error) console.error("analytics ingestion failed", { code: error.code, message: error.message });
   return new NextResponse(null, { status: 204 });
 }
