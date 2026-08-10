@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getStudioPermission } from "@/auth";
 import { createServiceClient } from "@/supabase";
+import { recordStudioAudit } from "@/studio-audit";
 
 const updateSchema = z.object({
   kind: z.enum(["article", "answer", "topic"]),
@@ -37,6 +38,7 @@ export async function PUT(request: Request, { params }: Context) {
   });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+  await recordStudioAudit({ actorUserId: access.user.id, action: parsed.data.publishWebsite ? "content.updated_and_published" : "content.updated", resourceType: "content", resourceId: id, metadata: { kind: parsed.data.kind, title: parsed.data.title, slug: parsed.data.slug, channel: parsed.data.publishWebsite ? "website" : "draft" } });
   return NextResponse.json({ item: data });
 }
 
@@ -54,5 +56,6 @@ export async function DELETE(_request: Request, { params }: Context) {
     p_actor_user_id: access.user.id
   });
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+  await recordStudioAudit({ actorUserId: access.user.id, action: "content.archived", resourceType: "content", resourceId: id });
   return new NextResponse(null, { status: 204 });
 }
