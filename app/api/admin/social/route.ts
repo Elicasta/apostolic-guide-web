@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getAdminAccess } from "@/auth";
+import { hasStudioPermission } from "@/studio-permissions";
 import { createServiceClient } from "@/supabase";
 import { saveInstagramConfig, verifyAndSubscribeInstagram } from "@/social-messaging";
 
@@ -32,9 +33,13 @@ const requestSchema = z.discriminatedUnion("action", [
 
 export async function POST(request: Request) {
   const access = await getAdminAccess();
-  if (access.state !== "allowed" || !access.user?.email) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (access.state !== "allowed" || !access.user?.email || !access.role) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const parsed = requestSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Invalid request." }, { status: 400 });
+  const connectionAction = parsed.data.action === "save_connection" || parsed.data.action === "verify_connection";
+  const permission = connectionAction ? "manage_integrations" : "manage_distribution";
+  if (!hasStudioPermission(access.role, permission)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
   const service = createServiceClient();
   if (!service) return NextResponse.json({ error: "Supabase service access is not configured." }, { status: 503 });
 
