@@ -65,6 +65,23 @@ const studies = [
   }
 ] as const;
 
+export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }) {
+  const { locale } = await params;
+  if (locale !== "es") return {};
+
+  return {
+    title: "Guía Apostólica | Escritura, doctrina y respuestas bíblicas",
+    description: "Busca en la Escritura, sigue pasajes conectados y entiende la doctrina apostólica desde el texto bíblico.",
+    robots: { index: false, follow: false },
+    openGraph: {
+      title: "Guía Apostólica | Conoce lo que crees y por qué",
+      description: "Busca en la Escritura, sigue pasajes conectados y entiende la doctrina apostólica desde el texto bíblico.",
+      locale: "es_US",
+      siteName: "Guía Apostólica"
+    }
+  };
+}
+
 export default async function LocaleHomePage({
   params,
 }: {
@@ -78,7 +95,131 @@ export default async function LocaleHomePage({
   if (locale === "en") redirect("/");
 
   return (
-    <div className="editorial-interface" lang="es">
+    <div className="editorial-interface guia-home" lang="es">
+      <style>{`
+        body:has(.guia-home) > .site-header,
+        body:has(.guia-home) > .site-footer,
+        body:has(.guia-home) > .global-back-nav,
+        body:has(.guia-home) > .footer-connect {
+          display: none !important;
+        }
+
+        .guia-header {
+          position: sticky;
+          top: 0;
+          z-index: 50;
+          background: rgba(248, 245, 238, 0.96);
+          border-bottom: 1px solid rgba(24, 24, 24, 0.14);
+          backdrop-filter: blur(14px);
+        }
+
+        .guia-header-inner {
+          min-height: 72px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 24px;
+        }
+
+        .guia-brand {
+          display: flex;
+          align-items: baseline;
+          gap: 10px;
+          color: inherit;
+          text-decoration: none;
+          font-weight: 800;
+          letter-spacing: -0.03em;
+        }
+
+        .guia-brand-mark {
+          font-size: 0.72rem;
+          letter-spacing: 0.16em;
+          color: #9f1d20;
+        }
+
+        .guia-nav {
+          display: flex;
+          align-items: center;
+          gap: 22px;
+          font-size: 0.82rem;
+          font-weight: 650;
+        }
+
+        .guia-nav a { color: inherit; text-decoration: none; }
+        .guia-nav a:hover { color: #9f1d20; }
+
+        .guia-lang {
+          border-left: 1px solid rgba(24, 24, 24, 0.16);
+          padding-left: 20px;
+          font-weight: 800;
+        }
+
+        .guia-launch-note {
+          background: #121212;
+          color: #f8f5ee;
+          border-bottom: 1px solid rgba(255,255,255,.12);
+        }
+
+        .guia-launch-note .shell {
+          min-height: 38px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 10px;
+          font-size: .72rem;
+          letter-spacing: .08em;
+          text-transform: uppercase;
+          text-align: center;
+        }
+
+        .guia-launch-note b { color: #ef4148; }
+
+        .guia-footer {
+          background: #111;
+          color: #f5f0e7;
+          padding: 46px 0 28px;
+        }
+
+        .guia-footer-grid {
+          display: flex;
+          justify-content: space-between;
+          gap: 40px;
+          align-items: flex-end;
+        }
+
+        .guia-footer h2 { margin: 0 0 8px; font-size: 1.35rem; }
+        .guia-footer p { margin: 0; opacity: .7; max-width: 520px; }
+        .guia-footer a { color: inherit; }
+
+        @media (max-width: 760px) {
+          .guia-header-inner { min-height: 64px; }
+          .guia-nav a:not(.guia-lang) { display: none; }
+          .guia-nav { gap: 10px; }
+          .guia-lang { padding-left: 12px; }
+          .guia-footer-grid { align-items: flex-start; flex-direction: column; }
+        }
+      `}</style>
+
+      <div className="guia-launch-note">
+        <div className="shell"><b>Vista previa</b><span>Guía Apostólica en español está en preparación.</span></div>
+      </div>
+
+      <header className="guia-header">
+        <div className="shell guia-header-inner">
+          <Link className="guia-brand" href="/es">
+            <span className="guia-brand-mark">GA</span>
+            <span>Guía Apostólica</span>
+          </Link>
+          <nav className="guia-nav" aria-label="Navegación principal">
+            <a href="#temas">Temas</a>
+            <a href="#buscar">Escritura</a>
+            <a href="#rutas">Rutas</a>
+            <a href="#respuestas">Respuestas</a>
+            <Link className="guia-lang" href="/">EN</Link>
+          </nav>
+        </div>
+      </header>
+
       <section className="ei-hero">
         <div className="shell ei-hero-grid">
           <div className="ei-hero-copy">
@@ -127,11 +268,9 @@ export default async function LocaleHomePage({
           </div>
           <div className="ei-search-control">
             <div className="search-form" role="search" aria-label="Vista previa de búsqueda en español">
-              <div className="search-input-wrap">
-                <Search size={20} />
-                <input aria-label="Buscar en las Escrituras" placeholder="Busca una pregunta, tema o versículo..." readOnly />
-                <button className="button button-crimson" type="button" disabled>Buscar</button>
-              </div>
+              <Search size={20} />
+              <input aria-label="Buscar en las Escrituras" placeholder="Busca una pregunta, tema o versículo..." readOnly />
+              <button type="button" disabled>Buscar</button>
             </div>
             <div className="ei-search-suggestions" aria-label="Búsquedas sugeridas">
               <span>Prueba</span>
@@ -271,6 +410,16 @@ export default async function LocaleHomePage({
           </div>
         </div>
       </section>
+
+      <footer className="guia-footer">
+        <div className="shell guia-footer-grid">
+          <div>
+            <h2>Guía Apostólica</h2>
+            <p>Busca las Escrituras. Conoce lo que crees. Conoce por qué.</p>
+          </div>
+          <Link href="/">Ver Apostolic Guide en English</Link>
+        </div>
+      </footer>
     </div>
   );
 }
