@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, BookOpen, Eye, MousePointerClick, Route, Tag, UserRoundCheck } from "lucide-react";
+import { ArrowLeft, ArrowUpRight, BookOpen, Eye, MousePointerClick, Route, Sparkles, Tag, UserRoundCheck } from "lucide-react";
 import { getPerson, personLabel } from "@/people-crm";
 import { listJourneys } from "@/growth-journeys";
 import { PersonProfileActions } from "@/person-profile-actions";
 import { PersonTimeline, type PersonTimelineEvent } from "@/person-timeline";
+import { buildRelationshipIntelligence } from "@/relationship-intelligence";
 import { createServiceClient } from "@/supabase";
 
 function analyticsLabel(name: string) {
@@ -21,10 +22,11 @@ function analyticsLabel(name: string) {
 export default async function PersonPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const service = createServiceClient();
-  const [record, allJourneys, websiteResult] = await Promise.all([
+  const [record, allJourneys, websiteResult, inboxResult] = await Promise.all([
     getPerson(id),
     listJourneys(),
-    service ? service.schema("analytics").from("events").select("id,event_name,page_path,properties,utm_source,utm_campaign,occurred_at").eq("person_id", id).neq("event_name", "presence_heartbeat").order("occurred_at", { ascending: false }).limit(500) : Promise.resolve({ data: [] })
+    service ? service.schema("analytics").from("events").select("id,event_name,page_path,properties,utm_source,utm_campaign,occurred_at").eq("person_id", id).neq("event_name", "presence_heartbeat").order("occurred_at", { ascending: false }).limit(500) : Promise.resolve({ data: [] }),
+    service ? service.from("inbox_conversations").select("id,status,unread_count,last_inbound_at,last_outbound_at").eq("person_id", id).maybeSingle() : Promise.resolve({ data: null })
   ]);
   if (!record) notFound();
   const { person, events, tags, notes, journeys, identities } = record;
@@ -46,6 +48,28 @@ export default async function PersonPage({ params }: { params: Promise<{ id: str
   const scriptures = websiteEvents.filter((event) => event.event_name === "scripture_opened").length;
   const appOpens = websiteEvents.filter((event) => event.event_name === "app_link_clicked").length;
   const availableJourneys = allJourneys.filter((j) => j.status !== "archived").map((j) => ({ id: j.id, name: j.name }));
+  const intelligenceJourneys = journeys.map((enrollment) => {
+    const journey = enrollment.growth_journeys as unknown as { id?: string; name?: string } | null;
+    return journey?.id ? { id: journey.id, name: journey.name ?? "Journey", status: String(enrollment.status) } : null;
+  }).filter((value): value is { id: string; name: string; status: string } => Boolean(value));
+  const inbox = inboxResult.data ? {
+    id: String(inboxResult.data.id),
+    status: String(inboxResult.data.status),
+    unreadCount: Number(inboxResult.data.unread_count ?? 0),
+    lastInboundAt: inboxResult.data.last_inbound_at ? String(inboxResult.data.last_inbound_at) : null,
+    lastOutboundAt: inboxResult.data.last_outbound_at ? String(inboxResult.data.last_outbound_at) : null
+  } : null;
+  const intelligence = buildRelationshipIntelligence({
+    personStatus: person.status,
+    lastSeenAt: person.last_seen_at,
+    tags: tags.map((item) => String(item.tag)),
+    websiteEvents: websiteEvents.map((event) => {
+      const properties = (event.properties ?? {}) as Record<string,unknown>;
+      return { eventName: String(event.event_name), at: String(event.occurred_at), pagePath: event.page_path ? String(event.page_path) : null, contentKey: properties.contentKey ? String(properties.contentKey) : null };
+    }),
+    journeys: intelligenceJourneys,
+    inbox
+  });
 
   return <>
     <Link className="people-back" href="/admin/people"><ArrowLeft size={16}/> People</Link>
@@ -63,9 +87,22 @@ export default async function PersonPage({ params }: { params: Promise<{ id: str
       <div><MousePointerClick size={17}/><strong>{appOpens}</strong><span>App opens</span></div>
     </div>
 
+    <section className={`admin-card person-intelligence-card intelligence-${intelligence.state}`}>
+      <div className="person-intelligence-copy">
+        <div className="person-intelligence-kicker"><Sparkles size={15}/><span>Relationship intelligence</span><small>Based on observed activity</small></div>
+        <h2>{intelligence.headline}</h2>
+        <p>{intelligence.summary}</p>
+        {intelligence.interests.length ? <div className="person-intelligence-interests">{intelligence.interests.map((interest) => <span key={interest}>{interest}</span>)}</div> : null}
+      </div>
+      <div className="person-intelligence-side">
+        <div className="person-intelligence-signals">{intelligence.signals.map((signal) => <div key={signal.label}><span>{signal.label}</span><strong>{signal.value}</strong></div>)}</div>
+        <div className="person-intelligence-next"><span>Suggested next action</span><Link href={intelligence.nextAction.href}>{intelligence.nextAction.label}<ArrowUpRight size={14}/></Link><small>{intelligence.nextAction.reason}</small></div>
+      </div>
+    </section>
+
     <div className="person-profile-grid">
       <main className="person-profile-main">
-        <section className="admin-card publishing-card timeline-card">
+        <section className="admin-card publishing-card timeline-card" id="relationship-history">
           <div className="card-heading"><div><span className="section-kicker">Timeline 2.0</span><h2>Relationship history</h2></div><p>Meaningful activity is grouped into readable sessions. Open a group when you need the raw event detail.</p></div>
           <PersonTimeline events={timeline}/>
         </section>
