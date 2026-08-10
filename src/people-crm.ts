@@ -40,21 +40,44 @@ export function personLabel(person: Pick<Person, "display_name" | "instagram_use
   return "Unknown person";
 }
 
+async function upsertIdentity(input: { personId: string; provider: "instagram" | "email" | "app" | "phone"; providerUserId: string; username?: string | null; email?: string | null; verifiedAt?: string | null }) {
+  const service = createServiceClient();
+  if (!service) return;
+  await service.from("person_identities").upsert({
+    person_id: input.personId,
+    provider: input.provider,
+    provider_user_id: input.providerUserId,
+    username: input.username ?? null,
+    email: input.email ?? null,
+    is_primary: true,
+    verified_at: input.verifiedAt ?? null,
+    updated_at: new Date().toISOString()
+  }, { onConflict: "provider,provider_user_id" });
+}
+
 export async function upsertInstagramPerson(input: { instagramUserId: string | null; username?: string | null; sourceDetail?: string | null; seenAt?: string; }) {
   if (!input.instagramUserId) return null;
   const service = createServiceClient();
   if (!service) return null;
   const now = input.seenAt ?? new Date().toISOString();
-  const existing = await service.from("people").select("*").eq("instagram_user_id", input.instagramUserId).maybeSingle();
+  const identity = await service.from("person_identities").select("person_id").eq("provider", "instagram").eq("provider_user_id", input.instagramUserId).maybeSingle();
+  const existing = identity.data?.person_id
+    ? await service.from("people").select("*").eq("id", identity.data.person_id).maybeSingle()
+    : await service.from("people").select("*").eq("instagram_user_id", input.instagramUserId).maybeSingle();
+
   if (existing.data) {
-    const updates: Record<string, unknown> = { last_seen_at: now, updated_at: now };
+    const updates: Record<string, unknown> = { last_seen_at: now, updated_at: now, instagram_user_id: input.instagramUserId };
     if (input.username) {
-      updates.instagram_username = input.username.replace(/^@/, "");
-      if (!existing.data.display_name) updates.display_name = `@${input.username.replace(/^@/, "")}`;
+      const username = input.username.replace(/^@/, "");
+      updates.instagram_username = username;
+      if (!existing.data.display_name || String(existing.data.display_name).startsWith("Instagram ·")) updates.display_name = `@${username}`;
     }
     const result = await service.from("people").update(updates).eq("id", existing.data.id).select("*").single();
-    return (result.data ?? existing.data) as Person;
+    const person = (result.data ?? existing.data) as Person;
+    await upsertIdentity({ personId: person.id, provider: "instagram", providerUserId: input.instagramUserId, username: input.username?.replace(/^@/, "") ?? null, verifiedAt: now });
+    return person;
   }
+
   const username = input.username?.replace(/^@/, "") || null;
   const result = await service.from("people").insert({
     instagram_user_id: input.instagramUserId,
@@ -66,7 +89,9 @@ export async function upsertInstagramPerson(input: { instagramUserId: string | n
     last_seen_at: now,
     updated_at: now
   }).select("*").single();
-  return (result.data ?? null) as Person | null;
+  const person = (result.data ?? null) as Person | null;
+  if (person) await upsertIdentity({ personId: person.id, provider: "instagram", providerUserId: input.instagramUserId, username, verifiedAt: now });
+  return person;
 }
 
 export async function recordPersonEvent(input: { personId: string; eventType: string; channel: string; eventName?: string | null; automationId?: string | null; externalEventId?: string | null; metadata?: Record<string, unknown>; occurredAt?: string; }) {
@@ -142,7 +167,7 @@ export async function getPeopleMetrics() {
   const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
   const [total, instagram, subscribers, active7d] = await Promise.all([
     service.from("people").select("id", { count: "exact", head: true }).neq("status", "archived"),
-    service.from("people").select("id", { count: "exact", head: true }).eq("source", "instagram").neq("status", "archived"),
+    service.from("people").select("id", { count: "exact", head: true }).not("instagram_user_id", "is", null).neq("status", "archived"),
     service.from("people").select("id", { count: "exact", head: true }).eq("status", "subscriber"),
     service.from("people").select("id", { count: "exact", head: true }).gte("last_seen_at", weekAgo).neq("status", "archived")
   ]);
@@ -152,13 +177,46 @@ export async function getPeopleMetrics() {
 export async function getPerson(id: string) {
   const service = createServiceClient();
   if (!service) return null;
-  const [person, events, tags, notes, journeys] = await Promise.all([
+  const [person, events, tags, notes, identities, journeys] = await Promise.all([
     service.from("people").select("*").eq("id", id).maybeSingle(),
     service.from("person_events").select("*").eq("person_id", id).order("occurred_at", { ascending: false }).limit(100),
     service.from("person_tags").select("tag,created_at").eq("person_id", id).order("created_at", { ascending: false }),
     service.from("person_notes").select("id,note,created_by,created_at,updated_at").eq("person_id", id).order("created_at", { ascending: false }),
-    service.from("journey_progress").select("*").eq("person_id", id).order("updated_at", { ascending: false })
+    service.from("person_identities").select("provider,provider_user_id,username,email,is_primary,verified_at").eq("person_id", id).order("created_at"),
+    service.from("growth_journey_enrollments").select("id,status,current_step_position,next_action_at,started_at,completed_at,updated_at,growth_journeys(id,name,description,status)").eq("person_id", id).order("updated_at", { ascending: false })
   ]);
   if (!person.data) return null;
-  return { person: person.data as Person, events: (events.data ?? []) as PersonEvent[], tags: tags.data ?? [], notes: notes.data ?? [], journeys: journeys.data ?? [] };
+  return { person: person.data as Person, events: (events.data ?? []) as PersonEvent[], tags: tags.data ?? [], notes: notes.data ?? [], identities: identities.data ?? [], journeys: journeys.data ?? [] };
+}
+
+export async function mergePeople(primaryId: string, duplicateId: string) {
+  if (primaryId === duplicateId) throw new Error("Choose two different people.");
+  const service = createServiceClient();
+  if (!service) throw new Error("Supabase service access is not configured.");
+  const [primary, duplicate] = await Promise.all([
+    service.from("people").select("*").eq("id", primaryId).single(),
+    service.from("people").select("*").eq("id", duplicateId).single()
+  ]);
+  if (!primary.data || !duplicate.data) throw new Error("Person not found.");
+
+  await service.from("person_events").update({ person_id: primaryId }).eq("person_id", duplicateId);
+  const duplicateTags = await service.from("person_tags").select("tag").eq("person_id", duplicateId);
+  for (const row of duplicateTags.data ?? []) await service.from("person_tags").upsert({ person_id: primaryId, tag: row.tag }, { onConflict: "person_id,tag", ignoreDuplicates: true });
+  await service.from("person_notes").update({ person_id: primaryId }).eq("person_id", duplicateId);
+  await service.from("growth_journey_enrollments").update({ person_id: primaryId }).eq("person_id", duplicateId);
+  await service.from("person_identities").update({ person_id: primaryId, updated_at: new Date().toISOString() }).eq("person_id", duplicateId);
+
+  const merged = {
+    email: primary.data.email ?? duplicate.data.email,
+    instagram_user_id: primary.data.instagram_user_id ?? duplicate.data.instagram_user_id,
+    instagram_username: primary.data.instagram_username ?? duplicate.data.instagram_username,
+    phone: primary.data.phone ?? duplicate.data.phone,
+    display_name: primary.data.display_name ?? duplicate.data.display_name,
+    first_seen_at: new Date(primary.data.first_seen_at) < new Date(duplicate.data.first_seen_at) ? primary.data.first_seen_at : duplicate.data.first_seen_at,
+    last_seen_at: new Date(primary.data.last_seen_at) > new Date(duplicate.data.last_seen_at) ? primary.data.last_seen_at : duplicate.data.last_seen_at,
+    updated_at: new Date().toISOString()
+  };
+  await service.from("people").update(merged).eq("id", primaryId);
+  await service.from("people").update({ status: "archived", display_name: `Merged into ${primaryId.slice(0, 8)}`, updated_at: new Date().toISOString() }).eq("id", duplicateId);
+  return primaryId;
 }
