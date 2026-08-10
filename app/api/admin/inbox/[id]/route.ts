@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { getAdminAccess } from "@/auth";
+import { getStudioPermission } from "@/auth";
 import { sendManualInstagramReply, updateConversationStatus } from "@/inbox";
 
 export const runtime = "nodejs";
@@ -11,8 +11,8 @@ const schema = z.discriminatedUnion("action", [
 ]);
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const access = await getAdminAccess();
-  if (access.state !== "allowed" && access.state !== "unconfigured") return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { access, allowed } = await getStudioPermission("manage_inbox");
+  if (!allowed && access.state !== "unconfigured") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const { id } = await params;
   let body: unknown;
   try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON" }, { status: 400 }); }
