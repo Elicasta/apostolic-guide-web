@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getStudioPermission } from "@/auth";
 import { createBroadcastDraft, sendBroadcastDraft, sendBroadcastTest } from "@/resend-broadcasts";
+import { recordStudioAudit } from "@/studio-audit";
 
 const campaignSchema = z.object({
   type: z.enum(["article", "topic", "answer", "pathway", "youtube", "podcast", "announcement"]),
@@ -30,13 +31,16 @@ export async function POST(request: Request) {
   try {
     if (parsed.data.action === "create") {
       const result = await createBroadcastDraft({ campaign: parsed.data.campaign, audience: parsed.data.audience, createdBy: access.user.email });
+      await recordStudioAudit({ actorUserId: access.user.id, action: "broadcast.created", resourceType: "broadcast", resourceId: result.id, metadata: { title: parsed.data.campaign.title, kind: parsed.data.campaign.type, audience: parsed.data.audience, status: "draft" } });
       return NextResponse.json({ ok: true, broadcastId: result.id, campaignId: result.campaignId, status: "draft" });
     }
     if (parsed.data.action === "send") {
       const result = await sendBroadcastDraft(parsed.data.broadcastId);
+      await recordStudioAudit({ actorUserId: access.user.id, action: "broadcast.sent", resourceType: "broadcast", resourceId: parsed.data.broadcastId, metadata: { status: "sending" } });
       return NextResponse.json({ ok: true, broadcastId: result.id, status: "sending" });
     }
     const result = await sendBroadcastTest({ campaign: parsed.data.campaign, to: access.user.email });
+    await recordStudioAudit({ actorUserId: access.user.id, action: "broadcast.test_sent", resourceType: "broadcast", metadata: { title: parsed.data.campaign.title, kind: parsed.data.campaign.type, sent_to: access.user.email } });
     return NextResponse.json({ ok: true, emailId: result.id ?? null, sentTo: access.user.email });
   } catch (error) {
     console.error("Broadcast operation failed", error);
