@@ -1,11 +1,13 @@
 import Link from "next/link";
-import { Activity, ArrowRight, BookOpen, Clock3, Inbox, Instagram, ListFilter, Mail, Route, Search, Smartphone, Tag, Users } from "lucide-react";
+import { Activity, ArrowRight, BookOpen, Clock3, Inbox, Instagram, ListFilter, Mail, Route, Search, SlidersHorizontal, Smartphone, Tag, Users } from "lucide-react";
 import { loadSegments, segmentMembers, type SegmentCategory } from "@/segments";
 import { personLabel } from "@/people-crm";
+import { CustomSegmentBuilder } from "@/custom-segment-builder";
 
-const categoryOrder: SegmentCategory[] = ["Lifecycle", "Engagement", "Channels", "Follow-up", "Journeys", "Interests"];
+const categoryOrder: SegmentCategory[] = ["Custom", "Lifecycle", "Engagement", "Channels", "Follow-up", "Journeys", "Interests"];
 
 function categoryIcon(category: SegmentCategory) {
+  if (category === "Custom") return <SlidersHorizontal size={18}/>;
   if (category === "Engagement") return <Activity size={18}/>;
   if (category === "Channels") return <Instagram size={18}/>;
   if (category === "Follow-up") return <Inbox size={18}/>;
@@ -36,31 +38,34 @@ export default async function SegmentsPage({ searchParams }: { searchParams: Pro
     ...segmentMembers(data, "unread_inbox").map((person) => person.id),
     ...segmentMembers(data, "follow_up").map((person) => person.id)
   ]).size;
-  const interestCount = data.definitions.filter((item) => item.category === "Interests").length;
+  const customCount = data.customSegments.length;
+  const ruleOptions = data.definitions.filter((item) => item.category !== "Custom").map(({ key, label, category, count }) => ({ key, label, category, count }));
 
   return <>
     <span className="eyebrow">Relationships</span>
     <div className="studio-page-heading segments-heading">
-      <div><h1>Segments</h1><p className="admin-lede">Live groups built from lifecycle, study behavior, source, journeys, Inbox state, and explicit interests. Membership updates automatically as people interact with Apostolic Guide.</p></div>
+      <div><h1>Segments</h1><p className="admin-lede">Live groups built from lifecycle, study behavior, source, journeys, Inbox state, interests, and your own saved combinations.</p></div>
     </div>
 
     <div className="studio-kpi-grid studio-kpi-grid-four">
       <div className="studio-kpi"><Users size={19}/><span>Known people</span><strong>{allCount}</strong><small>All active relationship records</small></div>
       <div className="studio-kpi"><Activity size={19}/><span>Active this week</span><strong>{activeCount}</strong><small>Seen during the last 7 days</small></div>
       <div className="studio-kpi"><Inbox size={19}/><span>Need attention</span><strong>{followUpCount}</strong><small>Unread or marked follow-up</small></div>
-      <div className="studio-kpi"><Tag size={19}/><span>Interest groups</span><strong>{interestCount}</strong><small>Generated from explicit tags</small></div>
+      <div className="studio-kpi"><SlidersHorizontal size={19}/><span>Custom segments</span><strong>{customCount}</strong><small>Saved live rule sets</small></div>
     </div>
+
+    <CustomSegmentBuilder options={ruleOptions} saved={data.customSegments}/>
 
     <section className="segments-catalog">
       {categoryOrder.map((category) => {
         const definitions = data.definitions.filter((definition) => definition.category === category);
         if (!definitions.length) return null;
         return <div className="segments-category" key={category}>
-          <div className="segments-category-heading"><div>{categoryIcon(category)}<div><span className="section-kicker">{category}</span><h2>{category === "Interests" ? "Interest signals" : `${category} segments`}</h2></div></div><span>{definitions.length}</span></div>
+          <div className="segments-category-heading"><div>{categoryIcon(category)}<div><span className="section-kicker">{category}</span><h2>{category === "Interests" ? "Interest signals" : category === "Custom" ? "Saved combinations" : `${category} segments`}</h2></div></div><span>{definitions.length}</span></div>
           <div className="segments-grid">{definitions.map((definition) => {
             const active = selected?.key === definition.key;
             return <Link className={`segment-card${active ? " is-active" : ""}`} href={`/admin/segments?segment=${encodeURIComponent(definition.key)}`} key={definition.key}>
-              <div className="segment-card-top"><span>{definition.dynamic ? "Live" : "System"}</span><strong>{definition.count}</strong></div>
+              <div className="segment-card-top"><span>{definition.category === "Custom" ? "Custom" : definition.dynamic ? "Live" : "System"}</span><strong>{definition.count}</strong></div>
               <h3>{definition.label}</h3>
               <p>{definition.description}</p>
               <div className="segment-card-action">View people <ArrowRight size={15}/></div>
