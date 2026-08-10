@@ -31,6 +31,9 @@ const authAndAdminRouteFiles = [
   "app/admin/page.tsx",
   "app/admin/layout.tsx",
   "app/admin/growth/page.tsx",
+  "app/admin/people/page.tsx",
+  "app/admin/people/[id]/page.tsx",
+  "app/api/admin/people/[id]/route.ts",
   "app/admin/social/page.tsx",
   "app/admin/broadcasts/page.tsx",
   "app/login/page.tsx",
@@ -47,19 +50,13 @@ const publicApiRoutes = [
 ];
 
 test("public navigation routes have page implementations", () => {
-  publicRouteFiles.forEach((routeFile) => {
-    assert.ok(existsSync(join(process.cwd(), routeFile)), `${routeFile} is missing`);
-  });
+  publicRouteFiles.forEach((routeFile) => assert.ok(existsSync(join(process.cwd(), routeFile)), `${routeFile} is missing`));
 });
 
 test("auth and admin navigation routes have implementations", () => {
-  authAndAdminRouteFiles.forEach((routeFile) => {
-    assert.ok(existsSync(join(process.cwd(), routeFile)), `${routeFile} is missing`);
-  });
+  authAndAdminRouteFiles.forEach((routeFile) => assert.ok(existsSync(join(process.cwd(), routeFile)), `${routeFile} is missing`));
 });
 
 test("public API routes have implementations", () => {
-  publicApiRoutes.forEach((routeFile) => {
-    assert.ok(existsSync(join(process.cwd(), routeFile)), `${routeFile} is missing`);
-  });
+  publicApiRoutes.forEach((routeFile) => assert.ok(existsSync(join(process.cwd(), routeFile)), `${routeFile} is missing`));
 });
