@@ -1,21 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, BookOpen, Eye, Instagram, Mail, MessageCircle, MousePointerClick, Route, Search, Tag, UserRound, UserRoundCheck } from "lucide-react";
+import { ArrowLeft, BookOpen, Eye, MousePointerClick, Route, Tag, UserRoundCheck } from "lucide-react";
 import { getPerson, personLabel } from "@/people-crm";
 import { listJourneys } from "@/growth-journeys";
 import { PersonProfileActions } from "@/person-profile-actions";
+import { PersonTimeline, type PersonTimelineEvent } from "@/person-timeline";
 import { createServiceClient } from "@/supabase";
-
-function eventIcon(type: string) {
-  if (type === "comment") return <MessageCircle size={16}/>;
-  if (type === "message") return <Instagram size={16}/>;
-  if (type.includes("email")) return <Mail size={16}/>;
-  if (type.includes("search")) return <Search size={16}/>;
-  if (type.includes("article") || type.includes("pathway") || type.includes("scripture")) return <BookOpen size={16}/>;
-  if (type.includes("app") || type.includes("click")) return <MousePointerClick size={16}/>;
-  if (type.includes("page")) return <Eye size={16}/>;
-  return <UserRound size={16}/>;
-}
 
 function analyticsLabel(name: string) {
   const labels: Record<string,string> = {
@@ -34,12 +24,12 @@ export default async function PersonPage({ params }: { params: Promise<{ id: str
   const [record, allJourneys, websiteResult] = await Promise.all([
     getPerson(id),
     listJourneys(),
-    service ? service.schema("analytics").from("events").select("id,event_name,page_path,properties,utm_source,utm_campaign,occurred_at").eq("person_id", id).neq("event_name", "presence_heartbeat").order("occurred_at", { ascending: false }).limit(200) : Promise.resolve({ data: [] })
+    service ? service.schema("analytics").from("events").select("id,event_name,page_path,properties,utm_source,utm_campaign,occurred_at").eq("person_id", id).neq("event_name", "presence_heartbeat").order("occurred_at", { ascending: false }).limit(500) : Promise.resolve({ data: [] })
   ]);
   if (!record) notFound();
   const { person, events, tags, notes, journeys, identities } = record;
   const websiteEvents = websiteResult.data ?? [];
-  const timeline = [
+  const timeline: PersonTimelineEvent[] = [
     ...events.map((event) => ({ id: `crm:${event.id}`, type: event.event_type, label: event.event_name ?? event.event_type.replaceAll("_", " "), channel: event.channel, at: event.occurred_at, detail: Object.entries(event.metadata ?? {}).map(([k,v]) => `${k.replaceAll("_", " ")}: ${String(v)}`).join(" · ") })),
     ...websiteEvents.map((event) => {
       const properties = (event.properties ?? {}) as Record<string,unknown>;
@@ -75,9 +65,9 @@ export default async function PersonPage({ params }: { params: Promise<{ id: str
 
     <div className="person-profile-grid">
       <main className="person-profile-main">
-        <section className="admin-card publishing-card">
-          <div className="card-heading"><div><span className="section-kicker">Timeline 2.0</span><h2>Relationship history</h2></div><p>Social, email, website study activity, pathways, Scripture, searches, and app transitions in one chronological record.</p></div>
-          {timeline.length ? <div className="person-timeline">{timeline.map((event) => <div className="person-timeline-item" key={event.id}><div className="person-timeline-icon">{eventIcon(event.type)}</div><div><strong>{event.label}</strong><span>{event.channel} · {new Date(event.at).toLocaleString()}</span>{event.detail ? <small>{event.detail}</small> : null}</div></div>)}</div> : <div className="empty-state"><UserRound size={24}/><strong>No timeline events yet.</strong><p>New interactions will append to this person automatically.</p></div>}
+        <section className="admin-card publishing-card timeline-card">
+          <div className="card-heading"><div><span className="section-kicker">Timeline 2.0</span><h2>Relationship history</h2></div><p>Meaningful activity is grouped into readable sessions. Open a group when you need the raw event detail.</p></div>
+          <PersonTimeline events={timeline}/>
         </section>
 
         <section className="admin-card publishing-card">
