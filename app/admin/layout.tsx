@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { BarChart3, BookOpen, FileText, Home, Instagram, LogOut, Mail, Settings, Sparkles, Users } from "lucide-react";
+import { BarChart3, BookOpen, FileText, Home, Instagram, LogOut, Mail, Route, Settings, Sparkles, Users } from "lucide-react";
 import { getAdminAccess } from "@/auth";
 import "./publishing.css";
 import "./campaign-intelligence.css";
 import "./social-messaging.css";
 import "./growth.css";
 import "./people.css";
+import "./journeys.css";
 
 export const dynamic = "force-dynamic";
 
@@ -19,7 +20,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   return (
     <div className="admin-layout">
       <header className="admin-header">
-        <div><strong>APOSTOLIC GUIDE</strong><span>Editorial</span></div>
+        <div><strong>APOSTOLIC GUIDE</strong><span>Studio</span></div>
         <div><span>{access.user?.email ?? "Local setup mode"}</span><Link href="/"><Home size={17} /> View site</Link></div>
       </header>
       <div className="admin-shell">
@@ -27,6 +28,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           <Link href="/admin"><BarChart3 size={17} /> Overview</Link>
           <Link href="/admin/growth"><Sparkles size={17} /> Growth Hub</Link>
           <Link href="/admin/people"><Users size={17} /> People</Link>
+          <Link href="/admin/journeys"><Route size={17} /> Journeys</Link>
           <Link href="/admin/content"><FileText size={17} /> Website content</Link>
           <Link href="/admin/app-content"><BookOpen size={17} /> App content</Link>
           <Link href="/admin/broadcasts"><Mail size={17} /> Broadcasts</Link>
