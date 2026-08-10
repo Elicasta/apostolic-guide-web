@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { getAdminAccess } from "@/auth";
+import { getStudioPermission } from "@/auth";
 import { createServiceClient } from "@/supabase";
 import { enrollPersonInJourney } from "@/growth-journeys";
 import { enrollJourneysForTag } from "@/journey-triggers";
@@ -16,8 +16,8 @@ const bodySchema = z.discriminatedUnion("action", [
 ]);
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const access = await getAdminAccess();
-  if (access.state !== "allowed" || !access.user?.email) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { access, allowed } = await getStudioPermission("manage_people");
+  if (!allowed || access.state !== "allowed" || !access.user?.email) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const { id } = await params;
   if (!z.string().uuid().safeParse(id).success) return NextResponse.json({ error: "Invalid person id." }, { status: 400 });
   const parsed = bodySchema.safeParse(await request.json().catch(() => null));
