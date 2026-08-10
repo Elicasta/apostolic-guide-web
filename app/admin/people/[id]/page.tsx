@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Instagram, Mail, MessageCircle, MousePointerClick, Route, Tag, UserRound, UserRoundCheck } from "lucide-react";
 import { getPerson, personLabel } from "@/people-crm";
+import { listJourneys } from "@/growth-journeys";
 import { PersonProfileActions } from "@/person-profile-actions";
 
 function eventIcon(type: string) {
@@ -14,9 +15,10 @@ function eventIcon(type: string) {
 
 export default async function PersonPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const record = await getPerson(id);
+  const [record, allJourneys] = await Promise.all([getPerson(id), listJourneys()]);
   if (!record) notFound();
-  const { person, events, tags, notes, journeys } = record;
+  const { person, events, tags, notes, journeys, identities } = record;
+  const availableJourneys = allJourneys.filter((j) => j.status !== "archived").map((j) => ({ id: j.id, name: j.name }));
 
   return <>
     <Link className="people-back" href="/admin/people"><ArrowLeft size={16}/> People</Link>
@@ -42,11 +44,16 @@ export default async function PersonPage({ params }: { params: Promise<{ id: str
       <aside className="person-profile-sidebar">
         <section className="admin-card person-summary-card"><span className="section-kicker">Profile</span><dl><div><dt>First seen</dt><dd>{new Date(person.first_seen_at).toLocaleString()}</dd></div><div><dt>Last active</dt><dd>{new Date(person.last_seen_at).toLocaleString()}</dd></div><div><dt>Source</dt><dd>{person.source_detail ?? person.source}</dd></div><div><dt>Email</dt><dd>{person.email ?? "Not linked"}</dd></div><div><dt>Instagram</dt><dd>{person.instagram_username ? `@${person.instagram_username}` : person.instagram_user_id ? `ID ${person.instagram_user_id.slice(-8)}` : "Not linked"}</dd></div></dl></section>
 
+        <section className="admin-card person-summary-card"><span className="section-kicker">Identities</span>{identities.length ? <div className="person-identity-list">{identities.map((identity) => <div key={`${String(identity.provider)}:${String(identity.provider_user_id)}`}><strong>{String(identity.provider)}</strong><span>{identity.username ? `@${String(identity.username)}` : identity.email ? String(identity.email) : String(identity.provider_user_id)}</span></div>)}</div> : <p className="person-muted">No linked identities yet.</p>}</section>
+
         <section className="admin-card person-summary-card"><span className="section-kicker">Tags</span>{tags.length ? <div className="person-tag-list">{tags.map((item) => <span key={String(item.tag)}><Tag size={12}/>{String(item.tag)}</span>)}</div> : <p className="person-muted">No tags yet.</p>}</section>
 
-        <section className="admin-card person-summary-card"><span className="section-kicker">Journeys</span>{journeys.length ? <div className="person-journeys">{journeys.map((journey) => <div key={String(journey.id)}><Route size={15}/><div><strong>{String(journey.journey_name)}</strong><small>{String(journey.stage_name ?? journey.status)}</small></div></div>)}</div> : <p className="person-muted">No journey assigned yet.</p>}</section>
+        <section className="admin-card person-summary-card"><span className="section-kicker">Journeys</span>{journeys.length ? <div className="person-journeys">{journeys.map((enrollment) => {
+          const journey = enrollment.growth_journeys as unknown as { id?: string; name?: string; status?: string } | null;
+          return <Link href={journey?.id ? `/admin/journeys/${journey.id}` : "#"} key={String(enrollment.id)}><Route size={15}/><div><strong>{journey?.name ?? "Journey"}</strong><small>{String(enrollment.status)} · step {Number(enrollment.current_step_position) + 1}</small></div></Link>;
+        })}</div> : <p className="person-muted">No journey assigned yet.</p>}</section>
 
-        <section className="admin-card person-summary-card"><span className="section-kicker">Manage</span><PersonProfileActions personId={person.id} status={person.status}/></section>
+        <section className="admin-card person-summary-card"><span className="section-kicker">Manage</span><PersonProfileActions personId={person.id} status={person.status} journeys={availableJourneys}/></section>
       </aside>
     </div>
   </>;
