@@ -16,7 +16,7 @@ function stateRank(state: HealthState) {
   return state === "error" ? 3 : state === "warning" ? 2 : state === "not_configured" ? 1 : 0;
 }
 
-async function countQuery(run: () => Promise<{ count: number | null; error: { message?: string } | null }>) {
+async function countQuery(run: () => PromiseLike<{ count: number | null; error: { message?: string } | null }>) {
   try {
     const result = await run();
     return result.error ? { ok: false, count: 0, error: result.error.message ?? "Query failed." } : { ok: true, count: result.count ?? 0, error: null };
