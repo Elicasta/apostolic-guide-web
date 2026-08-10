@@ -1,5 +1,5 @@
 import { createServiceClient, createSupabaseServerClient, isSupabaseConfigured } from "./supabase";
-import { hasStudioPermission, normalizeStudioRole, permissionsForRole, type StudioPermission, type StudioRole } from "./studio-roles";
+import { hasStudioPermission, normalizeStudioRole, permissionsForRole, type StudioPermission, type StudioRole } from "./studio-permissions";
 
 export async function getAdminAccess() {
   if (!isSupabaseConfigured()) return { state: "unconfigured" as const, user: null, role: null as StudioRole | null, permissions: [] as StudioPermission[] };
