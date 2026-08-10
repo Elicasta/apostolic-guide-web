@@ -14,8 +14,9 @@ export type AIInterpretationContext = {
     mayOverrideRules: false;
     containsPrivateMessageBodies: false;
     containsPrivateNotes: false;
-    containsDirectIdentifiers: false;
+    includesSystemDirectIdentifiers: false;
     containsUserAuthoredSearchText: boolean;
+    userAuthoredSearchTextMayContainSensitiveData: boolean;
   };
   metrics: StudioIntelligenceSnapshot["metrics"];
   trends: StudioIntelligenceSnapshot["trends"];
@@ -79,8 +80,9 @@ export function buildAIInterpretationContext(snapshot: StudioIntelligenceSnapsho
       mayOverrideRules: false,
       containsPrivateMessageBodies: false,
       containsPrivateNotes: false,
-      containsDirectIdentifiers: false,
-      containsUserAuthoredSearchText: includeSearchText
+      includesSystemDirectIdentifiers: false,
+      containsUserAuthoredSearchText: includeSearchText,
+      userAuthoredSearchTextMayContainSensitiveData: includeSearchText
     },
     metrics: snapshot.metrics,
     trends: snapshot.trends,
