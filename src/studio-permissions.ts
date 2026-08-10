@@ -16,6 +16,7 @@ export type StudioPermission =
   | "view_analytics"
   | "view_notifications"
   | "view_health"
+  | "view_audit"
   | "manage_integrations"
   | "manage_team";
 
@@ -32,8 +33,8 @@ export const STUDIO_ROLE_DESCRIPTIONS: Record<StudioRole, string> = {
 };
 
 const ROLE_PERMISSIONS: Record<StudioRole, StudioPermission[]> = {
-  owner: ["view_workspace","view_people","manage_people","view_inbox","manage_inbox","view_journeys","manage_journeys","view_segments","manage_segments","view_content","manage_content","view_distribution","manage_distribution","view_analytics","view_notifications","view_health","manage_integrations","manage_team"],
-  admin: ["view_workspace","view_people","manage_people","view_inbox","manage_inbox","view_journeys","manage_journeys","view_segments","manage_segments","view_content","manage_content","view_distribution","manage_distribution","view_analytics","view_notifications","view_health","manage_integrations","manage_team"],
+  owner: ["view_workspace","view_people","manage_people","view_inbox","manage_inbox","view_journeys","manage_journeys","view_segments","manage_segments","view_content","manage_content","view_distribution","manage_distribution","view_analytics","view_notifications","view_health","view_audit","manage_integrations","manage_team"],
+  admin: ["view_workspace","view_people","manage_people","view_inbox","manage_inbox","view_journeys","manage_journeys","view_segments","manage_segments","view_content","manage_content","view_distribution","manage_distribution","view_analytics","view_notifications","view_health","view_audit","manage_integrations","manage_team"],
   editor: ["view_workspace","view_people","view_segments","view_content","manage_content","view_distribution","manage_distribution","view_analytics","view_notifications"],
   moderator: ["view_workspace","view_people","manage_people","view_inbox","manage_inbox","view_journeys","manage_journeys","view_segments","manage_segments","view_analytics","view_notifications"],
   viewer: ["view_workspace","view_people","view_segments","view_content","view_distribution","view_analytics","view_notifications"]
