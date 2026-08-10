@@ -4,6 +4,7 @@ import { ArrowLeft, ArrowRight, Clock3, ExternalLink } from "lucide-react";
 import { notFound } from "next/navigation";
 import { BibleReferenceLink, StudyScriptures } from "@/study-guidance";
 import { SmartNext } from "@/smart-next";
+import { PathwayStudyTracker } from "@/pathway-study-tracker";
 import { pathwaySuggestions } from "@/suggestion-data";
 import { scriptures, topicBySlug } from "@/data";
 import { allPathways, pathwayBySlug } from "@/pathway-catalog";
@@ -35,6 +36,7 @@ export default async function PathwayPage({ params }: Props) {
 
   return (
     <>
+      <PathwayStudyTracker slug={pathway.slug} stepCount={pathway.steps.length}/>
       <section className="pathway-hero">
         <div className="shell">
           <div className="pathway-hero-topline">
@@ -53,7 +55,7 @@ export default async function PathwayPage({ params }: Props) {
             {pathway.steps.map((step, index) => {
               const scripture = scriptures.find((item) => item.reference === step.reference || item.reference.startsWith(step.reference.replace(/–.*/, "")));
               return (
-                <article className="pathway-study-step" key={`${step.reference}-${index}`}>
+                <article className="pathway-study-step" data-pathway-step={index} data-pathway-reference={step.reference} key={`${step.reference}-${index}`}>
                   <div className="timeline-marker"><span>{String(index + 1).padStart(2, "0")}</span></div>
                   <div>
                     <span className="eyebrow">{step.reference}</span>
