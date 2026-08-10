@@ -30,8 +30,9 @@ const publicRouteFiles = [
 const authAndAdminRouteFiles = [
   "app/admin/page.tsx",
   "app/admin/layout.tsx",
+  "app/admin/growth/page.tsx",
   "app/admin/social/page.tsx",
-  "app/api/admin/social/route.ts",
+  "app/admin/broadcasts/page.tsx",
   "app/login/page.tsx",
   "app/forgot-password/page.tsx",
   "app/update-password/page.tsx",
