@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Bell, Home, LogOut } from "lucide-react";
 import { getAdminAccess } from "@/auth";
-import { StudioNav } from "@/studio-nav";
+import { StudioMobileNav, StudioNav } from "@/studio-nav";
 import { StudioCommandPalette } from "@/studio-command-palette";
 import { STUDIO_ROLE_LABELS, type StudioRole } from "@/studio-permissions";
 import { getNotificationUnreadCount } from "@/studio-notifications";
@@ -46,6 +46,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           <span className="studio-user-email">{access.user?.email ?? "Local setup mode"}<small>{STUDIO_ROLE_LABELS[role]}</small></span>
           <Link className="studio-notification-link" href="/admin/notifications" aria-label={`${unreadNotifications} unread notifications`}><Bell size={16}/>{unreadNotifications > 0 ? <span>{unreadNotifications > 99 ? "99+" : unreadNotifications}</span> : null}</Link>
           <Link className="studio-view-site" href="/"><Home size={16} /> View site</Link>
+          <StudioMobileNav role={role}/>
         </div>
       </header>
       <div className="admin-shell">
