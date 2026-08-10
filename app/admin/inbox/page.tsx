@@ -1,8 +1,12 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { Inbox, Instagram, Search } from "lucide-react";
+import { getStudioPermission } from "@/auth";
 import { listInboxConversations } from "@/inbox";
 
 export default async function InboxPage({ searchParams }: { searchParams: Promise<{ status?: string; q?: string }> }) {
+  const permission = await getStudioPermission("view_inbox");
+  if (!permission.allowed && permission.access.state !== "unconfigured") redirect("/admin");
   const params = await searchParams;
   const status = ["open","follow_up","resolved","archived"].includes(params.status ?? "") ? params.status as "open"|"follow_up"|"resolved"|"archived" : "all";
   const conversations = await listInboxConversations(status);
