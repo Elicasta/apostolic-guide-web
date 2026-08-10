@@ -40,22 +40,12 @@ export function personLabel(person: Pick<Person, "display_name" | "instagram_use
   return "Unknown person";
 }
 
-export async function upsertInstagramPerson(input: {
-  instagramUserId: string | null;
-  username?: string | null;
-  sourceDetail?: string | null;
-  seenAt?: string;
-}) {
+export async function upsertInstagramPerson(input: { instagramUserId: string | null; username?: string | null; sourceDetail?: string | null; seenAt?: string; }) {
   if (!input.instagramUserId) return null;
   const service = createServiceClient();
   if (!service) return null;
   const now = input.seenAt ?? new Date().toISOString();
-
-  const existing = await service.from("people")
-    .select("*")
-    .eq("instagram_user_id", input.instagramUserId)
-    .maybeSingle();
-
+  const existing = await service.from("people").select("*").eq("instagram_user_id", input.instagramUserId).maybeSingle();
   if (existing.data) {
     const updates: Record<string, unknown> = { last_seen_at: now, updated_at: now };
     if (input.username) {
@@ -65,7 +55,6 @@ export async function upsertInstagramPerson(input: {
     const result = await service.from("people").update(updates).eq("id", existing.data.id).select("*").single();
     return (result.data ?? existing.data) as Person;
   }
-
   const username = input.username?.replace(/^@/, "") || null;
   const result = await service.from("people").insert({
     instagram_user_id: input.instagramUserId,
@@ -80,16 +69,7 @@ export async function upsertInstagramPerson(input: {
   return (result.data ?? null) as Person | null;
 }
 
-export async function recordPersonEvent(input: {
-  personId: string;
-  eventType: string;
-  channel: string;
-  eventName?: string | null;
-  automationId?: string | null;
-  externalEventId?: string | null;
-  metadata?: Record<string, unknown>;
-  occurredAt?: string;
-}) {
+export async function recordPersonEvent(input: { personId: string; eventType: string; channel: string; eventName?: string | null; automationId?: string | null; externalEventId?: string | null; metadata?: Record<string, unknown>; occurredAt?: string; }) {
   const service = createServiceClient();
   if (!service) return;
   await service.from("person_events").upsert({
@@ -102,6 +82,44 @@ export async function recordPersonEvent(input: {
     metadata: input.metadata ?? {},
     occurred_at: input.occurredAt ?? new Date().toISOString()
   }, { onConflict: "external_event_id", ignoreDuplicates: true });
+}
+
+export async function ingestInstagramPeople(payload: unknown) {
+  if (!payload || typeof payload !== "object") return 0;
+  const root = payload as { object?: string; entry?: unknown[] };
+  if (root.object !== "instagram" || !Array.isArray(root.entry)) return 0;
+  let recorded = 0;
+  for (const entryRaw of root.entry) {
+    if (!entryRaw || typeof entryRaw !== "object") continue;
+    const entry = entryRaw as { messaging?: unknown[]; changes?: unknown[] };
+    for (const itemRaw of Array.isArray(entry.messaging) ? entry.messaging : []) {
+      if (!itemRaw || typeof itemRaw !== "object") continue;
+      const item = itemRaw as { sender?: { id?: string }; timestamp?: number; message?: { mid?: string; text?: string; is_echo?: boolean } };
+      if (!item.message?.mid || !item.message.text || item.message.is_echo || !item.sender?.id) continue;
+      const at = item.timestamp ? new Date(item.timestamp).toISOString() : new Date().toISOString();
+      const person = await upsertInstagramPerson({ instagramUserId: item.sender.id, sourceDetail: "instagram_dm", seenAt: at });
+      if (!person) continue;
+      await recordPersonEvent({ personId: person.id, eventType: "message", channel: "instagram", eventName: "Instagram DM", externalEventId: `crm:message:${item.message.mid}`, occurredAt: at });
+      recorded += 1;
+    }
+    for (const changeRaw of Array.isArray(entry.changes) ? entry.changes : []) {
+      if (!changeRaw || typeof changeRaw !== "object") continue;
+      const change = changeRaw as { field?: string; value?: { id?: string; text?: string; from?: { id?: string; username?: string }; media?: { id?: string } } };
+      if ((change.field !== "comments" && change.field !== "live_comments") || !change.value?.id || !change.value.text || !change.value.from?.id) continue;
+      const person = await upsertInstagramPerson({ instagramUserId: change.value.from.id, username: change.value.from.username ?? null, sourceDetail: "instagram_comment" });
+      if (!person) continue;
+      await recordPersonEvent({
+        personId: person.id,
+        eventType: "comment",
+        channel: "instagram",
+        eventName: change.field === "live_comments" ? "Instagram live comment" : "Instagram comment",
+        externalEventId: `crm:comment:${change.value.id}`,
+        metadata: change.value.media?.id ? { media_id: change.value.media.id } : {}
+      });
+      recorded += 1;
+    }
+  }
+  return recorded;
 }
 
 export async function listPeople(input: { query?: string; source?: string; status?: string; limit?: number } = {}) {
@@ -142,11 +160,5 @@ export async function getPerson(id: string) {
     service.from("journey_progress").select("*").eq("person_id", id).order("updated_at", { ascending: false })
   ]);
   if (!person.data) return null;
-  return {
-    person: person.data as Person,
-    events: (events.data ?? []) as PersonEvent[],
-    tags: tags.data ?? [],
-    notes: notes.data ?? [],
-    journeys: journeys.data ?? []
-  };
+  return { person: person.data as Person, events: (events.data ?? []) as PersonEvent[], tags: tags.data ?? [], notes: notes.data ?? [], journeys: journeys.data ?? [] };
 }
