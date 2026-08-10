@@ -1,13 +1,17 @@
+import { redirect } from "next/navigation";
 import { AppContentEditor } from "@/app-content-editor";
-import { getAdminAccess } from "@/auth";
+import { getStudioPermission } from "@/auth";
+import { hasStudioPermission } from "@/studio-permissions";
 import { createServiceClient } from "@/supabase";
 import { Boxes, CheckCircle2, Database, ShieldCheck } from "lucide-react";
 
 type AppRecord = { id: string; source_content_item_id: string; entity_type: string; entity_id: string; status: string; record_version: number; updated_at: string; };
 
 export default async function AdminAppContentPage() {
-  const access = await getAdminAccess();
-  const supabase = access.state === "allowed" ? createServiceClient() : null;
+  const permission = await getStudioPermission("view_content");
+  if (!permission.allowed && permission.access.state !== "unconfigured") redirect("/admin");
+  const canManage = permission.access.state === "unconfigured" || hasStudioPermission(permission.access.role, "manage_content");
+  const supabase = permission.access.state === "allowed" ? createServiceClient() : null;
   let records: AppRecord[] = [];
   let sources: { id: string; title: string; kind: string }[] = [];
   let appSchemaReady = false;
@@ -28,7 +32,7 @@ export default async function AdminAppContentPage() {
 
       <div className={appSchemaReady ? "system-status system-status-ready" : "system-status"}><ShieldCheck size={21} /><div><strong>{appSchemaReady ? "App publishing database is ready" : "App publishing is not ready yet"}</strong><p>{appSchemaReady ? "The shared app-content schema is installed. Publish only content that matches the current app reader format." : "The shared app-content schema has not been installed in this environment. Publishing stays disabled until it is available."}</p></div></div>
 
-      <section className="admin-card publishing-card"><div className="card-heading"><div><span className="section-kicker">Projection editor</span><h2>Publish to the app</h2></div><p>Select canonical content, validate its app payload, and control its runtime status.</p></div>{sources.length && appSchemaReady ? <AppContentEditor sources={sources} /> : <div className="empty-state"><Database size={24} /><strong>No app-compatible source content yet.</strong><p>Create or migrate a Scripture entry, pathway, objection, or topic before publishing it to the app.</p></div>}</section>
+      {canManage ? <section className="admin-card publishing-card"><div className="card-heading"><div><span className="section-kicker">Projection editor</span><h2>Publish to the app</h2></div><p>Select canonical content, validate its app payload, and control its runtime status.</p></div>{sources.length && appSchemaReady ? <AppContentEditor sources={sources} /> : <div className="empty-state"><Database size={24} /><strong>No app-compatible source content yet.</strong><p>Create or migrate a Scripture entry, pathway, objection, or topic before publishing it to the app.</p></div>}</section> : <section className="admin-card role-readonly-note"><strong>Read-only access</strong><p>Your Studio role can review app projections but cannot publish or change them.</p></section>}
       <section className="admin-card publishing-card"><div className="card-heading"><div><span className="section-kicker">Runtime library</span><h2>Current projections</h2></div><p>Versioned records currently prepared for the Apostolic Guide app.</p></div>{records.length ? <div className="content-library">{records.map((record) => <div className="content-library-row" key={record.id}><div><span className="content-kind">{record.entity_type}</span><strong>{record.entity_id}</strong><small>Version {record.record_version} · Updated {new Date(record.updated_at).toLocaleDateString()}</small></div><div className="content-row-end"><span className={record.status === "published" ? "status-pill" : "status-pill status-pending"}>{record.status}</span></div></div>)}</div> : <div className="empty-state"><Boxes size={24} /><strong>No app projections yet.</strong><p>When app-ready content is published, its current runtime version will appear here.</p></div>}</section>
     </>
   );
