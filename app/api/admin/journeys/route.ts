@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getStudioPermission } from "@/auth";
 import { createServiceClient } from "@/supabase";
 import { runJourneyEnrollment } from "@/growth-journeys";
+import { recordStudioAudit } from "@/studio-audit";
 
 const stepSchema = z.object({
   name: z.string().trim().min(1).max(120),
@@ -30,6 +31,7 @@ export async function POST(request: Request) {
   if (body.action === "create") {
     const { data, error } = await service.from("growth_journeys").insert({ name: body.name, description: body.description || null, trigger_type: body.triggerType, trigger_config: body.triggerConfig, status: "draft", created_by: access.user.email }).select("id").single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    await recordStudioAudit({ actorUserId: access.user.id, action: "journey.created", resourceType: "journey", resourceId: data.id, metadata: { name: body.name, trigger_type: body.triggerType, status: "draft" } });
     return NextResponse.json({ ok: true, id: data.id });
   }
 
@@ -43,19 +45,23 @@ export async function POST(request: Request) {
       const inserted = await service.from("growth_journey_steps").insert(rows);
       if (inserted.error) return NextResponse.json({ error: inserted.error.message }, { status: 500 });
     }
+    await recordStudioAudit({ actorUserId: access.user.id, action: "journey.updated", resourceType: "journey", resourceId: body.id, metadata: { name: body.name, trigger_type: body.triggerType, status: body.status, step_count: body.steps.length } });
     return NextResponse.json({ ok: true });
   }
 
   if (body.action === "enroll") {
     const existing = await service.from("growth_journey_enrollments").select("id").eq("journey_id", body.journeyId).eq("person_id", body.personId).in("status", ["active","waiting","paused"]).maybeSingle();
     let enrollmentId = existing.data?.id as string | undefined;
+    let createdEnrollment = false;
     if (!enrollmentId) {
       const created = await service.from("growth_journey_enrollments").insert({ journey_id: body.journeyId, person_id: body.personId, status: "active", current_step_position: 0, context: { trigger_type: "manual" } }).select("id").single();
       if (created.error) return NextResponse.json({ error: created.error.message }, { status: 500 });
       enrollmentId = String(created.data.id);
+      createdEnrollment = true;
       await service.from("growth_journey_events").insert({ enrollment_id: enrollmentId, person_id: body.personId, journey_id: body.journeyId, event_type: "enrolled", step_position: 0, detail: { trigger_type: "manual" } });
     }
     await runJourneyEnrollment(enrollmentId);
+    await recordStudioAudit({ actorUserId: access.user.id, action: createdEnrollment ? "journey.person_enrolled" : "journey.enrollment_ran", resourceType: "journey_enrollment", resourceId: enrollmentId, metadata: { journey_id: body.journeyId, person_id: body.personId } });
     return NextResponse.json({ ok: true, enrollmentId });
   }
 
@@ -65,9 +71,11 @@ export async function POST(request: Request) {
     const nextPosition = enrollment.data.status === "paused" ? Number(enrollment.data.current_step_position) + 1 : Number(enrollment.data.current_step_position);
     await service.from("growth_journey_enrollments").update({ status: "active", current_step_position: nextPosition, next_action_at: null, updated_at: new Date().toISOString() }).eq("id", body.enrollmentId);
     await runJourneyEnrollment(body.enrollmentId);
+    await recordStudioAudit({ actorUserId: access.user.id, action: "journey.enrollment_resumed", resourceType: "journey_enrollment", resourceId: body.enrollmentId, metadata: { step_position: nextPosition } });
     return NextResponse.json({ ok: true });
   }
 
   await service.from("growth_journey_enrollments").update({ status: "cancelled", next_action_at: null, updated_at: new Date().toISOString() }).eq("id", body.enrollmentId);
+  await recordStudioAudit({ actorUserId: access.user.id, action: "journey.enrollment_cancelled", resourceType: "journey_enrollment", resourceId: body.enrollmentId });
   return NextResponse.json({ ok: true });
 }
