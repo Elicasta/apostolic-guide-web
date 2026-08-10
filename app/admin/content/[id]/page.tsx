@@ -1,10 +1,13 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
+import { getStudioPermission } from "@/auth";
 import { ArchiveContentButton, ContentEditor } from "@/content-editor";
 import { documentToPlainText, getAdminContent } from "@/database-content";
 
 export default async function EditContentPage({ params }: { params: Promise<{ id: string }> }) {
+  const permission = await getStudioPermission("manage_content");
+  if (!permission.allowed && permission.access.state !== "unconfigured") redirect("/admin/content");
   const { id } = await params;
   const content = await getAdminContent(id);
   if (!content) notFound();
