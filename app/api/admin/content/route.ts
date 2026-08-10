@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { getAdminAccess } from "@/auth";
+import { getStudioPermission } from "@/auth";
 import { createServiceClient } from "@/supabase";
 
 const schema = z.object({
@@ -13,8 +13,8 @@ const schema = z.object({
 });
 
 export async function POST(request: Request) {
-  const access = await getAdminAccess();
-  if (access.state !== "allowed") return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { access, allowed } = await getStudioPermission("manage_content");
+  if (!allowed || access.state !== "allowed" || !access.user) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const parsed = schema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Invalid content" }, { status: 400 });
@@ -29,7 +29,7 @@ export async function POST(request: Request) {
     p_summary: parsed.data.summary,
     p_body: parsed.data.body,
     p_publish_website: parsed.data.publishWebsite,
-    p_actor_user_id: access.user!.id
+    p_actor_user_id: access.user.id
   });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
