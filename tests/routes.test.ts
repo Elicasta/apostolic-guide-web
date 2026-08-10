@@ -55,6 +55,7 @@ const authAndAdminRouteFiles = [
   "app/admin/team/page.tsx",
   "app/api/admin/team/route.ts",
   "app/api/admin/command-search/route.ts",
+  "app/api/admin/intelligence/route.ts",
   "app/login/page.tsx",
   "app/forgot-password/page.tsx",
   "app/update-password/page.tsx",
