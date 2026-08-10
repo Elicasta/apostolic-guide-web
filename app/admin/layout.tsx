@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Home, LogOut } from "lucide-react";
+import { Bell, Home, LogOut } from "lucide-react";
 import { getAdminAccess } from "@/auth";
 import { StudioNav } from "@/studio-nav";
+import { getNotificationUnreadCount } from "@/studio-notifications";
 import "./publishing.css";
 import "./campaign-intelligence.css";
 import "./social-messaging.css";
@@ -21,6 +22,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   if (access.state === "signed_out") redirect("/login");
   if (access.state === "forbidden") redirect("/");
   const configured = access.state !== "unconfigured";
+  const unreadNotifications = configured ? await getNotificationUnreadCount() : 0;
 
   return (
     <div className="admin-layout">
@@ -29,7 +31,11 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           <span className="studio-brand-mark">AG</span>
           <span className="studio-brand-copy"><strong>Apostolic Guide</strong><small>Studio</small></span>
         </Link>
-        <div className="studio-header-actions"><span className="studio-user-email">{access.user?.email ?? "Local setup mode"}</span><Link className="studio-view-site" href="/"><Home size={16} /> View site</Link></div>
+        <div className="studio-header-actions">
+          <span className="studio-user-email">{access.user?.email ?? "Local setup mode"}</span>
+          <Link className="studio-notification-link" href="/admin/notifications" aria-label={`${unreadNotifications} unread notifications`}><Bell size={16}/>{unreadNotifications > 0 ? <span>{unreadNotifications > 99 ? "99+" : unreadNotifications}</span> : null}</Link>
+          <Link className="studio-view-site" href="/"><Home size={16} /> View site</Link>
+        </div>
       </header>
       <div className="admin-shell">
         <nav className="admin-nav" aria-label="Admin navigation">
