@@ -1,9 +1,13 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { ArrowRight, Route, Sparkles, Users } from "lucide-react";
+import { getStudioPermission } from "@/auth";
 import { listJourneys, runDueJourneys } from "@/growth-journeys";
 import { NewJourneyForm } from "@/journey-builder";
 
 export default async function JourneysPage() {
+  const permission = await getStudioPermission("view_journeys");
+  if (!permission.allowed && permission.access.state !== "unconfigured") redirect("/admin");
   await runDueJourneys(100);
   const journeys = await listJourneys();
   const active = journeys.filter((j) => j.status === "active").length;
