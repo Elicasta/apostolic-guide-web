@@ -1,6 +1,11 @@
-import { getAdminAccess } from "@/auth";
-import { createServiceClient } from "@/supabase";
+import Link from "next/link";
+import { redirect } from "next/navigation";
 import { AdminLiveMetrics } from "@/admin-live-metrics";
+import { getStudioPermission } from "@/auth";
+import { articles } from "@/data";
+import { allPathways } from "@/pathway-catalog";
+import { buildArticleIntelligence, buildPathwayIntelligence } from "@/study-intelligence";
+import { createServiceClient } from "@/supabase";
 
 type EventRow = {
   event_name: string;
@@ -40,8 +45,9 @@ function sourceLabel(event: EventRow) {
 }
 
 export default async function AdminAnalyticsPage() {
-  const access = await getAdminAccess();
-  const service = access.state === "allowed" ? createServiceClient() : null;
+  const { access, allowed } = await getStudioPermission("view_analytics");
+  if (!allowed || access.state !== "allowed") redirect("/admin");
+  const service = createServiceClient();
   let events: EventRow[] = [];
   let subscriberCount = 0;
   let loadError = "";
@@ -61,7 +67,7 @@ export default async function AdminAnalyticsPage() {
     subscriberCount = subscribersResult.count ?? 0;
     if (eventsResult.error) loadError = `${eventsResult.error.code}: ${eventsResult.error.message}`;
     if (subscribersResult.error && !loadError) loadError = `${subscribersResult.error.code}: ${subscribersResult.error.message}`;
-  } else if (access.state === "allowed") {
+  } else {
     loadError = "Supabase service credentials are not configured in this environment.";
   }
 
@@ -98,13 +104,16 @@ export default async function AdminAnalyticsPage() {
   const missingCount = eventCounts.find(([key]) => key === "search_no_results")?.[1] ?? 0;
   const completedReads = eventCounts.find(([key]) => key === "article_completed")?.[1] ?? 0;
   const lastEvent = events[0]?.occurred_at;
+  const studyEvents = events.map((event) => ({ event_name: event.event_name, page_path: event.page_path, session_id: event.session_id, anonymous_id: event.anonymous_id, properties: event.properties ?? {} }));
+  const pathwayIntelligence = buildPathwayIntelligence(studyEvents, allPathways.map((pathway) => ({ slug: pathway.slug, title: pathway.title, stepCount: pathway.steps.length }))).slice(0, 12);
+  const articleIntelligence = buildArticleIntelligence(studyEvents, articles.map((article) => ({ slug: article.slug, title: article.title }))).slice(0, 12);
 
   return (
     <>
       <AdminLiveMetrics />
       <span className="eyebrow">Product intelligence</span>
       <h1>Analytics</h1>
-      <p className="admin-lede">Live first-party usage data from the website. Track visits, discovery, search behavior, location, devices, campaigns, and movement into the app.</p>
+      <p className="admin-lede">Live first-party usage data from the website. Track visits, discovery, study activity, location, campaigns, and movement into the app.</p>
 
       {loadError ? <section className="admin-card"><h2>Tracker status</h2><p><strong>Analytics is not writing yet.</strong></p><p>{loadError}</p><p>Apply the Supabase analytics migrations and confirm the production Supabase service key is configured.</p></section> : null}
 
@@ -121,25 +130,42 @@ export default async function AdminAnalyticsPage() {
         <div className="metric"><strong>{percent(appTransitions, uniqueSessions)}</strong><span>Session → app rate</span></div>
       </div>
 
-      <section className="admin-card">
-        <h2>Live presence</h2>
-        <table className="admin-table"><tbody>
-          <tr><td>People online</td><td><strong>{activeVisitors}</strong></td></tr>
-          <tr><td>Active browser sessions</td><td><strong>{activeSessions}</strong></td></tr>
-          <tr><td>Presence window</td><td><strong>Last 75 seconds</strong></td></tr>
-          <tr><td>Dashboard refresh</td><td><strong>Every 15 seconds</strong></td></tr>
-        </tbody></table>
+      <section className="study-intelligence-block">
+        <div className="studio-section-head study-intelligence-heading"><div><span className="section-kicker">Study intelligence</span><h2>What people are actually studying</h2></div><p>Observed website behavior only. Pathway progress reflects steps meaningfully viewed, not an inferred spiritual outcome.</p></div>
+        <div className="study-intelligence-grid">
+          <section className="admin-card study-intelligence-card">
+            <div className="study-intelligence-card-head"><div><span className="section-kicker">Pathways</span><h3>Pathway depth</h3></div><Link href="/admin/app-content">Manage pathways</Link></div>
+            {pathwayIntelligence.length ? <div className="study-table-wrap"><table className="admin-table study-table"><thead><tr><th>Pathway</th><th>Starts</th><th>Avg. depth</th><th>Final step</th><th>App</th></tr></thead><tbody>{pathwayIntelligence.map((row) => <tr key={row.slug}><td><Link href={`/pathways/${row.slug}`}>{row.title}</Link><small>{row.observedSteps} observed steps · {row.uniqueSessions} sessions</small></td><td><strong>{row.starts}</strong></td><td><strong>{row.averageProgress}%</strong></td><td><strong>{row.reachedFinalStep}</strong></td><td><strong>{row.appTransitions}</strong></td></tr>)}</tbody></table></div> : <div className="studio-empty-state"><strong>No pathway study depth yet</strong><p>Step progress begins collecting as visitors meaningfully view pathway steps.</p></div>}
+          </section>
+
+          <section className="admin-card study-intelligence-card">
+            <div className="study-intelligence-card-head"><div><span className="section-kicker">Articles</span><h3>Article depth</h3></div><Link href="/admin/content">Manage articles</Link></div>
+            {articleIntelligence.length ? <div className="study-table-wrap"><table className="admin-table study-table"><thead><tr><th>Article</th><th>Opens</th><th>Completed</th><th>Rate</th><th>App</th></tr></thead><tbody>{articleIntelligence.map((row) => <tr key={row.slug}><td><Link href={`/articles/${row.slug}`}>{row.title}</Link><small>{row.uniqueSessions} reading sessions</small></td><td><strong>{row.opens}</strong></td><td><strong>{row.completions}</strong></td><td><strong>{row.completionRate}%</strong></td><td><strong>{row.appTransitions}</strong></td></tr>)}</tbody></table></div> : <div className="studio-empty-state"><strong>No article depth yet</strong><p>Article opens and meaningful completions will appear here.</p></div>}
+          </section>
+        </div>
       </section>
 
-      <section className="admin-card">
-        <h2>Tracker health</h2>
-        <table className="admin-table"><tbody>
-          <tr><td>Events stored</td><td><strong>{events.length}</strong></td></tr>
-          <tr><td>Latest event</td><td><strong>{lastEvent ? new Date(lastEvent).toLocaleString() : "No events received"}</strong></td></tr>
-          <tr><td>Event source</td><td><strong>First-party / Supabase</strong></td></tr>
-          <tr><td>Private study content</td><td><strong>Excluded</strong></td></tr>
-        </tbody></table>
-      </section>
+      <div className="analytics-operations-grid">
+        <section className="admin-card">
+          <h2>Live presence</h2>
+          <table className="admin-table"><tbody>
+            <tr><td>People online</td><td><strong>{activeVisitors}</strong></td></tr>
+            <tr><td>Active browser sessions</td><td><strong>{activeSessions}</strong></td></tr>
+            <tr><td>Presence window</td><td><strong>Last 75 seconds</strong></td></tr>
+            <tr><td>Dashboard refresh</td><td><strong>Every 15 seconds</strong></td></tr>
+          </tbody></table>
+        </section>
+
+        <section className="admin-card">
+          <h2>Tracker health</h2>
+          <table className="admin-table"><tbody>
+            <tr><td>Events stored</td><td><strong>{events.length}</strong></td></tr>
+            <tr><td>Latest event</td><td><strong>{lastEvent ? new Date(lastEvent).toLocaleString() : "No events received"}</strong></td></tr>
+            <tr><td>Event source</td><td><strong>First-party / Supabase</strong></td></tr>
+            <tr><td>Private study content</td><td><strong>Excluded</strong></td></tr>
+          </tbody></table>
+        </section>
+      </div>
 
       <div className="analytics-grid">
         <MetricTable title="Top traffic sources" rows={trafficSources} empty="No referrer or campaign data yet." />
