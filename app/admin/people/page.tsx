@@ -11,33 +11,34 @@ export default async function PeoplePage({ searchParams }: { searchParams: Promi
 
   return (
     <>
-      <span className="eyebrow">Growth Hub</span>
-      <div className="people-heading">
-        <div><h1>People</h1><p className="admin-lede">One relationship record across Instagram, email, the website, and the app. Social interactions now create people automatically.</p></div>
+      <span className="eyebrow">Relationships</span>
+      <div className="studio-page-heading">
+        <div><h1>People</h1><p className="admin-lede">One relationship record across Instagram, email, website activity, and the app.</p></div>
       </div>
 
-      <div className="people-metrics">
-        <div><Users size={19}/><strong>{metrics.total}</strong><span>People</span></div>
-        <div><Instagram size={19}/><strong>{metrics.instagram}</strong><span>From Instagram</span></div>
-        <div><UserRoundCheck size={19}/><strong>{metrics.subscribers}</strong><span>Subscribers</span></div>
-        <div><Activity size={19}/><strong>{metrics.active7d}</strong><span>Active 7 days</span></div>
+      <div className="studio-kpi-grid studio-kpi-grid-four people-metrics">
+        <div className="studio-kpi"><Users size={19}/><span>People</span><strong>{metrics.total}</strong><small>Known relationship records</small></div>
+        <div className="studio-kpi"><Instagram size={19}/><span>Instagram</span><strong>{metrics.instagram}</strong><small>Identified from social</small></div>
+        <div className="studio-kpi"><UserRoundCheck size={19}/><span>Subscribers</span><strong>{metrics.subscribers}</strong><small>Email subscribers</small></div>
+        <div className="studio-kpi"><Activity size={19}/><span>Active 7 days</span><strong>{metrics.active7d}</strong><small>Recent relationship activity</small></div>
       </div>
 
-      <section className="admin-card people-directory-card">
-        <form className="people-filters" method="get">
-          <label className="people-search"><Search size={17}/><input name="q" defaultValue={params.q ?? ""} placeholder="Search name, Instagram, or email" /></label>
+      <section className="admin-card people-directory-card studio-list-card">
+        <div className="studio-section-head"><div><span className="section-kicker">Directory</span><h2>Relationship records</h2></div><span>{people.length} shown</span></div>
+        <form className="people-filters studio-filter-bar" method="get">
+          <label className="people-search studio-search"><Search size={17}/><input name="q" defaultValue={params.q ?? ""} placeholder="Search name, Instagram, or email" /></label>
           <select name="source" defaultValue={params.source ?? "all"}><option value="all">All sources</option><option value="instagram">Instagram</option><option value="website">Website</option><option value="email">Email</option><option value="app">App</option></select>
           <select name="status" defaultValue={params.status ?? "all"}><option value="all">All statuses</option><option value="lead">Lead</option><option value="subscriber">Subscriber</option><option value="app_user">App user</option><option value="inactive">Inactive</option><option value="archived">Archived</option></select>
-          <button className="button button-outline" type="submit">Filter</button>
+          <button className="button button-outline" type="submit">Apply</button>
         </form>
 
-        {people.length ? <div className="people-list">{people.map((person) => <Link href={`/admin/people/${person.id}`} className="person-row" key={person.id}>
+        {people.length ? <div className="people-list studio-list">{people.map((person) => <Link href={`/admin/people/${person.id}`} className="person-row studio-list-row" key={person.id}>
           <div className="person-avatar">{personLabel(person).replace(/^@/, "").slice(0, 1).toUpperCase()}</div>
           <div className="person-main"><strong>{personLabel(person)}</strong><span>{person.email ?? (person.instagram_user_id ? `Instagram ID ${person.instagram_user_id.slice(-8)}` : "No contact identity")}</span></div>
           <div className="person-source"><span>{person.source}</span><small>{person.source_detail ?? "First touch"}</small></div>
           <div className="person-status"><span className={person.status === "subscriber" || person.status === "app_user" ? "status-pill" : "status-pill status-pending"}>{person.status.replace("_", " ")}</span><small>Seen {new Date(person.last_seen_at).toLocaleDateString()}</small></div>
           <ArrowRight size={17}/>
-        </Link>)}</div> : <div className="empty-state"><Users size={26}/><strong>No people match this view.</strong><p>New Instagram comments and DMs will create person records automatically. Email and app identity linking comes next.</p></div>}
+        </Link>)}</div> : <div className="empty-state"><Users size={26}/><strong>No people match this view.</strong><p>New social, email, website, and app activity will populate relationship records here.</p></div>}
       </section>
     </>
   );
