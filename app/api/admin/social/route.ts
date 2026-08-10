@@ -54,23 +54,23 @@ export async function POST(request: Request) {
         updated_at: new Date().toISOString()
       };
       if (body.action === "create_automation") {
-        const { data, error } = await service.schema("social").from("automations").insert(record).select("*").single();
+        const { data, error } = await service.from("social_automations").insert(record).select("*").single();
         if (error) throw new Error(error.message);
         return NextResponse.json({ ok: true, automation: data });
       }
-      const { data, error } = await service.schema("social").from("automations").update(record).eq("id", body.id).select("*").single();
+      const { data, error } = await service.from("social_automations").update(record).eq("id", body.id).select("*").single();
       if (error) throw new Error(error.message);
       return NextResponse.json({ ok: true, automation: data });
     }
 
     if (body.action === "toggle_automation") {
-      const { error } = await service.schema("social").from("automations").update({ enabled: body.enabled, updated_at: new Date().toISOString() }).eq("id", body.id);
+      const { error } = await service.from("social_automations").update({ enabled: body.enabled, updated_at: new Date().toISOString() }).eq("id", body.id);
       if (error) throw new Error(error.message);
       return NextResponse.json({ ok: true });
     }
 
     if (body.action === "delete_automation") {
-      const { error } = await service.schema("social").from("automations").delete().eq("id", body.id);
+      const { error } = await service.from("social_automations").delete().eq("id", body.id);
       if (error) throw new Error(error.message);
       return NextResponse.json({ ok: true });
     }
