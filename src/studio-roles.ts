@@ -12,25 +12,6 @@ export type StudioMember = {
   last_sign_in_at?: string | null;
 };
 
-function platformRolesForStudioRole(role: StudioRole) {
-  if (role === "owner" || role === "admin") return ["admin"];
-  if (role === "editor") return ["editor", "publisher"];
-  if (role === "moderator") return ["reader"];
-  return ["reader"];
-}
-
-async function syncPlatformRoles(userId: string, role: StudioRole) {
-  const service = createServiceClient();
-  if (!service) throw new Error("Supabase service access is not configured.");
-  const platform = service.schema("platform");
-  const managedRoles = ["reader", "contributor", "editor", "publisher", "admin"];
-  const removed = await platform.from("user_roles").delete().eq("user_id", userId).in("role", managedRoles);
-  if (removed.error) throw new Error(removed.error.message);
-  const rows = platformRolesForStudioRole(role).map((platformRole) => ({ user_id: userId, role: platformRole }));
-  const inserted = await platform.from("user_roles").insert(rows);
-  if (inserted.error) throw new Error(inserted.error.message);
-}
-
 export async function listStudioMembers() {
   const service = createServiceClient();
   if (!service) return [] as StudioMember[];
@@ -59,7 +40,6 @@ export async function inviteStudioMember(input: { email: string; role: StudioRol
 
   const { error } = await service.from("studio_members").insert({ user_id: user.id, email, role: input.role, invited_by: input.invitedBy });
   if (error) throw new Error(error.message);
-  await syncPlatformRoles(user.id, input.role);
   return user.id;
 }
 
@@ -76,7 +56,6 @@ export async function changeStudioMemberRole(input: { memberId: string; role: St
   }
   const { error } = await service.from("studio_members").update({ role: input.role, updated_at: new Date().toISOString() }).eq("id", input.memberId);
   if (error) throw new Error(error.message);
-  await syncPlatformRoles(target.user_id, input.role);
 }
 
 export async function removeStudioMember(input: { memberId: string; actorUserId: string; actorRole: StudioRole }) {
@@ -93,7 +72,4 @@ export async function removeStudioMember(input: { memberId: string; actorUserId:
   }
   const { error } = await service.from("studio_members").delete().eq("id", input.memberId);
   if (error) throw new Error(error.message);
-  const platform = service.schema("platform");
-  const removed = await platform.from("user_roles").delete().eq("user_id", target.user_id).in("role", ["reader", "contributor", "editor", "publisher", "admin"]);
-  if (removed.error) throw new Error(removed.error.message);
 }
