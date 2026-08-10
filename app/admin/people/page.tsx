@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Activity, ArrowRight, Instagram, Search, UserRoundCheck, Users } from "lucide-react";
+import { Activity, ArrowRight, Instagram, ListFilter, Search, UserRoundCheck, Users } from "lucide-react";
 import { getPeopleMetrics, listPeople, personLabel } from "@/people-crm";
 
 export default async function PeoplePage({ searchParams }: { searchParams: Promise<{ q?: string; source?: string; status?: string }> }) {
@@ -14,6 +14,7 @@ export default async function PeoplePage({ searchParams }: { searchParams: Promi
       <span className="eyebrow">Relationships</span>
       <div className="studio-page-heading">
         <div><h1>People</h1><p className="admin-lede">One relationship record across Instagram, email, website activity, and the app.</p></div>
+        <Link className="button button-outline" href="/admin/segments"><ListFilter size={16}/> View segments</Link>
       </div>
 
       <div className="studio-kpi-grid studio-kpi-grid-four people-metrics">
