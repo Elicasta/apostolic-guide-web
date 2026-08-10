@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/supabase";
-import { DEFAULT_META_VERIFY_TOKEN, processInstagramWebhook } from "@/social-messaging";
+import { DEFAULT_META_VERIFY_TOKEN } from "@/social-messaging";
+import { processInstagramWebhookAttributed } from "@/social-attribution";
 import { verifyMetaWebhookSignature } from "@/meta-webhook-signature";
 import { ingestInstagramPeople } from "@/people-crm";
 import { ingestInstagramJourneys } from "@/social-journey-ingest";
@@ -75,7 +76,7 @@ export async function POST(request: Request) {
 
   try {
     const [result, peopleRecorded, journeysEnrolled, dueJourneysRun] = await Promise.all([
-      processInstagramWebhook(payload),
+      processInstagramWebhookAttributed(payload),
       ingestInstagramPeople(payload),
       ingestInstagramJourneys(payload),
       runDueJourneys(50)
