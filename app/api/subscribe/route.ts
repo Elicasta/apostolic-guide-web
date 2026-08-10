@@ -12,7 +12,9 @@ const subscriberSchema = z.object({
   newArticles: z.boolean().default(true),
   source: z.string().trim().max(120).default("website"),
   path: z.string().trim().max(500).default("/"),
-  website: z.string().max(0).optional().default("")
+  website: z.string().max(0).optional().default(""),
+  anonymousId: z.string().uuid().optional(),
+  sessionId: z.string().uuid().optional()
 });
 
 type SubscriberInput = z.infer<typeof subscriberSchema>;
@@ -20,22 +22,11 @@ type SubscriberInput = z.infer<typeof subscriberSchema>;
 async function addResendContact(input: SubscriberInput) {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) return { id: null, synced: false, error: "RESEND_API_KEY is not configured" };
-
   const topics = [
-    input.liveTeachings && process.env.RESEND_LIVE_TEACHINGS_TOPIC_ID
-      ? { id: process.env.RESEND_LIVE_TEACHINGS_TOPIC_ID, subscription: "opt_in" as const }
-      : null,
-    input.newArticles && process.env.RESEND_NEW_ARTICLES_TOPIC_ID
-      ? { id: process.env.RESEND_NEW_ARTICLES_TOPIC_ID, subscription: "opt_in" as const }
-      : null
+    input.liveTeachings && process.env.RESEND_LIVE_TEACHINGS_TOPIC_ID ? { id: process.env.RESEND_LIVE_TEACHINGS_TOPIC_ID, subscription: "opt_in" as const } : null,
+    input.newArticles && process.env.RESEND_NEW_ARTICLES_TOPIC_ID ? { id: process.env.RESEND_NEW_ARTICLES_TOPIC_ID, subscription: "opt_in" as const } : null
   ].filter((item): item is { id: string; subscription: "opt_in" } => Boolean(item));
-
-  const response = await fetch("https://api.resend.com/contacts", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ email: input.email, unsubscribed: false, ...(topics.length ? { topics } : {}) })
-  });
-
+  const response = await fetch("https://api.resend.com/contacts", { method: "POST", headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" }, body: JSON.stringify({ email: input.email, unsubscribed: false, ...(topics.length ? { topics } : {}) }) });
   if (response.status === 409) return { id: null, synced: true, error: null };
   if (!response.ok) return { id: null, synced: false, error: await response.text() };
   const data = await response.json() as { id?: string };
@@ -46,14 +37,8 @@ async function sendWelcomeEmail(input: SubscriberInput) {
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.RESEND_FROM_EMAIL;
   if (!apiKey || !from) return { id: null, sent: false, error: "Welcome email is not configured" };
-
   const welcome = buildWelcomeEmail(input);
-  const response = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json", "Idempotency-Key": `apostolic-guide-welcome-${input.email}`.slice(0, 256) },
-    body: JSON.stringify({ from, to: [input.email], subject: welcome.subject, html: welcome.html, text: welcome.text, tags: [{ name: "category", value: "subscriber_welcome" }] })
-  });
-
+  const response = await fetch("https://api.resend.com/emails", { method: "POST", headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json", "Idempotency-Key": `apostolic-guide-welcome-${input.email}`.slice(0, 256) }, body: JSON.stringify({ from, to: [input.email], subject: welcome.subject, html: welcome.html, text: welcome.text, tags: [{ name: "category", value: "subscriber_welcome" }] }) });
   if (!response.ok) return { id: null, sent: false, error: await response.text() };
   const data = await response.json() as { id?: string };
   return { id: data.id ?? null, sent: true, error: null };
@@ -78,43 +63,20 @@ export async function POST(request: NextRequest) {
 
   const now = new Date().toISOString();
   const { data: existing } = await supabase.from("email_subscribers").select("id,status").eq("email", input.email).maybeSingle();
-  const subscriberPayload = {
-    email: input.email,
-    status: "subscribed",
-    wants_live_teachings: input.liveTeachings,
-    wants_new_articles: input.newArticles,
-    source: input.source,
-    signup_path: input.path,
-    last_signup_at: now,
-    updated_at: now,
-    ...(existing?.status === "subscribed" ? {} : { consented_at: now })
-  };
-
+  const subscriberPayload = { email: input.email, status: "subscribed", wants_live_teachings: input.liveTeachings, wants_new_articles: input.newArticles, source: input.source, signup_path: input.path, last_signup_at: now, updated_at: now, ...(existing?.status === "subscribed" ? {} : { consented_at: now }) };
   const { data: subscriber, error: databaseError } = await supabase.from("email_subscribers").upsert(subscriberPayload, { onConflict: "email" }).select("id,email").single();
-  if (databaseError || !subscriber) {
-    console.error("Subscriber database error", databaseError);
-    return NextResponse.json({ ok: false, message: "We could not save your signup. Please try again." }, { status: 500 });
-  }
+  if (databaseError || !subscriber) return NextResponse.json({ ok: false, message: "We could not save your signup. Please try again." }, { status: 500 });
+
+  const person = await supabase.from("people").select("id").eq("email", input.email).maybeSingle();
+  if (person.data?.id && input.anonymousId) await supabase.rpc("link_browser_identity", { p_person_id: person.data.id, p_anonymous_id: input.anonymousId });
+  if (person.data?.id) await supabase.from("person_events").upsert({ person_id: person.data.id, event_type: "email_subscribed", channel: "email", event_name: existing?.status === "subscribed" ? "Email preferences updated" : "Subscribed by email", external_event_id: `subscriber:${subscriber.id}:${existing?.status === "subscribed" ? "updated" : "joined"}`, metadata: { source: input.source, path: input.path }, occurred_at: now }, { onConflict: "external_event_id", ignoreDuplicates: true });
 
   const resendContact = await addResendContact(input);
   let segmentError: string | null = null;
-  try {
-    await syncContactSegments(input.email, { content: input.newArticles, media: input.liveTeachings });
-  } catch (error) {
-    segmentError = error instanceof Error ? error.message : "Segment sync failed";
-    console.error("Subscriber segment sync failed", segmentError);
-  }
-
+  try { await syncContactSegments(input.email, { content: input.newArticles, media: input.liveTeachings }); }
+  catch (error) { segmentError = error instanceof Error ? error.message : "Segment sync failed"; }
   const welcome = existing?.status === "subscribed" ? { id: null, sent: false, error: null } : await sendWelcomeEmail(input);
 
-  await supabase.from("email_subscribers").update({
-    resend_contact_id: resendContact.id,
-    resend_synced_at: resendContact.synced && !segmentError ? now : null,
-    resend_error: resendContact.error ?? segmentError ?? welcome.error,
-    welcome_email_id: welcome.id,
-    welcome_sent_at: welcome.sent ? now : null,
-    updated_at: now
-  }).eq("id", subscriber.id);
-
+  await supabase.from("email_subscribers").update({ resend_contact_id: resendContact.id, resend_synced_at: resendContact.synced && !segmentError ? now : null, resend_error: resendContact.error ?? segmentError ?? welcome.error, welcome_email_id: welcome.id, welcome_sent_at: welcome.sent ? now : null, updated_at: now }).eq("id", subscriber.id);
   return NextResponse.json({ ok: true, message: existing?.status === "subscribed" ? "Your preferences have been updated." : "Check your inbox for a welcome from Apostolic Guide." });
 }
