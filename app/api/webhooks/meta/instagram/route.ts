@@ -4,6 +4,7 @@ import { DEFAULT_META_VERIFY_TOKEN, processInstagramWebhook } from "@/social-mes
 import { verifyMetaWebhookSignature } from "@/meta-webhook-signature";
 import { ingestInstagramPeople } from "@/people-crm";
 import { ingestInstagramJourneys } from "@/social-journey-ingest";
+import { runDueJourneys } from "@/growth-journeys";
 
 export const runtime = "nodejs";
 
@@ -73,10 +74,11 @@ export async function POST(request: Request) {
   }
 
   try {
-    const [result, peopleRecorded, journeysEnrolled] = await Promise.all([
+    const [result, peopleRecorded, journeysEnrolled, dueJourneysRun] = await Promise.all([
       processInstagramWebhook(payload),
       ingestInstagramPeople(payload),
-      ingestInstagramJourneys(payload)
+      ingestInstagramJourneys(payload),
+      runDueJourneys(50)
     ]);
     await logIngress({
       method: "POST",
@@ -86,9 +88,9 @@ export async function POST(request: Request) {
       entryCount,
       parsedTriggerCount: result.processed,
       outcome: result.processed > 0 ? "processed" : "accepted_no_trigger",
-      detail: `sent=${result.sent}; people_recorded=${peopleRecorded}; journeys_enrolled=${journeysEnrolled}`
+      detail: `sent=${result.sent}; people_recorded=${peopleRecorded}; journeys_enrolled=${journeysEnrolled}; due_journeys=${dueJourneysRun}`
     });
-    return NextResponse.json({ ok: true, ...result, peopleRecorded, journeysEnrolled });
+    return NextResponse.json({ ok: true, ...result, peopleRecorded, journeysEnrolled, dueJourneysRun });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Webhook processing failed.";
     await logIngress({ method: "POST", signaturePresent: true, signatureValid: true, payloadObject, entryCount, outcome: "processing_failed", detail: message });
