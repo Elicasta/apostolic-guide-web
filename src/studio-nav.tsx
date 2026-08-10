@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, Bell, BookOpen, FileClock, FileText, HeartPulse, Inbox, Instagram, ListFilter, Mail, Route, Settings, Sparkles, UserCog, Users } from "lucide-react";
+import { useEffect, useState } from "react";
+import { BarChart3, Bell, BookOpen, FileClock, FileText, HeartPulse, Inbox, Instagram, ListFilter, Mail, Menu, Route, Settings, Sparkles, UserCog, Users, X } from "lucide-react";
 import { hasStudioPermission, type StudioPermission, type StudioRole } from "@/studio-permissions";
 
-const sections: Array<{ label: string; items: Array<{ href: string; label: string; icon: typeof BarChart3; permission: StudioPermission; exact?: boolean }> }> = [
+export const studioNavSections: Array<{ label: string; items: Array<{ href: string; label: string; icon: typeof BarChart3; permission: StudioPermission; exact?: boolean }> }> = [
   { label: "Workspace", items: [
     { href: "/admin", label: "Overview", icon: BarChart3, permission: "view_workspace", exact: true },
     { href: "/admin/growth", label: "Growth Hub", icon: Sparkles, permission: "view_workspace" },
@@ -39,20 +40,50 @@ function isActive(pathname: string, href: string, exact?: boolean) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export function StudioNav({ role }: { role: StudioRole }) {
+function NavigationSections({ role, onNavigate, mobile = false }: { role: StudioRole; onNavigate?: () => void; mobile?: boolean }) {
   const pathname = usePathname();
   return <>
-    {sections.map((section) => {
+    {studioNavSections.map((section) => {
       const visibleItems = section.items.filter((item) => hasStudioPermission(role, item.permission));
       if (!visibleItems.length) return null;
-      return <div className="studio-nav-group" key={section.label}>
+      return <div className={mobile ? "studio-mobile-nav-section" : "studio-nav-group"} key={section.label}>
         <div className="admin-nav-section">{section.label}</div>
-        {visibleItems.map((item) => {
-          const Icon = item.icon;
-          const active = isActive(pathname, item.href, item.exact);
-          return <Link className={active ? "is-active" : ""} aria-current={active ? "page" : undefined} href={item.href} key={item.href}><Icon size={17}/><span>{item.label}</span></Link>;
-        })}
+        <div className={mobile ? "studio-mobile-nav-items" : undefined}>
+          {visibleItems.map((item) => {
+            const Icon = item.icon;
+            const active = isActive(pathname, item.href, item.exact);
+            return <Link onClick={onNavigate} className={active ? "is-active" : ""} aria-current={active ? "page" : undefined} href={item.href} key={item.href}><Icon size={17}/><span>{item.label}</span></Link>;
+          })}
+        </div>
       </div>;
     })}
   </>;
+}
+
+export function StudioNav({ role }: { role: StudioRole }) {
+  return <NavigationSections role={role}/>;
+}
+
+export function StudioMobileNav({ role }: { role: StudioRole }) {
+  const pathname = usePathname();
+  const [open, setOpen] = useState(false);
+  useEffect(() => setOpen(false), [pathname]);
+  useEffect(() => {
+    if (!open) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = previous; };
+  }, [open]);
+
+  return <div className="studio-mobile-nav-root">
+    <button type="button" className="studio-mobile-menu-button" onClick={() => setOpen(true)} aria-label="Open Studio navigation" aria-expanded={open}><Menu size={20}/></button>
+    {open ? <>
+      <button type="button" className="studio-mobile-nav-backdrop" onClick={() => setOpen(false)} aria-label="Close navigation"/>
+      <aside className="studio-mobile-nav-drawer" aria-label="Studio navigation">
+        <div className="studio-mobile-nav-head"><div><strong>Studio</strong><span>Navigate workspace</span></div><button type="button" onClick={() => setOpen(false)} aria-label="Close navigation"><X size={20}/></button></div>
+        <div className="studio-mobile-nav-scroll"><NavigationSections role={role} mobile onNavigate={() => setOpen(false)}/></div>
+        <div className="studio-mobile-nav-footer"><Link href="/" onClick={() => setOpen(false)}>View public site</Link></div>
+      </aside>
+    </> : null}
+  </div>;
 }
