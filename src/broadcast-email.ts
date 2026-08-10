@@ -1,3 +1,5 @@
+import { buildApostolicEmail, escapeEmailHtml } from "./email-design";
+
 export type BroadcastCampaign = {
   type: "article" | "topic" | "answer" | "pathway" | "youtube" | "podcast" | "announcement";
   subject: string;
@@ -9,16 +11,6 @@ export type BroadcastCampaign = {
   url: string;
 };
 
-function escapeHtml(value: string) {
-  return value.replace(/[&<>"']/g, (character) => ({
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    '"': "&quot;",
-    "'": "&#039;"
-  }[character] ?? character));
-}
-
 function safeUrl(value: string) {
   try {
     const url = new URL(value);
@@ -28,63 +20,31 @@ function safeUrl(value: string) {
   }
 }
 
+function typeLabel(type: BroadcastCampaign["type"]) {
+  return ({ article: "New article", topic: "Study topic", answer: "Direct answer", pathway: "Scripture pathway", youtube: "New video", podcast: "New episode", announcement: "Apostolic Guide update" } as const)[type];
+}
+
 export function buildBroadcastEmail(campaign: BroadcastCampaign) {
-  const title = escapeHtml(campaign.title);
-  const summary = escapeHtml(campaign.summary);
-  const eyebrow = escapeHtml(campaign.eyebrow);
-  const cta = escapeHtml(campaign.ctaLabel);
   const url = safeUrl(campaign.url);
-  const preview = escapeHtml(campaign.previewText);
+  const summary = escapeEmailHtml(campaign.summary);
+  const type = escapeEmailHtml(typeLabel(campaign.type));
+  const bodyHtml = `
+    <div style="display:inline-block;margin-bottom:18px;padding:6px 9px;border:1px solid #dfe5e3;border-radius:999px;font-size:10px;line-height:14px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#68777d;">${type}</div>
+    <p style="margin:0;font-size:18px;line-height:30px;color:#536269;">${summary}</p>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;margin-top:28px;border-top:1px solid #e5e9e7;"><tr><td style="padding-top:22px;font-family:Georgia,'Times New Roman',serif;font-size:16px;line-height:25px;color:#536269;">Open the study, follow the passages in context, and keep the conversation anchored in Scripture.</td></tr></table>`;
 
-  const html = `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="X-UA-Compatible" content="IE=edge">
-  <title>${title}</title>
-</head>
-<body style="margin:0;padding:0;background-color:#f5f7f4;">
-  <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">${preview}</div>
-  <table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f5f7f4" style="width:100%;background-color:#f5f7f4;">
-    <tr>
-      <td align="center" style="padding-top:36px;padding-right:18px;padding-bottom:36px;padding-left:18px;">
-        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px;">
-          <tr>
-            <td style="padding-top:0;padding-right:4px;padding-bottom:18px;padding-left:4px;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:22px;color:#10202a;font-weight:700;letter-spacing:0.04em;">APOSTOLIC GUIDE</td>
-          </tr>
-          <tr>
-            <td bgcolor="#ffffff" style="background-color:#ffffff;border-radius:24px;padding-top:42px;padding-right:38px;padding-bottom:42px;padding-left:38px;">
-              <table width="100%" cellpadding="0" cellspacing="0" border="0">
-                <tr><td style="font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:18px;color:#a12d3d;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;padding-bottom:16px;">${eyebrow}</td></tr>
-                <tr><td style="font-family:Arial,Helvetica,sans-serif;font-size:38px;line-height:42px;color:#10202a;font-weight:800;letter-spacing:-0.03em;padding-bottom:18px;">${title}</td></tr>
-                <tr><td style="font-family:Arial,Helvetica,sans-serif;font-size:18px;line-height:29px;color:#66777d;padding-bottom:30px;">${summary}</td></tr>
-                <tr>
-                  <td style="padding-bottom:8px;">
-                    <table cellpadding="0" cellspacing="0" border="0">
-                      <tr>
-                        <td bgcolor="#a12d3d" style="background-color:#a12d3d;border-radius:999px;">
-                          <a href="${url}" style="display:inline-block;padding-top:14px;padding-right:24px;padding-bottom:14px;padding-left:24px;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:20px;color:#ffffff;text-decoration:none;font-weight:700;">${cta}</a>
-                        </td>
-                      </tr>
-                    </table>
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding-top:22px;padding-right:8px;padding-bottom:0;padding-left:8px;font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:19px;color:#78888e;">
-              You are receiving this because you subscribed to Apostolic Guide. <a href="{{{RESEND_UNSUBSCRIBE_URL}}}" style="font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:19px;color:#66777d;text-decoration:underline;">Unsubscribe</a>
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>`;
+  const designed = buildApostolicEmail({
+    subject: campaign.subject,
+    previewText: campaign.previewText,
+    eyebrow: campaign.eyebrow,
+    title: campaign.title,
+    intro: "A new resource from Apostolic Guide.",
+    bodyHtml,
+    cta: { label: campaign.ctaLabel, url },
+    footerNote: "Truth deserves to be understood, not merely repeated.",
+    unsubscribeUrl: "{{{RESEND_UNSUBSCRIBE_URL}}}"
+  });
 
-  const text = `${campaign.eyebrow}\n\n${campaign.title}\n\n${campaign.summary}\n\n${campaign.ctaLabel}: ${url}\n\nUnsubscribe: {{{RESEND_UNSUBSCRIBE_URL}}}`;
-  return { html, text };
+  const text = `${campaign.eyebrow}\n\n${campaign.title}\n\n${campaign.summary}\n\n${campaign.ctaLabel}: ${url}\n\nApostolic Guide\nScripture first. Study carefully. Follow the text.\n\nUnsubscribe: {{{RESEND_UNSUBSCRIBE_URL}}}`;
+  return { html: designed.html, text };
 }
