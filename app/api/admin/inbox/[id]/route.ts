@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getStudioPermission } from "@/auth";
-import { sendManualInstagramReply, updateConversationStatus } from "@/inbox";
+import { sendManualInboxReply, updateConversationStatus } from "@/inbox";
 import { recordStudioAudit } from "@/studio-audit";
 
 export const runtime = "nodejs";
@@ -22,9 +22,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (!parsed.success) return NextResponse.json({ error: "Invalid action" }, { status: 400 });
   try {
     if (parsed.data.action === "reply") {
-      const messageId = await sendManualInstagramReply(id, parsed.data.body);
-      await recordStudioAudit({ actorUserId: access.user.id, action: "inbox.reply_sent", resourceType: "inbox_conversation", resourceId: id, metadata: { message_id: messageId, body_length: parsed.data.body.length, channel: "instagram" } });
-      return NextResponse.json({ ok: true, messageId });
+      const result = await sendManualInboxReply(id, parsed.data.body);
+      await recordStudioAudit({ actorUserId: access.user.id, action: "inbox.reply_sent", resourceType: "inbox_conversation", resourceId: id, metadata: { message_id: result.messageId, body_length: parsed.data.body.length, channel: result.channel } });
+      return NextResponse.json({ ok: true, messageId: result.messageId, channel: result.channel });
     }
     await updateConversationStatus(id, parsed.data.status);
     await recordStudioAudit({ actorUserId: access.user.id, action: "inbox.status_changed", resourceType: "inbox_conversation", resourceId: id, metadata: { status: parsed.data.status } });
