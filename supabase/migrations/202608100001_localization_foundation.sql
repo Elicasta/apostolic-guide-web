@@ -70,8 +70,9 @@ begin
 end
 $$;
 
--- Locale-aware slug uniqueness is additive. It does not change existing source-system keys.
-create unique index if not exists content_items_locale_kind_slug_unique_idx
+-- Non-unique lookup index only. We intentionally do not tighten existing English
+-- uniqueness constraints during the localization rollout.
+create index if not exists content_items_locale_kind_slug_lookup_idx
 on content.items (locale, kind, slug)
 where deleted_at is null;
 
@@ -79,8 +80,5 @@ where deleted_at is null;
 -- "use current application behavior/default English" during the compatibility phase.
 alter table if exists public.profiles
   add column if not exists preferred_locale text;
-
--- If public.profiles is not part of a given environment, the statement above is a no-op
--- only when the table exists. Store anonymous locale preference in the app cookie layer.
 
 commit;
