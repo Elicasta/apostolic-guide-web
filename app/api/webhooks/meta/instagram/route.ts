@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/supabase";
-import { DEFAULT_META_VERIFY_TOKEN, processInstagramWebhook, verifyMetaSignature } from "@/social-messaging";
+import { DEFAULT_META_VERIFY_TOKEN, processInstagramWebhook } from "@/social-messaging";
+import { verifyMetaWebhookSignature } from "@/meta-webhook-signature";
 
 export const runtime = "nodejs";
 
@@ -65,7 +66,7 @@ export async function POST(request: Request) {
   const rawBody = await request.text();
   const secrets = await webhookSecrets();
   const signature = request.headers.get("x-hub-signature-256");
-  const signatureValid = verifyMetaSignature(rawBody, signature, secrets.appSecret);
+  const signatureValid = verifyMetaWebhookSignature(rawBody, signature, secrets.appSecret);
 
   if (!signatureValid) {
     await logIngress({
