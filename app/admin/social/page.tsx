@@ -1,4 +1,6 @@
+import { redirect } from "next/navigation";
 import { Activity, Instagram, MessageSquareReply, Send } from "lucide-react";
+import { getStudioPermission } from "@/auth";
 import { SocialAutomationManager, type SocialLinkSource } from "@/social-automation-manager";
 import { getInstagramConnection, listRecentSocialEvents, listSocialAutomations, socialMetrics } from "@/social-messaging";
 import { articles, answers, pathways, topics } from "@/data";
@@ -7,6 +9,8 @@ import { listAdminContent } from "@/database-content";
 function siteUrl(path: string) { return `https://apostolicguide.com${path}`; }
 
 export default async function SocialMessagingPage() {
+  const permission = await getStudioPermission("view_distribution");
+  if (!permission.allowed && permission.access.state !== "unconfigured") redirect("/admin");
   const [automations, connection, metrics, recentEvents, databaseItems] = await Promise.all([
     listSocialAutomations(),
     getInstagramConnection(),
