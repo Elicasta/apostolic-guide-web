@@ -154,7 +154,7 @@ export async function getInstagramConnection(): Promise<InstagramConnection> {
   const verifyToken = values.get(SECRET_NAMES.verifyToken) || DEFAULT_META_VERIFY_TOKEN;
   let status: Record<string, unknown> | null = null;
   if (service) {
-    const result = await service.schema("social").from("connection_status").select("*").eq("platform", "instagram").maybeSingle();
+    const result = await service.from("social_connection_status").select("*").eq("platform", "instagram").maybeSingle();
     status = result.data as Record<string, unknown> | null;
   }
   return {
@@ -200,7 +200,7 @@ export async function verifyAndSubscribeInstagram() {
     await graphFetch(`${encodeURIComponent(config.instagramUserId)}/subscribed_apps?subscribed_fields=messages,comments`, config, { method: "POST", body: "{}" });
     const now = new Date().toISOString();
     const username = typeof profile.username === "string" ? profile.username : null;
-    await service.schema("social").from("connection_status").upsert({
+    const { error } = await service.from("social_connection_status").upsert({
       platform: "instagram",
       instagram_user_id: config.instagramUserId,
       username,
@@ -210,10 +210,11 @@ export async function verifyAndSubscribeInstagram() {
       last_error: null,
       updated_at: now
     }, { onConflict: "platform" });
+    if (error) throw new Error(error.message);
     return { username, instagramUserId: config.instagramUserId, webhookSubscribed: true };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Instagram verification failed.";
-    await service.schema("social").from("connection_status").upsert({
+    await service.from("social_connection_status").upsert({
       platform: "instagram",
       instagram_user_id: config.instagramUserId,
       graph_version: config.graphVersion,
@@ -228,7 +229,11 @@ export async function verifyAndSubscribeInstagram() {
 export async function listSocialAutomations(): Promise<SocialAutomation[]> {
   const service = createServiceClient();
   if (!service) return [];
-  const { data } = await service.schema("social").from("automations").select("*").order("updated_at", { ascending: false });
+  const { data, error } = await service.from("social_automations").select("*").order("updated_at", { ascending: false });
+  if (error) {
+    console.error("Could not load social automations", error);
+    return [];
+  }
   return (data ?? []) as SocialAutomation[];
 }
 
@@ -238,10 +243,10 @@ export async function socialMetrics() {
   const start = new Date();
   start.setHours(0, 0, 0, 0);
   const [active, triggeredToday, sentToday, totalSent] = await Promise.all([
-    service.schema("social").from("automations").select("id", { count: "exact", head: true }).eq("enabled", true),
-    service.schema("social").from("events").select("id", { count: "exact", head: true }).gte("event_at", start.toISOString()).in("delivery_status", ["matched", "sent", "failed"]),
-    service.schema("social").from("events").select("id", { count: "exact", head: true }).gte("event_at", start.toISOString()).eq("delivery_status", "sent"),
-    service.schema("social").from("events").select("id", { count: "exact", head: true }).eq("delivery_status", "sent")
+    service.from("social_automations").select("id", { count: "exact", head: true }).eq("enabled", true),
+    service.from("social_events").select("id", { count: "exact", head: true }).gte("event_at", start.toISOString()).in("delivery_status", ["matched", "sent", "failed"]),
+    service.from("social_events").select("id", { count: "exact", head: true }).gte("event_at", start.toISOString()).eq("delivery_status", "sent"),
+    service.from("social_events").select("id", { count: "exact", head: true }).eq("delivery_status", "sent")
   ]);
   return { active: active.count ?? 0, triggeredToday: triggeredToday.count ?? 0, sentToday: sentToday.count ?? 0, totalSent: totalSent.count ?? 0 };
 }
@@ -249,9 +254,13 @@ export async function socialMetrics() {
 export async function listRecentSocialEvents(limit = 20) {
   const service = createServiceClient();
   if (!service) return [];
-  const { data } = await service.schema("social").from("events")
+  const { data, error } = await service.from("social_events")
     .select("id,automation_id,trigger_type,matched_keyword,delivery_status,source_media_id,event_at,error_code")
     .order("event_at", { ascending: false }).limit(limit);
+  if (error) {
+    console.error("Could not load social events", error);
+    return [];
+  }
   return data ?? [];
 }
 
@@ -316,15 +325,22 @@ export async function processInstagramWebhook(payload: unknown) {
   if (!config || !service) return { processed: 0, sent: 0 };
   const triggers = parseInstagramWebhook(payload);
   if (!triggers.length) return { processed: 0, sent: 0 };
-  await service.schema("social").from("connection_status").upsert({ platform: "instagram", last_webhook_at: new Date().toISOString(), updated_at: new Date().toISOString() }, { onConflict: "platform" });
+
+  await service.from("social_connection_status").upsert({
+    platform: "instagram",
+    last_webhook_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  }, { onConflict: "platform" });
+
   const automations = await listSocialAutomations();
   let sent = 0;
   for (const trigger of triggers) {
-    const existing = await service.schema("social").from("events").select("id").eq("external_event_id", trigger.externalEventId).maybeSingle();
+    const existing = await service.from("social_events").select("id").eq("external_event_id", trigger.externalEventId).maybeSingle();
     if (existing.data) continue;
+
     const match = findMatchingAutomation(trigger.text, automations.filter((item) => item.trigger_type === trigger.triggerType));
     if (!match) {
-      await service.schema("social").from("events").insert({
+      await service.from("social_events").insert({
         external_event_id: trigger.externalEventId,
         trigger_type: trigger.triggerType,
         source_media_id: trigger.mediaId,
@@ -333,10 +349,11 @@ export async function processInstagramWebhook(payload: unknown) {
       });
       continue;
     }
+
     try {
       const reply = buildSocialReply(match.automation.reply_text, match.automation.destination_url);
       const result = await sendInstagramReply(config, trigger, reply);
-      await service.schema("social").from("events").insert({
+      await service.from("social_events").insert({
         external_event_id: trigger.externalEventId,
         automation_id: match.automation.id,
         trigger_type: trigger.triggerType,
@@ -348,7 +365,7 @@ export async function processInstagramWebhook(payload: unknown) {
       });
       sent += 1;
     } catch (error) {
-      await service.schema("social").from("events").insert({
+      await service.from("social_events").insert({
         external_event_id: trigger.externalEventId,
         automation_id: match.automation.id,
         trigger_type: trigger.triggerType,
