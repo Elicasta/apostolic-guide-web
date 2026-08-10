@@ -3,6 +3,7 @@ import { createServiceClient } from "@/supabase";
 import { DEFAULT_META_VERIFY_TOKEN, processInstagramWebhook } from "@/social-messaging";
 import { verifyMetaWebhookSignature } from "@/meta-webhook-signature";
 import { ingestInstagramPeople } from "@/people-crm";
+import { ingestInstagramJourneys } from "@/social-journey-ingest";
 
 export const runtime = "nodejs";
 
@@ -72,9 +73,10 @@ export async function POST(request: Request) {
   }
 
   try {
-    const [result, peopleRecorded] = await Promise.all([
+    const [result, peopleRecorded, journeysEnrolled] = await Promise.all([
       processInstagramWebhook(payload),
-      ingestInstagramPeople(payload)
+      ingestInstagramPeople(payload),
+      ingestInstagramJourneys(payload)
     ]);
     await logIngress({
       method: "POST",
@@ -84,9 +86,9 @@ export async function POST(request: Request) {
       entryCount,
       parsedTriggerCount: result.processed,
       outcome: result.processed > 0 ? "processed" : "accepted_no_trigger",
-      detail: `sent=${result.sent}; people_recorded=${peopleRecorded}`
+      detail: `sent=${result.sent}; people_recorded=${peopleRecorded}; journeys_enrolled=${journeysEnrolled}`
     });
-    return NextResponse.json({ ok: true, ...result, peopleRecorded });
+    return NextResponse.json({ ok: true, ...result, peopleRecorded, journeysEnrolled });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Webhook processing failed.";
     await logIngress({ method: "POST", signaturePresent: true, signatureValid: true, payloadObject, entryCount, outcome: "processing_failed", detail: message });
