@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { ArrowRight, Route, Sparkles, Users } from "lucide-react";
-import { listJourneys } from "@/growth-journeys";
+import { listJourneys, runDueJourneys } from "@/growth-journeys";
 import { NewJourneyForm } from "@/journey-builder";
 
 export default async function JourneysPage() {
+  await runDueJourneys(100);
   const journeys = await listJourneys();
   const active = journeys.filter((j) => j.status === "active").length;
   const enrolled = journeys.reduce((sum, j) => sum + j.enrollment_count, 0);
