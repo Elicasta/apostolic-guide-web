@@ -1,10 +1,11 @@
 import { createServiceClient } from "./supabase";
 import type { Person } from "./people-crm";
+import { evaluateSegmentRuleSet, type CustomSegmentRule, type SegmentMatchMode } from "./segment-rules";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const ACTIVE_JOURNEY_STATES = ["active", "waiting", "paused"];
 
-export type SegmentCategory = "Lifecycle" | "Engagement" | "Channels" | "Follow-up" | "Journeys" | "Interests";
+export type SegmentCategory = "Lifecycle" | "Engagement" | "Channels" | "Follow-up" | "Journeys" | "Interests" | "Custom";
 
 export type SegmentDefinition = {
   key: string;
@@ -13,6 +14,17 @@ export type SegmentDefinition = {
   category: SegmentCategory;
   count: number;
   dynamic?: boolean;
+  customId?: string;
+};
+
+export type CustomSegmentRecord = {
+  id: string;
+  name: string;
+  description: string | null;
+  match_mode: SegmentMatchMode;
+  rules: CustomSegmentRule[];
+  created_at: string;
+  updated_at: string;
 };
 
 export type PersonSignals = {
@@ -122,12 +134,22 @@ export function emptyPersonSignals(): PersonSignals {
   return { identities: new Set(), tags: new Set(), journeyStatuses: new Set(), journeyStatusById: new Map(), unreadInbox: 0, followUpInbox: false, analytics: [] };
 }
 
+function parseCustomRules(value: unknown): CustomSegmentRule[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((row) => {
+    if (!row || typeof row !== "object") return [];
+    const raw = row as { segment_key?: unknown; negate?: unknown };
+    const segmentKey = typeof raw.segment_key === "string" ? raw.segment_key.trim() : "";
+    return segmentKey ? [{ segment_key: segmentKey, negate: raw.negate === true }] : [];
+  }).slice(0, 20);
+}
+
 export async function loadSegments() {
   const service = createServiceClient();
-  if (!service) return { definitions: [] as SegmentDefinition[], people: [] as SegmentedPerson[], memberIds: new Map<string, Set<string>>() };
+  if (!service) return { definitions: [] as SegmentDefinition[], people: [] as SegmentedPerson[], memberIds: new Map<string, Set<string>>(), customSegments: [] as CustomSegmentRecord[] };
 
   const thirtyDaysAgo = new Date(Date.now() - 30 * DAY_MS).toISOString();
-  const [peopleResult, identitiesResult, tagsResult, enrollmentResult, journeysResult, inboxResult, analyticsResult, browserIdentityResult] = await Promise.all([
+  const [peopleResult, identitiesResult, tagsResult, enrollmentResult, journeysResult, inboxResult, analyticsResult, browserIdentityResult, customResult] = await Promise.all([
     service.from("people").select("*").neq("status", "archived").order("last_seen_at", { ascending: false }).limit(5000),
     service.from("person_identities").select("person_id,provider"),
     service.from("person_tags").select("person_id,tag"),
@@ -135,7 +157,8 @@ export async function loadSegments() {
     service.from("growth_journeys").select("id,name,status").neq("status", "archived").order("name"),
     service.from("inbox_conversations").select("person_id,status,unread_count,last_message_at"),
     service.schema("analytics").from("events").select("person_id,event_name,occurred_at").not("person_id", "is", null).gte("occurred_at", thirtyDaysAgo).limit(10000),
-    service.from("person_browser_identities").select("person_id")
+    service.from("person_browser_identities").select("person_id"),
+    service.from("custom_segments").select("id,name,description,match_mode,rules,created_at,updated_at").order("updated_at", { ascending: false })
   ]);
 
   const people = (peopleResult.data ?? []) as Person[];
@@ -204,8 +227,35 @@ export async function loadSegments() {
     return { key, label: journey.name, description: "People currently active, waiting, or paused in this journey.", category: "Journeys", count: ids.size, dynamic: true };
   });
 
+  const customSegments: CustomSegmentRecord[] = (customResult.data ?? []).map((row) => ({
+    id: String(row.id),
+    name: String(row.name),
+    description: row.description ? String(row.description) : null,
+    match_mode: row.match_mode === "any" ? "any" : "all",
+    rules: parseCustomRules(row.rules),
+    created_at: String(row.created_at),
+    updated_at: String(row.updated_at)
+  }));
+
   const systemDefinitions = SYSTEM_SEGMENTS.map((definition) => ({ ...definition, count: memberIds.get(definition.key)?.size ?? 0 }));
-  const definitions = [...systemDefinitions, ...journeyDefinitions, ...interestDefinitions];
+  const baseDefinitions = [...systemDefinitions, ...journeyDefinitions, ...interestDefinitions];
+  const customDefinitions: SegmentDefinition[] = customSegments.map((segment) => {
+    const ids = new Set<string>();
+    for (const person of people) if (evaluateSegmentRuleSet(person.id, memberIds, segment.match_mode, segment.rules)) ids.add(person.id);
+    const key = `custom:${segment.id}`;
+    memberIds.set(key, ids);
+    return {
+      key,
+      label: segment.name,
+      description: segment.description || `${segment.match_mode === "all" ? "All" : "Any"} of ${segment.rules.length} saved conditions.`,
+      category: "Custom",
+      count: ids.size,
+      dynamic: true,
+      customId: segment.id
+    };
+  });
+
+  const definitions = [...customDefinitions, ...baseDefinitions];
   const segmentedPeople: SegmentedPerson[] = people.map((person) => {
     const current = ensure(person.id);
     const activeJourneyCount = [...current.journeyStatusById.values()].filter((statuses) => ACTIVE_JOURNEY_STATES.some((status) => statuses.has(status))).length;
@@ -218,7 +268,7 @@ export async function loadSegments() {
     };
   });
 
-  return { definitions, people: segmentedPeople, memberIds };
+  return { definitions, people: segmentedPeople, memberIds, customSegments };
 }
 
 export function segmentMembers(data: Awaited<ReturnType<typeof loadSegments>>, key: string) {
