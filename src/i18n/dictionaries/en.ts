@@ -1,0 +1,58 @@
+export const en = {
+  common: {
+    continue: "Continue",
+    back: "Back",
+    next: "Next",
+    previous: "Previous",
+    close: "Close",
+    share: "Share",
+    save: "Save",
+    saved: "Saved",
+    start: "Start",
+    explore: "Explore",
+    read: "Read",
+    learnMore: "Learn more",
+  },
+  nav: {
+    home: "Home",
+    search: "Search",
+    pathways: "Pathways",
+    topics: "Topics",
+    answers: "Answers",
+    scriptures: "Scriptures",
+    objections: "Objections",
+    library: "Library",
+    account: "Account",
+  },
+  pathways: {
+    singular: "Pathway",
+    plural: "Pathways",
+    start: "Start Pathway",
+    continue: "Continue Pathway",
+  },
+  scripture: {
+    related: "Related Scriptures",
+    supporting: "Supporting Scriptures",
+    key: "Key Scripture",
+    mainPoint: "Main Point",
+    whyItMatters: "Why It Matters",
+    apostolicConnection: "Apostolic Connection",
+    commonMisunderstanding: "Common Misunderstanding",
+    conversationUse: "How to Use This Verse",
+    readInContext: "Read in Context",
+  },
+  account: {
+    settings: "Settings",
+    language: "Language",
+    signIn: "Sign In",
+    signOut: "Sign Out",
+    createAccount: "Create Account",
+  },
+  errors: {
+    notFound: "We couldn't find that page.",
+    returnHome: "Return home",
+    unavailableInLanguage: "This content is not available in this language yet.",
+  },
+} as const;
+
+export type Dictionary = typeof en;
