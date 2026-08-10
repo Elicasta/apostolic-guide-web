@@ -1,29 +1,38 @@
-import { createSupabaseServerClient, isSupabaseConfigured } from "./supabase";
+import { createServiceClient, createSupabaseServerClient, isSupabaseConfigured } from "./supabase";
+import { hasStudioPermission, normalizeStudioRole, permissionsForRole, type StudioPermission, type StudioRole } from "./studio-roles";
 
 export async function getAdminAccess() {
-  if (!isSupabaseConfigured()) return { state: "unconfigured" as const, user: null };
+  if (!isSupabaseConfigured()) return { state: "unconfigured" as const, user: null, role: null as StudioRole | null, permissions: [] as StudioPermission[] };
   const supabase = await createSupabaseServerClient();
-  if (!supabase) return { state: "unconfigured" as const, user: null };
+  if (!supabase) return { state: "unconfigured" as const, user: null, role: null as StudioRole | null, permissions: [] as StudioPermission[] };
 
   const { data } = await supabase.auth.getUser();
   const user = data.user;
-  if (!user) return { state: "signed_out" as const, user: null };
+  if (!user) return { state: "signed_out" as const, user: null, role: null as StudioRole | null, permissions: [] as StudioPermission[] };
 
   const allowedEmails = (process.env.ADMIN_EMAILS ?? "")
     .split(",").map((value) => value.trim().toLowerCase()).filter(Boolean);
-  const metadataRole = typeof user.app_metadata?.role === "string" ? user.app_metadata.role : "";
+  const service = createServiceClient();
+  let role: StudioRole | null = null;
 
-  let databaseRole = false;
-  try {
-    const { data: roles } = await supabase.schema("platform").from("user_roles").select("role").eq("user_id", user.id);
-    databaseRole = Boolean(roles?.some((row: { role: string }) => ["editor", "publisher", "admin"].includes(row.role)));
-  } catch {}
+  if (service) {
+    try {
+      const { data: member } = await service.from("studio_members").select("role").eq("user_id", user.id).maybeSingle();
+      role = normalizeStudioRole(member?.role);
+    } catch {}
+  }
 
-  const allowed = ["editor", "publisher", "admin"].includes(metadataRole)
-    || databaseRole
-    || Boolean(user.email && allowedEmails.includes(user.email.toLowerCase()));
+  if (!role) {
+    const metadataRole = normalizeStudioRole(user.app_metadata?.role);
+    if (metadataRole) role = metadataRole;
+    else if (user.email && allowedEmails.includes(user.email.toLowerCase())) role = "owner";
+  }
 
-  return allowed
-    ? { state: "allowed" as const, user: { id: user.id, email: user.email } }
-    : { state: "forbidden" as const, user: { id: user.id, email: user.email } };
+  if (!role) return { state: "forbidden" as const, user: { id: user.id, email: user.email }, role: null as StudioRole | null, permissions: [] as StudioPermission[] };
+  return { state: "allowed" as const, user: { id: user.id, email: user.email }, role, permissions: permissionsForRole(role) };
+}
+
+export async function getStudioPermission(permission: StudioPermission) {
+  const access = await getAdminAccess();
+  return { access, allowed: access.state === "allowed" && hasStudioPermission(access.role, permission) };
 }
