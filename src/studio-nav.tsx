@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, BookOpen, FileText, Inbox, Instagram, ListFilter, Mail, Route, Settings, Sparkles, Users } from "lucide-react";
+import { BarChart3, Bell, BookOpen, FileText, Inbox, Instagram, ListFilter, Mail, Route, Settings, Sparkles, Users } from "lucide-react";
 
 const sections = [
   { label: "Workspace", items: [
     { href: "/admin", label: "Overview", icon: BarChart3, exact: true },
-    { href: "/admin/growth", label: "Growth Hub", icon: Sparkles }
+    { href: "/admin/growth", label: "Growth Hub", icon: Sparkles },
+    { href: "/admin/notifications", label: "Notifications", icon: Bell }
   ]},
   { label: "Relationships", items: [
     { href: "/admin/people", label: "People", icon: Users },
