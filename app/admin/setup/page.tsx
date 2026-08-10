@@ -1,12 +1,17 @@
+import { redirect } from "next/navigation";
+import { getStudioPermission } from "@/auth";
+
 const checks = [
   ["NEXT_PUBLIC_SUPABASE_URL", Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL)],
   ["NEXT_PUBLIC_SUPABASE_ANON_KEY", Boolean(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)],
-  ["SUPABASE_SERVICE_ROLE_KEY", Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY)],
+  ["SUPABASE_SERVICE_ROLE_KEY", Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY)],
   ["NEXT_PUBLIC_WEBSITE_URL", Boolean(process.env.NEXT_PUBLIC_WEBSITE_URL)],
   ["NEXT_PUBLIC_APP_URL", Boolean(process.env.NEXT_PUBLIC_APP_URL)]
 ] as const;
 
-export default function AdminSetupPage() {
+export default async function AdminSetupPage() {
+  const permission = await getStudioPermission("manage_integrations");
+  if (!permission.allowed && permission.access.state !== "unconfigured") redirect("/admin");
   return (
     <>
       <span className="eyebrow">Deployment readiness</span>
@@ -18,7 +23,7 @@ export default function AdminSetupPage() {
       </section>
       <section className="admin-card">
         <h2>Launch order</h2>
-        <ol className="admin-list"><li>Connect the GitHub repository to Vercel.</li><li>Add production environment variables.</li><li>Run Migration 001 against a Supabase branch first.</li><li>Deploy the app reader v2.</li><li>Enable app publishing from this admin.</li><li>Point the apex domain to this Vercel project.</li></ol>
+        <ol className="admin-list"><li>Connect the GitHub repository to Vercel.</li><li>Add production environment variables.</li><li>Run migrations against a Supabase branch first.</li><li>Deploy the app reader.</li><li>Enable app publishing from this admin.</li><li>Point the apex domain to this Vercel project.</li></ol>
       </section>
     </>
   );
