@@ -2,7 +2,7 @@ import { buildSocialReply, findMatchingAutomation, getInstagramConfig, listSocia
 import { createServiceClient } from "./supabase";
 import { recordPersonEvent, upsertInstagramPerson } from "./people-crm";
 
-function attributedDestination(destinationUrl: string | null | undefined, token: string | null | undefined) {
+export function attributedDestination(destinationUrl: string | null | undefined, token: string | null | undefined) {
   const raw = destinationUrl?.trim();
   if (!raw) return null;
   if (!token) return raw;
@@ -64,6 +64,7 @@ export async function processInstagramWebhookAttributed(payload: unknown) {
     const person = trigger.senderId
       ? await upsertInstagramPerson({ instagramUserId: trigger.senderId, sourceDetail: trigger.triggerType === "comment_keyword" ? "instagram_comment" : "instagram_dm", seenAt: trigger.eventAt })
       : null;
+    const personWithToken = person as (typeof person & { attribution_token?: string | null });
 
     if (!match) {
       await service.from("social_events").insert({
@@ -77,7 +78,7 @@ export async function processInstagramWebhookAttributed(payload: unknown) {
       continue;
     }
 
-    const destinationUrl = attributedDestination(match.automation.destination_url, person?.attribution_token ?? null);
+    const destinationUrl = attributedDestination(match.automation.destination_url, personWithToken?.attribution_token ?? null);
 
     try {
       const recipient = trigger.triggerType === "comment_keyword" ? { comment_id: trigger.commentId } : { id: trigger.senderId };
