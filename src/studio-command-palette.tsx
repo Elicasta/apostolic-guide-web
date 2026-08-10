@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type ComponentType } from "react";
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { useRouter } from "next/navigation";
-import { Activity, BarChart3, Bell, BookOpen, FileText, HeartHandshake, Inbox, Instagram, ListFilter, Mail, Route, Search, Settings, ShieldCheck, Sparkles, UserCog, Users } from "lucide-react";
+import { Activity, BarChart3, Bell, BookOpen, FileText, HeartHandshake, Inbox, Instagram, ListFilter, Mail, Route, Search, Settings, ShieldCheck, Sparkles, UserCog, Users, type LucideIcon } from "lucide-react";
 import { hasStudioPermission, type StudioPermission, type StudioRole } from "@/studio-permissions";
 
 type SearchResult = {
@@ -13,7 +13,7 @@ type SearchResult = {
   href: string;
 };
 
-type PaletteItem = SearchResult & { Icon: ComponentType<{ size?: number }> };
+type PaletteItem = SearchResult & { Icon: LucideIcon };
 
 type StaticCommand = {
   id: string;
@@ -21,7 +21,7 @@ type StaticCommand = {
   description: string;
   href: string;
   permission: StudioPermission;
-  Icon: ComponentType<{ size?: number }>;
+  Icon: LucideIcon;
 };
 
 const staticCommands: StaticCommand[] = [
@@ -42,7 +42,7 @@ const staticCommands: StaticCommand[] = [
   { id: "setup", label: "Setup", description: "Open Studio configuration", href: "/admin/setup", permission: "manage_integrations", Icon: Settings }
 ];
 
-function iconForType(type: SearchResult["type"]) {
+function iconForType(type: SearchResult["type"]): LucideIcon {
   if (type === "person") return Users;
   if (type === "journey") return Route;
   if (type === "pathway") return ListFilter;
@@ -122,7 +122,7 @@ export function StudioCommandPalette({ role }: { role: StudioRole }) {
     router.push(item.href);
   }
 
-  function onKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
+  function onKeyDown(event: ReactKeyboardEvent<HTMLInputElement>) {
     if (!items.length) return;
     if (event.key === "ArrowDown") { event.preventDefault(); setActiveIndex((index) => (index + 1) % items.length); }
     if (event.key === "ArrowUp") { event.preventDefault(); setActiveIndex((index) => (index - 1 + items.length) % items.length); }
