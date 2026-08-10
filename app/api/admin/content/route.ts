@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getStudioPermission } from "@/auth";
 import { createServiceClient } from "@/supabase";
+import { recordStudioAudit } from "@/studio-audit";
 
 const schema = z.object({
   kind: z.enum(["article", "answer", "topic"]),
@@ -33,5 +34,6 @@ export async function POST(request: Request) {
   });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+  await recordStudioAudit({ actorUserId: access.user.id, action: parsed.data.publishWebsite ? "content.created_and_published" : "content.created", resourceType: "content", metadata: { kind: parsed.data.kind, title: parsed.data.title, slug: parsed.data.slug, channel: parsed.data.publishWebsite ? "website" : "draft" } });
   return NextResponse.json({ item: data });
 }
