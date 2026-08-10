@@ -1,8 +1,11 @@
 import type { IntelligenceSignal, StudioIntelligenceSnapshot } from "./intelligence-engine";
 
+export type AIContextMode = "aggregate" | "content_discovery";
+
 export type AIInterpretationContext = {
   schemaVersion: "apostolic-guide-intelligence-v1";
   generatedAt: string;
+  mode: AIContextMode;
   policy: {
     deterministicSourceOfTruth: true;
     mayRephrase: true;
@@ -11,7 +14,8 @@ export type AIInterpretationContext = {
     mayOverrideRules: false;
     containsPrivateMessageBodies: false;
     containsPrivateNotes: false;
-    containsDirectPII: false;
+    containsDirectIdentifiers: false;
+    containsUserAuthoredSearchText: boolean;
   };
   metrics: StudioIntelligenceSnapshot["metrics"];
   trends: StudioIntelligenceSnapshot["trends"];
@@ -37,10 +41,36 @@ export type AIInterpretationProvider = {
   interpret(context: AIInterpretationContext): Promise<Omit<AIInterpretation, "mode" | "provider">>;
 };
 
-export function buildAIInterpretationContext(snapshot: StudioIntelligenceSnapshot): AIInterpretationContext {
+function safeSignalForAI(signal: IntelligenceSignal, includeSearchText: boolean) {
+  const searchRule = signal.ruleId === "content.rising_exact_search" || signal.ruleId === "content.search_gaps";
+  if (!searchRule || includeSearchText) {
+    return {
+      ruleId: signal.ruleId,
+      category: signal.category,
+      priority: signal.priority,
+      title: signal.title,
+      summary: signal.summary,
+      evidence: signal.evidence,
+      action: signal.action
+    };
+  }
+  return {
+    ruleId: signal.ruleId,
+    category: signal.category,
+    priority: signal.priority,
+    title: signal.ruleId === "content.search_gaps" ? "Search coverage gaps are present" : "Search interest is rising",
+    summary: "Exact user-authored search text is withheld in aggregate AI context. Use content_discovery mode only when semantic analysis of search language is explicitly needed.",
+    evidence: signal.evidence,
+    action: signal.action
+  };
+}
+
+export function buildAIInterpretationContext(snapshot: StudioIntelligenceSnapshot, mode: AIContextMode = "aggregate"): AIInterpretationContext {
+  const includeSearchText = mode === "content_discovery";
   return {
     schemaVersion: "apostolic-guide-intelligence-v1",
     generatedAt: snapshot.generatedAt,
+    mode,
     policy: {
       deterministicSourceOfTruth: true,
       mayRephrase: true,
@@ -49,21 +79,14 @@ export function buildAIInterpretationContext(snapshot: StudioIntelligenceSnapsho
       mayOverrideRules: false,
       containsPrivateMessageBodies: false,
       containsPrivateNotes: false,
-      containsDirectPII: false
+      containsDirectIdentifiers: false,
+      containsUserAuthoredSearchText: includeSearchText
     },
     metrics: snapshot.metrics,
     trends: snapshot.trends,
-    contentGaps: snapshot.contentGaps,
-    risingSearches: snapshot.risingSearches,
-    signals: snapshot.signals.slice(0, 20).map((signal) => ({
-      ruleId: signal.ruleId,
-      category: signal.category,
-      priority: signal.priority,
-      title: signal.title,
-      summary: signal.summary,
-      evidence: signal.evidence,
-      action: signal.action
-    })),
+    contentGaps: includeSearchText ? snapshot.contentGaps : [],
+    risingSearches: includeSearchText ? snapshot.risingSearches : [],
+    signals: snapshot.signals.slice(0, 20).map((signal) => safeSignalForAI(signal, includeSearchText)),
     study: {
       pathways: snapshot.pathwayIntelligence.slice(0, 12).map((row) => ({ slug: row.slug, title: row.title, uniqueSessions: row.uniqueSessions, averageProgress: row.averageProgress, reachedFinalStep: row.reachedFinalStep, appTransitions: row.appTransitions })),
       articles: snapshot.articleIntelligence.slice(0, 12).map((row) => ({ slug: row.slug, title: row.title, uniqueSessions: row.uniqueSessions, completionRate: row.completionRate, appTransitions: row.appTransitions }))
@@ -88,10 +111,10 @@ function deterministicInterpretation(snapshot: StudioIntelligenceSnapshot): AIIn
   };
 }
 
-export async function interpretStudioIntelligence(snapshot: StudioIntelligenceSnapshot, provider?: AIInterpretationProvider | null): Promise<AIInterpretation> {
+export async function interpretStudioIntelligence(snapshot: StudioIntelligenceSnapshot, provider?: AIInterpretationProvider | null, contextMode: AIContextMode = "aggregate"): Promise<AIInterpretation> {
   if (!provider) return deterministicInterpretation(snapshot);
   try {
-    const result = await provider.interpret(buildAIInterpretationContext(snapshot));
+    const result = await provider.interpret(buildAIInterpretationContext(snapshot, contextMode));
     return { mode: "ai", provider: provider.name, ...result };
   } catch {
     return deterministicInterpretation(snapshot);
