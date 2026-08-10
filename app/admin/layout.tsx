@@ -10,6 +10,7 @@ import "./people.css";
 import "./journeys.css";
 import "./relationship.css";
 import "./inbox.css";
+import "./studio-system.css";
 
 export const dynamic = "force-dynamic";
 
@@ -27,16 +28,25 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       </header>
       <div className="admin-shell">
         <nav className="admin-nav" aria-label="Admin navigation">
+          <div className="admin-nav-section">Workspace</div>
           <Link href="/admin"><BarChart3 size={17} /> Overview</Link>
           <Link href="/admin/growth"><Sparkles size={17} /> Growth Hub</Link>
+
+          <div className="admin-nav-section">Relationships</div>
           <Link href="/admin/people"><Users size={17} /> People</Link>
           <Link href="/admin/inbox"><Inbox size={17} /> Inbox</Link>
           <Link href="/admin/journeys"><Route size={17} /> Journeys</Link>
+
+          <div className="admin-nav-section">Publishing</div>
           <Link href="/admin/content"><FileText size={17} /> Website content</Link>
           <Link href="/admin/app-content"><BookOpen size={17} /> App content</Link>
+
+          <div className="admin-nav-section">Distribution</div>
           <Link href="/admin/broadcasts"><Mail size={17} /> Broadcasts</Link>
           <Link href="/admin/social"><Instagram size={17} /> Social automations</Link>
           <Link href="/admin/analytics"><BarChart3 size={17} /> Analytics</Link>
+
+          <div className="admin-nav-section">System</div>
           <Link href="/admin/setup"><Settings size={17} /> Setup</Link>
           <form action="/auth/signout" method="post"><button className="admin-signout" type="submit"><LogOut size={17} /> Sign out</button></form>
         </nav>
