@@ -29,18 +29,21 @@ test("aggregate AI context withholds identifiers, private bodies, and user-autho
   assert.equal(context.policy.mayInventMetrics, false);
   assert.equal(context.policy.containsPrivateMessageBodies, false);
   assert.equal(context.policy.containsPrivateNotes, false);
-  assert.equal(context.policy.containsDirectIdentifiers, false);
+  assert.equal(context.policy.includesSystemDirectIdentifiers, false);
   assert.equal(context.policy.containsUserAuthoredSearchText, false);
+  assert.equal(context.policy.userAuthoredSearchTextMayContainSensitiveData, false);
   assert.equal(serialized.includes("person-private"), false);
   assert.equal(serialized.includes("conversation-private"), false);
   assert.equal(serialized.includes("session-private"), false);
   assert.equal(serialized.toLowerCase().includes("john 17 5"), false);
 });
 
-test("content discovery mode explicitly includes search language without adding direct identifiers", () => {
+test("content discovery mode explicitly includes search language and marks its sensitivity boundary", () => {
   const context = buildAIInterpretationContext(snapshot(), "content_discovery");
   const serialized = JSON.stringify(context);
   assert.equal(context.policy.containsUserAuthoredSearchText, true);
+  assert.equal(context.policy.userAuthoredSearchTextMayContainSensitiveData, true);
+  assert.equal(context.policy.includesSystemDirectIdentifiers, false);
   assert.equal(serialized.toLowerCase().includes("john 17 5"), true);
   assert.equal(serialized.includes("person-private"), false);
   assert.equal(serialized.includes("conversation-private"), false);
