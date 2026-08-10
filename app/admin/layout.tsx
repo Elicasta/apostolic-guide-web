@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { BarChart3, BookOpen, FileText, Home, Inbox, Instagram, LogOut, Mail, Route, Settings, Sparkles, Users } from "lucide-react";
+import { Home, LogOut } from "lucide-react";
 import { getAdminAccess } from "@/auth";
+import { StudioNav } from "@/studio-nav";
 import "./publishing.css";
 import "./campaign-intelligence.css";
 import "./social-messaging.css";
@@ -23,32 +24,18 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   return (
     <div className="admin-layout">
       <header className="admin-header">
-        <div><strong>APOSTOLIC GUIDE</strong><span>Studio</span></div>
-        <div><span>{access.user?.email ?? "Local setup mode"}</span><Link href="/"><Home size={17} /> View site</Link></div>
+        <Link className="studio-brand" href="/admin" aria-label="Apostolic Guide Studio home">
+          <span className="studio-brand-mark">AG</span>
+          <span className="studio-brand-copy"><strong>Apostolic Guide</strong><small>Studio</small></span>
+        </Link>
+        <div className="studio-header-actions"><span className="studio-user-email">{access.user?.email ?? "Local setup mode"}</span><Link className="studio-view-site" href="/"><Home size={16} /> View site</Link></div>
       </header>
       <div className="admin-shell">
         <nav className="admin-nav" aria-label="Admin navigation">
-          <div className="admin-nav-section">Workspace</div>
-          <Link href="/admin"><BarChart3 size={17} /> Overview</Link>
-          <Link href="/admin/growth"><Sparkles size={17} /> Growth Hub</Link>
-
-          <div className="admin-nav-section">Relationships</div>
-          <Link href="/admin/people"><Users size={17} /> People</Link>
-          <Link href="/admin/inbox"><Inbox size={17} /> Inbox</Link>
-          <Link href="/admin/journeys"><Route size={17} /> Journeys</Link>
-
-          <div className="admin-nav-section">Publishing</div>
-          <Link href="/admin/content"><FileText size={17} /> Website content</Link>
-          <Link href="/admin/app-content"><BookOpen size={17} /> App content</Link>
-
-          <div className="admin-nav-section">Distribution</div>
-          <Link href="/admin/broadcasts"><Mail size={17} /> Broadcasts</Link>
-          <Link href="/admin/social"><Instagram size={17} /> Social automations</Link>
-          <Link href="/admin/analytics"><BarChart3 size={17} /> Analytics</Link>
-
-          <div className="admin-nav-section">System</div>
-          <Link href="/admin/setup"><Settings size={17} /> Setup</Link>
-          <form action="/auth/signout" method="post"><button className="admin-signout" type="submit"><LogOut size={17} /> Sign out</button></form>
+          <StudioNav />
+          <div className="studio-nav-group studio-nav-account">
+            <form action="/auth/signout" method="post"><button className="admin-signout" type="submit"><LogOut size={17} /><span>Sign out</span></button></form>
+          </div>
         </nav>
         <div className="admin-main">
           {!configured && <div className="admin-notice"><strong>Setup mode.</strong> Add Supabase environment variables before using authentication or publishing.</div>}
