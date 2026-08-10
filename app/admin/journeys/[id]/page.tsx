@@ -1,10 +1,13 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { ArrowLeft, Clock3, Users } from "lucide-react";
+import { getStudioPermission } from "@/auth";
 import { getJourney } from "@/growth-journeys";
 import { JourneyEditor } from "@/journey-builder";
 
 export default async function JourneyPage({ params }: { params: Promise<{ id: string }> }) {
+  const permission = await getStudioPermission("view_journeys");
+  if (!permission.allowed && permission.access.state !== "unconfigured") redirect("/admin");
   const { id } = await params;
   const record = await getJourney(id);
   if (!record) notFound();
