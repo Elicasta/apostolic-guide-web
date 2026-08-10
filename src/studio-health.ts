@@ -57,6 +57,9 @@ export async function getStudioHealth() {
     const notifications = await countQuery(() => service.from("studio_notifications").select("id", { count: "exact", head: true }).is("read_at", null));
     checks.push({ key: "notifications", label: "Notifications", state: notifications.ok ? "healthy" : "error", summary: notifications.ok ? "Studio notification storage is responding." : "Notification storage is unavailable.", detail: notifications.error ?? undefined, metric: notifications.ok ? `${notifications.count} unread` : undefined, href: "/admin/notifications" });
 
+    const audit = await countQuery(() => service.from("studio_audit_events").select("id", { count: "exact", head: true }));
+    checks.push({ key: "audit", label: "Audit Log", state: audit.ok ? "healthy" : "error", summary: audit.ok ? "Privileged action logging storage is responding." : "Audit Log storage is unavailable.", detail: audit.error ?? undefined, metric: audit.ok ? `${audit.count} events` : undefined, href: "/admin/audit" });
+
     try {
       const { count, error } = await service.schema("analytics").from("email_campaigns").select("id", { count: "exact", head: true }).eq("status", "failed");
       const failed = count ?? 0;
