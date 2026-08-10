@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getStudioPermission } from "@/auth";
 import { appPayloadSchemas, type AppEntityType } from "@/app-content-contracts";
 import { createSupabaseServerClient } from "@/supabase";
+import { recordStudioAudit } from "@/studio-audit";
 
 const basePayload = z.record(z.string(), z.unknown());
 const requestSchema = z.object({
@@ -16,7 +17,7 @@ const requestSchema = z.object({
 
 export async function POST(request: Request) {
   const { access, allowed } = await getStudioPermission("manage_content");
-  if (!allowed || access.state !== "allowed") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!allowed || access.state !== "allowed" || !access.user) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const parsed = requestSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Invalid request" }, { status: 400 });
@@ -45,5 +46,6 @@ export async function POST(request: Request) {
   });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+  await recordStudioAudit({ actorUserId: access.user.id, action: `app_content.${parsed.data.status}`, resourceType: "content", resourceId: parsed.data.sourceContentItemId, metadata: { entity_type: entityType, entity_id: parsed.data.entityId, status: parsed.data.status, schema_version: parsed.data.schemaVersion, channel: "app" } });
   return NextResponse.json({ record: data });
 }
