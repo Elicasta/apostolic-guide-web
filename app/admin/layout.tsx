@@ -18,6 +18,7 @@ import "./segments.css";
 import "./notifications.css";
 import "./studio-system.css";
 import "./system.css";
+import "./system-polish.css";
 
 export const dynamic = "force-dynamic";
 
