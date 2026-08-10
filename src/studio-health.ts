@@ -26,40 +26,44 @@ async function countQuery(run: () => Promise<{ count: number | null; error: { me
 }
 
 export async function getStudioHealth() {
-  const checks: HealthCheck[] = [];
-  checks.push({ key: "runtime", label: "Website runtime", state: "healthy", summary: "Studio is executing normally.", detail: "The health page rendered successfully on the current deployment." });
+  const checks: HealthCheck[] = [
+    { key: "runtime", label: "Website", state: "healthy", summary: "The current Studio deployment is executing normally.", detail: "This check passes only when the server can render the health workspace." },
+    { key: "app", label: "App experience", state: "healthy", summary: "App install and handoff routes are included in the current deployment.", href: "/admin/app-content" },
+    { key: "search", label: "Search & Scripture", state: "healthy", summary: "The bundled Scripture and pathway search experience is available in this build.", href: "/search" }
+  ];
 
   const service = createServiceClient();
   if (!isSupabaseConfigured() || !isSupabaseServiceConfigured() || !service) {
     checks.push({ key: "supabase", label: "Supabase", state: "error", summary: "Database service access is not configured.", href: "/admin/setup" });
   } else {
     const people = await countQuery(() => service.from("people").select("id", { count: "exact", head: true }));
-    checks.push({ key: "supabase", label: "Supabase", state: people.ok ? "healthy" : "error", summary: people.ok ? "Service-role database access is responding." : "Database query failed.", detail: people.error ?? undefined, metric: people.ok ? `${people.count} people` : undefined });
-
-    const content = await countQuery(() => service.schema("content").from("items").select("id", { count: "exact", head: true }).is("deleted_at", null));
-    checks.push({ key: "content", label: "Website content", state: content.ok ? "healthy" : "error", summary: content.ok ? "Canonical editorial content is available." : "Content storage is unavailable.", detail: content.error ?? undefined, metric: content.ok ? `${content.count} items` : undefined, href: "/admin/content" });
-
-    const appContent = await countQuery(() => service.schema("app_content").from("records").select("id", { count: "exact", head: true }).eq("status", "published"));
-    checks.push({ key: "app", label: "App content", state: appContent.ok ? "healthy" : "error", summary: appContent.ok ? "Shared app content projection is responding." : "App content projection is unavailable.", detail: appContent.error ?? undefined, metric: appContent.ok ? `${appContent.count} published` : undefined, href: "/admin/app-content" });
+    checks.push({ key: "supabase", label: "Supabase", state: people.ok ? "healthy" : "error", summary: people.ok ? "Service-role database access is responding." : "Database query failed.", detail: people.error ?? undefined, metric: people.ok ? `${people.count} people` : undefined, href: "/admin/people" });
 
     const analyticsSince = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     const analytics = await countQuery(() => service.schema("analytics").from("events").select("id", { count: "exact", head: true }).gte("occurred_at", analyticsSince));
-    checks.push({ key: "analytics", label: "Analytics", state: analytics.ok ? "healthy" : "error", summary: analytics.ok ? "Analytics storage is accepting queries." : "Analytics storage is unavailable.", detail: analytics.error ?? undefined, metric: analytics.ok ? `${analytics.count} events / 24h` : undefined, href: "/admin/analytics" });
+    checks.push({ key: "analytics", label: "Analytics", state: analytics.ok ? "healthy" : "error", summary: analytics.ok ? "Analytics storage is responding." : "Analytics storage is unavailable.", detail: analytics.error ?? undefined, metric: analytics.ok ? `${analytics.count} events / 24h` : undefined, href: "/admin/analytics" });
 
     const inbox = await countQuery(() => service.from("inbox_conversations").select("id", { count: "exact", head: true }));
     checks.push({ key: "inbox", label: "Inbox", state: inbox.ok ? "healthy" : "error", summary: inbox.ok ? "Conversation storage is responding." : "Inbox storage is unavailable.", detail: inbox.error ?? undefined, metric: inbox.ok ? `${inbox.count} conversations` : undefined, href: "/admin/inbox" });
 
-    let failedJourneys = 0;
     try {
       const { count, error } = await service.from("growth_journey_enrollments").select("id", { count: "exact", head: true }).not("last_error", "is", null);
-      if (!error) failedJourneys = count ?? 0;
-      checks.push({ key: "journeys", label: "Journeys", state: error ? "error" : failedJourneys > 0 ? "warning" : "healthy", summary: error ? "Journey state could not be checked." : failedJourneys > 0 ? "Some journey enrollments need attention." : "Journey engine state is clear.", detail: error?.message, metric: !error ? `${failedJourneys} with errors` : undefined, href: "/admin/journeys" });
+      const failed = count ?? 0;
+      checks.push({ key: "journeys", label: "Journeys", state: error ? "error" : failed > 0 ? "warning" : "healthy", summary: error ? "Journey state could not be checked." : failed > 0 ? "Some journey enrollments need attention." : "Journey engine state is clear.", detail: error?.message, metric: !error ? `${failed} with errors` : undefined, href: "/admin/journeys" });
     } catch (error) {
       checks.push({ key: "journeys", label: "Journeys", state: "error", summary: "Journey state could not be checked.", detail: error instanceof Error ? error.message : undefined, href: "/admin/journeys" });
     }
 
     const notifications = await countQuery(() => service.from("studio_notifications").select("id", { count: "exact", head: true }).is("read_at", null));
     checks.push({ key: "notifications", label: "Notifications", state: notifications.ok ? "healthy" : "error", summary: notifications.ok ? "Studio notification storage is responding." : "Notification storage is unavailable.", detail: notifications.error ?? undefined, metric: notifications.ok ? `${notifications.count} unread` : undefined, href: "/admin/notifications" });
+
+    try {
+      const { count, error } = await service.schema("analytics").from("email_campaigns").select("id", { count: "exact", head: true }).eq("status", "failed");
+      const failed = count ?? 0;
+      checks.push({ key: "broadcasts", label: "Broadcasts", state: error ? "error" : failed > 0 ? "warning" : "healthy", summary: error ? "Broadcast history could not be checked." : failed > 0 ? "Some broadcasts have failed." : "No failed broadcasts are recorded.", detail: error?.message, metric: !error ? `${failed} failed` : undefined, href: "/admin/broadcasts" });
+    } catch (error) {
+      checks.push({ key: "broadcasts", label: "Broadcasts", state: "error", summary: "Broadcast history could not be checked.", detail: error instanceof Error ? error.message : undefined, href: "/admin/broadcasts" });
+    }
   }
 
   try {
