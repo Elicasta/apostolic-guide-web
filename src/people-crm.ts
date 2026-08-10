@@ -55,6 +55,41 @@ async function upsertIdentity(input: { personId: string; provider: "instagram" |
   }, { onConflict: "provider,provider_user_id" });
 }
 
+export async function upsertEmailPerson(input: { email: string; displayName?: string | null; sourceDetail?: string | null; seenAt?: string }) {
+  const email = input.email.trim().toLowerCase();
+  if (!email) return null;
+  const service = createServiceClient();
+  if (!service) return null;
+  const now = input.seenAt ?? new Date().toISOString();
+  const identity = await service.from("person_identities").select("person_id").eq("provider", "email").eq("provider_user_id", email).maybeSingle();
+  const existing = identity.data?.person_id
+    ? await service.from("people").select("*").eq("id", identity.data.person_id).maybeSingle()
+    : await service.from("people").select("*").eq("email", email).maybeSingle();
+
+  if (existing.data) {
+    const updates: Record<string, unknown> = { email, last_seen_at: now, updated_at: now };
+    if (input.displayName?.trim() && (!existing.data.display_name || existing.data.display_name === existing.data.email)) updates.display_name = input.displayName.trim();
+    if (!existing.data.source_detail && input.sourceDetail) updates.source_detail = input.sourceDetail;
+    const result = await service.from("people").update(updates).eq("id", existing.data.id).select("*").single();
+    const person = (result.data ?? existing.data) as Person;
+    await upsertIdentity({ personId: person.id, provider: "email", providerUserId: email, email, verifiedAt: null });
+    return person;
+  }
+
+  const result = await service.from("people").insert({
+    email,
+    display_name: input.displayName?.trim() || email,
+    source: "website",
+    source_detail: input.sourceDetail ?? "contact_form",
+    first_seen_at: now,
+    last_seen_at: now,
+    updated_at: now
+  }).select("*").single();
+  const person = (result.data ?? null) as Person | null;
+  if (person) await upsertIdentity({ personId: person.id, provider: "email", providerUserId: email, email, verifiedAt: null });
+  return person;
+}
+
 export async function upsertInstagramPerson(input: { instagramUserId: string | null; username?: string | null; sourceDetail?: string | null; seenAt?: string; }) {
   if (!input.instagramUserId) return null;
   const service = createServiceClient();
