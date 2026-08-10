@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createServiceClient } from "@/supabase";
 import { DEFAULT_META_VERIFY_TOKEN, processInstagramWebhook } from "@/social-messaging";
 import { verifyMetaWebhookSignature } from "@/meta-webhook-signature";
+import { ingestInstagramPeople } from "@/people-crm";
 
 export const runtime = "nodejs";
 
@@ -18,16 +19,7 @@ async function webhookSecrets() {
   };
 }
 
-async function logIngress(record: {
-  method: string;
-  signaturePresent?: boolean;
-  signatureValid?: boolean | null;
-  payloadObject?: string | null;
-  entryCount?: number | null;
-  parsedTriggerCount?: number | null;
-  outcome: string;
-  detail?: string | null;
-}) {
+async function logIngress(record: { method: string; signaturePresent?: boolean; signatureValid?: boolean | null; payloadObject?: string | null; entryCount?: number | null; parsedTriggerCount?: number | null; outcome: string; detail?: string | null; }) {
   const service = createServiceClient();
   if (!service) return;
   await service.from("social_webhook_ingress").insert({
@@ -49,16 +41,8 @@ export async function GET(request: Request) {
   const challenge = url.searchParams.get("hub.challenge");
   const secrets = await webhookSecrets();
   const verified = mode === "subscribe" && token === secrets.verifyToken && Boolean(challenge);
-
-  await logIngress({
-    method: "GET",
-    outcome: verified ? "verification_success" : "verification_rejected",
-    detail: mode ? `mode=${mode}; challenge=${challenge ? "present" : "missing"}; token=${token ? "present" : "missing"}` : "direct_get"
-  });
-
-  if (verified && challenge) {
-    return new NextResponse(challenge, { status: 200, headers: { "content-type": "text/plain" } });
-  }
+  await logIngress({ method: "GET", outcome: verified ? "verification_success" : "verification_rejected", detail: mode ? `mode=${mode}; challenge=${challenge ? "present" : "missing"}; token=${token ? "present" : "missing"}` : "direct_get" });
+  if (verified && challenge) return new NextResponse(challenge, { status: 200, headers: { "content-type": "text/plain" } });
   return NextResponse.json({ error: "Webhook verification failed." }, { status: 403 });
 }
 
@@ -67,22 +51,14 @@ export async function POST(request: Request) {
   const secrets = await webhookSecrets();
   const signature = request.headers.get("x-hub-signature-256");
   const signatureValid = verifyMetaWebhookSignature(rawBody, signature, secrets.appSecret);
-
   if (!signatureValid) {
-    await logIngress({
-      method: "POST",
-      signaturePresent: Boolean(signature),
-      signatureValid: false,
-      outcome: "signature_rejected",
-      detail: `body_bytes=${Buffer.byteLength(rawBody)}`
-    });
+    await logIngress({ method: "POST", signaturePresent: Boolean(signature), signatureValid: false, outcome: "signature_rejected", detail: `body_bytes=${Buffer.byteLength(rawBody)}` });
     return NextResponse.json({ error: "Invalid webhook signature." }, { status: 401 });
   }
 
   let payload: unknown;
-  try {
-    payload = JSON.parse(rawBody);
-  } catch {
+  try { payload = JSON.parse(rawBody); }
+  catch {
     await logIngress({ method: "POST", signaturePresent: true, signatureValid: true, outcome: "invalid_json" });
     return NextResponse.json({ error: "Invalid JSON." }, { status: 400 });
   }
@@ -90,18 +66,16 @@ export async function POST(request: Request) {
   const root = payload && typeof payload === "object" ? payload as { object?: unknown; entry?: unknown[] } : null;
   const payloadObject = typeof root?.object === "string" ? root.object : null;
   const entryCount = Array.isArray(root?.entry) ? root.entry.length : 0;
-
   const service = createServiceClient();
   if (service) {
-    await service.from("social_connection_status").upsert({
-      platform: "instagram",
-      last_webhook_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    }, { onConflict: "platform" });
+    await service.from("social_connection_status").upsert({ platform: "instagram", last_webhook_at: new Date().toISOString(), updated_at: new Date().toISOString() }, { onConflict: "platform" });
   }
 
   try {
-    const result = await processInstagramWebhook(payload);
+    const [result, peopleRecorded] = await Promise.all([
+      processInstagramWebhook(payload),
+      ingestInstagramPeople(payload)
+    ]);
     await logIngress({
       method: "POST",
       signaturePresent: true,
@@ -110,20 +84,12 @@ export async function POST(request: Request) {
       entryCount,
       parsedTriggerCount: result.processed,
       outcome: result.processed > 0 ? "processed" : "accepted_no_trigger",
-      detail: `sent=${result.sent}`
+      detail: `sent=${result.sent}; people_recorded=${peopleRecorded}`
     });
-    return NextResponse.json({ ok: true, ...result });
+    return NextResponse.json({ ok: true, ...result, peopleRecorded });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Webhook processing failed.";
-    await logIngress({
-      method: "POST",
-      signaturePresent: true,
-      signatureValid: true,
-      payloadObject,
-      entryCount,
-      outcome: "processing_failed",
-      detail: message
-    });
+    await logIngress({ method: "POST", signaturePresent: true, signatureValid: true, payloadObject, entryCount, outcome: "processing_failed", detail: message });
     console.error("Instagram webhook processing failed", error);
     return NextResponse.json({ error: "Webhook processing failed." }, { status: 500 });
   }
