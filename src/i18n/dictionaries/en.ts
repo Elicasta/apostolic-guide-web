@@ -1,3 +1,60 @@
+export type Dictionary = {
+  common: {
+    continue: string;
+    back: string;
+    next: string;
+    previous: string;
+    close: string;
+    share: string;
+    save: string;
+    saved: string;
+    start: string;
+    explore: string;
+    read: string;
+    learnMore: string;
+  };
+  nav: {
+    home: string;
+    search: string;
+    pathways: string;
+    topics: string;
+    answers: string;
+    scriptures: string;
+    objections: string;
+    library: string;
+    account: string;
+  };
+  pathways: {
+    singular: string;
+    plural: string;
+    start: string;
+    continue: string;
+  };
+  scripture: {
+    related: string;
+    supporting: string;
+    key: string;
+    mainPoint: string;
+    whyItMatters: string;
+    apostolicConnection: string;
+    commonMisunderstanding: string;
+    conversationUse: string;
+    readInContext: string;
+  };
+  account: {
+    settings: string;
+    language: string;
+    signIn: string;
+    signOut: string;
+    createAccount: string;
+  };
+  errors: {
+    notFound: string;
+    returnHome: string;
+    unavailableInLanguage: string;
+  };
+};
+
 export const en = {
   common: {
     continue: "Continue",
@@ -53,6 +110,4 @@ export const en = {
     returnHome: "Return home",
     unavailableInLanguage: "This content is not available in this language yet.",
   },
-} as const;
-
-export type Dictionary = typeof en;
+} as const satisfies Dictionary;
