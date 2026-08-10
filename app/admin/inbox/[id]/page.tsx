@@ -1,10 +1,13 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { ArrowLeft, Instagram, UserRound } from "lucide-react";
+import { getStudioPermission } from "@/auth";
 import { getInboxConversation, instagramReplyWindowOpen, markConversationRead } from "@/inbox";
 import { InboxConversationControls } from "@/inbox-conversation";
 
 export default async function InboxConversationPage({ params }: { params: Promise<{ id: string }> }) {
+  const permission = await getStudioPermission("view_inbox");
+  if (!permission.allowed && permission.access.state !== "unconfigured") redirect("/admin");
   const { id } = await params;
   const record = await getInboxConversation(id);
   if (!record) notFound();
