@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { useRouter } from "next/navigation";
-import { Activity, BarChart3, Bell, BookOpen, FileText, HeartHandshake, Inbox, Instagram, ListFilter, Mail, Route, Search, Settings, ShieldCheck, Sparkles, UserCog, Users, type LucideIcon } from "lucide-react";
+import { Activity, BarChart3, Bell, BookOpen, FileClock, FileText, HeartHandshake, Inbox, Instagram, ListFilter, Mail, Route, Search, Settings, ShieldCheck, Sparkles, UserCog, Users, type LucideIcon } from "lucide-react";
 import { hasStudioPermission, type StudioPermission, type StudioRole } from "@/studio-permissions";
 
 type SearchResult = {
@@ -38,6 +38,7 @@ const staticCommands: StaticCommand[] = [
   { id: "analytics", label: "Analytics", description: "Open traffic and study analytics", href: "/admin/analytics", permission: "view_analytics", Icon: Activity },
   { id: "notifications", label: "Notifications", description: "Open Studio activity alerts", href: "/admin/notifications", permission: "view_notifications", Icon: Bell },
   { id: "health", label: "Health dashboard", description: "Check production services", href: "/admin/health", permission: "view_health", Icon: HeartHandshake },
+  { id: "audit", label: "Audit Log", description: "Review privileged Studio actions", href: "/admin/audit", permission: "view_audit", Icon: FileClock },
   { id: "team", label: "Team & roles", description: "Manage Studio members and permissions", href: "/admin/team", permission: "manage_team", Icon: UserCog },
   { id: "setup", label: "Setup", description: "Open Studio configuration", href: "/admin/setup", permission: "manage_integrations", Icon: Settings }
 ];
