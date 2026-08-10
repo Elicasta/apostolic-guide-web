@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getStudioPermission } from "@/auth";
 import { createServiceClient } from "@/supabase";
+import { recordStudioAudit } from "@/studio-audit";
 
 const ruleSchema = z.object({
   segment_key: z.string().trim().min(1).max(200),
@@ -31,6 +32,7 @@ export async function POST(request: Request) {
   if (parsed.data.action === "delete") {
     const { error } = await service.from("custom_segments").delete().eq("id", parsed.data.id);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    await recordStudioAudit({ actorUserId: access.user.id, action: "segment.deleted", resourceType: "segment", resourceId: parsed.data.id });
     return NextResponse.json({ ok: true });
   }
 
@@ -46,10 +48,12 @@ export async function POST(request: Request) {
   if (parsed.data.id) {
     const { error } = await service.from("custom_segments").update(payload).eq("id", parsed.data.id);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    await recordStudioAudit({ actorUserId: access.user.id, action: "segment.updated", resourceType: "segment", resourceId: parsed.data.id, metadata: { name: parsed.data.name, match_mode: parsed.data.match_mode, rule_count: parsed.data.rules.length } });
     return NextResponse.json({ ok: true, id: parsed.data.id });
   }
 
   const { data, error } = await service.from("custom_segments").insert(payload).select("id").single();
   if (error || !data?.id) return NextResponse.json({ error: error?.message ?? "Could not save segment." }, { status: 500 });
+  await recordStudioAudit({ actorUserId: access.user.id, action: "segment.created", resourceType: "segment", resourceId: data.id, metadata: { name: parsed.data.name, match_mode: parsed.data.match_mode, rule_count: parsed.data.rules.length } });
   return NextResponse.json({ ok: true, id: data.id });
 }
