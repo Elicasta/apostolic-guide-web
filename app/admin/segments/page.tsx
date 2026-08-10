@@ -44,11 +44,11 @@ export default async function SegmentsPage({ searchParams }: { searchParams: Pro
       <div><h1>Segments</h1><p className="admin-lede">Live groups built from lifecycle, study behavior, source, journeys, Inbox state, and explicit interests. Membership updates automatically as people interact with Apostolic Guide.</p></div>
     </div>
 
-    <div className="studio-kpi-grid studio-kpi-grid-4">
-      <div className="studio-kpi"><Users size={19}/><strong>{allCount}</strong><span>Known people</span></div>
-      <div className="studio-kpi"><Activity size={19}/><strong>{activeCount}</strong><span>Active this week</span></div>
-      <div className="studio-kpi"><Inbox size={19}/><strong>{followUpCount}</strong><span>Need attention</span></div>
-      <div className="studio-kpi"><Tag size={19}/><strong>{interestCount}</strong><span>Interest groups</span></div>
+    <div className="studio-kpi-grid studio-kpi-grid-four">
+      <div className="studio-kpi"><Users size={19}/><span>Known people</span><strong>{allCount}</strong><small>All active relationship records</small></div>
+      <div className="studio-kpi"><Activity size={19}/><span>Active this week</span><strong>{activeCount}</strong><small>Seen during the last 7 days</small></div>
+      <div className="studio-kpi"><Inbox size={19}/><span>Need attention</span><strong>{followUpCount}</strong><small>Unread or marked follow-up</small></div>
+      <div className="studio-kpi"><Tag size={19}/><span>Interest groups</span><strong>{interestCount}</strong><small>Generated from explicit tags</small></div>
     </div>
 
     <section className="segments-catalog">
