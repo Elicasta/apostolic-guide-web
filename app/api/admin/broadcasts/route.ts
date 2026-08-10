@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { getAdminAccess } from "@/auth";
+import { getStudioPermission } from "@/auth";
 import { createBroadcastDraft, sendBroadcastDraft, sendBroadcastTest } from "@/resend-broadcasts";
 
 const campaignSchema = z.object({
@@ -21,8 +21,8 @@ const requestSchema = z.discriminatedUnion("action", [
 ]);
 
 export async function POST(request: Request) {
-  const access = await getAdminAccess();
-  if (access.state !== "allowed" || !access.user?.email) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { access, allowed } = await getStudioPermission("manage_distribution");
+  if (!allowed || access.state !== "allowed" || !access.user?.email) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const parsed = requestSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Invalid campaign request." }, { status: 400 });
