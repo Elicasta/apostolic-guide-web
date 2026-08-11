@@ -19,6 +19,7 @@ export const studioNavSections: Array<{ label: string; items: Array<{ href: stri
     { href: "/admin/journeys", label: "Journeys", icon: Route, permission: "view_journeys" }
   ]},
   { label: "Publishing", items: [
+    { href: "/admin/pathways", label: "Pathway publishing", icon: Route, permission: "view_content" },
     { href: "/admin/content", label: "Website content", icon: FileText, permission: "view_content" },
     { href: "/admin/app-content", label: "App content", icon: BookOpen, permission: "view_content" }
   ]},
