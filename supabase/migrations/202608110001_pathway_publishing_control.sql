@@ -1,5 +1,5 @@
 -- Apostolic Guide pathway publishing control panel
--- The canonical pathway definitions remain in src/data.ts.
+-- The canonical pathway definitions remain in src/pathway-catalog.ts.
 -- These tables only track publishing state, assets, publications, and social handoffs.
 
 create table if not exists public.pathway_publishing_profiles (
@@ -75,6 +75,9 @@ begin
 end;
 $$;
 
+-- Keep the trigger function from inheriting a mutable role search_path.
+alter function public.touch_pathway_publishing_updated_at() set search_path = public, pg_temp;
+
 drop trigger if exists pathway_publishing_profiles_touch on public.pathway_publishing_profiles;
 create trigger pathway_publishing_profiles_touch before update on public.pathway_publishing_profiles
 for each row execute function public.touch_pathway_publishing_updated_at();
@@ -87,6 +90,6 @@ drop trigger if exists pathway_publications_touch on public.pathway_publications
 create trigger pathway_publications_touch before update on public.pathway_publications
 for each row execute function public.touch_pathway_publishing_updated_at();
 
-comment on table public.pathway_publishing_profiles is 'Campaign metadata keyed to canonical pathway slugs in src/data.ts.';
+comment on table public.pathway_publishing_profiles is 'Campaign metadata keyed to canonical pathway slugs in src/pathway-catalog.ts.';
 comment on table public.pathway_assets is 'Reusable content assets belonging to a canonical Apostolic Guide pathway.';
 comment on table public.pathway_publications is 'Platform-specific publication instances for pathway assets.';
