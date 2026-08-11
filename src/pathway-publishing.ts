@@ -42,13 +42,14 @@ export type PathwayPublishingSummary = {
   assets: PathwayAsset[];
   publishedAssets: number;
   completion: number;
+  started: boolean;
   socialAutomationName: string | null;
   websiteUrl: string;
   appUrl: string;
 };
 
-function defaultAppUrl(appSlug: string) {
-  return `https://app.apostolicguide.com/paths/${appSlug}?source=website&origin=website-pathway-${appSlug}`;
+function defaultAppUrl(appSlug: string, websiteSlug: string) {
+  return `https://app.apostolicguide.com/paths/${appSlug}?source=website&origin=website-pathway-${websiteSlug}`;
 }
 
 export function websitePathwayUrl(slug: string) {
@@ -87,9 +88,10 @@ export async function listPathwayPublishingSummaries(): Promise<PathwayPublishin
       assets: pathwayAssets,
       publishedAssets,
       completion,
+      started: Boolean(profile || pathwayAssets.length),
       socialAutomationName: profile?.social_automation_id ? automationMap.get(profile.social_automation_id) ?? null : null,
       websiteUrl: websitePathwayUrl(pathway.slug),
-      appUrl: profile?.app_url || defaultAppUrl(pathway.appSlug)
+      appUrl: profile?.app_url || defaultAppUrl(pathway.appSlug, pathway.slug)
     };
   });
 }
