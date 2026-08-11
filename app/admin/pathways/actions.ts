@@ -1,8 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { getStudioPermission } from "@/auth";
 import { hasStudioPermission } from "@/studio-permissions";
+import { publishingPathways } from "@/publishing-pathways";
 import { syncPublicationMetrics } from "@/publication-metrics";
 import { createServiceClient } from "@/supabase";
 
@@ -26,14 +28,34 @@ function required(data: FormData, key: string) {
   return value;
 }
 
+function requireCanonicalPathway(slug: string) {
+  const pathway = publishingPathways.find((item) => item.slug === slug);
+  if (!pathway) throw new Error("Choose an existing Apostolic Guide Pathway.");
+  return pathway;
+}
+
 function revalidate(slug: string) {
   revalidatePath("/admin/pathways");
   revalidatePath(`/admin/pathways/${slug}`);
 }
 
+export async function createPathwayProject(formData: FormData) {
+  const service = await requireManageContent();
+  const slug = required(formData, "pathway_slug");
+  requireCanonicalPathway(slug);
+  const { error } = await service.from("pathway_publishing_profiles").upsert(
+    { pathway_slug: slug },
+    { onConflict: "pathway_slug", ignoreDuplicates: true }
+  );
+  if (error) throw new Error(error.message);
+  revalidate(slug);
+  redirect(`/admin/pathways/${slug}`);
+}
+
 export async function savePathwayProfile(formData: FormData) {
   const service = await requireManageContent();
   const slug = required(formData, "pathway_slug");
+  requireCanonicalPathway(slug);
   const payload = {
     pathway_slug: slug,
     primary_keyword: text(formData, "primary_keyword"),
@@ -50,6 +72,7 @@ export async function savePathwayProfile(formData: FormData) {
 export async function createPathwayAsset(formData: FormData) {
   const service = await requireManageContent();
   const slug = required(formData, "pathway_slug");
+  requireCanonicalPathway(slug);
   const status = required(formData, "status");
   const payload = {
     pathway_slug: slug,
@@ -79,6 +102,7 @@ export async function updatePathwayAsset(formData: FormData) {
   const service = await requireManageContent();
   const id = required(formData, "id");
   const slug = required(formData, "pathway_slug");
+  requireCanonicalPathway(slug);
   const status = required(formData, "status");
   const payload = {
     type: required(formData, "type"),
@@ -107,6 +131,7 @@ export async function archivePathwayAsset(formData: FormData) {
   const service = await requireManageContent();
   const id = required(formData, "id");
   const slug = required(formData, "pathway_slug");
+  requireCanonicalPathway(slug);
   const { error } = await service.from("pathway_assets").update({ status: "archived" }).eq("id", id);
   if (error) throw new Error(error.message);
   revalidate(slug);
@@ -115,6 +140,7 @@ export async function archivePathwayAsset(formData: FormData) {
 export async function createPathwayPublication(formData: FormData) {
   const service = await requireManageContent();
   const slug = required(formData, "pathway_slug");
+  requireCanonicalPathway(slug);
   const platform = required(formData, "platform").toLowerCase();
   const assetId = text(formData, "asset_id");
   const externalPostId = required(formData, "external_post_id");
@@ -140,6 +166,7 @@ export async function createPathwayPublication(formData: FormData) {
 export async function syncPathwayPublicationMetrics(formData: FormData) {
   await requireManageContent();
   const slug = required(formData, "pathway_slug");
+  requireCanonicalPathway(slug);
   const publicationId = required(formData, "publication_id");
   await syncPublicationMetrics(publicationId);
   revalidate(slug);
@@ -148,6 +175,7 @@ export async function syncPathwayPublicationMetrics(formData: FormData) {
 export async function deletePathwayPublication(formData: FormData) {
   const service = await requireManageContent();
   const slug = required(formData, "pathway_slug");
+  requireCanonicalPathway(slug);
   const publicationId = required(formData, "publication_id");
   const { error } = await service.from("pathway_publications").delete().eq("id", publicationId);
   if (error) throw new Error(error.message);
