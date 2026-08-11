@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { getStudioPermission } from "@/auth";
 import { hasStudioPermission } from "@/studio-permissions";
+import { syncPublicationMetrics } from "@/publication-metrics";
 import { createServiceClient } from "@/supabase";
 
 async function requireManageContent() {
@@ -49,12 +50,13 @@ export async function savePathwayProfile(formData: FormData) {
 export async function createPathwayAsset(formData: FormData) {
   const service = await requireManageContent();
   const slug = required(formData, "pathway_slug");
+  const status = required(formData, "status");
   const payload = {
     pathway_slug: slug,
     type: required(formData, "type"),
     title: required(formData, "title"),
     language: text(formData, "language") || "en",
-    status: required(formData, "status"),
+    status,
     platform: text(formData, "platform"),
     source_url: text(formData, "source_url"),
     file_url: text(formData, "file_url"),
@@ -66,7 +68,7 @@ export async function createPathwayAsset(formData: FormData) {
     destination_url: text(formData, "destination_url"),
     notes: text(formData, "asset_notes"),
     sort_order: Number(formData.get("sort_order") || 0),
-    published_at: required(formData, "status") === "published" ? new Date().toISOString() : null
+    published_at: status === "published" ? new Date().toISOString() : null
   };
   const { error } = await service.from("pathway_assets").insert(payload);
   if (error) throw new Error(error.message);
@@ -106,6 +108,48 @@ export async function archivePathwayAsset(formData: FormData) {
   const id = required(formData, "id");
   const slug = required(formData, "pathway_slug");
   const { error } = await service.from("pathway_assets").update({ status: "archived" }).eq("id", id);
+  if (error) throw new Error(error.message);
+  revalidate(slug);
+}
+
+export async function createPathwayPublication(formData: FormData) {
+  const service = await requireManageContent();
+  const slug = required(formData, "pathway_slug");
+  const platform = required(formData, "platform").toLowerCase();
+  const assetId = text(formData, "asset_id");
+  const externalPostId = required(formData, "external_post_id");
+  const publishedUrl = text(formData, "published_url");
+  const publishedAt = text(formData, "published_at") || new Date().toISOString();
+  const { data, error } = await service.from("pathway_publications").insert({
+    pathway_slug: slug,
+    asset_id: assetId,
+    platform,
+    status: "published",
+    external_post_id: externalPostId,
+    published_url: publishedUrl,
+    published_at: publishedAt,
+    metadata: {}
+  }).select("id").single();
+  if (error) throw new Error(error.message);
+  if (data?.id) {
+    try { await syncPublicationMetrics(String(data.id)); } catch (error) { console.error("Initial metric sync failed", error); }
+  }
+  revalidate(slug);
+}
+
+export async function syncPathwayPublicationMetrics(formData: FormData) {
+  await requireManageContent();
+  const slug = required(formData, "pathway_slug");
+  const publicationId = required(formData, "publication_id");
+  await syncPublicationMetrics(publicationId);
+  revalidate(slug);
+}
+
+export async function deletePathwayPublication(formData: FormData) {
+  const service = await requireManageContent();
+  const slug = required(formData, "pathway_slug");
+  const publicationId = required(formData, "publication_id");
+  const { error } = await service.from("pathway_publications").delete().eq("id", publicationId);
   if (error) throw new Error(error.message);
   revalidate(slug);
 }
