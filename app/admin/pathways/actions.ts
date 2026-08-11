@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getStudioPermission } from "@/auth";
 import { hasStudioPermission } from "@/studio-permissions";
-import { publishingPathways } from "@/publishing-pathways";
+import { allPathways } from "@/pathway-catalog";
 import { syncPublicationMetrics } from "@/publication-metrics";
 import { createServiceClient } from "@/supabase";
 
@@ -31,7 +31,7 @@ function required(data: FormData, key: string) {
 }
 
 function requireCanonicalPathway(slug: string) {
-  const pathway = publishingPathways.find((item) => item.slug === slug);
+  const pathway = allPathways.find((item) => item.slug === slug);
   if (!pathway) throw new Error("Choose an existing Apostolic Guide Pathway.");
   return pathway;
 }
