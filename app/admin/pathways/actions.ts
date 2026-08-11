@@ -17,6 +17,8 @@ async function requireManageContent() {
   return service;
 }
 
+type ServiceClient = NonNullable<ReturnType<typeof createServiceClient>>;
+
 function text(data: FormData, key: string) {
   const value = String(data.get(key) ?? "").trim();
   return value || null;
@@ -34,6 +36,14 @@ function requireCanonicalPathway(slug: string) {
   return pathway;
 }
 
+async function ensureProject(service: ServiceClient, slug: string) {
+  const { error } = await service.from("pathway_publishing_profiles").upsert(
+    { pathway_slug: slug },
+    { onConflict: "pathway_slug", ignoreDuplicates: true }
+  );
+  if (error) throw new Error(error.message);
+}
+
 function revalidate(slug: string) {
   revalidatePath("/admin/pathways");
   revalidatePath(`/admin/pathways/${slug}`);
@@ -43,11 +53,7 @@ export async function createPathwayProject(formData: FormData) {
   const service = await requireManageContent();
   const slug = required(formData, "pathway_slug");
   requireCanonicalPathway(slug);
-  const { error } = await service.from("pathway_publishing_profiles").upsert(
-    { pathway_slug: slug },
-    { onConflict: "pathway_slug", ignoreDuplicates: true }
-  );
-  if (error) throw new Error(error.message);
+  await ensureProject(service, slug);
   revalidate(slug);
   redirect(`/admin/pathways/${slug}`);
 }
@@ -73,6 +79,7 @@ export async function createPathwayAsset(formData: FormData) {
   const service = await requireManageContent();
   const slug = required(formData, "pathway_slug");
   requireCanonicalPathway(slug);
+  await ensureProject(service, slug);
   const status = required(formData, "status");
   const payload = {
     pathway_slug: slug,
@@ -122,7 +129,7 @@ export async function updatePathwayAsset(formData: FormData) {
     sort_order: Number(formData.get("sort_order") || 0),
     published_at: status === "published" ? text(formData, "published_at") || new Date().toISOString() : null
   };
-  const { error } = await service.from("pathway_assets").update(payload).eq("id", id);
+  const { error } = await service.from("pathway_assets").update(payload).eq("id", id).eq("pathway_slug", slug);
   if (error) throw new Error(error.message);
   revalidate(slug);
 }
@@ -132,7 +139,7 @@ export async function archivePathwayAsset(formData: FormData) {
   const id = required(formData, "id");
   const slug = required(formData, "pathway_slug");
   requireCanonicalPathway(slug);
-  const { error } = await service.from("pathway_assets").update({ status: "archived" }).eq("id", id);
+  const { error } = await service.from("pathway_assets").update({ status: "archived" }).eq("id", id).eq("pathway_slug", slug);
   if (error) throw new Error(error.message);
   revalidate(slug);
 }
@@ -141,6 +148,7 @@ export async function createPathwayPublication(formData: FormData) {
   const service = await requireManageContent();
   const slug = required(formData, "pathway_slug");
   requireCanonicalPathway(slug);
+  await ensureProject(service, slug);
   const platform = required(formData, "platform").toLowerCase();
   const assetId = text(formData, "asset_id");
   const externalPostId = required(formData, "external_post_id");
@@ -157,6 +165,12 @@ export async function createPathwayPublication(formData: FormData) {
     metadata: {}
   }).select("id").single();
   if (error) throw new Error(error.message);
+
+  if (assetId) {
+    const { error: assetError } = await service.from("pathway_assets").update({ status: "published", published_at: publishedAt }).eq("id", assetId).eq("pathway_slug", slug);
+    if (assetError) throw new Error(assetError.message);
+  }
+
   if (data?.id) {
     try { await syncPublicationMetrics(String(data.id)); } catch (error) { console.error("Initial metric sync failed", error); }
   }
@@ -177,7 +191,7 @@ export async function deletePathwayPublication(formData: FormData) {
   const slug = required(formData, "pathway_slug");
   requireCanonicalPathway(slug);
   const publicationId = required(formData, "publication_id");
-  const { error } = await service.from("pathway_publications").delete().eq("id", publicationId);
+  const { error } = await service.from("pathway_publications").delete().eq("id", publicationId).eq("pathway_slug", slug);
   if (error) throw new Error(error.message);
   revalidate(slug);
 }
