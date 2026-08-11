@@ -32,7 +32,7 @@ export type NormalizedPublicationMetrics = {
   errorMessage?: string | null;
 };
 
-function number(value: unknown): number | null {
+function asNumber(value: unknown): number | null {
   if (typeof value === "number" && Number.isFinite(value)) return value;
   if (typeof value === "string" && value.trim() && Number.isFinite(Number(value))) return Number(value);
   return null;
@@ -54,16 +54,9 @@ async function collectYouTube(publication: PathwayPublication): Promise<Normaliz
   const startDate = (publication.published_at ? new Date(publication.published_at) : new Date(Date.now() - 30 * 86400000)).toISOString().slice(0, 10);
   const endDate = new Date().toISOString().slice(0, 10);
   const metrics = ["views","likes","comments","shares","estimatedMinutesWatched","averageViewDuration","averageViewPercentage","subscribersGained","subscribersLost"].join(",");
-  const params = new URLSearchParams({
-    ids: "channel==MINE",
-    startDate,
-    endDate,
-    metrics,
-    filters: `video==${publication.external_post_id}`
-  });
+  const params = new URLSearchParams({ ids: "channel==MINE", startDate, endDate, metrics, filters: `video==${publication.external_post_id}` });
   const response = await fetch(`https://youtubeanalytics.googleapis.com/v2/reports?${params.toString()}`, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-    cache: "no-store"
+    headers: { Authorization: `Bearer ${accessToken}` }, cache: "no-store"
   });
   const body = await response.json().catch(() => ({}));
   if (!response.ok) return { rawMetrics: body, syncStatus: "failed", errorMessage: body?.error?.message || `YouTube metrics failed (${response.status}).` };
@@ -73,13 +66,10 @@ async function collectYouTube(publication: PathwayPublication): Promise<Normaliz
   const raw: Record<string, unknown> = {};
   headers.forEach((header: { name?: string }, index: number) => { if (header?.name) raw[header.name] = row[index]; });
   return {
-    views: number(raw.views), likes: number(raw.likes), comments: number(raw.comments), shares: number(raw.shares),
-    watchSeconds: (number(raw.estimatedMinutesWatched) ?? 0) * 60,
-    averageViewDurationSeconds: number(raw.averageViewDuration),
-    averageViewPercentage: number(raw.averageViewPercentage),
-    subscribersGained: number(raw.subscribersGained), subscribersLost: number(raw.subscribersLost),
-    rawMetrics: raw,
-    syncStatus: "success"
+    views: asNumber(raw.views), likes: asNumber(raw.likes), comments: asNumber(raw.comments), shares: asNumber(raw.shares),
+    watchSeconds: (asNumber(raw.estimatedMinutesWatched) ?? 0) * 60,
+    averageViewDurationSeconds: asNumber(raw.averageViewDuration), averageViewPercentage: asNumber(raw.averageViewPercentage),
+    subscribersGained: asNumber(raw.subscribersGained), subscribersLost: asNumber(raw.subscribersLost), rawMetrics: raw, syncStatus: "success"
   };
 }
 
@@ -91,19 +81,13 @@ async function collectTikTok(publication: PathwayPublication): Promise<Normalize
 
   const fields = "id,view_count,like_count,comment_count,share_count";
   const response = await fetch(`https://open.tiktokapis.com/v2/video/query/?fields=${encodeURIComponent(fields)}`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ filters: { video_ids: [publication.external_post_id] } }),
-    cache: "no-store"
+    method: "POST", headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ filters: { video_ids: [publication.external_post_id] } }), cache: "no-store"
   });
   const body = await response.json().catch(() => ({}));
   const video = body?.data?.videos?.[0];
   if (!response.ok || !video) return { rawMetrics: body, syncStatus: "failed", errorMessage: body?.error?.message || `TikTok metrics failed (${response.status}).` };
-  return {
-    views: number(video.view_count), likes: number(video.like_count), comments: number(video.comment_count), shares: number(video.share_count),
-    rawMetrics: video,
-    syncStatus: "success"
-  };
+  return { views: asNumber(video.view_count), likes: asNumber(video.like_count), comments: asNumber(video.comment_count), shares: asNumber(video.share_count), rawMetrics: video, syncStatus: "success" };
 }
 
 async function collectInstagram(publication: PathwayPublication): Promise<NormalizedPublicationMetrics> {
@@ -118,25 +102,27 @@ async function collectInstagram(publication: PathwayPublication): Promise<Normal
   const basic = await basicResponse.json().catch(() => ({}));
   if (!basicResponse.ok) return { rawMetrics: basic, syncStatus: "failed", errorMessage: basic?.error?.message || `Instagram metrics failed (${basicResponse.status}).` };
 
-  let insightBody: Record<string, unknown> = {};
-  let partialError: string | null = null;
-  const insightResponse = await fetch(`${baseUrl}/insights?metric=views,reach,saved,shares`, { headers: { Authorization: `Bearer ${accessToken}` }, cache: "no-store" });
-  const insightJson = await insightResponse.json().catch(() => ({}));
-  if (insightResponse.ok && Array.isArray(insightJson?.data)) {
-    for (const item of insightJson.data) {
-      const metric = typeof item?.name === "string" ? item.name : null;
-      const metricValue = item?.values?.[0]?.value ?? item?.value;
-      if (metric) insightBody[metric] = metricValue;
+  const requested = Array.isArray(publication.metadata?.insight_metrics)
+    ? publication.metadata.insight_metrics.filter((value): value is string => typeof value === "string" && Boolean(value.trim()))
+    : ["views", "reach", "saved", "shares"];
+  const insights: Record<string, unknown> = {};
+  const failures: string[] = [];
+
+  for (const requestedMetric of requested) {
+    const response = await fetch(`${baseUrl}/insights?metric=${encodeURIComponent(requestedMetric)}`, { headers: { Authorization: `Bearer ${accessToken}` }, cache: "no-store" });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok || !Array.isArray(body?.data) || !body.data[0]) {
+      failures.push(`${requestedMetric}: ${body?.error?.message || response.status}`);
+      continue;
     }
-  } else {
-    partialError = insightJson?.error?.message || `Instagram insights unavailable (${insightResponse.status}).`;
+    const item = body.data[0];
+    insights[requestedMetric] = item?.values?.[0]?.value ?? item?.value ?? null;
   }
 
   return {
-    views: number(insightBody.views), reach: number(insightBody.reach), likes: number(basic.like_count), comments: number(basic.comments_count), shares: number(insightBody.shares), saves: number(insightBody.saved),
-    rawMetrics: { basic, insights: insightBody },
-    syncStatus: partialError ? "partial" : "success",
-    errorMessage: partialError
+    views: asNumber(insights.views), reach: asNumber(insights.reach), likes: asNumber(basic.like_count), comments: asNumber(basic.comments_count),
+    shares: asNumber(insights.shares), saves: asNumber(insights.saved), rawMetrics: { basic, insights, requested },
+    syncStatus: failures.length ? "partial" : "success", errorMessage: failures.length ? failures.join(" | ") : null
   };
 }
 
@@ -156,25 +142,12 @@ export async function syncPublicationMetrics(publicationId: string) {
   const publication = data as PathwayPublication;
   const metrics = await collectPublicationMetrics(publication);
   const { error: insertError } = await service.from("publication_metric_snapshots").insert({
-    publication_id: publication.id,
-    pathway_slug: publication.pathway_slug,
-    asset_id: publication.asset_id,
-    platform: publication.platform,
-    views: metrics.views ?? null,
-    impressions: metrics.impressions ?? null,
-    reach: metrics.reach ?? null,
-    likes: metrics.likes ?? null,
-    comments: metrics.comments ?? null,
-    shares: metrics.shares ?? null,
-    saves: metrics.saves ?? null,
-    watch_seconds: metrics.watchSeconds ?? null,
-    average_view_duration_seconds: metrics.averageViewDurationSeconds ?? null,
-    average_view_percentage: metrics.averageViewPercentage ?? null,
-    subscribers_gained: metrics.subscribersGained ?? null,
-    subscribers_lost: metrics.subscribersLost ?? null,
-    raw_metrics: metrics.rawMetrics,
-    sync_status: metrics.syncStatus,
-    error_message: metrics.errorMessage ?? null
+    publication_id: publication.id, pathway_slug: publication.pathway_slug, asset_id: publication.asset_id, platform: publication.platform,
+    views: metrics.views ?? null, impressions: metrics.impressions ?? null, reach: metrics.reach ?? null,
+    likes: metrics.likes ?? null, comments: metrics.comments ?? null, shares: metrics.shares ?? null, saves: metrics.saves ?? null,
+    watch_seconds: metrics.watchSeconds ?? null, average_view_duration_seconds: metrics.averageViewDurationSeconds ?? null,
+    average_view_percentage: metrics.averageViewPercentage ?? null, subscribers_gained: metrics.subscribersGained ?? null,
+    subscribers_lost: metrics.subscribersLost ?? null, raw_metrics: metrics.rawMetrics, sync_status: metrics.syncStatus, error_message: metrics.errorMessage ?? null
   });
   if (insertError) throw new Error(insertError.message);
   return metrics;
@@ -182,16 +155,22 @@ export async function syncPublicationMetrics(publicationId: string) {
 
 export async function listPathwayPublicationPerformance(pathwaySlug: string) {
   const service = createServiceClient();
-  if (!service) return { publications: [], totals: { views: 0, likes: 0, comments: 0, shares: 0, saves: 0, reach: 0 } };
-  const { data: publications } = await service.from("pathway_publications").select("*").eq("pathway_slug", pathwaySlug).order("created_at", { ascending: false });
+  const empty = { publications: [] as Array<Record<string, unknown>>, totals: { views: 0, likes: 0, comments: 0, shares: 0, saves: 0, reach: 0 } };
+  if (!service) return empty;
+  const { data: publications, error: publicationError } = await service.from("pathway_publications").select("*").eq("pathway_slug", pathwaySlug).order("created_at", { ascending: false });
+  if (publicationError) return empty;
   const ids = (publications ?? []).map((item) => item.id);
-  const { data: metrics } = ids.length ? await service.from("publication_latest_metrics").select("*").in("publication_id", ids) : { data: [] as Record<string, unknown>[] };
-  const metricMap = new Map((metrics ?? []).map((item) => [String(item.publication_id), item]));
+  let metrics: Array<Record<string, unknown>> = [];
+  if (ids.length) {
+    const result = await service.from("publication_latest_metrics").select("*").in("publication_id", ids);
+    if (!result.error) metrics = (result.data ?? []) as Array<Record<string, unknown>>;
+  }
+  const metricMap = new Map(metrics.map((item) => [String(item.publication_id), item]));
   const rows = (publications ?? []).map((publication) => ({ ...publication, metrics: metricMap.get(String(publication.id)) ?? null }));
   const totals = rows.reduce((sum, row) => {
     const m = row.metrics as Record<string, unknown> | null;
-    sum.views += number(m?.views) ?? 0; sum.likes += number(m?.likes) ?? 0; sum.comments += number(m?.comments) ?? 0;
-    sum.shares += number(m?.shares) ?? 0; sum.saves += number(m?.saves) ?? 0; sum.reach += number(m?.reach) ?? 0;
+    sum.views += asNumber(m?.views) ?? 0; sum.likes += asNumber(m?.likes) ?? 0; sum.comments += asNumber(m?.comments) ?? 0;
+    sum.shares += asNumber(m?.shares) ?? 0; sum.saves += asNumber(m?.saves) ?? 0; sum.reach += asNumber(m?.reach) ?? 0;
     return sum;
   }, { views: 0, likes: 0, comments: 0, shares: 0, saves: 0, reach: 0 });
   return { publications: rows, totals };
