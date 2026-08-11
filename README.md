@@ -31,5 +31,6 @@ Platform collectors use server-only secrets stored in `analytics.integration_sec
 - Instagram reuses `meta_instagram_access_token` and `meta_instagram_graph_version` from the existing Meta connection.
 - YouTube uses `youtube_access_token` with YouTube Analytics read access.
 - TikTok uses `tiktok_access_token` with the `video.list` scope.
+- Facebook is represented in the publication model but its metrics collector is intentionally not enabled until a Facebook Page connection is added to Studio.
 
 Attach an Instagram, TikTok, or YouTube post to an existing Pathway asset using its platform post/video ID. Metric sync writes normalized snapshots into `publication_metric_snapshots`, while provider-specific payloads remain in `raw_metrics` so new platform fields do not require a schema rewrite.
