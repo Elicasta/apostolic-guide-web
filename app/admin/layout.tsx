@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Bell, Home, LogOut } from "lucide-react";
+import { Bell, ExternalLink, Home, LogOut, Plus } from "lucide-react";
 import { getAdminAccess } from "@/auth";
 import { StudioMobileNav, StudioNav } from "@/studio-nav";
 import { StudioCommandPalette } from "@/studio-command-palette";
@@ -44,8 +44,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         <div className="studio-header-actions">
           <StudioCommandPalette role={role}/>
           <span className="studio-user-email">{access.user?.email ?? "Local setup mode"}<small>{STUDIO_ROLE_LABELS[role]}</small></span>
-          <Link className="studio-notification-link" href="/admin/notifications" aria-label={`${unreadNotifications} unread notifications`}><Bell size={16}/>{unreadNotifications > 0 ? <span>{unreadNotifications > 99 ? "99+" : unreadNotifications}</span> : null}</Link>
-          <Link className="studio-view-site" href="/"><Home size={16} /> View site</Link>
+          <Link className="studio-notification-link" href="/admin/notifications" aria-label={`${unreadNotifications} unread notifications`}><Bell size={17}/>{unreadNotifications > 0 ? <span>{unreadNotifications > 99 ? "99+" : unreadNotifications}</span> : null}</Link>
+          <Link className="studio-view-site" href="/" target="_blank"><Home size={16} /> Visit site <ExternalLink size={14}/></Link>
+          <Link className="studio-new-project" href="/admin/pathways#new-project"><Plus size={16}/> New Project</Link>
           <StudioMobileNav role={role}/>
         </div>
       </header>
