@@ -23,6 +23,7 @@ import "./system-polish.css";
 import "./audit.css";
 import "./study-intelligence.css";
 import "./intelligence.css";
+import "./pathway-projects.css";
 
 export const dynamic = "force-dynamic";
 
@@ -45,8 +46,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           <StudioCommandPalette role={role}/>
           <span className="studio-user-email">{access.user?.email ?? "Local setup mode"}<small>{STUDIO_ROLE_LABELS[role]}</small></span>
           <Link className="studio-notification-link" href="/admin/notifications" aria-label={`${unreadNotifications} unread notifications`}><Bell size={17}/>{unreadNotifications > 0 ? <span>{unreadNotifications > 99 ? "99+" : unreadNotifications}</span> : null}</Link>
-          <Link className="studio-view-site" href="/" target="_blank"><Home size={16} /> Visit site <ExternalLink size={14}/></Link>
-          <Link className="studio-new-project" href="/admin/pathways#new-project"><Plus size={16}/> New Project</Link>
+          <Link className="studio-view-site" href="/" target="_blank"><Home size={16}/> Visit site <ExternalLink size={14}/></Link>
+          <Link className="studio-new-project" href="/admin/pathways#new-project"><Plus size={16}/><span>New Project</span></Link>
           <StudioMobileNav role={role}/>
         </div>
       </header>
@@ -54,7 +55,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         <nav className="admin-nav" aria-label="Admin navigation">
           <StudioNav role={role}/>
           <div className="studio-nav-group studio-nav-account">
-            <form action="/auth/signout" method="post"><button className="admin-signout" type="submit"><LogOut size={17} /><span>Sign out</span></button></form>
+            <form action="/auth/signout" method="post"><button className="admin-signout" type="submit"><LogOut size={17}/><span>Sign out</span></button></form>
           </div>
         </nav>
         <div className="admin-main">
