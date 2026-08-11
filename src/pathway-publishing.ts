@@ -36,8 +36,10 @@ export type PathwayAsset = {
   updated_at: string;
 };
 
+type PublishingPathway = (typeof allPathways)[number] & { keySteps: number };
+
 export type PathwayPublishingSummary = {
-  pathway: (typeof allPathways)[number];
+  pathway: PublishingPathway;
   profile: PathwayPublishingProfile | null;
   assets: PathwayAsset[];
   publishedAssets: number;
@@ -56,8 +58,8 @@ export function websitePathwayUrl(slug: string) {
   return `https://www.apostolicguide.com/pathways/${slug}`;
 }
 
-export function listPublishingPathways() {
-  return allPathways;
+export function listPublishingPathways(): PublishingPathway[] {
+  return allPathways.map((pathway) => ({ ...pathway, keySteps: pathway.steps.length }));
 }
 
 export async function listPathwayPublishingSummaries(): Promise<PathwayPublishingSummary[]> {
@@ -77,7 +79,7 @@ export async function listPathwayPublishingSummaries(): Promise<PathwayPublishin
   const profileMap = new Map(profiles.map((profile) => [profile.pathway_slug, profile]));
   const automationMap = new Map(automations.map((automation) => [automation.id, automation.name]));
 
-  return allPathways.map((pathway) => {
+  return listPublishingPathways().map((pathway) => {
     const profile = profileMap.get(pathway.slug) ?? null;
     const pathwayAssets = assets.filter((asset) => asset.pathway_slug === pathway.slug);
     const publishedAssets = pathwayAssets.filter((asset) => asset.status === "published").length;
