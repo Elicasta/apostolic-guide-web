@@ -1,5 +1,5 @@
 import { createServiceClient } from "./supabase";
-import { pathways } from "./data";
+import { publishingPathways } from "./publishing-pathways";
 import { listSocialAutomations } from "./social-messaging";
 
 export type PathwayPublishingProfile = {
@@ -37,7 +37,7 @@ export type PathwayAsset = {
 };
 
 export type PathwayPublishingSummary = {
-  pathway: (typeof pathways)[number];
+  pathway: (typeof publishingPathways)[number];
   profile: PathwayPublishingProfile | null;
   assets: PathwayAsset[];
   publishedAssets: number;
@@ -53,6 +53,10 @@ function defaultAppUrl(appSlug: string) {
 
 export function websitePathwayUrl(slug: string) {
   return `https://www.apostolicguide.com/pathways/${slug}`;
+}
+
+export function listPublishingPathways() {
+  return publishingPathways;
 }
 
 export async function listPathwayPublishingSummaries(): Promise<PathwayPublishingSummary[]> {
@@ -72,7 +76,7 @@ export async function listPathwayPublishingSummaries(): Promise<PathwayPublishin
   const profileMap = new Map(profiles.map((profile) => [profile.pathway_slug, profile]));
   const automationMap = new Map(automations.map((automation) => [automation.id, automation.name]));
 
-  return pathways.map((pathway) => {
+  return publishingPathways.map((pathway) => {
     const profile = profileMap.get(pathway.slug) ?? null;
     const pathwayAssets = assets.filter((asset) => asset.pathway_slug === pathway.slug);
     const publishedAssets = pathwayAssets.filter((asset) => asset.status === "published").length;
