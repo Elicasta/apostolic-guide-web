@@ -17,7 +17,10 @@ export type EventName =
   | "search_no_results"
   | "article_completed"
   | "app_link_clicked"
-  | "content_shared";
+  | "content_shared"
+  | "audio_started"
+  | "audio_progress"
+  | "audio_completed";
 
 type EventProperties = Record<string, string | number | boolean | null>;
 
