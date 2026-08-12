@@ -1,3 +1,4 @@
+import { createHash, randomBytes } from "node:crypto";
 import { createServiceClient } from "@/supabase";
 import type { StudioAccessMode, StudioEpisodeType, StudioProgramState } from "./types";
 
@@ -7,6 +8,10 @@ function db() {
   const client = createServiceClient();
   if (!client) throw new StudioPersistenceError("AG Studio persistence is not configured. Add the Supabase service credentials first.");
   return client;
+}
+
+function hashOutputToken(token: string) {
+  return createHash("sha256").update(token).digest("hex");
 }
 
 export function studioSlug(title: string) {
@@ -85,7 +90,13 @@ export async function addPathwayScriptureCue(input: { episodeId: string; runId: 
 
 export async function createSession(input: { episodeId: string; runId: string }) {
   const client = db();
-  const { data: session, error } = await client.from("studio_sessions").insert({ episode_id: input.episodeId, active_run_id: input.runId, status: "created" }).select("*").single();
+  const outputToken = randomBytes(32).toString("base64url");
+  const { data: session, error } = await client.from("studio_sessions").insert({
+    episode_id: input.episodeId,
+    active_run_id: input.runId,
+    status: "created",
+    output_token_hash: hashOutputToken(outputToken)
+  }).select("*").single();
   if (error) throw new StudioPersistenceError(error.message);
   const initial: StudioProgramState = {
     sessionId: session.id,
@@ -99,7 +110,7 @@ export async function createSession(input: { episodeId: string; runId: string })
   };
   const { error: stateError } = await client.from("studio_session_state").insert({ session_id: session.id, state: initial, state_version: 0 });
   if (stateError) throw new StudioPersistenceError(stateError.message);
-  return { session, state: initial };
+  return { session, state: initial, outputToken };
 }
 
 export async function getSession(sessionId: string) {
@@ -110,6 +121,24 @@ export async function getSession(sessionId: string) {
   const { data: row, error: stateError } = await client.from("studio_session_state").select("state, state_version, updated_at").eq("session_id", sessionId).maybeSingle();
   if (stateError) throw new StudioPersistenceError(stateError.message);
   return { session, state: (row?.state ?? null) as StudioProgramState | null, stateVersion: Number(row?.state_version ?? 0) };
+}
+
+export async function getOutputSnapshot(sessionId: string, outputToken: string) {
+  const client = db();
+  const { data: session, error } = await client.from("studio_sessions").select("id, episode_id, output_token_hash, studio_episodes(title, slug)").eq("id", sessionId).maybeSingle();
+  if (error) throw new StudioPersistenceError(error.message);
+  if (!session || !session.output_token_hash || session.output_token_hash !== hashOutputToken(outputToken)) return null;
+  const { data: row, error: stateError } = await client.from("studio_session_state").select("state, state_version").eq("session_id", sessionId).maybeSingle();
+  if (stateError) throw new StudioPersistenceError(stateError.message);
+  const state = (row?.state ?? null) as StudioProgramState | null;
+  const assetIds = [state?.activeScriptureId, state?.activeQuestionId, state?.activePollId, state?.activeMedia?.assetId, ...(state?.activeOverlays ?? []).map((item) => item.assetId)].filter((value): value is string => Boolean(value));
+  let assets: unknown[] = [];
+  if (assetIds.length) {
+    const { data, error: assetError } = await client.from("studio_assets").select("id, asset_type, label, snapshot_data, custom_data").in("id", [...new Set(assetIds)]);
+    if (assetError) throw new StudioPersistenceError(assetError.message);
+    assets = data ?? [];
+  }
+  return { session, state, stateVersion: Number(row?.state_version ?? 0), assets };
 }
 
 export async function saveSessionState(sessionId: string, state: StudioProgramState, expectedVersion: number) {
