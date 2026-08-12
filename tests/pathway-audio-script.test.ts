@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { APOSTOLIC_GUIDE_ONENESS_AUDIO_RULES, buildPathwayAudioScriptPrompt } from "../src/pathway-audio-script";
+import { APOSTOLIC_GUIDE_AUDIO_OPENING_RULES, APOSTOLIC_GUIDE_ONENESS_AUDIO_RULES, buildPathwayAudioScriptPrompt } from "../src/pathway-audio-script";
 
 test("audio script prompt carries the Apostolic Oneness theological frame", () => {
   const rules = APOSTOLIC_GUIDE_ONENESS_AUDIO_RULES;
@@ -13,11 +13,24 @@ test("audio script prompt carries the Apostolic Oneness theological frame", () =
   assert.match(rules, /Never affirm phrases such as "God the Son," "eternal Son,"/i);
 });
 
+test("audio script opening is branded, follow-along friendly, and platform neutral", () => {
+  const rules = APOSTOLIC_GUIDE_AUDIO_OPENING_RULES;
+  assert.match(rules, /Welcome to Apostolic Guide/i);
+  assert.match(rules, /follow along/i);
+  assert.match(rules, /open this Pathway/i);
+  assert.match(rules, /Never say "click the link below,"/i);
+  assert.match(rules, /"on YouTube,"/i);
+  assert.match(rules, /"in the app,"/i);
+  assert.match(rules, /reusable external video or podcast intro/i);
+});
+
 test("audio script prompt preserves the canonical source and speech limits", () => {
   const source = "Apostolic Guide. Jesus Is God. Isaiah 9:6. The mighty God.";
   const prompt = buildPathwayAudioScriptPrompt(source);
   assert.ok(prompt.includes(source));
   assert.match(prompt, /Apostolic Oneness/i);
+  assert.match(prompt, /Welcome to Apostolic Guide/i);
+  assert.match(prompt, /platform-neutral/i);
   assert.match(prompt, /2,500 and 3,850 characters/i);
   assert.match(prompt, /Do not introduce historical claims or proof texts/i);
 });
