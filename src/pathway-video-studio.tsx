@@ -4,8 +4,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Download, Film, Loader2, Play, RefreshCw, Save, Sparkles, TimerReset, Youtube } from "lucide-react";
 import { PathwayVideoPublishingKit } from "@/pathway-video-publishing-kit";
 import {
+  activePathwayVideoChapter,
   activePathwayVideoCue,
   buildEstimatedPathwayVideoTimeline,
+  buildPathwayVideoChapters,
   formatVideoTimestamp,
   normalizePathwayVideoTimeline,
   VIDEO_FORMATS,
@@ -52,6 +54,9 @@ type AlignmentState = {
   confidence?: string;
   matchedScriptureCues?: number;
   totalScriptureCues?: number;
+  matchedDirectedCues?: number;
+  totalDirectedCues?: number;
+  totalVideoCues?: number;
   analyzedAt?: string;
 };
 
@@ -104,7 +109,7 @@ export function PathwayVideoStudio({ pathways, databaseReady }: { pathways: Stud
   const [renders, setRenders] = useState<RenderRow[]>(selected?.renders ?? []);
   const [projectSaved, setProjectSaved] = useState(Boolean(effectiveProject));
   const alignment = readAlignment(effectiveProject?.style);
-  const timingCurrent = Boolean(selected?.audioContentHash && effectiveProject?.audioContentHash === selected.audioContentHash && alignment?.status === "aligned");
+  const timingCurrent = Boolean(selected?.audioContentHash && effectiveProject?.audioContentHash === selected.audioContentHash && alignment?.status === "aligned-rich");
 
   useEffect(() => {
     setDuration(0);
@@ -140,6 +145,10 @@ export function PathwayVideoStudio({ pathways, databaseReady }: { pathways: Stud
 
   const activeCue = useMemo(() => activePathwayVideoCue(timeline, currentTime), [timeline, currentTime]);
   const selectedCue = timeline.find((cue) => cue.id === selectedCueId) ?? activeCue;
+  const chapters = useMemo(() => buildPathwayVideoChapters(timeline, selected?.title ?? "Pathway"), [timeline, selected?.title]);
+  const activeChapter = useMemo(() => activePathwayVideoChapter(chapters, currentTime), [chapters, currentTime]);
+  const visibleChapters = useMemo(() => chapters.filter((chapter) => chapter.label !== "INTRO" && chapter.label !== "COMPLETE"), [chapters]);
+  const activeChapterIndex = activeChapter ? visibleChapters.findIndex((chapter) => chapter.cueId === activeChapter.cueId) : -1;
   const ratio = VIDEO_FORMATS[format];
   const progress = duration ? Math.min(100, Math.max(0, (currentTime / duration) * 100)) : 0;
   const latestByFormat = useMemo(() => {
@@ -152,7 +161,7 @@ export function PathwayVideoStudio({ pathways, databaseReady }: { pathways: Stud
     if (!selected?.audioUrl || !selected.scriptApproved || !databaseReady) return null;
     const key = `${selected.slug}:${selected.audioContentHash ?? "audio"}`;
     setBusy("analyze");
-    setMessage(force ? "Re-analyzing the narration and rebuilding Scripture timing…" : "Analyzing the narration and matching Scripture timing automatically…");
+    setMessage(force ? "Re-directing the narration and rebuilding every visual beat…" : "Analyzing the narration, directing talking points, and matching every beat automatically…");
     try {
       const response = await fetch("/api/admin/video-studio/analyze", {
         method: "POST",
@@ -171,7 +180,8 @@ export function PathwayVideoStudio({ pathways, databaseReady }: { pathways: Stud
       const result = data.alignment as AlignmentState | undefined;
       const matched = Number(result?.matchedScriptureCues ?? selected.steps.length);
       const total = Number(result?.totalScriptureCues ?? selected.steps.length);
-      setMessage(`Timing ready. ${matched} of ${total} Scripture sections matched automatically${result?.confidence ? ` · ${result.confidence} confidence` : ""}. Use Set here only if you want to correct a cue.`);
+      const beatCount = Number(result?.totalVideoCues ?? project.timeline.length);
+      setMessage(`${beatCount} visual beats ready · ${matched}/${total} Scripture sections matched${result?.confidence ? ` · ${result.confidence} confidence` : ""}. Set here remains correction-only.`);
       return project;
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Audio timing could not be analyzed.");
@@ -196,7 +206,7 @@ export function PathwayVideoStudio({ pathways, databaseReady }: { pathways: Stud
     setTimeline(next);
     setSelectedCueId(next[0]?.id ?? null);
     setProjectSaved(false);
-    setMessage("Using estimated timing. Re-analyze audio to restore automatic script-matched timing.");
+    setMessage("Using the rich estimated template. Re-analyze audio to restore GPT-directed, script-matched talking points.");
   }
 
   function updateCue(id: string, patch: Partial<PathwayVideoCue>) {
@@ -225,7 +235,7 @@ export function PathwayVideoStudio({ pathways, databaseReady }: { pathways: Stud
       const response = await fetch("/api/admin/video-studio/project", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ slug: selected.slug, timeline: normalized, style: { ...(effectiveProject?.style ?? {}), brandVersion: 1 } })
+        body: JSON.stringify({ slug: selected.slug, timeline: normalized, style: { ...(effectiveProject?.style ?? {}), brandVersion: 2, template: "audio-first-rich-v1" } })
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || "Video project could not be saved.");
@@ -275,10 +285,10 @@ export function PathwayVideoStudio({ pathways, databaseReady }: { pathways: Stud
       <div>
         <span className="eyebrow">Publishing</span>
         <h1>Video Studio</h1>
-        <p className="admin-lede">Turn approved Pathway audio into branded YouTube episodes and social video. Scripture timing is matched automatically from the approved script and finished narration.</p>
+        <p className="admin-lede">Turn approved Pathway audio into the rich Apostolic Guide visualizer format. Scripture cards, supporting talking points, recap beats, section tracking, and timing are directed automatically from the approved narration.</p>
       </div>
       <div className="video-studio-heading-actions">
-        <button type="button" className="button" disabled={!selected.audioUrl || !selected.scriptApproved || busy === "analyze"} onClick={() => void analyzeAudio(true)}>{busy === "analyze" ? <Loader2 className="spin" size={16}/> : <Sparkles size={16}/>} {timingCurrent ? "Re-analyze timing" : "Analyze audio"}</button>
+        <button type="button" className="button" disabled={!selected.audioUrl || !selected.scriptApproved || busy === "analyze"} onClick={() => void analyzeAudio(true)}>{busy === "analyze" ? <Loader2 className="spin" size={16}/> : <Sparkles size={16}/>} {timingCurrent ? "Re-direct video" : "Analyze & direct"}</button>
         <button type="button" className="button primary" disabled={!databaseReady || busy === "save"} onClick={() => void saveProject()}>{busy === "save" ? <Loader2 className="spin" size={16}/> : <Save size={16}/>} Save</button>
       </div>
     </div>
@@ -290,14 +300,14 @@ export function PathwayVideoStudio({ pathways, databaseReady }: { pathways: Stud
       <label><span>Pathway source</span><select value={selected.slug} onChange={(event) => setSelectedSlug(event.target.value)}>{pathways.map((pathway) => <option key={pathway.slug} value={pathway.slug}>{pathway.title}{pathway.audioUrl ? "" : " · no audio"}</option>)}</select></label>
       <div className="video-source-status"><span className={selected.audioUrl ? "status-dot is-ready" : "status-dot"}/><div><strong>{selected.audioUrl ? "Audio ready" : "Audio missing"}</strong><small>{selected.audioGeneratedAt ? `Generated ${new Date(selected.audioGeneratedAt).toLocaleString()}` : "Generate the Pathway audio first."}</small></div></div>
       <div className="video-source-status"><span className={selected.scriptApproved ? "status-dot is-ready" : "status-dot"}/><div><strong>{selected.scriptApproved ? "Script approved" : "Script not approved"}</strong><small>{selected.steps.length} Scripture stops in the live Pathway</small></div></div>
-      <div className="video-source-status"><span className={timingCurrent ? "status-dot is-ready" : "status-dot"}/><div><strong>{busy === "analyze" ? "Analyzing timing" : timingCurrent ? "Timing matched" : "Timing pending"}</strong><small>{timingCurrent ? `${alignment?.matchedScriptureCues ?? selected.steps.length}/${alignment?.totalScriptureCues ?? selected.steps.length} cues · ${alignment?.confidence ?? "matched"}` : "Runs automatically when audio opens."}</small></div></div>
+      <div className="video-source-status"><span className={timingCurrent ? "status-dot is-ready" : "status-dot"}/><div><strong>{busy === "analyze" ? "Directing video" : timingCurrent ? "Rich timeline ready" : "Direction pending"}</strong><small>{timingCurrent ? `${alignment?.totalVideoCues ?? timeline.length} visual beats · ${alignment?.matchedScriptureCues ?? selected.steps.length}/${alignment?.totalScriptureCues ?? selected.steps.length} Scripture` : "Runs automatically when audio opens."}</small></div></div>
     </section>
 
     <div className="video-studio-grid">
       <section className="admin-card video-preview-card">
-        <div className="video-card-heading"><div><span className="section-kicker">Live preview</span><h2>{selected.title}</h2></div><span>{ratio.width} × {ratio.height}</span></div>
+        <div className="video-card-heading"><div><span className="section-kicker">Master-template preview</span><h2>{selected.title}</h2></div><span>{ratio.width} × {ratio.height}</span></div>
 
-        <div className={`pathway-video-preview is-${format} ${activeCue?.kind === "brand" ? "is-brand-cue" : ""}`} style={{ aspectRatio: `${ratio.width}/${ratio.height}` }}>
+        <div className={`pathway-video-preview is-${format} is-${activeCue?.kind ?? "scripture"}-cue`} style={{ aspectRatio: `${ratio.width}/${ratio.height}` }}>
           <div className="video-preview-ambient video-preview-ambient-red"/><div className="video-preview-ambient video-preview-ambient-blue"/><div className="video-preview-grain"/>
           {activeCue?.kind === "brand" ? <img className="video-preview-hero-wordmark" src="/brand/apostolic-guide-wordmark-reversed.png" alt="Apostolic Guide"/> : <img className="video-preview-wordmark" src="/brand/apostolic-guide-wordmark-reversed.png" alt="Apostolic Guide"/>}
           <div className="video-preview-pathway">{selected.title.toUpperCase()} · PATHWAY</div>
@@ -310,7 +320,11 @@ export function PathwayVideoStudio({ pathways, databaseReady }: { pathways: Stud
             const motion = 0.24 + Math.abs(Math.sin(currentTime * 2.1 + index * 0.67) * Math.cos(currentTime * 0.7 + index * 0.21)) * 0.76;
             return <i key={index} style={{ height: `${Math.round(motion * 100)}%` }}/>;
           })}</div>
-          <div className="video-preview-footer"><div><strong>{activeCue?.reference || "APOSTOLIC GUIDE"}</strong><span>{formatVideoTimestamp(currentTime)}</span></div><span>{formatVideoTimestamp(duration)}</span></div>
+          <div className="video-preview-footer">
+            <div className="video-preview-chapter"><strong>{activeChapter?.label || "INTRO"}</strong><span>{activeChapter?.reference || selected.title.toUpperCase()}</span></div>
+            <div className="video-preview-chapter-dots" aria-hidden="true">{visibleChapters.map((chapter, index) => <i key={chapter.cueId} className={index === activeChapterIndex ? "is-active" : ""}/>)}</div>
+            <span className="video-preview-time">{formatVideoTimestamp(currentTime)} / {formatVideoTimestamp(duration)}</span>
+          </div>
           <div className="video-preview-progress"><i style={{ width: `${progress}%` }}/></div>
         </div>
 
@@ -328,10 +342,10 @@ export function PathwayVideoStudio({ pathways, databaseReady }: { pathways: Stud
       </section>
 
       <section className="admin-card video-timeline-card">
-        <div className="video-card-heading"><div><span className="section-kicker">Timeline</span><h2>Scripture cues</h2></div><button type="button" className="button small" onClick={rebuildEstimatedTimeline}><TimerReset size={15}/> Use estimated</button></div>
-        <p className="video-timeline-help">The finished audio is matched against the approved narration automatically. <strong>Set here is correction-only.</strong> Use it only if a Scripture card changes at the wrong moment.</p>
+        <div className="video-card-heading"><div><span className="section-kicker">Timeline</span><h2>Visual beats</h2></div><button type="button" className="button small" onClick={rebuildEstimatedTimeline}><TimerReset size={15}/> Rich estimate</button></div>
+        <p className="video-timeline-help">GPT-5.6 Sol directs the talking points from the approved narration, then the finished audio is word-aligned to place them. <strong>Set here is correction-only.</strong></p>
         <div className="video-cue-list">{timeline.map((cue, index) => <article key={cue.id} className={selectedCue?.id === cue.id ? "video-cue is-selected" : "video-cue"} onClick={() => setSelectedCueId(cue.id)}>
-          <div className="video-cue-index"><span>{String(index + 1).padStart(2, "0")}</span><strong>{formatVideoTimestamp(cue.start)}</strong></div>
+          <div className="video-cue-index"><span>{String(index + 1).padStart(2, "0")} · {cue.kind.toUpperCase()}</span><strong>{formatVideoTimestamp(cue.start)}</strong></div>
           <div className="video-cue-fields">
             <input aria-label="Cue eyebrow" value={cue.eyebrow} onChange={(event) => updateCue(cue.id, { eyebrow: event.target.value })}/>
             <textarea aria-label="Cue title" rows={2} value={cue.title} onChange={(event) => updateCue(cue.id, { title: event.target.value })}/>
@@ -353,7 +367,7 @@ export function PathwayVideoStudio({ pathways, databaseReady }: { pathways: Stud
           {latest?.status === "completed" && latest.output_url ? <a className="button" href={latest.output_url} target="_blank" rel="noreferrer"><Download size={15}/> Download</a> : <button type="button" className="button" disabled={!databaseReady || !selected.audioUrl || rendering || busy === "analyze"} onClick={() => void requestRender(key)}>{rendering ? <Loader2 className="spin" size={15}/> : <RefreshCw size={15}/>} {latest ? "Render again" : "Render"}</button>}
         </div>;
       })}</div>
-      <div className="video-distribution-note"><strong>Publishing adapters</strong><p>The render layer is separate from channel credentials. Finished renders can move into YouTube, Instagram, and TikTok publishing without rebuilding the video.</p></div>
+      <div className="video-distribution-note"><strong>Preview = export</strong><p>The renderer uses the same rich master-template language: red/blue ambient background, exact wordmark, visualizer, bottom-left section tracker, cue transitions, and red-to-blue progress bar.</p></div>
     </section>
 
     <PathwayVideoPublishingKit slug={selected.slug} title={selected.title}/>
