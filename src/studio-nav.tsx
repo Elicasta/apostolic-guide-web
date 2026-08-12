@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { BarChart3, Bell, BookOpen, FileClock, FileText, HeartPulse, Inbox, Instagram, ListFilter, Mail, Menu, Route, Settings, Sparkles, UserCog, Users, X } from "lucide-react";
+import { BarChart3, Bell, BookOpen, FileClock, FileText, Headphones, HeartPulse, Inbox, Instagram, ListFilter, Mail, Menu, Route, Settings, Sparkles, UserCog, Users, X } from "lucide-react";
 import { hasStudioPermission, type StudioPermission, type StudioRole } from "@/studio-permissions";
 
 export const studioNavSections: Array<{ label: string; items: Array<{ href: string; label: string; icon: typeof BarChart3; permission: StudioPermission; exact?: boolean }> }> = [
@@ -20,6 +20,7 @@ export const studioNavSections: Array<{ label: string; items: Array<{ href: stri
   ]},
   { label: "Publishing", items: [
     { href: "/admin/pathways", label: "Pathway publishing", icon: Route, permission: "view_content" },
+    { href: "/admin/audio", label: "Pathway audio", icon: Headphones, permission: "manage_content" },
     { href: "/admin/content", label: "Website content", icon: FileText, permission: "view_content" },
     { href: "/admin/app-content", label: "App content", icon: BookOpen, permission: "view_content" }
   ]},
