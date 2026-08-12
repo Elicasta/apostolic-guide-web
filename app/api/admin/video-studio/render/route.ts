@@ -18,6 +18,21 @@ function assetDetails(format: "youtube" | "vertical" | "square", pathwayTitle: s
   return { type: "short_video", platform: "square_social", title: `${pathwayTitle} · Square video` };
 }
 
+async function rendererCredentials(service: ReturnType<typeof createServiceClient>) {
+  let token = process.env.VIDEO_STUDIO_GITHUB_TOKEN?.trim() || "";
+  let repository = process.env.VIDEO_STUDIO_GITHUB_REPOSITORY?.trim() || "Elicasta/apostolic-guide-web";
+  if (token || !service) return { token, repository };
+
+  const { data, error } = await service.schema("analytics").from("integration_secrets")
+    .select("name,secret")
+    .in("name", ["video_studio_github_token", "video_studio_github_repository"]);
+  if (error) throw new Error(error.message);
+  const values = new Map((data ?? []).map((row) => [row.name, row.secret]));
+  token = values.get("video_studio_github_token")?.trim() || "";
+  repository = values.get("video_studio_github_repository")?.trim() || repository;
+  return { token, repository };
+}
+
 export async function POST(request: Request) {
   const { access, allowed } = await getStudioPermission("manage_content");
   if (!allowed || access.state !== "allowed" || !access.user) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -27,12 +42,21 @@ export async function POST(request: Request) {
   const pathway = pathwayBySlug(parsed.data.slug);
   if (!pathway) return NextResponse.json({ error: "Pathway not found." }, { status: 404 });
 
-  const token = process.env.VIDEO_STUDIO_GITHUB_TOKEN?.trim();
-  const repository = process.env.VIDEO_STUDIO_GITHUB_REPOSITORY?.trim() || "Elicasta/apostolic-guide-web";
-  if (!token) return NextResponse.json({ error: "Video renderer is not connected yet. Add VIDEO_STUDIO_GITHUB_TOKEN to the deployment environment." }, { status: 503 });
-
   const service = createServiceClient();
   if (!service) return NextResponse.json({ error: "Supabase service access is not configured." }, { status: 503 });
+
+  let token = "";
+  let repository = "Elicasta/apostolic-guide-web";
+  try {
+    ({ token, repository } = await rendererCredentials(service));
+  } catch (error) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Renderer credentials could not be loaded." }, { status: 500 });
+  }
+  if (!token) return NextResponse.json({
+    error: "Video renderer is not connected. Open Setup → Video renderer and add the GitHub Actions token first.",
+    code: "renderer_not_connected",
+    setupUrl: "/admin/setup#video-renderer"
+  }, { status: 503 });
 
   const [projectResult, audioResult] = await Promise.all([
     service.from("pathway_video_projects").select("id,audio_content_hash,timeline,style").eq("pathway_slug", pathway.slug).maybeSingle(),
