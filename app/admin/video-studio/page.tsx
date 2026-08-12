@@ -71,13 +71,17 @@ export default async function AdminVideoStudioPage() {
   let projectRows: ProjectRow[] = [];
   let renderRows: RenderRow[] = [];
   let databaseReady = Boolean(service);
+  let rendererReady = Boolean(process.env.VIDEO_STUDIO_GITHUB_TOKEN?.trim());
 
   if (service) {
-    const [assetsResult, scriptsResult, projectsResult, rendersResult] = await Promise.all([
+    const [assetsResult, scriptsResult, projectsResult, rendersResult, rendererSecretResult] = await Promise.all([
       service.from("pathway_audio_assets").select("pathway_slug,audio_url,content_hash,generated_at"),
       service.from("pathway_audio_scripts").select("pathway_slug,status"),
       service.from("pathway_video_projects").select("id,pathway_slug,audio_content_hash,timeline,style,updated_at"),
-      service.from("pathway_video_renders").select("id,pathway_slug,format,status,output_url,error,requested_at,completed_at").order("requested_at", { ascending: false }).limit(100)
+      service.from("pathway_video_renders").select("id,pathway_slug,format,status,output_url,error,requested_at,completed_at").order("requested_at", { ascending: false }).limit(100),
+      rendererReady
+        ? Promise.resolve({ data: null, error: null })
+        : service.schema("analytics").from("integration_secrets").select("name").eq("name", "video_studio_github_token").maybeSingle()
     ]);
 
     assetRows = (assetsResult.data ?? []) as AudioAssetRow[];
@@ -85,11 +89,13 @@ export default async function AdminVideoStudioPage() {
     projectRows = (projectsResult.data ?? []) as ProjectRow[];
     renderRows = (rendersResult.data ?? []) as RenderRow[];
     databaseReady = !projectsResult.error && !rendersResult.error;
+    rendererReady = rendererReady || Boolean(rendererSecretResult.data);
 
     if (assetsResult.error) console.error("video studio audio asset load failed", assetsResult.error.message);
     if (scriptsResult.error) console.error("video studio script load failed", scriptsResult.error.message);
     if (projectsResult.error) console.error("video studio project load failed", projectsResult.error.message);
     if (rendersResult.error) console.error("video studio render load failed", rendersResult.error.message);
+    if (rendererSecretResult.error) console.error("video studio renderer credential load failed", rendererSecretResult.error.message);
   }
 
   const assets = new Map(assetRows.map((row) => [row.pathway_slug, row]));
@@ -122,5 +128,5 @@ export default async function AdminVideoStudioPage() {
     };
   });
 
-  return <PathwayVideoStudio pathways={pathways} databaseReady={databaseReady}/>;
+  return <PathwayVideoStudio pathways={pathways} databaseReady={databaseReady} rendererReady={rendererReady}/>;
 }
