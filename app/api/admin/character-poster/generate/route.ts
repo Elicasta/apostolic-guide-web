@@ -28,7 +28,7 @@ export async function POST(request:Request){
   if(!parsed.success) return NextResponse.json({error:"Invalid character request."},{status:400});
   const apiKey=process.env.OPENAI_API_KEY?.trim();
   if(!apiKey) return NextResponse.json({error:"OPENAI_API_KEY is not configured."},{status:503});
-  const model=process.env.OPENAI_CAROUSEL_IMAGE_MODEL?.trim()||"gpt-image-2";
+  const model=process.env.OPENAI_CAROUSEL_IMAGE_MODEL?.trim()||"gpt-image-1";
   const {character,pose,direction,treatment}=parsed.data;
   const prompt=[
     `Create a full-body cutout of ${character} for a premium editorial Christian social poster.`,
@@ -39,15 +39,33 @@ export async function POST(request:Request){
     "Transparent background. Keep the entire figure cleanly separated with crisp edges so typography can pass behind and in front of the subject.",
     "Avoid glossy devotional-stock-art styling. Aim for a modern campaign/editorial image while retaining historical plausibility."
   ].join("\n");
+
   const response=await fetch("https://api.openai.com/v1/images/generations",{
     method:"POST",
     headers:{authorization:`Bearer ${apiKey}`,"content-type":"application/json"},
-    body:JSON.stringify({model,prompt,size:"1024x1536",quality:"low",background:"transparent",output_format:"png",n:1})
+    body:JSON.stringify({
+      model,
+      prompt,
+      size:"1024x1536",
+      quality:"low",
+      background:"transparent",
+      output_format:"png",
+      n:1
+    })
   });
+
   if(!response.ok){
-    const detail=(await response.text().catch(()=>"")).slice(0,1200);
-    return NextResponse.json({error:`Character generation failed (${response.status}).`,detail},{status:502});
+    const detail=(await response.text().catch(()=>"")).slice(0,1600);
+    console.error("Character Poster image generation failed",{status:response.status,model,detail});
+    let upstreamMessage="";
+    try{upstreamMessage=JSON.parse(detail)?.error?.message??""}catch{}
+    return NextResponse.json({
+      error: upstreamMessage || `Character generation failed (${response.status}).`,
+      upstreamStatus: response.status,
+      model
+    },{status:502});
   }
+
   const result=await response.json();
   const b64=result?.data?.[0]?.b64_json;
   if(typeof b64!=="string"||!b64) return NextResponse.json({error:"Image model returned no image."},{status:502});
