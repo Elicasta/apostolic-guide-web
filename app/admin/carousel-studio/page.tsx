@@ -19,5 +19,5 @@ export default async function AdminCarouselStudioPage() {
     }))
   }));
 
-  return <PathwayCarouselStudio pathways={pathways}/>;
+  return <PathwayCarouselStudio pathways={pathways} aiReady={Boolean(process.env.OPENAI_API_KEY?.trim())}/>;
 }
