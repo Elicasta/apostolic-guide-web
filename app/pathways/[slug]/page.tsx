@@ -5,10 +5,14 @@ import { notFound } from "next/navigation";
 import { BibleReferenceLink, StudyScriptures } from "@/study-guidance";
 import { SmartNext } from "@/smart-next";
 import { PathwayStudyTracker } from "@/pathway-study-tracker";
+import { PathwayAudioPlayer } from "@/pathway-audio-player";
+import { getPathwayAudioAsset } from "@/pathway-audio";
 import { pathwaySuggestions } from "@/suggestion-data";
 import { scriptures, topicBySlug } from "@/data";
 import { allPathways, pathwayBySlug } from "@/pathway-catalog";
 import { buildAppUrl } from "@/urls";
+
+export const revalidate = 60;
 
 export function generateStaticParams() { return allPathways.map((pathway) => ({ slug: pathway.slug })); }
 
@@ -25,7 +29,10 @@ export default async function PathwayPage({ params }: Props) {
   const { slug } = await params;
   const pathway = pathwayBySlug(slug);
   if (!pathway) notFound();
-  const topic = topicBySlug(pathway.topicSlug);
+  const [topic, audioAsset] = await Promise.all([
+    Promise.resolve(topicBySlug(pathway.topicSlug)),
+    getPathwayAudioAsset(pathway.slug)
+  ]);
   const collectionItems = allPathways.filter((item) => item.collection === pathway.collection);
   const currentIndex = collectionItems.findIndex((item) => item.slug === pathway.slug);
   const previous = currentIndex > 0 ? collectionItems[currentIndex - 1] : null;
@@ -46,6 +53,7 @@ export default async function PathwayPage({ params }: Props) {
           <h1>{pathway.title}</h1>
           <p>{pathway.summary}</p>
           <div className="study-metrics"><span><Clock3 size={13} /> {pathway.estimatedMinutes} minutes</span><span>{pathway.steps.length} key steps</span><span>{pathway.level}</span></div>
+          {audioAsset ? <PathwayAudioPlayer slug={pathway.slug} title={pathway.title} audioUrl={audioAsset.audioUrl}/> : null}
         </div>
       </section>
 
