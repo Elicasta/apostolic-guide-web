@@ -32,6 +32,7 @@ import "./social-publishing-credentials.css";
 import "./video-studio-review.css";
 import "./channel-publishing.css";
 import "./carousel-studio.css";
+import "./character-poster/character-poster.css";
 
 export const dynamic = "force-dynamic";
 
