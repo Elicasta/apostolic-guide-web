@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getStudioPermission } from "@/auth";
 import { pathwayBySlug } from "@/pathway-catalog";
 import { buildPathwayNarration, hashAudioText, pathwayNarrationHash } from "@/pathway-audio";
+import { buildPathwayAudioScriptPrompt } from "@/pathway-audio-script";
 import { createServiceClient } from "@/supabase";
 
 export const runtime = "nodejs";
@@ -42,7 +43,7 @@ export async function POST(request: Request) {
   const source = buildPathwayNarration(pathway);
   const sourceHash = pathwayNarrationHash(pathway);
   const model = process.env.OPENAI_SCRIPT_MODEL || "gpt-5-mini";
-  const prompt = `Write a spoken-word narration script for an Apostolic Guide Scripture Pathway.\n\nVOICE AND EDITORIAL RULES\n- Scripture-first, calm, clear, confident, pastoral, and conversational.\n- Teach rather than debate. Never mock or attack another theological group.\n- Do not introduce claims, doctrines, historical facts, or proof texts that are not present in the supplied Pathway.\n- Preserve the Pathway's theological meaning. Do not strengthen an inference into an explicit claim.\n- Explain why each passage follows the previous passage. Use natural transitions instead of saying Step 1, Step 2, etc.\n- Quote only Scripture wording supplied below. Do not invent missing verse wording.\n- Open with a short hook that states the question or tension.\n- End with a concise summary and invitation to continue studying on Apostolic Guide.\n- Output only the finished narration. No headings, markdown, notes, labels, or commentary.\n- Keep the entire narration between 2,500 and 3,850 characters so it can be sent safely to the speech model.\n\nCANONICAL PATHWAY SOURCE\n${source}`;
+  const prompt = buildPathwayAudioScriptPrompt(source);
 
   const response = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
