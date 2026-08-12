@@ -10,15 +10,23 @@ permissions:
 jobs:
   render:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 20
     steps:
       - name: Check out renderer
         uses: actions/checkout@v4
 
-      - name: Install ffmpeg and fonts
+      - name: Prepare ffmpeg and fonts
+        shell: bash
         run: |
-          sudo apt-get update
-          sudo apt-get install -y ffmpeg fonts-noto-core
+          missing=()
+          command -v ffmpeg >/dev/null 2>&1 || missing+=(ffmpeg)
+          if ! fc-match "Noto Sans" 2>/dev/null | grep -qi "Noto"; then
+            missing+=(fonts-noto-core)
+          fi
+          if ((${#missing[@]})); then
+            sudo apt-get update -qq
+            sudo apt-get install -y --no-install-recommends "${missing[@]}"
+          fi
 
       - name: Write render payload
         env:
