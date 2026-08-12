@@ -7,14 +7,14 @@ export const maxDuration = 60;
 
 const layoutSchema = z.object({
   copyY: z.number().min(25).max(72),
-  headlineScale: z.number().min(0.55).max(1.2),
-  bodyScale: z.number().min(0.7).max(1.2),
-  bodyWidth: z.number().min(48).max(92),
-  crownScale: z.number().min(0.5).max(1.35),
-  slashY: z.number().min(8).max(78),
-  slashWidth: z.number().min(18).max(82),
+  headlineScale: z.number().min(0.5).max(1.2),
+  bodyScale: z.number().min(0.65).max(1.25),
+  bodyWidth: z.number().min(42).max(94),
+  crownScale: z.number().min(0.45).max(1.35),
   align: z.enum(["left", "center", "right"]),
-  titleWidth: z.number().min(54).max(96)
+  titleWidth: z.number().min(46).max(98),
+  headlineLines: z.number().int().min(0).max(6),
+  copyGap: z.number().min(0.5).max(5)
 });
 
 const requestSchema = z.object({
@@ -33,17 +33,17 @@ const requestSchema = z.object({
 const RESPONSE_SCHEMA = {
   type: "object",
   additionalProperties: false,
-  required: ["copyY", "headlineScale", "bodyScale", "bodyWidth", "crownScale", "slashY", "slashWidth", "align", "titleWidth", "summary"],
+  required: ["copyY", "headlineScale", "bodyScale", "bodyWidth", "crownScale", "align", "titleWidth", "headlineLines", "copyGap", "summary"],
   properties: {
     copyY: { type: "number", minimum: 25, maximum: 72 },
-    headlineScale: { type: "number", minimum: 0.55, maximum: 1.2 },
-    bodyScale: { type: "number", minimum: 0.7, maximum: 1.2 },
-    bodyWidth: { type: "number", minimum: 48, maximum: 92 },
-    crownScale: { type: "number", minimum: 0.5, maximum: 1.35 },
-    slashY: { type: "number", minimum: 8, maximum: 78 },
-    slashWidth: { type: "number", minimum: 18, maximum: 82 },
+    headlineScale: { type: "number", minimum: 0.5, maximum: 1.2 },
+    bodyScale: { type: "number", minimum: 0.65, maximum: 1.25 },
+    bodyWidth: { type: "number", minimum: 42, maximum: 94 },
+    crownScale: { type: "number", minimum: 0.45, maximum: 1.35 },
     align: { type: "string", enum: ["left", "center", "right"] },
-    titleWidth: { type: "number", minimum: 54, maximum: 96 },
+    titleWidth: { type: "number", minimum: 46, maximum: 98 },
+    headlineLines: { type: "integer", minimum: 0, maximum: 6 },
+    copyGap: { type: "number", minimum: 0.5, maximum: 5 },
     summary: { type: "string", maxLength: 180 }
   }
 } as const;
@@ -89,15 +89,14 @@ export async function POST(request: Request) {
           content: [{ type: "input_text", text: [
             "You translate a creative director's natural-language request into bounded layout controls for an Apostolic Guide social graphic.",
             "Change only what the instruction implies. Preserve readability, safe margins, visual hierarchy, and phone legibility.",
+            "headlineLines is authoritative: 0 means automatic wrapping; 1-6 means format the unchanged headline into exactly that many balanced lines when possible.",
+            "If the user says 'make it two lines', set headlineLines to 2. If they say 'one line', set it to 1. Do not merely shrink the text and ignore the requested line count.",
             "Long headlines should get smaller, wider, or repositioned rather than stacking into an oversized wall of text.",
-            "copyY is the vertical center percentage. headlineScale/bodyScale are multipliers. bodyWidth/titleWidth are percentages. slashY is percent from top. slashWidth is percent. crownScale is a multiplier.",
+            "copyY is the vertical center percentage. headlineScale/bodyScale are multipliers. bodyWidth/titleWidth are percentages. crownScale is a multiplier. copyGap controls vertical spacing between elements.",
             "Do not alter copy. Do not return CSS, pixels, prose instructions, or values outside the schema."
           ].join("\n") }]
         },
-        {
-          role: "user",
-          content: [{ type: "input_text", text: JSON.stringify(parsed.data) }]
-        }
+        { role: "user", content: [{ type: "input_text", text: JSON.stringify(parsed.data) }] }
       ]
     })
   });
