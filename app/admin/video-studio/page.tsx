@@ -65,7 +65,7 @@ export default async function AdminVideoStudioPage() {
   let scriptRows: ScriptRow[] = [];
   let projectRows: ProjectRow[] = [];
   let renderRows: RenderRow[] = [];
-  let databaseReady = true;
+  let databaseReady = Boolean(service);
 
   if (service) {
     const [assetsResult, scriptsResult, projectsResult, rendersResult] = await Promise.all([
