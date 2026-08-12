@@ -179,6 +179,13 @@ export function SongStudioApp({ initialProjects, initialStyles, userLabel, setup
     setDirty(true);
   }
 
+  const reviewDirty = Boolean(selectedProject && (
+    selectedProject.current_draft?.lyrics !== editor.lyrics
+    || selectedProject.theological_center !== editor.theologicalCenter
+    || selectedProject.song_type !== editor.songType
+    || selectedProject.core_scriptures.join(", ") !== editor.scriptures
+  ));
+
   async function reload() {
     const payload = await jsonRequest<{ projects: SongProject[]; styles: SongStyleProfile[] }>("/api/media/song-studio/projects");
     setProjects(payload.projects);
@@ -252,9 +259,9 @@ export function SongStudioApp({ initialProjects, initialStyles, userLabel, setup
     setBusy(action);
     setNotice(null);
     try {
-      if (action === "write" || action === "refine") await saveProjectBrief(true);
+      await saveProjectBrief(true);
       let draftId = editor.draftId;
-      if (action === "evaluate" && (dirty || !draftId)) {
+      if (action === "evaluate" && (reviewDirty || !draftId)) {
         const saved = await saveDraft();
         draftId = saved?.id ?? null;
         if (!draftId) return;
@@ -432,7 +439,7 @@ export function SongStudioApp({ initialProjects, initialStyles, userLabel, setup
   }
 
   const currentStyle = styles.find((style) => style.id === editor.styleId) ?? null;
-  const canSuno = editor.evaluation?.gate_status === "ready_for_suno";
+  const canSuno = editor.evaluation?.gate_status === "ready_for_suno" && !reviewDirty;
 
   return (
     <div className="song-studio-shell">
@@ -517,7 +524,7 @@ export function SongStudioApp({ initialProjects, initialStyles, userLabel, setup
         ) : view === "sound" ? (
           <section className="sound-view">
             <div className="sound-heading"><div><span className="topbar-kicker">MUSICAL LANGUAGE</span><h2>Give the lyric a world, not an artist clone.</h2><p>Style profiles become reusable production data. Pick one, alter the brief, or save a new palette.</p></div><button className="studio-button primary" disabled={!canSuno || Boolean(busy)} onClick={() => runAI("suno_prompt")}>{busy === "suno_prompt" ? <Loader2 className="spin" size={16} /> : <Sparkles size={16} />} Prepare for Suno</button></div>
-            {!canSuno && <div className="gate-warning"><AlertTriangle size={17} /><div><strong>Suno prep is locked.</strong><p>The current draft must clear the theological and congregational quality gate first.</p></div></div>}
+            {!canSuno && <div className="gate-warning"><AlertTriangle size={17} /><div><strong>{reviewDirty ? "The cleared draft has changed." : "Suno prep is locked."}</strong><p>{reviewDirty ? "Save and re-score the lyric or theology changes before preparing production metadata. Style and title changes do not require a new theological review." : "The current draft must clear the theological and congregational quality gate first."}</p></div></div>}
             <div className="style-grid">
               {styles.map((style) => (
                 <button key={style.id} className={`style-card ${editor.styleId === style.id ? "active" : ""}`} onClick={() => updateEditor("styleId", style.id)}>
