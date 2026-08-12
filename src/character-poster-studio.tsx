@@ -1,0 +1,73 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import { Download, Loader2, RefreshCw, Sparkles } from "lucide-react";
+import { toPng } from "html-to-image";
+
+type Character="Peter"|"Paul"|"John"|"Moses"|"David"|"Jesus";
+type Pose="standing"|"preaching"|"walking"|"profile"|"portrait";
+type Treatment="cinematic"|"documentary"|"editorial";
+type Composition="split"|"oversized"|"crop"|"poster"|"editorial";
+
+type CharacterMeta={name:Character;era:string;role:string;defaultPose:Pose};
+const BANK:CharacterMeta[]=[
+ {name:"Peter",era:"First-century Galilee",role:"Apostle · Acts 2",defaultPose:"preaching"},
+ {name:"Paul",era:"First-century Mediterranean",role:"Apostle · Epistles",defaultPose:"walking"},
+ {name:"John",era:"First-century Judea",role:"Apostle · Gospel",defaultPose:"portrait"},
+ {name:"Moses",era:"Ancient Israel",role:"Prophet · Torah",defaultPose:"standing"},
+ {name:"David",era:"Ancient Israel",role:"King · Psalms",defaultPose:"standing"},
+ {name:"Jesus",era:"First-century Galilee",role:"Messiah · Gospel",defaultPose:"standing"}
+];
+
+const COMPOSITIONS:Record<Composition,{label:string;note:string}>={
+ split:{label:"Split Type",note:"ONE behind · GOD in front"},
+ oversized:{label:"Oversized Crop",note:"Huge type, figure breaks frame"},
+ crop:{label:"Editorial Crop",note:"Tight subject crop + negative space"},
+ poster:{label:"Campaign Poster",note:"Centered subject + hard headline"},
+ editorial:{label:"Documentary",note:"Off-axis subject + annotation"}
+};
+
+export function CharacterPosterStudio({aiReady}:{aiReady:boolean}){
+ const[character,setCharacter]=useState<Character>("Peter");
+ const[pose,setPose]=useState<Pose>("preaching");
+ const[treatment,setTreatment]=useState<Treatment>("cinematic");
+ const[composition,setComposition]=useState<Composition>("split");
+ const[image,setImage]=useState<string>("");
+ const[busy,setBusy]=useState(false);
+ const[message,setMessage]=useState("Peter + ONE GOD is the benchmark poster.");
+ const[selectedMeta]=useMemo(()=>BANK.filter(x=>x.name===character),[character]);
+ const meta=selectedMeta[0];
+ async function generate(){
+   if(!aiReady||busy)return;
+   setBusy(true);setMessage(`Generating ${character} cutout…`);
+   try{
+    const r=await fetch("/api/admin/character-poster/generate",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({character,pose,direction:"left",treatment})});
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok)throw new Error(d.error||"Character generation failed.");
+    setImage(d.image);setMessage(`${character} asset ready. The subject is now layered between ONE and GOD.`);
+   }catch(e){setMessage(e instanceof Error?e.message:"Character generation failed.")}finally{setBusy(false)}
+ }
+ async function exportPoster(){const node=document.getElementById("character-poster-export");if(!node)return;const url=await toPng(node,{width:1080,height:1350,pixelRatio:1,cacheBust:true});const a=document.createElement("a");a.download=`ag-one-god-${character.toLowerCase()}.png`;a.href=url;a.click()}
+ function selectCharacter(next:Character){setCharacter(next);const item=BANK.find(x=>x.name===next);if(item)setPose(item.defaultPose);setImage("");setMessage(`${next} selected. Generate a fresh canonical cutout for this composition.`)}
+ return <div className="character-poster-page">
+   <div className="studio-page-heading character-heading"><div><span className="eyebrow">Publishing · Visual Lab</span><h1>Character Poster V1</h1><p className="admin-lede">Biblical character bank + layered typography + campaign-style compositions. The renderer owns the design. AI supplies the cutout.</p></div><button className="button primary" onClick={exportPoster}><Download size={16}/> Export 1080 × 1350</button></div>
+   {message?<div className="admin-notice">{message}</div>:null}
+   <section className="admin-card character-sourcebar"><div><span className="section-kicker">Benchmark</span><strong>ONE GOD</strong><small>Deuteronomy 6:4 · Peter</small></div><div><span className="section-kicker">Visual logic</span><strong>Subject between type layers</strong><small>Text can pass behind and in front</small></div><div><span className="section-kicker">Status</span><strong>{aiReady?"Image engine ready":"Image engine unavailable"}</strong><small>{aiReady?"GPT image generation connected":"OPENAI_API_KEY required"}</small></div></section>
+   <div className="character-grid">
+    <section className="admin-card character-preview-card"><div className="character-card-heading"><div><span className="section-kicker">Poster preview</span><h2>Peter · ONE GOD</h2></div><span>1080 × 1350</span></div><div className="character-preview-stage"><Poster image={image} character={character} composition={composition}/></div></section>
+    <section className="admin-card character-controls"><div className="character-card-heading"><div><span className="section-kicker">Character bank</span><h2>Choose a subject</h2></div></div><div className="character-bank">{BANK.map(item=><button key={item.name} className={item.name===character?"is-active":""} onClick={()=>selectCharacter(item.name)}><strong>{item.name}</strong><span>{item.role}</span><small>{item.era}</small></button>)}</div><div className="character-fields"><label><span>Pose</span><select value={pose} onChange={e=>setPose(e.target.value as Pose)}><option value="preaching">Preaching</option><option value="standing">Standing</option><option value="walking">Walking</option><option value="profile">Profile</option><option value="portrait">Portrait</option></select></label><label><span>Treatment</span><select value={treatment} onChange={e=>setTreatment(e.target.value as Treatment)}><option value="cinematic">Cinematic</option><option value="documentary">Documentary B/W</option><option value="editorial">Editorial</option></select></label></div><button className="button primary character-generate" disabled={!aiReady||busy} onClick={generate}>{busy?<Loader2 className="spin" size={16}/>:<Sparkles size={16}/>} {busy?"Generating character…":image?`Regenerate ${character}`:`Generate ${character} cutout`}</button><div className="character-card-heading character-composition-heading"><div><span className="section-kicker">Composition</span><h2>Poster system</h2></div><button className="button small" onClick={()=>setComposition(c=>({split:"oversized",oversized:"crop",crop:"poster",poster:"editorial",editorial:"split"}[c] as Composition))}><RefreshCw size={14}/> Remix</button></div><div className="composition-grid">{(Object.keys(COMPOSITIONS) as Composition[]).map(key=><button key={key} className={composition===key?"is-active":""} onClick={()=>setComposition(key)}><strong>{COMPOSITIONS[key].label}</strong><span>{COMPOSITIONS[key].note}</span></button>)}</div><div className="character-note"><strong>Character identity rule</strong><p>Once a canonical Peter, Paul, John, etc. is approved, future poses should derive from that identity instead of inventing a different face each post.</p></div></section>
+   </div>
+   <section className="admin-card character-system"><div><span className="section-kicker">Character metadata</span><h2>{meta.name}</h2><p>{meta.role} · {meta.era}</p></div><div className="character-tags"><span>full-body cutout</span><span>transparent PNG</span><span>historical wardrobe</span><span>no halo</span><span>campaign lighting</span><span>type-layer ready</span></div></section>
+ </div>
+}
+
+function Poster({image,character,composition}:{image:string;character:Character;composition:Composition}){
+ return <div id="character-poster-export" className={`character-poster is-${composition}`}>
+   <div className="poster-noise"/><div className="poster-red-field"/><div className="poster-topline"><span>DEUTERONOMY 6:4</span><img src="/brand/apostolic-guide-mark-reversed.png" alt=""/></div>
+   <div className="poster-word poster-word-back">ONE</div>
+   <div className="poster-subject-wrap">{image?<img className="poster-subject" src={image} alt={`${character} generated cutout`}/>:<div className="poster-subject-placeholder"><div className="placeholder-head"/><div className="placeholder-body"/><span>GENERATE<br/>{character.toUpperCase()}</span></div>}</div>
+   <div className="poster-word poster-word-front">GOD</div>
+   <div className="poster-copy"><strong>HEAR, O ISRAEL:</strong><p>THE LORD OUR GOD IS ONE LORD.</p></div>
+   <div className="poster-footer"><span>APOSTOLICGUIDE.COM</span><span>ONE GOD · 01</span></div>
+ </div>
+}
