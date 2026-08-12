@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { CheckCircle2, CircleAlert, Instagram, KeyRound, Loader2, Music2, Save, Youtube } from "lucide-react";
+import { CheckCircle2, CircleAlert, Instagram, KeyRound, Link2, Loader2, Music2, Save, Youtube } from "lucide-react";
 import type { SocialPublishingCredentialStatus, SocialPublishingPlatform } from "./social-publishing-integrations";
 
 type FormValues = Record<string, string>;
@@ -21,17 +21,18 @@ type PlatformSpec = {
   fields: Field[];
 };
 
+const YOUTUBE_CALLBACK = "https://apostolicguide.com/api/admin/youtube/oauth/callback";
+
 const SPECS: PlatformSpec[] = [
   {
     platform: "youtube",
     title: "YouTube",
-    description: "OAuth app credentials for uploads, metadata, thumbnails, scheduling, and channel analytics.",
+    description: "OAuth app credentials for direct uploads, metadata, thumbnails, scheduling, and channel analytics.",
     fields: [
       { key: "clientId", label: "OAuth Client ID", placeholder: "Google Cloud OAuth client ID" },
       { key: "clientSecret", label: "OAuth Client Secret", secret: true, placeholder: "Leave blank to keep stored secret" },
       { key: "apiKey", label: "API Key", secret: true, placeholder: "Optional for public/read requests" },
-      { key: "refreshToken", label: "Refresh Token", secret: true, placeholder: "Usually added by Connect YouTube later", help: "Uploads require OAuth. The future Connect button will obtain and rotate this automatically." },
-      { key: "channelId", label: "Channel ID", placeholder: "Optional. Can be discovered after OAuth." }
+      { key: "channelId", label: "Channel ID", placeholder: "Optional. Discovered after OAuth when available." }
     ]
   },
   {
@@ -70,6 +71,18 @@ function emptyForms() {
   return Object.fromEntries(SPECS.map((spec) => [spec.platform, {}])) as Record<SocialPublishingPlatform, FormValues>;
 }
 
+function oauthMessage(code: string | null) {
+  if (code === "connected") return "YouTube connected. The refresh authorization is stored server-side and will be used for uploads.";
+  if (code === "denied") return "YouTube authorization was cancelled or denied.";
+  if (code === "invalid_state") return "YouTube authorization expired or could not be verified. Try Connect YouTube again.";
+  if (code === "missing_credentials") return "Save the YouTube OAuth Client ID and Client Secret before connecting the channel.";
+  if (code === "credential_error") return "The YouTube credentials could not be loaded from the server-only secret store.";
+  if (code === "token_error") return "Google did not accept the OAuth callback. Confirm the authorized redirect URI in Google Cloud and try again.";
+  if (code === "no_refresh_token") return "Google did not return offline authorization. Reconnect YouTube and approve access again.";
+  if (code === "server_error") return "YouTube authorization reached Apostolic Guide but could not be saved. Try again.";
+  return "";
+}
+
 export function SocialPublishingCredentials() {
   const [statuses, setStatuses] = useState<SocialPublishingCredentialStatus[]>([]);
   const [forms, setForms] = useState<Record<SocialPublishingPlatform, FormValues>>(emptyForms);
@@ -92,7 +105,17 @@ export function SocialPublishingCredentials() {
     }
   }, []);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const oauth = oauthMessage(params.get("youtube"));
+    if (oauth) {
+      setMessage(oauth);
+      params.delete("youtube");
+      const query = params.toString();
+      window.history.replaceState({}, "", `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`);
+    }
+    void load();
+  }, [load]);
 
   function update(platform: SocialPublishingPlatform, key: string, value: string) {
     setForms((current) => ({ ...current, [platform]: { ...current[platform], [key]: value } }));
@@ -121,7 +144,7 @@ export function SocialPublishingCredentials() {
 
   return <section className="admin-card social-publishing-credentials">
     <div className="credential-heading">
-      <div><span className="section-kicker">Channel infrastructure</span><h2>Social publishing credentials</h2><p>Store the app credentials and account tokens needed by the upcoming Channel Publishing workspace. Secrets are written through server-only routes and never read back into the browser.</p></div>
+      <div><span className="section-kicker">Channel infrastructure</span><h2>Social publishing credentials</h2><p>Store the app credentials and account authorization needed by Channel Publishing. Secrets are written through server-only routes and never read back into the browser.</p></div>
       <div className="credential-security"><KeyRound size={16}/><span>Server-only secret store</span></div>
     </div>
 
@@ -144,6 +167,12 @@ export function SocialPublishingCredentials() {
           </div>
           {status?.accountLabel ? <div className="credential-account-label">Account: <strong>{status.accountLabel}</strong></div> : null}
 
+          {spec.platform === "youtube" ? <div className="credential-oauth-note">
+            <div><Link2 size={14}/><strong>Google authorized redirect URI</strong></div>
+            <code>{YOUTUBE_CALLBACK}</code>
+            <small>Add this exact URI to Google Cloud → Google Auth Platform → Clients → Apostolic Guide → Authorized redirect URIs.</small>
+          </div> : null}
+
           <div className="credential-fields">
             {spec.fields.map((field) => {
               const stored = Boolean(status?.fields?.[field.key]);
@@ -163,12 +192,15 @@ export function SocialPublishingCredentials() {
 
           <div className="credential-platform-footer">
             <small>{status?.updatedAt ? `Last updated ${new Date(status.updatedAt).toLocaleString()}` : "No credentials saved yet."}</small>
-            <button type="button" className="button primary" disabled={Boolean(busy)} onClick={() => void save(spec.platform)}>{saving ? <Loader2 className="spin" size={15}/> : <Save size={15}/>} Save {spec.title}</button>
+            <div className="credential-actions">
+              {spec.platform === "youtube" ? <a className="button" aria-disabled={!status?.appConfigured || Boolean(busy)} href={status?.appConfigured && !busy ? "/api/admin/youtube/oauth/start" : undefined}><Youtube size={15}/> {status?.accountAuthorized ? "Reconnect YouTube" : "Connect YouTube"}</a> : null}
+              <button type="button" className="button primary" disabled={Boolean(busy)} onClick={() => void save(spec.platform)}>{saving ? <Loader2 className="spin" size={15}/> : <Save size={15}/>} Save {spec.title}</button>
+            </div>
           </div>
         </article>;
       })}
     </div>
 
-    <div className="credential-next-step"><strong>OAuth connection comes next.</strong><p>YouTube uploads require user OAuth, and TikTok Direct Post requires Login Kit authorization plus the <code>video.publish</code> scope. These credential records are the permanent server-side home those Connect flows will use. Instagram keeps using the credentials already connected to your messaging system.</p></div>
+    <div className="credential-next-step"><strong>Channel authorization is separate from app credentials.</strong><p>YouTube now uses the Connect button to obtain offline OAuth authorization and store the refresh token automatically. Instagram continues using the account already connected to the messaging system. TikTok authorization comes with the Channel Publishing module.</p></div>
   </section>;
 }
