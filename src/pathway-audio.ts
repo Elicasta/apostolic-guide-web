@@ -47,7 +47,6 @@ export async function getPathwayAudioAsset(pathwaySlug: string): Promise<Pathway
   if (!service) return null;
 
   const { data, error } = await service
-    .schema("content")
     .from("pathway_audio_assets")
     .select("pathway_slug,audio_url,content_hash,model,voice,generated_at")
     .eq("pathway_slug", pathwaySlug)
