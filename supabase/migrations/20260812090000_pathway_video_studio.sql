@@ -14,6 +14,7 @@ create table if not exists public.pathway_video_renders (
   id uuid primary key default gen_random_uuid(),
   pathway_slug text not null,
   project_id uuid references public.pathway_video_projects(id) on delete cascade,
+  asset_id uuid references public.pathway_assets(id) on delete set null,
   format text not null check (format in ('youtube', 'vertical', 'square')),
   status text not null default 'queued' check (status in ('queued', 'rendering', 'completed', 'failed')),
   config_snapshot jsonb not null default '{}'::jsonb,
@@ -28,6 +29,8 @@ create table if not exists public.pathway_video_renders (
 
 create index if not exists pathway_video_renders_pathway_requested_idx
   on public.pathway_video_renders(pathway_slug, requested_at desc);
+create index if not exists pathway_video_renders_asset_idx
+  on public.pathway_video_renders(asset_id) where asset_id is not null;
 
 alter table public.pathway_video_projects enable row level security;
 alter table public.pathway_video_renders enable row level security;
