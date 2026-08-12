@@ -1,12 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { concatenateMp3Segments, MAX_TTS_CHUNK_CHARS, normalizeMp3Segment, splitNarrationForTts } from "../src/pathway-audio-render";
+import { concatenateMp3Segments, DEFAULT_TTS_SPEED, MAX_TTS_CHUNK_CHARS, normalizeMp3Segment, PATHWAY_TTS_INSTRUCTIONS, resolveTtsSpeed, splitNarrationForTts } from "../src/pathway-audio-render";
 
-test("long narration splits into TTS-safe chunks at natural boundaries", () => {
+test("long narration splits into smaller TTS-safe teaching chunks at natural boundaries", () => {
   const paragraph = "Jesus Christ is the full revelation of the invisible God. The Father dwells in the Son, and all the fullness of deity dwells bodily in Him.";
   const narration = Array.from({ length: 45 }, (_, index) => `${paragraph} Section ${index + 1}.`).join("\n\n");
   const chunks = splitNarrationForTts(narration);
 
+  assert.equal(MAX_TTS_CHUNK_CHARS, 1800);
   assert.ok(chunks.length > 1);
   assert.ok(chunks.every((chunk) => chunk.length <= MAX_TTS_CHUNK_CHARS));
   assert.match(chunks[0], /Jesus Christ is the full revelation/i);
@@ -21,6 +22,17 @@ test("an oversized paragraph is split without exceeding the speech input limit",
   assert.ok(chunks.length > 1);
   assert.ok(chunks.every((chunk) => chunk.length <= MAX_TTS_CHUNK_CHARS));
   assert.ok(chunks.every((chunk) => chunk.trim().length > 0));
+});
+
+test("Pathway TTS defaults to an unhurried teaching pace", () => {
+  assert.equal(DEFAULT_TTS_SPEED, 0.88);
+  assert.equal(resolveTtsSpeed(undefined), 0.88);
+  assert.equal(resolveTtsSpeed("0.92"), 0.92);
+  assert.equal(resolveTtsSpeed("not-a-number"), 0.88);
+  assert.match(PATHWAY_TTS_INSTRUCTIONS, /Pause briefly after rhetorical questions/i);
+  assert.match(PATHWAY_TTS_INSTRUCTIONS, /Scripture quotations extra space/i);
+  assert.match(PATHWAY_TTS_INSTRUCTIONS, /paragraph changes and major transitions as real breathing points/i);
+  assert.match(PATHWAY_TTS_INSTRUCTIONS, /flat, mechanical, rushed/i);
 });
 
 function fakeMp3Frame(withVbrMarker = false) {

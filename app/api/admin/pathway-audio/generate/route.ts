@@ -4,7 +4,7 @@ import { z } from "zod";
 import { getStudioPermission } from "@/auth";
 import { pathwayBySlug } from "@/pathway-catalog";
 import { hashAudioText, pathwayNarrationHash } from "@/pathway-audio";
-import { concatenateMp3Segments, MAX_PATHWAY_AUDIO_SCRIPT_CHARS, splitNarrationForTts } from "@/pathway-audio-render";
+import { concatenateMp3Segments, MAX_PATHWAY_AUDIO_SCRIPT_CHARS, PATHWAY_TTS_INSTRUCTIONS, resolveTtsSpeed, splitNarrationForTts } from "@/pathway-audio-render";
 import { createServiceClient } from "@/supabase";
 
 export const runtime = "nodejs";
@@ -49,14 +49,21 @@ export async function POST(request: Request) {
 
   const model = process.env.OPENAI_TTS_MODEL || "gpt-4o-mini-tts";
   const voice = process.env.OPENAI_TTS_VOICE || "cedar";
+  const speed = resolveTtsSpeed(process.env.OPENAI_TTS_SPEED);
   const audioSegments: Buffer[] = [];
-  const instructions = "Read as a calm, confident Bible study guide. Natural pacing, clear Scripture references, restrained emotion, no theatrical delivery. Keep the same voice, pace, energy, and pronunciation throughout. Do not announce segment boundaries.";
 
   for (let index = 0; index < chunks.length; index += 1) {
     const speech = await fetch("https://api.openai.com/v1/audio/speech", {
       method: "POST",
       headers: { authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
-      body: JSON.stringify({ model, voice, input: chunks[index], response_format: "mp3", instructions })
+      body: JSON.stringify({
+        model,
+        voice,
+        input: chunks[index],
+        response_format: "mp3",
+        speed,
+        instructions: PATHWAY_TTS_INSTRUCTIONS
+      })
     });
 
     if (!speech.ok) {
@@ -73,8 +80,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Audio segments could not be combined." }, { status: 502 });
   }
 
-  const objectPath = `pathways/${pathway.slug}/${contentHash.slice(0, 16)}.mp3`;
-  const upload = await service.storage.from("pathway-audio").upload(objectPath, audio, { contentType: "audio/mpeg", cacheControl: "31536000", upsert: true });
+  const objectPath = `pathways/${pathway.slug}/${contentHash.slice(0, 16)}-${Date.now().toString(36)}.mp3`;
+  const upload = await service.storage.from("pathway-audio").upload(objectPath, audio, { contentType: "audio/mpeg", cacheControl: "31536000", upsert: false });
   if (upload.error) return NextResponse.json({ error: upload.error.message }, { status: 500 });
 
   const publicUrl = service.storage.from("pathway-audio").getPublicUrl(objectPath).data.publicUrl;
@@ -94,5 +101,5 @@ export async function POST(request: Request) {
 
   revalidatePath(`/pathways/${pathway.slug}`);
   revalidatePath("/admin/audio");
-  return NextResponse.json({ asset: saved.data, generated: true, segments: chunks.length });
+  return NextResponse.json({ asset: saved.data, generated: true, segments: chunks.length, speed });
 }
