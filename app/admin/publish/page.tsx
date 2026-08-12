@@ -40,8 +40,11 @@ type PublicationRow = {
 };
 
 export default async function AdminChannelPublishingPage() {
-  const { access, allowed } = await getStudioPermission("view_distribution");
-  if (!allowed || access.state !== "allowed") redirect("/admin");
+  const [viewPermission, managePermission] = await Promise.all([
+    getStudioPermission("view_distribution"),
+    getStudioPermission("manage_distribution")
+  ]);
+  if (!viewPermission.allowed || viewPermission.access.state !== "allowed") redirect("/admin");
 
   const service = createServiceClient();
   const credentials = await getSocialPublishingCredentialStatus().catch(() => []);
@@ -99,6 +102,6 @@ export default async function AdminChannelPublishingPage() {
   return <ChannelPublishing
     packages={packages}
     credentials={credentials}
-    canPublish={allowed && access.state === "allowed"}
+    canPublish={managePermission.allowed && managePermission.access.state === "allowed"}
   />;
 }
