@@ -1,6 +1,9 @@
 export const MAX_PATHWAY_AUDIO_SCRIPT_CHARS = 20_000;
 export const MAX_TTS_CHUNK_CHARS = 1_800;
 export const DEFAULT_TTS_SPEED = 0.88;
+export const PATHWAY_PCM_SAMPLE_RATE = 24_000;
+export const PATHWAY_PCM_CHANNELS = 1;
+export const PATHWAY_PCM_BITS_PER_SAMPLE = 16;
 
 export const PATHWAY_TTS_INSTRUCTIONS = `
 Speak like a thoughtful Bible teacher guiding one listener through Scripture, not like an announcer or audiobook speed-reader.
@@ -88,6 +91,48 @@ export function splitNarrationForTts(value: string, maxChars = MAX_TTS_CHUNK_CHA
   }
   if (current) chunks.push(current);
   return chunks;
+}
+
+export function concatenatePcm16Segments(segments: Buffer[]) {
+  if (!segments.length) throw new Error("No audio segments were generated.");
+  for (const segment of segments) {
+    if (!segment.length) throw new Error("One or more generated PCM audio segments were empty.");
+    if (segment.length % 2 !== 0) throw new Error("A generated PCM audio segment did not contain complete 16-bit samples.");
+  }
+  return Buffer.concat(segments);
+}
+
+export function pcm16MonoToWav(
+  pcm: Buffer,
+  sampleRate = PATHWAY_PCM_SAMPLE_RATE,
+  channels = PATHWAY_PCM_CHANNELS,
+  bitsPerSample = PATHWAY_PCM_BITS_PER_SAMPLE
+) {
+  if (!pcm.length) throw new Error("PCM audio is empty.");
+  if (bitsPerSample !== 16) throw new Error("Pathway WAV assembly currently supports 16-bit PCM only.");
+  const blockAlign = channels * (bitsPerSample / 8);
+  if (pcm.length % blockAlign !== 0) throw new Error("PCM audio does not align to complete samples.");
+
+  const header = Buffer.alloc(44);
+  const byteRate = sampleRate * blockAlign;
+  header.write("RIFF", 0, "ascii");
+  header.writeUInt32LE(36 + pcm.length, 4);
+  header.write("WAVE", 8, "ascii");
+  header.write("fmt ", 12, "ascii");
+  header.writeUInt32LE(16, 16);
+  header.writeUInt16LE(1, 20);
+  header.writeUInt16LE(channels, 22);
+  header.writeUInt32LE(sampleRate, 24);
+  header.writeUInt32LE(byteRate, 28);
+  header.writeUInt16LE(blockAlign, 32);
+  header.writeUInt16LE(bitsPerSample, 34);
+  header.write("data", 36, "ascii");
+  header.writeUInt32LE(pcm.length, 40);
+  return Buffer.concat([header, pcm]);
+}
+
+export function buildLosslessWavFromPcmSegments(segments: Buffer[]) {
+  return pcm16MonoToWav(concatenatePcm16Segments(segments));
 }
 
 function synchsafeSize(buffer: Buffer, offset: number) {
