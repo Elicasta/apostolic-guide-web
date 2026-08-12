@@ -1,3 +1,4 @@
+import { createHash, randomBytes } from "node:crypto";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getStudioPermission } from "@/auth";
@@ -68,6 +69,7 @@ export async function POST(request: Request) {
   if (!audioResult.data?.audio_url) return NextResponse.json({ error: "Pathway audio is missing." }, { status: 409 });
   if (projectResult.data.audio_content_hash !== audioResult.data.content_hash) return NextResponse.json({ error: "The Pathway audio changed after this video timeline was saved. Review and save the timeline again before rendering." }, { status: 409 });
 
+  const callbackUrl = `${new URL(request.url).origin}/api/admin/video-studio/render-callback`;
   const queued = [];
   for (const format of [...new Set(parsed.data.formats)]) {
     const details = assetDetails(format, pathway.title);
@@ -86,7 +88,7 @@ export async function POST(request: Request) {
     if (publishingAsset.error) return NextResponse.json({ error: publishingAsset.error.message }, { status: 500 });
 
     const snapshot = {
-      version: 1,
+      version: 2,
       pathway: { slug: pathway.slug, title: pathway.title, summary: pathway.summary },
       format,
       audioUrl: audioResult.data.audio_url,
@@ -110,6 +112,40 @@ export async function POST(request: Request) {
     }
 
     const render = created.data;
+    const storagePath = `pathways/${pathway.slug}/${render.id}-${format}.mp4`;
+    const callbackToken = randomBytes(32).toString("hex");
+    const callbackTokenHash = createHash("sha256").update(callbackToken).digest("hex");
+    const signedUpload = await service.storage.from("pathway-video").createSignedUploadUrl(storagePath, { upsert: true });
+    if (signedUpload.error || !signedUpload.data?.signedUrl) {
+      const error = `Could not create signed render upload URL: ${signedUpload.error?.message ?? "unknown storage error"}`;
+      await Promise.all([
+        service.from("pathway_video_renders").update({ status: "failed", error, completed_at: new Date().toISOString() }).eq("id", render.id),
+        service.from("pathway_assets").update({ status: "blocked", notes: error }).eq("id", publishingAsset.data.id)
+      ]);
+      return NextResponse.json({ error }, { status: 500 });
+    }
+
+    const publicUrl = service.storage.from("pathway-video").getPublicUrl(storagePath).data.publicUrl;
+    const bridgeSnapshot = {
+      ...snapshot,
+      rendererBridge: {
+        callbackTokenHash,
+        storagePath,
+        publicUrl
+      }
+    };
+    const bridgeUpdate = await service.from("pathway_video_renders")
+      .update({ config_snapshot: bridgeSnapshot })
+      .eq("id", render.id);
+    if (bridgeUpdate.error) {
+      const error = `Could not prepare render bridge: ${bridgeUpdate.error.message}`;
+      await Promise.all([
+        service.from("pathway_video_renders").update({ status: "failed", error, completed_at: new Date().toISOString() }).eq("id", render.id),
+        service.from("pathway_assets").update({ status: "blocked", notes: error }).eq("id", publishingAsset.data.id)
+      ]);
+      return NextResponse.json({ error }, { status: 500 });
+    }
+
     const dispatch = await fetch(`https://api.github.com/repos/${repository}/dispatches`, {
       method: "POST",
       headers: {
@@ -129,7 +165,12 @@ export async function POST(request: Request) {
           format,
           audio_url: audioResult.data.audio_url,
           timeline: projectResult.data.timeline,
-          style: projectResult.data.style
+          style: projectResult.data.style,
+          upload_url: signedUpload.data.signedUrl,
+          public_url: publicUrl,
+          storage_path: storagePath,
+          callback_url: callbackUrl,
+          callback_token: callbackToken
         }
       })
     });
