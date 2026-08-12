@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowLeft, BookOpen, Radio } from "lucide-react";
 import { CueControls } from "./cue-controls";
+import { RunEditor } from "./run-editor";
 import { SessionControls } from "./session-controls";
 
 type CueRow = { id: string; label: string; position: number; presenter_notes?: string | null };
@@ -14,7 +15,7 @@ export default function EpisodeWorkspace({ data, pathway }: { data: EpisodeData;
     <section className="ag-studio-hero"><div><span className="ag-studio-eyebrow">{data.episode.episode_type} • {data.episode.access_mode}</span><h1>{data.episode.title}</h1><p>Primary pathway: {pathway.title}</p></div>{data.run ? <SessionControls episodeId={data.episode.id} runId={data.run.id}/> : null}</section>
     <div className="ag-studio-grid">
       <section className="ag-studio-panel"><header><div><span className="ag-studio-eyebrow">Assets</span><h2>{pathway.title}</h2></div><BookOpen size={20}/></header><p className="ag-studio-muted">{pathway.summary}</p><div className="ag-studio-step-list">{pathway.steps.map((step, index) => <article key={`${step.reference}-${index}`}><span className="ag-studio-step-number">{String(index + 1).padStart(2, "0")}</span><div><strong>{step.reference}</strong><span>{step.title}</span><p>{step.explanation}</p></div><CueControls episodeId={data.episode.id} pathwayId={pathway.slug} step={step} added={existing.has(step.reference)}/></article>)}</div></section>
-      <section className="ag-studio-panel"><header><div><span className="ag-studio-eyebrow">Production</span><h2>{data.run?.name ?? "Run of show"}</h2></div><Radio size={20}/></header><div className="ag-studio-cues">{data.cues.length ? data.cues.map((cue, index) => <div className="ag-studio-cue" key={cue.id}><span>{String(index + 1).padStart(2, "0")}</span><div><strong>{cue.label}</strong><small>{cue.presenter_notes ?? "Pathway Scripture cue"}</small></div></div>) : <div className="ag-studio-placeholder">No cues yet. Add pathway Scriptures from the left.</div>}</div></section>
+      <section className="ag-studio-panel"><header><div><span className="ag-studio-eyebrow">Production</span><h2>{data.run?.name ?? "Run of show"}</h2></div><Radio size={20}/></header>{data.run ? <RunEditor runId={data.run.id} initialCues={data.cues}/> : <div className="ag-studio-placeholder">Create a run of show to begin.</div>}</section>
     </div>
   </main>;
 }
