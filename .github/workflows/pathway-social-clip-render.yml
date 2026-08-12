@@ -1,0 +1,30 @@
+name: Pathway social clip render
+
+on:
+  repository_dispatch:
+    types: [pathway-social-clip-render]
+
+permissions:
+  contents: read
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install ffmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+
+      - name: Write render payload
+        env:
+          RENDER_PAYLOAD: ${{ toJson(github.event.client_payload) }}
+        run: |
+          printf '%s' "$RENDER_PAYLOAD" > /tmp/pathway-social-clip-payload.json
+
+      - name: Render, upload, and report status
+        run: |
+          python3 scripts/render_pathway_social_clip_worker.py /tmp/pathway-social-clip-payload.json /tmp/pathway-social-clip.mp4

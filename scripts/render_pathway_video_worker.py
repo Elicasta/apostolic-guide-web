@@ -13,7 +13,7 @@ import sys
 import urllib.error
 import urllib.request
 
-from render_pathway_video import render
+from render_pathway_video_v2 import render
 
 
 def post_callback(payload: dict, status: str, error: str | None = None) -> None:
