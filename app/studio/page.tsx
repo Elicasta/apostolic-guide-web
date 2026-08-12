@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import Link from "next/link";
+import { Plus } from "lucide-react";
 import { redirect } from "next/navigation";
 import { getAdminAccess } from "@/auth";
 import { allPathways } from "@/pathway-catalog";
@@ -24,12 +26,8 @@ export default async function StudioPage() {
     collection: pathway.collection,
     estimatedMinutes: pathway.estimatedMinutes,
     level: pathway.level,
-    steps: pathway.steps.map((step) => ({
-      title: step.title,
-      reference: step.reference,
-      explanation: step.explanation
-    }))
+    steps: pathway.steps.map((step) => ({ title: step.title, reference: step.reference, explanation: step.explanation }))
   }));
 
-  return <StudioClient pathways={pathways} />;
+  return <><StudioClient pathways={pathways} /><Link className="ag-studio-floating-new" href="/studio/episodes/new"><Plus size={17}/> Create real episode</Link></>;
 }
