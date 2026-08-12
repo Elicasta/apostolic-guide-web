@@ -7,8 +7,22 @@ import { PathwayAudioManager } from "@/pathway-audio-manager";
 import { PathwayAudioMetricsRefresh } from "@/pathway-audio-metrics-refresh";
 import { createServiceClient } from "@/supabase";
 
-type AudioAssetRow = { pathway_slug: string; audio_url: string; content_hash: string; generated_at: string };
-type ScriptRow = { pathway_slug: string; script_text: string; source_hash: string; script_hash: string; status: "draft" | "approved"; model: string | null; updated_at: string };
+type AudioAssetRow = { pathway_slug: string; audio_url: string; storage_path: string | null; content_hash: string; generated_at: string };
+type CheckerIssue = { severity: "error" | "warning"; category: string; quote: string | null; message: string; suggestion: string | null };
+type ScriptRow = {
+  pathway_slug: string;
+  script_text: string;
+  source_hash: string;
+  script_hash: string;
+  status: "draft" | "approved";
+  model: string | null;
+  updated_at: string;
+  checker_status: "passed" | "needs_review" | null;
+  checker_model: string | null;
+  checked_script_hash: string | null;
+  checker_result: unknown;
+  checked_at: string | null;
+};
 type AudioMetricRow = { pathway_slug: string; starts: number | string | null; unique_listeners: number | string | null; completions: number | string | null; listened_seconds: number | string | null };
 type SubscriberProgressRow = {
   subscriber_id: string;
@@ -42,6 +56,36 @@ function completionLabel(row: SubscriberProgressRow) {
   return "In progress";
 }
 
+function checkerDetails(value: unknown) {
+  if (!value || typeof value !== "object") return { summary: "", issues: [] as CheckerIssue[] };
+  const record = value as Record<string, unknown>;
+  const summary = typeof record.summary === "string" ? record.summary : "";
+  const issues = Array.isArray(record.issues) ? record.issues.flatMap((item) => {
+    if (!item || typeof item !== "object") return [];
+    const issue = item as Record<string, unknown>;
+    if (typeof issue.message !== "string") return [];
+    return [{
+      severity: issue.severity === "error" ? "error" as const : "warning" as const,
+      category: typeof issue.category === "string" ? issue.category : "editorial",
+      quote: typeof issue.quote === "string" ? issue.quote : null,
+      message: issue.message,
+      suggestion: typeof issue.suggestion === "string" ? issue.suggestion : null
+    }];
+  }) : [];
+  return { summary, issues };
+}
+
+function wavDownloadUrl(asset: AudioAssetRow | undefined, slug: string) {
+  if (!asset?.audio_url || !asset.storage_path?.toLowerCase().endsWith(".wav")) return null;
+  try {
+    const url = new URL(asset.audio_url);
+    url.searchParams.set("download", `apostolic-guide-${slug}.wav`);
+    return url.toString();
+  } catch {
+    return `${asset.audio_url}${asset.audio_url.includes("?") ? "&" : "?"}download=${encodeURIComponent(`apostolic-guide-${slug}.wav`)}`;
+  }
+}
+
 export default async function AdminPathwayAudioPage() {
   const { access, allowed } = await getStudioPermission("manage_content");
   if (!allowed || access.state !== "allowed") redirect("/admin");
@@ -54,8 +98,8 @@ export default async function AdminPathwayAudioPage() {
 
   if (service) {
     const [assetsResult, scriptsResult, metricsResult, subscriberProgressResult] = await Promise.all([
-      service.from("pathway_audio_assets").select("pathway_slug,audio_url,content_hash,generated_at"),
-      service.from("pathway_audio_scripts").select("pathway_slug,script_text,source_hash,script_hash,status,model,updated_at"),
+      service.from("pathway_audio_assets").select("pathway_slug,audio_url,storage_path,content_hash,generated_at"),
+      service.from("pathway_audio_scripts").select("pathway_slug,script_text,source_hash,script_hash,status,model,updated_at,checker_status,checker_model,checked_script_hash,checker_result,checked_at"),
       service.from("pathway_audio_metrics").select("pathway_slug,starts,unique_listeners,completions,listened_seconds"),
       service.from("subscriber_pathway_progress")
         .select("subscriber_id,person_id,email,pathway_slug,first_started_at,last_activity_at,completed_at,is_completed,completed_by_reading,completed_by_audio,audio_starts,audio_completions,observed_reading_steps,listened_seconds")
@@ -84,11 +128,13 @@ export default async function AdminPathwayAudioPage() {
     const metric = stats.get(pathway.slug);
     const sourceCurrent = Boolean(script?.source_hash && script.source_hash === pathwayNarrationHash(pathway));
     const scriptApproved = script?.status === "approved" && sourceCurrent;
+    const check = checkerDetails(script?.checker_result);
     return {
       slug: pathway.slug,
       title: pathway.title,
       estimatedMinutes: pathway.estimatedMinutes,
       audioUrl: asset?.audio_url ?? null,
+      downloadUrl: wavDownloadUrl(asset, pathway.slug),
       generatedAt: asset?.generated_at ?? null,
       current: Boolean(asset?.content_hash && scriptApproved && asset.content_hash === script?.script_hash),
       scriptText: script?.script_text ?? "",
@@ -96,6 +142,12 @@ export default async function AdminPathwayAudioPage() {
       scriptModel: script?.model ?? null,
       scriptUpdatedAt: script?.updated_at ?? null,
       sourceCurrent,
+      checkerStatus: script?.checker_status ?? null,
+      checkerModel: script?.checker_model ?? null,
+      checkerCurrent: Boolean(sourceCurrent && script?.checked_script_hash && script.checked_script_hash === script.script_hash),
+      checkerSummary: check.summary,
+      checkerIssues: check.issues,
+      checkedAt: script?.checked_at ?? null,
       starts: metric?.starts ?? 0,
       completions: metric?.completions ?? 0,
       listenedSeconds: Math.round(metric?.listenedSeconds ?? 0),
@@ -104,7 +156,7 @@ export default async function AdminPathwayAudioPage() {
   });
 
   const metricsVersion = pathways
-    .map((row) => `${row.slug}:${row.starts}:${row.uniqueListeners}:${row.listenedSeconds}:${row.completions}`)
+    .map((row) => `${row.slug}:${row.starts}:${row.uniqueListeners}:${row.listenedSeconds}:${row.completions}:${row.checkerStatus}:${row.checkedAt ?? ""}`)
     .join("|");
 
   return <>
