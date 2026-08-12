@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Download, Film, Loader2, Play, RefreshCw, Save, Sparkles, TimerReset, Youtube } from "lucide-react";
+import { PathwayVideoPublishingKit } from "@/pathway-video-publishing-kit";
 import {
   activePathwayVideoCue,
   buildEstimatedPathwayVideoTimeline,
@@ -354,5 +355,7 @@ export function PathwayVideoStudio({ pathways, databaseReady }: { pathways: Stud
       })}</div>
       <div className="video-distribution-note"><strong>Publishing adapters</strong><p>The render layer is separate from channel credentials. Finished renders can move into YouTube, Instagram, and TikTok publishing without rebuilding the video.</p></div>
     </section>
+
+    <PathwayVideoPublishingKit slug={selected.slug} title={selected.title}/>
   </div>;
 }
