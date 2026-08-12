@@ -11,9 +11,6 @@ jobs:
   render:
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    env:
-      VIDEO_STUDIO_SUPABASE_URL: ${{ secrets.VIDEO_STUDIO_SUPABASE_URL }}
-      VIDEO_STUDIO_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.VIDEO_STUDIO_SUPABASE_SERVICE_ROLE_KEY }}
     steps:
       - name: Check out renderer
         uses: actions/checkout@v4
@@ -29,6 +26,6 @@ jobs:
         run: |
           printf '%s' "$RENDER_PAYLOAD" > /tmp/pathway-video-payload.json
 
-      - name: Render and upload video
+      - name: Render, upload, and report status
         run: |
-          python3 scripts/render_pathway_video.py /tmp/pathway-video-payload.json /tmp/pathway-video.mp4
+          python3 scripts/render_pathway_video_worker.py /tmp/pathway-video-payload.json /tmp/pathway-video.mp4
