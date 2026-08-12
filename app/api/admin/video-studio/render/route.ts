@@ -159,7 +159,6 @@ export async function POST(request: Request) {
         event_type: "pathway-video-render",
         client_payload: {
           job_id: render.id,
-          asset_id: publishingAsset.data.id,
           slug: pathway.slug,
           title: pathway.title,
           format,
@@ -167,8 +166,6 @@ export async function POST(request: Request) {
           timeline: projectResult.data.timeline,
           style: projectResult.data.style,
           upload_url: signedUpload.data.signedUrl,
-          public_url: publicUrl,
-          storage_path: storagePath,
           callback_url: callbackUrl,
           callback_token: callbackToken
         }
