@@ -4,6 +4,7 @@ import { allPathways } from "@/pathway-catalog";
 import { getEpisode } from "@/studio/repository";
 import EpisodeWorkspace from "./episode-workspace";
 import "../../studio.css";
+import "./run-editor.css";
 
 export const dynamic = "force-dynamic";
 
