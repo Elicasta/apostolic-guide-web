@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getStudioPermission } from "@/auth";
 import { pathwayBySlug } from "@/pathway-catalog";
-import { buildPathwayNarration, pathwayNarrationHash } from "@/pathway-audio";
+import { hashAudioText, pathwayNarrationHash } from "@/pathway-audio";
 import { createServiceClient } from "@/supabase";
 
 export const runtime = "nodejs";
@@ -29,15 +29,21 @@ export async function POST(request: Request) {
   const service = createServiceClient();
   if (!service) return NextResponse.json({ error: "Supabase service access is not configured." }, { status: 503 });
 
-  const contentHash = pathwayNarrationHash(pathway);
+  const scriptResult = await service.from("pathway_audio_scripts").select("script_text,source_hash,script_hash,status").eq("pathway_slug", pathway.slug).maybeSingle();
+  const script = scriptResult.data;
+  if (!script || script.status !== "approved") return NextResponse.json({ error: "Approve the narration script before generating audio." }, { status: 409 });
+  if (script.source_hash !== pathwayNarrationHash(pathway)) return NextResponse.json({ error: "The Pathway changed after this script was created. Regenerate or review the script before producing audio." }, { status: 409 });
+
+  const narration = String(script.script_text).trim();
+  const contentHash = hashAudioText(narration);
+  if (contentHash !== script.script_hash) return NextResponse.json({ error: "Approved script hash mismatch. Save and approve the script again." }, { status: 409 });
+  if (narration.length > 4096) return NextResponse.json({ error: `Approved script is ${narration.length} characters. Shorten it before generating audio.` }, { status: 422 });
+
   const existing = await service.from("pathway_audio_assets").select("pathway_slug,audio_url,storage_path,content_hash,model,voice,generated_at").eq("pathway_slug", pathway.slug).maybeSingle();
   if (!parsed.data.force && existing.data?.content_hash === contentHash && existing.data?.audio_url) return NextResponse.json({ asset: existing.data, generated: false });
 
   const model = process.env.OPENAI_TTS_MODEL || "gpt-4o-mini-tts";
   const voice = process.env.OPENAI_TTS_VOICE || "cedar";
-  const narration = buildPathwayNarration(pathway);
-  if (narration.length > 4096) return NextResponse.json({ error: `Narration is ${narration.length} characters. Shorten the pathway narration before generating audio.` }, { status: 422 });
-
   const speech = await fetch("https://api.openai.com/v1/audio/speech", {
     method: "POST",
     headers: { authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
