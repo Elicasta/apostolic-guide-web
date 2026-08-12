@@ -4,9 +4,11 @@ import { getStudioPermission } from "@/auth";
 import { pathwayBySlug } from "@/pathway-catalog";
 import { buildPathwayNarration, hashAudioText, pathwayNarrationHash } from "@/pathway-audio";
 import { buildPathwayAudioScriptPrompt } from "@/pathway-audio-script";
+import { runPathwayAudioScriptCheck } from "@/pathway-audio-script-checker";
 import { createServiceClient } from "@/supabase";
 
 export const runtime = "nodejs";
+export const maxDuration = 180;
 
 const MAX_GENERATED_SCRIPT_CHARS = 10_000;
 const schema = z.object({ slug: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/) });
@@ -62,22 +64,37 @@ export async function POST(request: Request) {
   if (scriptText.length < 100) return NextResponse.json({ error: "The model returned an empty or incomplete script." }, { status: 502 });
   if (scriptText.length > MAX_GENERATED_SCRIPT_CHARS) return NextResponse.json({ error: `Generated script is ${scriptText.length.toLocaleString()} characters. Regenerate it before editorial review.` }, { status: 422 });
 
+  const scriptHash = hashAudioText(scriptText);
+  const checkerModel = process.env.OPENAI_SCRIPT_CHECK_MODEL || model;
+  let check = null;
+  let checkerError: string | null = null;
+  try {
+    check = await runPathwayAudioScriptCheck({ apiKey, model: checkerModel, source, scriptText });
+  } catch (error) {
+    checkerError = error instanceof Error ? error.message : "Script checker failed.";
+  }
+
   const now = new Date().toISOString();
   const row = {
     pathway_slug: pathway.slug,
     script_text: scriptText,
     source_hash: sourceHash,
-    script_hash: hashAudioText(scriptText),
+    script_hash: scriptHash,
     status: "draft",
     model,
     generated_at: now,
     generated_by: access.user.id,
     approved_at: null,
     approved_by: null,
+    checker_status: check?.verdict ?? null,
+    checker_model: check ? checkerModel : null,
+    checked_script_hash: check ? scriptHash : null,
+    checker_result: check ?? {},
+    checked_at: check ? now : null,
     updated_at: now
   };
   const saved = await service.from("pathway_audio_scripts").upsert(row, { onConflict: "pathway_slug" }).select("*").single();
   if (saved.error) return NextResponse.json({ error: saved.error.message }, { status: 500 });
 
-  return NextResponse.json({ script: saved.data });
+  return NextResponse.json({ script: saved.data, check, checkerError });
 }
