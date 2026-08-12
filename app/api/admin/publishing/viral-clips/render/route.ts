@@ -35,7 +35,7 @@ export async function POST(request: Request) {
   if (!service) return NextResponse.json({ error: "Supabase service access is not configured." }, { status: 503 });
 
   const clipResult = await service.from("pathway_social_clips")
-    .select("id,pathway_slug,source_render_id,asset_id,platform,rank,score,start_seconds,end_seconds,hook,title,rationale,caption,status,output_url")
+    .select("id,pathway_slug,source_render_id,asset_id,platform,rank,score,start_seconds,end_seconds,hook,title,rationale,caption,status,output_url,analysis_metadata")
     .eq("id", parsed.data.clipId)
     .maybeSingle();
   if (clipResult.error) return NextResponse.json({ error: clipResult.error.message }, { status: 500 });
@@ -96,6 +96,9 @@ export async function POST(request: Request) {
   const publicUrl = service.storage.from("pathway-video").getPublicUrl(storagePath).data.publicUrl;
   const callbackUrl = `${new URL(request.url).origin}/api/admin/publishing/viral-clips/render-callback`;
   const now = new Date().toISOString();
+  const existingMetadata = clip.analysis_metadata && typeof clip.analysis_metadata === "object"
+    ? clip.analysis_metadata as Record<string, unknown>
+    : {};
   const prepared = await service.from("pathway_social_clips").update({
     asset_id: assetId,
     status: "queued",
@@ -103,6 +106,7 @@ export async function POST(request: Request) {
     storage_path: storagePath,
     callback_token_hash: callbackTokenHash,
     analysis_metadata: {
+      ...existingMetadata,
       renderBridge: { publicUrl },
       requestedAt: now
     },
