@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { SongStudioApp } from "@/song-studio/song-studio-app";
 import { getSongStudioBootstrap, requireSongStudioAccess } from "@/song-studio/server";
+import type { SongProject, SongStyleProfile } from "@/song-studio/types";
 import "./studio.css";
 
 export const dynamic = "force-dynamic";
@@ -17,8 +18,8 @@ export default async function SongStudioPage() {
   if (auth.access.state === "signed_out") redirect("/login");
   if (auth.access.state === "forbidden") redirect("/");
 
-  let projects = [];
-  let styles = [];
+  let projects: SongProject[] = [];
+  let styles: SongStyleProfile[] = [];
   let setupError: string | null = null;
 
   if (!auth.ok) {
