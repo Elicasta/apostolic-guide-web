@@ -1,14 +1,22 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
+import { getAdminAccess } from "@/auth";
 import { allPathways } from "@/pathway-catalog";
 import StudioClient from "./studio-client";
 import "./studio.css";
 
 export const metadata: Metadata = {
-  title: "AG Studio",
+  title: "AG Broadcast Studio",
   description: "Plan and produce Apostolic Guide episodes from Pathways, Scriptures, live questions, polls, and media."
 };
 
-export default function StudioPage() {
+export const dynamic = "force-dynamic";
+
+export default async function StudioPage() {
+  const access = await getAdminAccess();
+  if (access.state === "signed_out") redirect("/login");
+  if (access.state === "forbidden") redirect("/");
+
   const pathways = allPathways.map((pathway) => ({
     slug: pathway.slug,
     title: pathway.title,
