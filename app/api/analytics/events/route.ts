@@ -19,7 +19,10 @@ const eventSchema = z.object({
     "search_no_results",
     "article_completed",
     "app_link_clicked",
-    "content_shared"
+    "content_shared",
+    "audio_started",
+    "audio_progress",
+    "audio_completed"
   ]),
   path: z.string().min(1).max(1000),
   anonymousId: z.string().uuid(),
