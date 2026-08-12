@@ -7,7 +7,7 @@ function timedWords(text: string): TimedTranscriptWord[] {
   return text.split(/\s+/).filter(Boolean).map((word, index) => ({ word, start: index * 0.62, end: index * 0.62 + 0.48 }));
 }
 
-test("approved narration aligns Scripture cues to transcript word times", () => {
+test("approved narration aligns Scripture cues while preserving the rich template", () => {
   const pathway = allPathways.find((item) => item.slug === "jesus-is-god");
   assert.ok(pathway);
   const script = [
@@ -28,18 +28,25 @@ test("approved narration aligns Scripture cues to transcript word times", () => 
   assert.equal(result.totalScriptureCues, pathway.steps.length);
   assert.equal(result.confidence, "high");
   assert.equal(result.timeline[0].start, 0);
-  assert.equal(result.timeline.length, pathway.steps.length + 2);
+  assert.equal(result.timeline[0].kind, "question");
+  assert.equal(result.timeline[1].kind, "brand");
+  assert.equal(result.timeline.filter((cue) => cue.kind === "scripture").length, pathway.steps.length);
+  assert.ok(result.timeline.filter((cue) => cue.kind === "statement").length >= pathway.steps.length);
+  assert.ok(result.timeline.length >= pathway.steps.length * 2 + 4);
   for (let index = 1; index < result.timeline.length; index += 1) assert.ok(result.timeline[index].start > result.timeline[index - 1].start);
   assert.ok((result.timeline.at(-1)?.start ?? 0) < duration);
 });
 
-test("automatic alignment falls back without destroying Pathway cue order", () => {
+test("automatic alignment fallback keeps a rich ordered timeline when references are absent", () => {
   const pathway = allPathways[0];
   const script = "Welcome to Apostolic Guide. This narration intentionally omits explicit reference labels. You have completed the Pathway.";
   const words = timedWords(script);
   const result = alignPathwayVideoTimeline({ source: pathway, scriptText: script, transcriptWords: words, duration: 90 });
 
   assert.equal(result.matchedScriptureCues, 0);
-  assert.equal(result.timeline.length, pathway.steps.length + 2);
+  assert.equal(result.timeline.filter((cue) => cue.kind === "scripture").length, pathway.steps.length);
+  assert.ok(result.timeline.length >= pathway.steps.length * 2 + 4);
+  assert.equal(result.timeline[0].kind, "question");
+  assert.equal(result.timeline.at(-1)?.kind, "cta");
   for (let index = 1; index < result.timeline.length; index += 1) assert.ok(result.timeline[index].start >= result.timeline[index - 1].start);
 });
