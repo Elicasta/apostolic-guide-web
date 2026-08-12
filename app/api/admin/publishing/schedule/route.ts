@@ -65,6 +65,26 @@ export async function POST(request: Request) {
   if (parsed.data.platform === "instagram" && !metadata.caption) metadata = { ...metadata, caption: kit.reelCaption };
   if (parsed.data.platform === "tiktok" && !metadata.caption) metadata = { ...metadata, caption: kit.tiktokCaption };
 
+  if (assetId) {
+    const duplicate = await service.from("pathway_publications")
+      .select("id,status,scheduled_for,published_url")
+      .eq("asset_id", assetId)
+      .eq("platform", parsed.data.platform)
+      .in("status", ["scheduled", "publishing", "published"])
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (duplicate.error) return NextResponse.json({ error: duplicate.error.message }, { status: 500 });
+    if (duplicate.data) {
+      const message = duplicate.data.status === "scheduled"
+        ? "This video is already on the publishing calendar for that channel."
+        : duplicate.data.status === "publishing"
+          ? "This video is already being published to that channel."
+          : "This video has already been published to that channel.";
+      return NextResponse.json({ error: message, publication: duplicate.data }, { status: 409 });
+    }
+  }
+
   const created = await service.from("pathway_publications").insert({
     pathway_slug: pathway.slug,
     asset_id: assetId,
