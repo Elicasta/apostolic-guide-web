@@ -38,8 +38,12 @@ export function buildPathwayNarration(pathway: WebsitePathway) {
   return parts.join("\n\n");
 }
 
+export function hashAudioText(value: string) {
+  return createHash("sha256").update(value.trim()).digest("hex");
+}
+
 export function pathwayNarrationHash(pathway: WebsitePathway) {
-  return createHash("sha256").update(buildPathwayNarration(pathway)).digest("hex");
+  return hashAudioText(buildPathwayNarration(pathway));
 }
 
 export async function getPathwayAudioAsset(pathwaySlug: string): Promise<PathwayAudioAsset | null> {
