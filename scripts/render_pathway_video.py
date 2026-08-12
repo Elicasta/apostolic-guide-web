@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Render an Apostolic Guide Pathway video and publish it to Supabase Storage.
 
-Input payload is the GitHub repository_dispatch client_payload written to JSON.
-The renderer intentionally uses ffmpeg + system fonts so it stays deterministic on CI.
+The CI renderer mirrors the Video Studio master template instead of using a flat
+fallback. It keeps the exact brand wordmark, audio-reactive visualizer, red/blue
+ambient depth, bottom-left chapter tracker, and red/blue progress treatment.
 """
 from __future__ import annotations
 
@@ -17,9 +18,75 @@ import urllib.parse
 import urllib.request
 
 FORMATS = {
-    "youtube": {"width": 1920, "height": 1080, "logo_small": 320, "logo_hero": 1033, "title_size": 82, "body_size": 31, "eyebrow_size": 26, "title_y": 505, "body_y": 645, "brand_title_y": 680, "brand_body_y": 760, "spectrum_w": 760, "spectrum_h": 90, "spectrum_y": 805, "margin": 100},
-    "vertical": {"width": 1080, "height": 1920, "logo_small": 360, "logo_hero": 778, "title_size": 92, "body_size": 38, "eyebrow_size": 26, "title_y": 930, "body_y": 1110, "brand_title_y": 1210, "brand_body_y": 1330, "spectrum_w": 760, "spectrum_h": 120, "spectrum_y": 1540, "margin": 72},
-    "square": {"width": 1080, "height": 1080, "logo_small": 300, "logo_hero": 670, "title_size": 72, "body_size": 30, "eyebrow_size": 24, "title_y": 500, "body_y": 635, "brand_title_y": 670, "brand_body_y": 750, "spectrum_w": 680, "spectrum_h": 82, "spectrum_y": 820, "margin": 72},
+    "youtube": {
+        "width": 1920,
+        "height": 1080,
+        "margin": 100,
+        "logo_small": 320,
+        "logo_hero": 1033,
+        "logo_y": 78,
+        "hero_y": 355,
+        "eyebrow_size": 28,
+        "title_size": 84,
+        "body_size": 31,
+        "title_y": 500,
+        "body_y": 652,
+        "brand_title_y": 690,
+        "brand_body_y": 770,
+        "spectrum_w": 760,
+        "spectrum_h": 92,
+        "spectrum_y": 790,
+        "tracker_y": 945,
+        "tracker_title_y": 980,
+        "time_y": 980,
+        "safe_bottom": 0,
+    },
+    "vertical": {
+        "width": 1080,
+        "height": 1920,
+        "margin": 72,
+        "logo_small": 300,
+        "logo_hero": 680,
+        "logo_y": 86,
+        "hero_y": 560,
+        "eyebrow_size": 28,
+        "title_size": 88,
+        "body_size": 34,
+        "title_y": 820,
+        "body_y": 1045,
+        "brand_title_y": 1015,
+        "brand_body_y": 1140,
+        "spectrum_w": 700,
+        "spectrum_h": 118,
+        "spectrum_y": 1325,
+        "tracker_y": 1560,
+        "tracker_title_y": 1605,
+        "time_y": 1605,
+        "safe_bottom": 260,
+    },
+    "square": {
+        "width": 1080,
+        "height": 1080,
+        "margin": 72,
+        "logo_small": 300,
+        "logo_hero": 670,
+        "logo_y": 62,
+        "hero_y": 330,
+        "eyebrow_size": 24,
+        "title_size": 72,
+        "body_size": 30,
+        "title_y": 505,
+        "body_y": 640,
+        "brand_title_y": 680,
+        "brand_body_y": 755,
+        "spectrum_w": 680,
+        "spectrum_h": 82,
+        "spectrum_y": 805,
+        "tracker_y": 940,
+        "tracker_title_y": 972,
+        "time_y": 972,
+        "safe_bottom": 0,
+    },
 }
 
 
@@ -44,12 +111,58 @@ def ass_time(seconds: float) -> str:
     return f"{hours}:{minutes:02d}:{seconds:05.2f}"
 
 
+def clock_time(seconds: float) -> str:
+    total = max(0, int(seconds))
+    return f"{total // 60}:{total % 60:02d}"
+
+
 def ass_escape(value: object) -> str:
     return str(value or "").replace("\\", "\\\\").replace("{", "\\{").replace("}", "\\}").replace("\n", "\\N")
 
 
+def cue_list(payload: dict) -> list[dict]:
+    raw = payload.get("timeline")
+    return [item for item in raw if isinstance(item, dict)] if isinstance(raw, list) else []
+
+
+def brand_window(cues: list[dict], duration: float) -> tuple[float, float]:
+    for index, cue in enumerate(cues):
+        if str(cue.get("kind", "")) != "brand":
+            continue
+        start = max(0.0, float(cue.get("start", 0) or 0))
+        end = duration
+        if index + 1 < len(cues):
+            end = min(duration, max(start + .1, float(cues[index + 1].get("start", duration) or duration)))
+        return start, end
+    return 0.0, 0.0
+
+
+def build_chapters(payload: dict, duration: float) -> list[dict]:
+    title = str(payload.get("title", "Pathway")).upper()
+    chapters: list[dict] = [{"start": 0.0, "label": "INTRO", "reference": title}]
+    for cue in cue_list(payload):
+        if str(cue.get("kind", "")) != "scripture":
+            continue
+        chapters.append({
+            "start": max(0.0, float(cue.get("start", 0) or 0)),
+            "label": str(cue.get("title") or cue.get("reference") or "SCRIPTURE").upper(),
+            "reference": str(cue.get("reference") or cue.get("eyebrow") or "").upper(),
+        })
+    cta = next((cue for cue in cue_list(payload) if str(cue.get("kind", "")) == "cta"), None)
+    if cta:
+        chapters.append({
+            "start": max(0.0, float(cta.get("start", duration) or duration)),
+            "label": "COMPLETE",
+            "reference": "APOSTOLIC GUIDE",
+        })
+    chapters.sort(key=lambda item: item["start"])
+    return chapters
+
+
 def make_ass(path: Path, payload: dict, duration: float, spec: dict) -> None:
     width, height, margin = spec["width"], spec["height"], spec["margin"]
+    title_margin = int(width * (.09 if width <= 1080 else .11))
+    body_margin = int(width * (.11 if height > width else .18))
     header = f"""[Script Info]
 ScriptType: v4.00+
 PlayResX: {width}
@@ -59,38 +172,54 @@ ScaledBorderAndShadow: yes
 
 [V4+ Styles]
 Format: Name,Fontname,Fontsize,PrimaryColour,SecondaryColour,OutlineColour,BackColour,Bold,Italic,Underline,StrikeOut,ScaleX,ScaleY,Spacing,Angle,BorderStyle,Outline,Shadow,Alignment,MarginL,MarginR,MarginV,Encoding
-Style: Path,DejaVu Sans,{max(15, int(width * .0095))},&H009AA3AC,&H00FFFFFF,&H00000000,&H00000000,0,0,0,0,100,100,2,0,1,0,0,9,{margin},{margin},{margin},1
-Style: Eyebrow,DejaVu Sans,{spec['eyebrow_size']},&H00BCC3C9,&H00FFFFFF,&H00000000,&H00000000,-1,0,0,0,100,100,4,0,1,0,0,8,{margin},{margin},0,1
-Style: Title,DejaVu Serif,{spec['title_size']},&H00F3EFE7,&H00FFFFFF,&H00000000,&H00000000,0,0,0,0,100,100,-1,0,1,0,0,5,{int(width * .11)},{int(width * .11)},0,1
-Style: Body,DejaVu Serif,{spec['body_size']},&H00C0C5CA,&H00FFFFFF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,0,0,8,{int(width * .18)},{int(width * .18)},0,1
-Style: Footer,DejaVu Sans,{max(16, int(width * .009))},&H009AA3AC,&H00FFFFFF,&H00000000,&H00000000,-1,0,0,0,100,100,2,0,1,0,0,1,{margin},{margin},{margin},1
+Style: Path,Noto Sans,{max(15, int(width * .0095))},&H009DA5AE,&H00FFFFFF,&H00000000,&H00000000,-1,0,0,0,100,100,3,0,1,0,0,9,{margin},{margin},{margin},1
+Style: Eyebrow,Noto Sans,{spec['eyebrow_size']},&H00BDC3C9,&H00FFFFFF,&H00000000,&H00000000,-1,0,0,0,100,100,4,0,1,0,0,8,{margin},{margin},0,1
+Style: Title,Noto Serif,{spec['title_size']},&H00F3EFE7,&H00FFFFFF,&H00000000,&H00000000,0,0,0,0,100,100,-1,0,1,0,0,5,{title_margin},{title_margin},0,1
+Style: Body,Noto Serif,{spec['body_size']},&H00C3C8CD,&H00FFFFFF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,0,0,8,{body_margin},{body_margin},0,1
+Style: TrackerKicker,Noto Sans,{max(15, int(width * .010))},&H009AA3AC,&H00FFFFFF,&H00000000,&H00000000,-1,0,0,0,100,100,2,0,1,0,0,7,{margin},{margin},0,1
+Style: TrackerTitle,Noto Sans,{max(17, int(width * .0125))},&H00D1D6DB,&H00FFFFFF,&H00000000,&H00000000,-1,0,0,0,100,100,1,0,1,0,0,7,{margin},{margin},0,1
+Style: Time,Noto Sans,{max(15, int(width * .0095))},&H009AA3AC,&H00FFFFFF,&H00000000,&H00000000,-1,0,0,0,100,100,1,0,1,0,0,9,{margin},{margin},0,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 """
     lines = [header]
     title = ass_escape(str(payload.get("title", "Pathway")).upper())
-    lines.append(f"Dialogue: 0,{ass_time(0)},{ass_time(duration)},Path,,0,0,0,,{{\\pos({width - margin},{margin + 8})}}{title} · PATHWAY\n")
+    lines.append(f"Dialogue: 0,{ass_time(0)},{ass_time(duration)},Path,,0,0,0,,{{\\pos({width - margin},{margin + 6})}}{title} · PATHWAY\n")
 
-    cues = payload.get("timeline") if isinstance(payload.get("timeline"), list) else []
+    cues = cue_list(payload)
     for index, cue in enumerate(cues):
-        if not isinstance(cue, dict):
-            continue
         start = max(0.0, float(cue.get("start", 0) or 0))
-        next_start = float(cues[index + 1].get("start", duration)) if index + 1 < len(cues) and isinstance(cues[index + 1], dict) else duration
+        next_start = float(cues[index + 1].get("start", duration)) if index + 1 < len(cues) else duration
         end = max(start + .1, min(duration, next_start))
         kind = str(cue.get("kind", "scripture"))
-        title_y = spec["brand_title_y"] if kind == "brand" else spec["title_y"]
-        body_y = spec["brand_body_y"] if kind == "brand" else spec["body_y"]
-        eyebrow_y = title_y - (int(height * .08) if kind == "brand" else int(height * .18))
-
-        if kind != "brand":
-            lines.append(f"Dialogue: 1,{ass_time(start)},{ass_time(end)},Eyebrow,,0,0,0,,{{\\pos({width // 2},{eyebrow_y})\\fad(350,350)}}{ass_escape(cue.get('eyebrow', ''))}\n")
-        lines.append(f"Dialogue: 2,{ass_time(start)},{ass_time(end)},Title,,0,0,0,,{{\\pos({width // 2},{title_y})\\fad(350,350)}}{ass_escape(cue.get('title', ''))}\n")
+        is_brand = kind == "brand"
+        title_y = spec["brand_title_y"] if is_brand else spec["title_y"]
+        body_y = spec["brand_body_y"] if is_brand else spec["body_y"]
+        eyebrow_y = title_y - (int(height * .07) if is_brand else int(height * (.15 if height > width else .17)))
+        if not is_brand:
+            lines.append(f"Dialogue: 2,{ass_time(start)},{ass_time(end)},Eyebrow,,0,0,0,,{{\\pos({width // 2},{eyebrow_y})\\fad(260,300)}}{ass_escape(cue.get('eyebrow', ''))}\n")
+        lines.append(f"Dialogue: 3,{ass_time(start)},{ass_time(end)},Title,,0,0,0,,{{\\pos({width // 2},{title_y})\\fad(260,300)}}{ass_escape(cue.get('title', ''))}\n")
         if cue.get("body"):
-            lines.append(f"Dialogue: 1,{ass_time(start)},{ass_time(end)},Body,,0,0,0,,{{\\pos({width // 2},{body_y})\\fad(350,350)}}{ass_escape(cue.get('body', ''))}\n")
-        lines.append(f"Dialogue: 0,{ass_time(start)},{ass_time(end)},Footer,,0,0,0,,{{\\pos({margin},{height - margin})}}{ass_escape(cue.get('reference', ''))}\n")
+            lines.append(f"Dialogue: 2,{ass_time(start)},{ass_time(end)},Body,,0,0,0,,{{\\pos({width // 2},{body_y})\\fad(260,300)}}{ass_escape(cue.get('body', ''))}\n")
 
+    chapters = build_chapters(payload, duration)
+    scripture_total = max(1, len([item for item in chapters if item["label"] not in {"INTRO", "COMPLETE"}]))
+    scripture_index = 0
+    for index, chapter in enumerate(chapters):
+        start = chapter["start"]
+        end = chapters[index + 1]["start"] if index + 1 < len(chapters) else duration
+        if chapter["label"] not in {"INTRO", "COMPLETE"}:
+            scripture_index += 1
+            kicker = f"{scripture_index:02d} / {scripture_total:02d} · {chapter['reference']}"
+        elif chapter["label"] == "INTRO":
+            kicker = f"INTRO · {chapter['reference']}"
+        else:
+            kicker = "PATHWAY COMPLETE · APOSTOLIC GUIDE"
+        lines.append(f"Dialogue: 4,{ass_time(start)},{ass_time(end)},TrackerKicker,,0,0,0,,{{\\pos({margin},{spec['tracker_y']})}}{ass_escape(kicker)}\n")
+        lines.append(f"Dialogue: 4,{ass_time(start)},{ass_time(end)},TrackerTitle,,0,0,0,,{{\\pos({margin},{spec['tracker_title_y']})}}{ass_escape(chapter['label'])}\n")
+
+    lines.append(f"Dialogue: 4,{ass_time(0)},{ass_time(duration)},Time,,0,0,0,,{{\\pos({width - margin},{spec['time_y']})}}{clock_time(duration)}\n")
     path.write_text("".join(lines))
 
 
@@ -166,27 +295,44 @@ def render(payload: dict, output: Path) -> None:
         make_ass(timeline_ass, payload, duration, spec)
 
         width, height = spec["width"], spec["height"]
-        cues = payload.get("timeline") if isinstance(payload.get("timeline"), list) else []
-        brand_end = 0.0
-        if len(cues) > 1 and isinstance(cues[0], dict) and cues[0].get("kind") == "brand" and isinstance(cues[1], dict):
-            brand_end = max(0.0, float(cues[1].get("start", 0) or 0))
+        brand_start, brand_end = brand_window(cue_list(payload), duration)
+        show_brand = brand_end > brand_start
+        small_enable = "1"
+        hero_enable = "0"
+        if show_brand:
+            small_enable = f"not(between(t,{brand_start},{brand_end}))"
+            hero_enable = f"between(t,{brand_start},{brand_end})"
+
+        # Red lower-left and blue upper-right glows are separate blurred layers.
+        red_w, red_h = int(width * .62), int(height * .62)
+        blue_w, blue_h = int(width * .58), int(height * .58)
+        red_x, red_y = -int(red_w * .42), height - int(red_h * .58)
+        blue_x, blue_y = width - int(blue_w * .60), -int(blue_h * .43)
+        progress_y = height - 4
 
         filter_graph = (
             f"[0:a]asplit=2[aout][av];"
-            f"[av]showfreqs=s={spec['spectrum_w']}x{spec['spectrum_h']}:mode=bar:ascale=log:fscale=log:win_size=1024:overlap=0.75:colors=0xD6DCE2@0.40,format=rgba,colorkey=black:0.12:0.08[spec];"
-            f"color=c=0x080B0F:s={width}x{height}:d={duration}[bg];"
+            f"[av]showfreqs=s={spec['spectrum_w']}x{spec['spectrum_h']}:mode=bar:ascale=log:fscale=log:win_size=1024:overlap=0.75:colors=0xD9DFE4@0.42,format=rgba,colorkey=black:0.12:0.08[specviz];"
+            f"color=c=0x080B0F:s={width}x{height}:d={duration}[base];"
+            f"color=c=0x7E1E2B@0.28:s={red_w}x{red_h}:d={duration},format=rgba,gblur=sigma=120[red];"
+            f"color=c=0x365F8F@0.25:s={blue_w}x{blue_h}:d={duration},format=rgba,gblur=sigma=120[blue];"
+            f"[base][red]overlay={red_x}:{red_y}[b1];"
+            f"[b1][blue]overlay={blue_x}:{blue_y}[b2];"
             f"[1:v]split=2[ls][lh];[ls]scale={spec['logo_small']}:-1[small];[lh]scale={spec['logo_hero']}:-1[hero];"
-            f"[bg][small]overlay={spec['margin']}:{spec['margin']}:enable='gte(t,{brand_end})'[b1];"
-            f"[b1][hero]overlay=(W-w)/2:{int(height * .39)}:enable='lt(t,{brand_end})'[b2];"
-            f"[b2][spec]overlay=(W-w)/2:{spec['spectrum_y']}[b3];"
-            f"[b3]ass='{timeline_ass}',drawbox=x=0:y={height - 3}:w='{width}*t/{duration}':h=3:color=0x6F8FB8@0.9:t=fill[v]"
+            f"[b2][small]overlay={spec['margin']}:{spec['logo_y']}:enable='{small_enable}'[b3];"
+            f"[b3][hero]overlay=(W-w)/2:{spec['hero_y']}:enable='{hero_enable}'[b4];"
+            f"[b4][specviz]overlay=(W-w)/2:{spec['spectrum_y']}[b5];"
+            f"[b5]ass='{timeline_ass}'[b6];"
+            f"[b6]drawbox=x=0:y={progress_y}:w={width}:h=4:color=0x537BA4@0.42:t=fill,"
+            f"drawbox=x=0:y={progress_y}:w='{width}*t/{duration}':h=4:color=0x8B2431@0.96:t=fill,"
+            f"noise=alls=2:allf=t[v]"
         )
 
         run([
             "ffmpeg", "-y", "-i", str(audio), "-loop", "1", "-i", str(wordmark),
             "-filter_complex", filter_graph,
             "-map", "[v]", "-map", "[aout]", "-t", str(duration),
-            "-c:v", "libx264", "-preset", "medium", "-crf", "20", "-pix_fmt", "yuv420p",
+            "-c:v", "libx264", "-preset", "medium", "-crf", "19", "-pix_fmt", "yuv420p",
             "-c:a", "aac", "-b:a", "160k", "-movflags", "+faststart", str(output),
         ])
 
