@@ -36,7 +36,6 @@ export function PathwayAudioManager({ pathways }: { pathways: PathwayRow[] }) {
   const totalStarts = rows.reduce((sum, row) => sum + row.starts, 0);
   const totalCompletions = rows.reduce((sum, row) => sum + row.completions, 0);
   const totalListeningSeconds = rows.reduce((sum, row) => sum + row.listenedSeconds, 0);
-  const uniqueListeners = Math.max(0, ...rows.map((row) => row.uniqueListeners));
   const currentCount = rows.length - missing.length;
 
   async function generate(slug: string, force = false) {
@@ -79,7 +78,6 @@ export function PathwayAudioManager({ pathways }: { pathways: PathwayRow[] }) {
     <div className="metric-grid">
       <div className="metric"><strong>{currentCount}/{rows.length}</strong><span>Audio current</span></div>
       <div className="metric"><strong>{totalStarts}</strong><span>Audio starts</span></div>
-      <div className="metric"><strong>{uniqueListeners}</strong><span>Top pathway listeners</span></div>
       <div className="metric"><strong>{formatListeningTime(totalListeningSeconds)}</strong><span>Total listening</span></div>
       <div className="metric"><strong>{totalCompletions}</strong><span>Completed listens</span></div>
       <div className="metric"><strong>{totalStarts ? Math.round((totalCompletions / totalStarts) * 100) : 0}%</strong><span>Completion rate</span></div>
