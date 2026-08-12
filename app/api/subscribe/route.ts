@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { upsertEmailPerson } from "@/people-crm";
 import { createServiceClient } from "@/supabase";
 import { buildWelcomeEmail } from "@/welcome-email";
 import { syncContactSegments } from "@/resend-broadcasts";
@@ -67,9 +68,25 @@ export async function POST(request: NextRequest) {
   const { data: subscriber, error: databaseError } = await supabase.from("email_subscribers").upsert(subscriberPayload, { onConflict: "email" }).select("id,email").single();
   if (databaseError || !subscriber) return NextResponse.json({ ok: false, message: "We could not save your signup. Please try again." }, { status: 500 });
 
-  const person = await supabase.from("people").select("id").eq("email", input.email).maybeSingle();
-  if (person.data?.id && input.anonymousId) await supabase.rpc("link_browser_identity", { p_person_id: person.data.id, p_anonymous_id: input.anonymousId });
-  if (person.data?.id) await supabase.from("person_events").upsert({ person_id: person.data.id, event_type: "email_subscribed", channel: "email", event_name: existing?.status === "subscribed" ? "Email preferences updated" : "Subscribed by email", external_event_id: `subscriber:${subscriber.id}:${existing?.status === "subscribed" ? "updated" : "joined"}`, metadata: { source: input.source, path: input.path }, occurred_at: now }, { onConflict: "external_event_id", ignoreDuplicates: true });
+  const person = await upsertEmailPerson({ email: input.email, sourceDetail: input.source, seenAt: now });
+  if (person) {
+    await supabase.from("people").update({
+      email_subscriber_id: subscriber.id,
+      status: person.status === "app_user" ? "app_user" : "subscriber",
+      last_seen_at: now,
+      updated_at: now
+    }).eq("id", person.id);
+    if (input.anonymousId) await supabase.rpc("link_browser_identity", { p_person_id: person.id, p_anonymous_id: input.anonymousId });
+    await supabase.from("person_events").upsert({
+      person_id: person.id,
+      event_type: "email_subscribed",
+      channel: "email",
+      event_name: existing?.status === "subscribed" ? "Email preferences updated" : "Subscribed by email",
+      external_event_id: `subscriber:${subscriber.id}:${existing?.status === "subscribed" ? "updated" : "joined"}`,
+      metadata: { source: input.source, path: input.path },
+      occurred_at: now
+    }, { onConflict: "external_event_id", ignoreDuplicates: true });
+  }
 
   const resendContact = await addResendContact(input);
   let segmentError: string | null = null;
