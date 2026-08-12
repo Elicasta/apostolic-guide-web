@@ -49,7 +49,11 @@ export function PathwayAudioPlayer({ slug, title, audioUrl }: { slug: string; ti
         setPosition(audio.currentTime);
         lastPositionRef.current = audio.currentTime;
       }
-      if (stored?.listened && Number.isFinite(stored.listened)) listenedRef.current = Math.max(0, stored.listened);
+      if (stored?.listened && Number.isFinite(stored.listened)) {
+        const restoredListening = Math.max(0, stored.listened);
+        listenedRef.current = restoredListening;
+        lastReportedRef.current = restoredListening;
+      }
     } catch {}
 
     const onLoaded = () => {
@@ -153,7 +157,7 @@ export function PathwayAudioPlayer({ slug, title, audioUrl }: { slug: string; ti
     <audio ref={audioRef} src={audioUrl} preload="metadata" />
     <div className={styles.top}>
       <button type="button" className={styles.play} onClick={toggle} aria-label={playing ? "Pause pathway audio" : "Play pathway audio"}>{playing ? <Pause size={20}/> : <Play size={20}/>}</button>
-      <div className={styles.copy}><small>Listen to this pathway</small><strong>{title}</strong></div>
+      <div className={styles.copy}><small>Listen to this pathway · AI narration</small><strong>{title}</strong></div>
     </div>
     <div className={styles.progressRow}>
       <span className={styles.time}>{formatTime(position)}</span>
