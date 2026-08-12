@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Camera, Monitor, PauseCircle, Radio, ShieldAlert, SkipForward, Video } from "lucide-react";
 import type { StudioProgramState } from "@/studio/types";
+import { connectHostMediaBridge, type HostBridgeStatus } from "./host-media-bridge";
 
 type CueRow = {
   id: string;
@@ -29,14 +30,19 @@ export default function LiveConsole({ initialState, initialCues }: { initialStat
   const [error, setError] = useState("");
   const [cameraReady, setCameraReady] = useState(false);
   const [cameraError, setCameraError] = useState("");
+  const [bridgeStatus, setBridgeStatus] = useState<HostBridgeStatus>("idle");
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const peerRef = useRef<RTCPeerConnection | null>(null);
   const cues = useMemo(() => initialCues.filter((cue) => cue.enabled).sort((a, b) => a.position - b.position), [initialCues]);
   const currentIndex = state.currentCueId ? cues.findIndex((cue) => cue.id === state.currentCueId) : -1;
   const currentCue = currentIndex >= 0 ? cues[currentIndex] : undefined;
   const nextCue = state.nextCueId ? cues.find((cue) => cue.id === state.nextCueId) : cues[currentIndex + 1] ?? cues[0];
 
-  useEffect(() => () => streamRef.current?.getTracks().forEach((track) => track.stop()), []);
+  useEffect(() => () => {
+    peerRef.current?.close();
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+  }, []);
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
       if (event.code !== "Space" || event.repeat || (event.target as HTMLElement | null)?.matches("input,textarea,button,select")) return;
@@ -49,15 +55,19 @@ export default function LiveConsole({ initialState, initialCues }: { initialStat
 
   async function requestHostCamera() {
     setCameraError("");
+    setBridgeStatus("idle");
     try {
+      peerRef.current?.close();
       streamRef.current?.getTracks().forEach((track) => track.stop());
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: true });
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: { echoCancellation: true, noiseSuppression: true } });
       streamRef.current = stream;
       if (videoRef.current) videoRef.current.srcObject = stream;
       setCameraReady(true);
+      peerRef.current = await connectHostMediaBridge(state.sessionId, stream, setBridgeStatus);
     } catch (err) {
-      setCameraReady(false);
-      setCameraError(err instanceof Error ? err.message : "Camera or microphone unavailable");
+      setCameraReady(Boolean(streamRef.current));
+      setBridgeStatus("failed");
+      setCameraError(err instanceof Error ? err.message : "Camera, microphone, or OBS media bridge unavailable");
     }
   }
 
@@ -100,6 +110,7 @@ export default function LiveConsole({ initialState, initialCues }: { initialStat
 
   const setScene = (sceneId: string) => runManual([{ id: "manual", cueId: "manual", position: 0, type: "scene.set", payload: { sceneId } }]);
   const clearProgram = () => runManual([{ id: "manual", cueId: "manual", position: 0, type: "program.clear", payload: {} }]);
+  const sourceLabel = bridgeStatus === "connected" ? "LIVE TO OUTPUT" : bridgeStatus === "signaling" ? "CONNECTING" : cameraReady ? "LOCAL READY" : "NOT CONNECTED";
 
   return <main className="ag-studio ag-studio-live-console">
     <header className="ag-studio-topbar"><div className="ag-studio-brand"><span className="ag-studio-mark">AG</span><div><strong>Broadcast Studio</strong><span>Live control</span></div></div><span className="ag-studio-status">STATE v{state.version}</span></header>
@@ -107,10 +118,11 @@ export default function LiveConsole({ initialState, initialCues }: { initialStat
     <section className="ag-live-workspace">
       <div className="ag-live-program-column">
         <div className="ag-live-preview-card">
-          <div className="ag-live-preview-head"><span className="ag-studio-eyebrow">Host source</span><span className={cameraReady ? "ready" : "offline"}>{cameraReady ? "READY" : "NOT CONNECTED"}</span></div>
-          <div className="ag-live-camera-frame">{cameraReady ? <video ref={videoRef} autoPlay muted playsInline /> : <div><Camera size={32}/><p>Connect your host camera and microphone before recording.</p><button onClick={requestHostCamera}><Video size={16}/> Enable host media</button></div>}</div>
+          <div className="ag-live-preview-head"><span className="ag-studio-eyebrow">Host source</span><span className={bridgeStatus === "connected" ? "ready" : "offline"}>{sourceLabel}</span></div>
+          <div className="ag-live-camera-frame">{cameraReady ? <video ref={videoRef} autoPlay muted playsInline /> : <div><Camera size={32}/><p>Open the OBS browser source, then connect your host camera and microphone.</p><button onClick={requestHostCamera}><Video size={16}/> Enable host media</button></div>}</div>
           {cameraError ? <div className="ag-studio-error">{cameraError}</div> : null}
-          <small>Host media preview is local in this pass. Program transport into the OBS renderer is the next media-source bridge.</small>
+          {cameraReady && bridgeStatus !== "connected" ? <button className="ag-live-reconnect-source" onClick={requestHostCamera}>Reconnect output media</button> : null}
+          <small>{bridgeStatus === "connected" ? "Host camera and microphone are being sent directly to the scoped OBS program output." : "The local preview can stay ready while the output handshake reconnects."}</small>
         </div>
 
         <div className="ag-live-program-card">
