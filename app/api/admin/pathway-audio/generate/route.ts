@@ -4,7 +4,7 @@ import { z } from "zod";
 import { getStudioPermission } from "@/auth";
 import { pathwayBySlug } from "@/pathway-catalog";
 import { hashAudioText, pathwayNarrationHash } from "@/pathway-audio";
-import { concatenateMp3Segments, MAX_PATHWAY_AUDIO_SCRIPT_CHARS, PATHWAY_TTS_INSTRUCTIONS, resolveTtsSpeed, splitNarrationForTts } from "@/pathway-audio-render";
+import { buildLosslessWavFromPcmSegments, MAX_PATHWAY_AUDIO_SCRIPT_CHARS, PATHWAY_TTS_INSTRUCTIONS, resolveTtsSpeed, splitNarrationForTts } from "@/pathway-audio-render";
 import { createServiceClient } from "@/supabase";
 
 export const runtime = "nodejs";
@@ -42,7 +42,7 @@ export async function POST(request: Request) {
   if (narration.length > MAX_PATHWAY_AUDIO_SCRIPT_CHARS) return NextResponse.json({ error: `Approved script is ${narration.length.toLocaleString()} characters. The current long-form limit is ${MAX_PATHWAY_AUDIO_SCRIPT_CHARS.toLocaleString()} characters.` }, { status: 422 });
 
   const existing = await service.from("pathway_audio_assets").select("pathway_slug,audio_url,storage_path,content_hash,model,voice,generated_at").eq("pathway_slug", pathway.slug).maybeSingle();
-  if (!parsed.data.force && existing.data?.content_hash === contentHash && existing.data?.audio_url) return NextResponse.json({ asset: existing.data, generated: false, segments: null });
+  if (!parsed.data.force && existing.data?.content_hash === contentHash && existing.data?.audio_url) return NextResponse.json({ asset: existing.data, generated: false, segments: null, format: existing.data.storage_path?.endsWith(".wav") ? "wav" : "unknown" });
 
   const chunks = splitNarrationForTts(narration);
   if (!chunks.length) return NextResponse.json({ error: "Approved script is empty." }, { status: 422 });
@@ -50,7 +50,7 @@ export async function POST(request: Request) {
   const model = process.env.OPENAI_TTS_MODEL || "gpt-4o-mini-tts";
   const voice = process.env.OPENAI_TTS_VOICE || "cedar";
   const speed = resolveTtsSpeed(process.env.OPENAI_TTS_SPEED);
-  const audioSegments: Buffer[] = [];
+  const pcmSegments: Buffer[] = [];
 
   for (let index = 0; index < chunks.length; index += 1) {
     const speech = await fetch("https://api.openai.com/v1/audio/speech", {
@@ -60,7 +60,7 @@ export async function POST(request: Request) {
         model,
         voice,
         input: chunks[index],
-        response_format: "mp3",
+        response_format: "pcm",
         speed,
         instructions: PATHWAY_TTS_INSTRUCTIONS
       })
@@ -68,20 +68,20 @@ export async function POST(request: Request) {
 
     if (!speech.ok) {
       const detail = (await speech.text().catch(() => "")).slice(0, 1000);
-      return NextResponse.json({ error: `Audio generation failed on segment ${index + 1} of ${chunks.length} (${speech.status}).`, detail }, { status: 502 });
+      return NextResponse.json({ error: `Audio generation failed on lossless segment ${index + 1} of ${chunks.length} (${speech.status}).`, detail }, { status: 502 });
     }
-    audioSegments.push(Buffer.from(await speech.arrayBuffer()));
+    pcmSegments.push(Buffer.from(await speech.arrayBuffer()));
   }
 
   let audio: Buffer;
   try {
-    audio = concatenateMp3Segments(audioSegments);
+    audio = buildLosslessWavFromPcmSegments(pcmSegments);
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Audio segments could not be combined." }, { status: 502 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Lossless audio segments could not be combined." }, { status: 502 });
   }
 
-  const objectPath = `pathways/${pathway.slug}/${contentHash.slice(0, 16)}-${Date.now().toString(36)}.mp3`;
-  const upload = await service.storage.from("pathway-audio").upload(objectPath, audio, { contentType: "audio/mpeg", cacheControl: "31536000", upsert: false });
+  const objectPath = `pathways/${pathway.slug}/${contentHash.slice(0, 16)}-${Date.now().toString(36)}.wav`;
+  const upload = await service.storage.from("pathway-audio").upload(objectPath, audio, { contentType: "audio/wav", cacheControl: "31536000", upsert: false });
   if (upload.error) return NextResponse.json({ error: upload.error.message }, { status: 500 });
 
   const publicUrl = service.storage.from("pathway-audio").getPublicUrl(objectPath).data.publicUrl;
@@ -101,5 +101,5 @@ export async function POST(request: Request) {
 
   revalidatePath(`/pathways/${pathway.slug}`);
   revalidatePath("/admin/audio");
-  return NextResponse.json({ asset: saved.data, generated: true, segments: chunks.length, speed });
+  return NextResponse.json({ asset: saved.data, generated: true, segments: chunks.length, speed, format: "wav", lossless: true });
 }
