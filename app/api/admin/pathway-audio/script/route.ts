@@ -3,13 +3,14 @@ import { z } from "zod";
 import { getStudioPermission } from "@/auth";
 import { pathwayBySlug } from "@/pathway-catalog";
 import { hashAudioText, pathwayNarrationHash } from "@/pathway-audio";
+import { MAX_PATHWAY_AUDIO_SCRIPT_CHARS } from "@/pathway-audio-render";
 import { createServiceClient } from "@/supabase";
 
 export const runtime = "nodejs";
 
 const schema = z.object({
   slug: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
-  scriptText: z.string().trim().min(100).max(4096),
+  scriptText: z.string().trim().min(100).max(MAX_PATHWAY_AUDIO_SCRIPT_CHARS),
   action: z.enum(["save", "approve"])
 });
 
@@ -18,7 +19,7 @@ export async function POST(request: Request) {
   if (!allowed || access.state !== "allowed" || !access.user) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const parsed = schema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return NextResponse.json({ error: "Script must be between 100 and 4,096 characters." }, { status: 400 });
+  if (!parsed.success) return NextResponse.json({ error: `Script must be between 100 and ${MAX_PATHWAY_AUDIO_SCRIPT_CHARS.toLocaleString()} characters.` }, { status: 400 });
 
   const pathway = pathwayBySlug(parsed.data.slug);
   if (!pathway) return NextResponse.json({ error: "Pathway not found" }, { status: 404 });

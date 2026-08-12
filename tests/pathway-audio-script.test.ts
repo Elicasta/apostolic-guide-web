@@ -24,13 +24,15 @@ test("audio script opening is branded, follow-along friendly, and platform neutr
   assert.match(rules, /reusable external video or podcast intro/i);
 });
 
-test("audio script prompt preserves the canonical source and speech limits", () => {
+test("audio script prompt preserves the canonical source and supports long-form rendering", () => {
   const source = "Apostolic Guide. Jesus Is God. Isaiah 9:6. The mighty God.";
   const prompt = buildPathwayAudioScriptPrompt(source);
   assert.ok(prompt.includes(source));
   assert.match(prompt, /Apostolic Oneness/i);
   assert.match(prompt, /Welcome to Apostolic Guide/i);
   assert.match(prompt, /platform-neutral/i);
-  assert.match(prompt, /2,500 and 3,850 characters/i);
+  assert.match(prompt, /3,000 to 7,500 characters/i);
+  assert.match(prompt, /automatically rendered in safe audio segments/i);
+  assert.match(prompt, /under 10,000 characters/i);
   assert.match(prompt, /Do not introduce historical claims or proof texts/i);
 });
