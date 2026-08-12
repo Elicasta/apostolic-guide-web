@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getStudioPermission } from "@/auth";
+import { SocialPublishingCredentials } from "@/social-publishing-credentials";
 
 const checks = [
   ["NEXT_PUBLIC_SUPABASE_URL", Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL)],
@@ -16,14 +17,17 @@ export default async function AdminSetupPage() {
     <>
       <span className="eyebrow">Deployment readiness</span>
       <h1>Setup</h1>
-      <p className="admin-lede">The repository runs without Supabase using the seeded launch library. Publishing, authentication, and first-party analytics require the production environment.</p>
+      <p className="admin-lede">Manage the server configuration and channel credentials Apostolic Guide uses for publishing, authentication, analytics, and distribution.</p>
+
+      <SocialPublishingCredentials/>
+
       <section className="admin-card">
         <h2>Environment</h2>
         <table className="admin-table"><tbody>{checks.map(([name, ready]) => <tr key={name}><td><code>{name}</code></td><td><span className={ready ? "status-pill" : "status-pill status-pending"}>{ready ? "Ready" : "Missing"}</span></td></tr>)}</tbody></table>
       </section>
       <section className="admin-card">
         <h2>Launch order</h2>
-        <ol className="admin-list"><li>Connect the GitHub repository to Vercel.</li><li>Add production environment variables.</li><li>Run migrations against a Supabase branch first.</li><li>Deploy the app reader.</li><li>Enable app publishing from this admin.</li><li>Point the apex domain to this Vercel project.</li></ol>
+        <ol className="admin-list"><li>Keep Supabase and Vercel production environment variables healthy.</li><li>Store channel app credentials here. Existing Instagram values are reused rather than duplicated.</li><li>Authorize the YouTube, Instagram, and TikTok accounts through the channel OAuth flows.</li><li>Render approved video assets in Video Studio.</li><li>Send finished packages through Channel Publishing.</li><li>Bring post IDs and performance back into Analytics.</li></ol>
       </section>
     </>
   );
