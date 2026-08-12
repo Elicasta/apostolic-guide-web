@@ -38,6 +38,8 @@ export async function POST(request: Request) {
 
   const apiKey = process.env.OPENAI_API_KEY?.trim();
   if (!apiKey) return NextResponse.json({ error: "OPENAI_API_KEY is not configured." }, { status: 503 });
+  const transcriptionModel = process.env.OPENAI_VIDEO_TRANSCRIBE_MODEL?.trim() || "whisper-1";
+  if (transcriptionModel !== "whisper-1") return NextResponse.json({ error: "Video Studio word timing currently requires OPENAI_VIDEO_TRANSCRIBE_MODEL=whisper-1." }, { status: 503 });
 
   const service = createServiceClient();
   if (!service) return NextResponse.json({ error: "Supabase service access is not configured." }, { status: 503 });
@@ -55,11 +57,19 @@ export async function POST(request: Request) {
   const script = scriptResult.data;
   if (!asset?.audio_url) return NextResponse.json({ error: "Generate Pathway audio before analyzing video timing." }, { status: 409 });
   if (!script?.script_text || script.status !== "approved") return NextResponse.json({ error: "Approve the Pathway narration script before analyzing video timing." }, { status: 409 });
+  if (!script.script_hash || script.script_hash !== asset.content_hash) return NextResponse.json({ error: "The approved script changed after this audio was generated. Regenerate the Pathway audio before analyzing video timing." }, { status: 409 });
 
   const existing = existingProjectResult.data;
   const existingStyle = existing?.style && typeof existing.style === "object" ? existing.style as Record<string, unknown> : {};
   const existingAlignment = existingStyle.alignment && typeof existingStyle.alignment === "object" ? existingStyle.alignment as Record<string, unknown> : null;
-  if (!parsed.data.force && existing?.audio_content_hash === asset.content_hash && existingAlignment?.status === "aligned" && Array.isArray(existing.timeline) && existing.timeline.length) {
+  if (
+    !parsed.data.force &&
+    existing?.audio_content_hash === asset.content_hash &&
+    existingAlignment?.status === "aligned" &&
+    existingAlignment?.scriptHash === script.script_hash &&
+    Array.isArray(existing.timeline) &&
+    existing.timeline.length
+  ) {
     return NextResponse.json({ project: existing, alignment: existingAlignment, analyzed: false });
   }
 
@@ -71,7 +81,7 @@ export async function POST(request: Request) {
   const contentType = audioResponse.headers.get("content-type") || "audio/wav";
   const form = new FormData();
   form.append("file", new Blob([audioBytes], { type: contentType }), audioFileName(contentType));
-  form.append("model", process.env.OPENAI_VIDEO_TRANSCRIBE_MODEL?.trim() || "whisper-1");
+  form.append("model", transcriptionModel);
   form.append("language", "en");
   form.append("response_format", "verbose_json");
   form.append("timestamp_granularities[]", "word");
@@ -104,7 +114,7 @@ export async function POST(request: Request) {
     alignment: {
       status: "aligned",
       method: "approved-script-word-alignment",
-      transcriptionModel: process.env.OPENAI_VIDEO_TRANSCRIBE_MODEL?.trim() || "whisper-1",
+      transcriptionModel,
       scriptHash: script.script_hash,
       audioContentHash: asset.content_hash,
       analyzedAt,
