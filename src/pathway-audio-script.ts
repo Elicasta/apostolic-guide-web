@@ -12,6 +12,16 @@ THEOLOGICAL FRAME — APOSTOLIC ONENESS
 - Prefer explicit biblical language over later metaphysical vocabulary. When a conclusion is an inference, present it as an inference rather than pretending the verse states it word-for-word.
 `.trim();
 
+export const APOSTOLIC_GUIDE_AUDIO_OPENING_RULES = `
+OPENING AND PLATFORM-NEUTRAL DELIVERY
+- Begin with a short hook that states the question, tension, or reason this study matters.
+- Immediately after the hook, include a brief natural greeting that identifies the ministry: "Welcome to Apostolic Guide."
+- After the greeting, invite the listener to follow along with the Pathway as the Scriptures are studied. Keep this invitation natural and brief.
+- The follow-along wording must work anywhere the audio is used. Never say "click the link below," "in this video," "on YouTube," "in the app," "in your browser," "in the description," or assume a specific platform.
+- A good pattern is: "If you'd like to follow along, open this Pathway as we move through the Scriptures together." You may vary the wording naturally, but preserve the same meaning.
+- Do not add a second branded intro, music cue, host introduction, subscribe request, like request, or social-media call to action. A reusable external video or podcast intro may be placed before this narration later.
+`.trim();
+
 export function buildPathwayAudioScriptPrompt(source: string) {
   return `Write a spoken-word narration script for an Apostolic Guide Scripture Pathway.
 
@@ -23,10 +33,11 @@ VOICE AND EDITORIAL RULES
 - Make the Apostolic Oneness meaning clear when the supplied passages support it. Do not flatten the script into generic Christian language.
 - Explain why each passage follows the previous passage. Use natural transitions instead of saying Step 1, Step 2, etc.
 - Quote only Scripture wording supplied below. Do not invent missing verse wording.
-- Open with a short hook that states the question or tension.
-- End with a concise summary and invitation to continue studying on Apostolic Guide.
+- End with a concise, platform-neutral summary and invitation to continue studying on Apostolic Guide.
 - Output only the finished narration. No headings, markdown, notes, labels, or commentary.
 - Keep the entire narration between 2,500 and 3,850 characters so it can be sent safely to the speech model.
+
+${APOSTOLIC_GUIDE_AUDIO_OPENING_RULES}
 
 ${APOSTOLIC_GUIDE_ONENESS_AUDIO_RULES}
 
