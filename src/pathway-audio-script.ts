@@ -35,7 +35,8 @@ VOICE AND EDITORIAL RULES
 - Quote only Scripture wording supplied below. Do not invent missing verse wording.
 - End with a concise, platform-neutral summary and invitation to continue studying on Apostolic Guide.
 - Output only the finished narration. No headings, markdown, notes, labels, or commentary.
-- Keep the entire narration between 2,500 and 3,850 characters so it can be sent safely to the speech model.
+- Let the depth of the supplied Pathway determine the natural teaching length. Aim for roughly 3,000 to 7,500 characters when the material supports it. Do not pad a short Pathway or compress a rich Pathway just to fit one speech request; approved scripts are automatically rendered in safe audio segments.
+- Keep an AI-generated draft under 10,000 characters. Editors may later expand an approved master script within Studio's long-form limit.
 
 ${APOSTOLIC_GUIDE_AUDIO_OPENING_RULES}
 
