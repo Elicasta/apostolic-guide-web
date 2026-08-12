@@ -39,6 +39,28 @@ type PublicationRow = {
   created_at: string;
 };
 
+type SocialClipRow = {
+  id: string;
+  pathway_slug: string;
+  source_render_id: string;
+  asset_id: string | null;
+  platform: "instagram" | "tiktok" | "both";
+  rank: number;
+  score: number;
+  start_seconds: number;
+  end_seconds: number;
+  hook: string;
+  title: string;
+  rationale: string;
+  caption: string;
+  status: "candidate" | "queued" | "rendering" | "completed" | "failed" | "archived";
+  output_url: string | null;
+  error: string | null;
+  model: string | null;
+  created_at: string;
+  completed_at: string | null;
+};
+
 export default async function AdminChannelPublishingPage() {
   const [viewPermission, managePermission] = await Promise.all([
     getStudioPermission("view_distribution"),
@@ -51,9 +73,10 @@ export default async function AdminChannelPublishingPage() {
   let renders: RenderRow[] = [];
   let kits: KitRow[] = [];
   let publications: PublicationRow[] = [];
+  let clips: SocialClipRow[] = [];
 
   if (service) {
-    const [renderResult, kitResult, publicationResult] = await Promise.all([
+    const [renderResult, kitResult, publicationResult, clipResult] = await Promise.all([
       service.from("pathway_video_renders")
         .select("id,pathway_slug,asset_id,format,status,output_url,requested_at,completed_at")
         .order("requested_at", { ascending: false })
@@ -63,14 +86,21 @@ export default async function AdminChannelPublishingPage() {
       service.from("pathway_publications")
         .select("id,pathway_slug,asset_id,platform,status,external_post_id,published_url,scheduled_for,published_at,error_message,metadata,created_at")
         .order("created_at", { ascending: false })
+        .limit(250),
+      service.from("pathway_social_clips")
+        .select("id,pathway_slug,source_render_id,asset_id,platform,rank,score,start_seconds,end_seconds,hook,title,rationale,caption,status,output_url,error,model,created_at,completed_at")
+        .neq("status", "archived")
+        .order("created_at", { ascending: false })
         .limit(250)
     ]);
     renders = (renderResult.data ?? []) as RenderRow[];
     kits = (kitResult.data ?? []) as KitRow[];
     publications = (publicationResult.data ?? []) as PublicationRow[];
+    clips = (clipResult.data ?? []) as SocialClipRow[];
     if (renderResult.error) console.error("channel publishing render load failed", renderResult.error.message);
     if (kitResult.error) console.error("channel publishing kit load failed", kitResult.error.message);
     if (publicationResult.error) console.error("channel publishing publication load failed", publicationResult.error.message);
+    if (clipResult.error) console.error("channel publishing clip load failed", clipResult.error.message);
   }
 
   const kitMap = new Map(kits.map((kit) => [kit.pathway_slug, kit]));
@@ -78,11 +108,14 @@ export default async function AdminChannelPublishingPage() {
   for (const render of renders) byPathway.set(render.pathway_slug, [...(byPathway.get(render.pathway_slug) ?? []), render]);
   const publicationMap = new Map<string, PublicationRow[]>();
   for (const publication of publications) publicationMap.set(publication.pathway_slug, [...(publicationMap.get(publication.pathway_slug) ?? []), publication]);
+  const clipMap = new Map<string, SocialClipRow[]>();
+  for (const clip of clips) clipMap.set(clip.pathway_slug, [...(clipMap.get(clip.pathway_slug) ?? []), clip]);
 
   const packages = allPathways.map((pathway) => {
     const pathwayRenders = byPathway.get(pathway.slug) ?? [];
     const latestCompleted = (format: RenderRow["format"]) => pathwayRenders.find((render) => render.format === format && render.status === "completed" && render.output_url) ?? null;
     const kit = kitMap.get(pathway.slug) ?? null;
+    const pathwayClips = (clipMap.get(pathway.slug) ?? []).sort((a, b) => a.rank - b.rank || b.created_at.localeCompare(a.created_at));
     return {
       slug: pathway.slug,
       title: pathway.title,
@@ -95,9 +128,10 @@ export default async function AdminChannelPublishingPage() {
         thumbnailBackgroundUrl: kit.thumbnail_background_url,
         updatedAt: kit.updated_at
       } : null,
-      publications: publicationMap.get(pathway.slug) ?? []
+      publications: publicationMap.get(pathway.slug) ?? [],
+      socialClips: pathwayClips
     };
-  }).filter((item) => item.youtubeRender || item.verticalRender || item.publishingKit || item.publications.length);
+  }).filter((item) => item.youtubeRender || item.verticalRender || item.publishingKit || item.publications.length || item.socialClips.length);
 
   return <ChannelPublishing
     packages={packages}
