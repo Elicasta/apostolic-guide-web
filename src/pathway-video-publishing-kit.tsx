@@ -20,6 +20,10 @@ type PublishingKitRow = {
   updated_at: string;
 };
 
+const THUMBNAIL_WIDTH = 1280;
+const THUMBNAIL_HEIGHT = 720;
+const SHARP_EXPORT_SCALE = 2;
+
 function arrayText(values: string[]) {
   return values.join(", ");
 }
@@ -35,6 +39,7 @@ async function imageFromUrl(url: string) {
   const objectUrl = URL.createObjectURL(blob);
   try {
     const image = new Image();
+    image.decoding = "async";
     await new Promise<void>((resolve, reject) => {
       image.onload = () => resolve();
       image.onerror = () => reject(new Error("Image could not be decoded."));
@@ -74,6 +79,89 @@ async function copyText(value: string) {
   await navigator.clipboard.writeText(value);
 }
 
+async function loadThumbnailFonts() {
+  if (!("fonts" in document)) return;
+  await Promise.allSettled([
+    document.fonts.load('700 88px "Montserrat"'),
+    document.fonts.load('600 28px "Montserrat"'),
+    document.fonts.load('600 21px "Montserrat"')
+  ]);
+}
+
+function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function canvasBlob(canvas: HTMLCanvasElement, type: string, quality?: number) {
+  return new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error("Thumbnail could not be encoded.")), type, quality);
+  });
+}
+
+function drawThumbnailComposition(input: {
+  background: HTMLImageElement;
+  logo: HTMLImageElement;
+  metadata: PathwayVideoPublishingMetadata;
+  title: string;
+  scale: number;
+}) {
+  const canvas = document.createElement("canvas");
+  canvas.width = THUMBNAIL_WIDTH * input.scale;
+  canvas.height = THUMBNAIL_HEIGHT * input.scale;
+  const context = canvas.getContext("2d", { alpha: false });
+  if (!context) throw new Error("Thumbnail canvas is unavailable.");
+
+  context.imageSmoothingEnabled = true;
+  context.imageSmoothingQuality = "high";
+  context.scale(input.scale, input.scale);
+  drawCover(context, input.background, THUMBNAIL_WIDTH, THUMBNAIL_HEIGHT);
+
+  const leftShade = context.createLinearGradient(0, 0, 900, 0);
+  leftShade.addColorStop(0, "rgba(5,8,11,.94)");
+  leftShade.addColorStop(.48, "rgba(5,8,11,.64)");
+  leftShade.addColorStop(1, "rgba(5,8,11,0)");
+  context.fillStyle = leftShade;
+  context.fillRect(0, 0, THUMBNAIL_WIDTH, THUMBNAIL_HEIGHT);
+
+  const bottomShade = context.createLinearGradient(0, 380, 0, THUMBNAIL_HEIGHT);
+  bottomShade.addColorStop(0, "rgba(0,0,0,0)");
+  bottomShade.addColorStop(1, "rgba(0,0,0,.48)");
+  context.fillStyle = bottomShade;
+  context.fillRect(0, 300, THUMBNAIL_WIDTH, 420);
+
+  const logoWidth = 300;
+  const logoHeight = input.logo.naturalHeight * (logoWidth / input.logo.naturalWidth);
+  context.drawImage(input.logo, 72, 66, logoWidth, logoHeight);
+
+  context.textBaseline = "alphabetic";
+  context.fillStyle = "#f7f4ed";
+  context.font = '700 88px "Montserrat", Arial, sans-serif';
+  const headline = input.metadata.thumbnailText.toUpperCase() || input.title.toUpperCase();
+  const lines = wrappedLines(context, headline, 590, 3);
+  const lineHeight = 88;
+  const startY = 270 - Math.max(0, lines.length - 2) * 24;
+  lines.forEach((line, index) => context.fillText(line, 72, startY + index * lineHeight));
+
+  if (input.metadata.thumbnailSubline) {
+    context.fillStyle = "#cbd1d6";
+    context.font = '600 28px "Montserrat", Arial, sans-serif';
+    context.fillText(input.metadata.thumbnailSubline.toUpperCase().slice(0, 58), 76, Math.min(590, startY + lines.length * lineHeight + 28));
+  }
+
+  context.fillStyle = "#d7dce1";
+  context.font = '600 21px "Montserrat", Arial, sans-serif';
+  context.fillText(`${input.title.toUpperCase()} · PATHWAY`, 76, 650);
+
+  return canvas;
+}
+
 export function PathwayVideoPublishingKit({ slug, title }: { slug: string; title: string }) {
   const [kit, setKit] = useState<PublishingKitRow | null>(null);
   const [metadata, setMetadata] = useState<PathwayVideoPublishingMetadata>(EMPTY_PATHWAY_VIDEO_PUBLISHING_METADATA);
@@ -102,6 +190,19 @@ export function PathwayVideoPublishingKit({ slug, title }: { slug: string; title
     setMetadata((current) => ({ ...current, [key]: value }));
   }
 
+  async function persistCopy() {
+    const response = await fetch("/api/admin/video-studio/publishing-kit", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ slug, action: "save", metadata })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || "Publishing copy could not be saved.");
+    const row = data.kit as PublishingKitRow;
+    setKit(row);
+    return row;
+  }
+
   async function generateCopy() {
     setBusy("generate-copy");
     setMessage("GPT-5.6 Sol is building the publishing package from the approved narration…");
@@ -128,14 +229,7 @@ export function PathwayVideoPublishingKit({ slug, title }: { slug: string; title
     setBusy("save-copy");
     setMessage("");
     try {
-      const response = await fetch("/api/admin/video-studio/publishing-kit", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ slug, action: "save", metadata })
-      });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data.error || "Publishing copy could not be saved.");
-      setKit(data.kit as PublishingKitRow);
+      await persistCopy();
       setMessage("Publishing copy saved.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Publishing copy could not be saved.");
@@ -148,7 +242,7 @@ export function PathwayVideoPublishingKit({ slug, title }: { slug: string; title
     setBusy("thumbnail");
     setMessage(quality === "low" ? "Generating the low-cost thumbnail background…" : "Generating a higher-quality thumbnail background…");
     try {
-      await saveCopy();
+      await persistCopy();
       const response = await fetch("/api/admin/video-studio/thumbnail", {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -165,65 +259,24 @@ export function PathwayVideoPublishingKit({ slug, title }: { slug: string; title
     }
   }
 
-  async function downloadThumbnail() {
+  async function downloadThumbnail(mode: "sharp" | "compact" = "sharp") {
     if (!kit?.thumbnail_background_url) return;
     setBusy("download-thumbnail");
     setMessage("");
     try {
+      await loadThumbnailFonts();
       const [background, logo] = await Promise.all([
         imageFromUrl(kit.thumbnail_background_url),
         imageFromUrl("/brand/apostolic-guide-wordmark-reversed.png")
       ]);
-      const canvas = document.createElement("canvas");
-      canvas.width = 1280;
-      canvas.height = 720;
-      const context = canvas.getContext("2d");
-      if (!context) throw new Error("Thumbnail canvas is unavailable.");
-      drawCover(context, background, canvas.width, canvas.height);
 
-      const leftShade = context.createLinearGradient(0, 0, 900, 0);
-      leftShade.addColorStop(0, "rgba(5,8,11,.92)");
-      leftShade.addColorStop(.48, "rgba(5,8,11,.62)");
-      leftShade.addColorStop(1, "rgba(5,8,11,0)");
-      context.fillStyle = leftShade;
-      context.fillRect(0, 0, canvas.width, canvas.height);
-      const bottomShade = context.createLinearGradient(0, 380, 0, 720);
-      bottomShade.addColorStop(0, "rgba(0,0,0,0)");
-      bottomShade.addColorStop(1, "rgba(0,0,0,.45)");
-      context.fillStyle = bottomShade;
-      context.fillRect(0, 300, canvas.width, 420);
-
-      const logoWidth = 300;
-      const logoHeight = logo.naturalHeight * (logoWidth / logo.naturalWidth);
-      context.drawImage(logo, 72, 66, logoWidth, logoHeight);
-
-      context.fillStyle = "#f7f4ed";
-      context.font = "700 88px Arial, sans-serif";
-      const lines = wrappedLines(context, metadata.thumbnailText.toUpperCase() || title.toUpperCase(), 590, 3);
-      const lineHeight = 88;
-      const startY = 270 - Math.max(0, lines.length - 2) * 24;
-      lines.forEach((line, index) => context.fillText(line, 72, startY + index * lineHeight));
-
-      if (metadata.thumbnailSubline) {
-        context.fillStyle = "#c6ccd2";
-        context.font = "600 28px Arial, sans-serif";
-        context.fillText(metadata.thumbnailSubline.toUpperCase().slice(0, 58), 76, Math.min(590, startY + lines.length * lineHeight + 28));
-      }
-      context.fillStyle = "#d7dce1";
-      context.font = "600 21px Arial, sans-serif";
-      context.fillText(`${title.toUpperCase()} · PATHWAY`, 76, 650);
-
-      const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", .92));
-      if (!blob) throw new Error("Thumbnail could not be encoded.");
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `${slug}-youtube-thumbnail.jpg`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      URL.revokeObjectURL(url);
-      setMessage("1280 × 720 YouTube thumbnail exported.");
+      const scale = mode === "sharp" ? SHARP_EXPORT_SCALE : 1;
+      const canvas = drawThumbnailComposition({ background, logo, metadata, title, scale });
+      const blob = await canvasBlob(canvas, "image/jpeg", mode === "sharp" ? .96 : .94);
+      downloadBlob(blob, `${slug}-youtube-thumbnail-${mode === "sharp" ? "2560x1440" : "1280x720"}.jpg`);
+      setMessage(mode === "sharp"
+        ? "Sharp 2560 × 1440 thumbnail exported. Text and logo were rendered at 2× native resolution."
+        : "Compact 1280 × 720 thumbnail exported.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Thumbnail could not be exported.");
     } finally {
@@ -271,9 +324,10 @@ export function PathwayVideoPublishingKit({ slug, title }: { slug: string; title
           <div className="video-thumbnail-buttons">
             <button type="button" className="button primary" disabled={Boolean(busy) || !metadata.thumbnailImagePrompt} onClick={() => void generateThumbnail("low")}>{busy === "thumbnail" ? <Loader2 className="spin" size={15}/> : <ImageIcon size={15}/>} {kit?.thumbnail_background_url ? "Regenerate low-cost" : "Generate low-cost background"}</button>
             <button type="button" className="button" disabled={Boolean(busy) || !metadata.thumbnailImagePrompt} onClick={() => void generateThumbnail("medium")}><RefreshCw size={15}/> Better quality</button>
-            <button type="button" className="button" disabled={Boolean(busy) || !kit?.thumbnail_background_url} onClick={() => void downloadThumbnail()}>{busy === "download-thumbnail" ? <Loader2 className="spin" size={15}/> : <Download size={15}/>} Export 1280×720</button>
+            <button type="button" className="button" disabled={Boolean(busy) || !kit?.thumbnail_background_url} onClick={() => void downloadThumbnail("sharp")}>{busy === "download-thumbnail" ? <Loader2 className="spin" size={15}/> : <Download size={15}/>} Export sharp 2560×1440</button>
+            <button type="button" className="button" disabled={Boolean(busy) || !kit?.thumbnail_background_url} onClick={() => void downloadThumbnail("compact")}><Download size={15}/> Export compact 1280×720</button>
           </div>
-          <p className="video-thumbnail-model-note">{kit?.image_model ? `${kit.image_model} · ${kit.image_quality ?? "unknown"} quality` : "Background not generated yet."} Text and logo are composited by Apostolic Guide so they remain exact.</p>
+          <p className="video-thumbnail-model-note">{kit?.image_model ? `${kit.image_model} · ${kit.image_quality ?? "unknown"} quality` : "Background not generated yet."} Text and logo are composited at export resolution so they remain exact and sharp.</p>
         </div>
       </div>
     </div>
