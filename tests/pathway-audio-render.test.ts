@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { concatenateMp3Segments, DEFAULT_TTS_SPEED, MAX_TTS_CHUNK_CHARS, normalizeMp3Segment, PATHWAY_TTS_INSTRUCTIONS, resolveTtsSpeed, splitNarrationForTts } from "../src/pathway-audio-render";
+import { buildLosslessWavFromPcmSegments, concatenateMp3Segments, concatenatePcm16Segments, DEFAULT_TTS_SPEED, MAX_TTS_CHUNK_CHARS, normalizeMp3Segment, PATHWAY_PCM_SAMPLE_RATE, PATHWAY_TTS_INSTRUCTIONS, pcm16MonoToWav, resolveTtsSpeed, splitNarrationForTts } from "../src/pathway-audio-render";
 
 test("long narration splits into smaller TTS-safe teaching chunks at natural boundaries", () => {
   const paragraph = "Jesus Christ is the full revelation of the invisible God. The Father dwells in the Son, and all the fullness of deity dwells bodily in Him.";
@@ -35,6 +35,32 @@ test("Pathway TTS defaults to an unhurried teaching pace", () => {
   assert.match(PATHWAY_TTS_INSTRUCTIONS, /flat, mechanical, rushed/i);
 });
 
+test("lossless PCM segments concatenate without compression and produce a valid WAV", () => {
+  const first = Buffer.from([0x01, 0x00, 0x02, 0x00]);
+  const second = Buffer.from([0x03, 0x00, 0x04, 0x00]);
+  const pcm = concatenatePcm16Segments([first, second]);
+  assert.deepEqual(pcm, Buffer.concat([first, second]));
+
+  const wav = pcm16MonoToWav(pcm);
+  assert.equal(wav.toString("ascii", 0, 4), "RIFF");
+  assert.equal(wav.toString("ascii", 8, 12), "WAVE");
+  assert.equal(wav.toString("ascii", 12, 16), "fmt ");
+  assert.equal(wav.readUInt16LE(20), 1);
+  assert.equal(wav.readUInt16LE(22), 1);
+  assert.equal(wav.readUInt32LE(24), PATHWAY_PCM_SAMPLE_RATE);
+  assert.equal(wav.readUInt16LE(34), 16);
+  assert.equal(wav.toString("ascii", 36, 40), "data");
+  assert.equal(wav.readUInt32LE(40), pcm.length);
+  assert.deepEqual(wav.subarray(44), pcm);
+
+  const assembled = buildLosslessWavFromPcmSegments([first, second]);
+  assert.deepEqual(assembled, wav);
+});
+
+test("lossless PCM assembly rejects incomplete 16-bit samples", () => {
+  assert.throws(() => concatenatePcm16Segments([Buffer.from([0x01])]), /complete 16-bit samples/i);
+});
+
 function fakeMp3Frame(withVbrMarker = false) {
   const frame = Buffer.alloc(417);
   frame.writeUInt32BE(0xfffb9000, 0); // MPEG-1 Layer III, 128kbps, 44.1kHz
@@ -43,7 +69,7 @@ function fakeMp3Frame(withVbrMarker = false) {
   return frame;
 }
 
-test("MP3 assembly removes per-segment metadata and stale VBR header frames", () => {
+test("legacy MP3 assembly removes per-segment metadata and stale VBR header frames", () => {
   const id3 = Buffer.from([0x49, 0x44, 0x33, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
   const id3v1 = Buffer.concat([Buffer.from("TAG", "ascii"), Buffer.alloc(125)]);
   const audioFrame = fakeMp3Frame(false);
