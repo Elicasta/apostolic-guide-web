@@ -45,8 +45,7 @@ export function tokenizeAlignmentScript(value: string): ScriptToken[] {
   const tokens: ScriptToken[] = [];
   const matcher = /[\p{L}\p{N}]+/gu;
   for (const match of value.matchAll(matcher)) {
-    const raw = match[0];
-    tokens.push({ value: normalizeToken(raw), charStart: match.index ?? 0 });
+    tokens.push({ value: normalizeToken(match[0]), charStart: match.index ?? 0 });
   }
   return tokens;
 }
@@ -54,8 +53,9 @@ export function tokenizeAlignmentScript(value: string): ScriptToken[] {
 export function tokenizeTimedTranscript(words: TimedTranscriptWord[]): TimedToken[] {
   const tokens: TimedToken[] = [];
   for (const word of words) {
-    const parts = splitTokens(word.word);
-    for (const part of parts) tokens.push({ value: normalizeToken(part), start: Number(word.start) || 0, end: Number(word.end) || Number(word.start) || 0 });
+    for (const part of splitTokens(word.word)) {
+      tokens.push({ value: normalizeToken(part), start: Number(word.start) || 0, end: Number(word.end) || Number(word.start) || 0 });
+    }
   }
   return tokens;
 }
@@ -107,6 +107,25 @@ function findTextFrom(text: string, needle: string, from = 0) {
   return text.toLocaleLowerCase().indexOf(needle.toLocaleLowerCase(), from);
 }
 
+function referenceVariants(reference: string) {
+  const variants = [reference];
+  const ordinal = reference.match(/^([123])\s+(.+)$/);
+  if (ordinal) {
+    const words: Record<string, string> = { "1": "First", "2": "Second", "3": "Third" };
+    variants.push(`${words[ordinal[1]]} ${ordinal[2]}`);
+  }
+  return [...new Set(variants)];
+}
+
+function findReferenceFrom(text: string, reference: string, from: number) {
+  let best: { index: number; length: number } | null = null;
+  for (const variant of referenceVariants(reference)) {
+    const index = findTextFrom(text, variant, from);
+    if (index >= 0 && (!best || index < best.index)) best = { index, length: variant.length };
+  }
+  return best;
+}
+
 function confidenceFor(matched: number, total: number, coverage: number): PathwayVideoAlignment["confidence"] {
   const cueRatio = total ? matched / total : 1;
   if (cueRatio >= 0.9 && coverage >= 0.72) return "high";
@@ -124,7 +143,7 @@ export function alignPathwayVideoTimeline(input: {
   const duration = Number.isFinite(input.duration) && input.duration > 0
     ? input.duration
     : Math.max(30, transcriptWords.at(-1)?.end ?? source.steps.length * 45);
-  const fallback = buildEstimatedPathwayVideoTimeline(source, duration);
+  const timeline = buildEstimatedPathwayVideoTimeline(source, duration).map((cue) => ({ ...cue }));
   const scriptTokens = tokenizeAlignmentScript(scriptText);
   const transcriptTokens = tokenizeTimedTranscript(transcriptWords);
   const mapping = lcsScriptToTranscript(scriptTokens, transcriptTokens);
@@ -132,17 +151,16 @@ export function alignPathwayVideoTimeline(input: {
     ? mapping.size / Math.min(scriptTokens.length, transcriptTokens.length)
     : 0;
 
-  const timeline = fallback.map((cue) => ({ ...cue }));
   let matchedScriptureCues = 0;
   let searchCursor = 0;
 
   source.steps.forEach((step, index) => {
     const cue = timeline[index + 1];
     if (!cue) return;
-    const charIndex = findTextFrom(scriptText, step.reference, searchCursor);
-    if (charIndex < 0) return;
-    searchCursor = charIndex + step.reference.length;
-    const scriptIndex = scriptTokenAtOrAfter(scriptTokens, charIndex);
+    const match = findReferenceFrom(scriptText, step.reference, searchCursor);
+    if (!match) return;
+    searchCursor = match.index + match.length;
+    const scriptIndex = scriptTokenAtOrAfter(scriptTokens, match.index);
     const mapped = mappedTimeNear(scriptIndex, mapping, transcriptTokens);
     if (mapped === null) return;
     cue.start = Number(Math.max(0, mapped - 0.45).toFixed(2));
@@ -151,34 +169,28 @@ export function alignPathwayVideoTimeline(input: {
 
   const cta = timeline.at(-1);
   if (cta) {
-    const ctaPhrases = ["you have completed", "continue studying", "continue the"];
-    let ctaIndex = -1;
-    for (const phrase of ctaPhrases) {
-      ctaIndex = findTextFrom(scriptText, phrase, searchCursor);
-      if (ctaIndex >= 0) break;
-    }
-    if (ctaIndex >= 0) {
+    for (const phrase of ["you have completed", "continue studying", "continue the"]) {
+      const ctaIndex = findTextFrom(scriptText, phrase, searchCursor);
+      if (ctaIndex < 0) continue;
       const scriptIndex = scriptTokenAtOrAfter(scriptTokens, ctaIndex);
       const mapped = mappedTimeNear(scriptIndex, mapping, transcriptTokens);
       if (mapped !== null) cta.start = Number(Math.max(0, mapped - 0.3).toFixed(2));
+      break;
     }
   }
 
-  const normalized = normalizePathwayVideoTimeline(timeline, duration);
-  let previous = -0.25;
-  for (let index = 0; index < normalized.length; index += 1) {
-    if (index === 0) {
-      normalized[index].start = 0;
-      previous = 0;
-      continue;
-    }
-    const ceiling = Math.max(previous + 0.25, duration - Math.max(0.25, (normalized.length - index - 1) * 0.25));
-    normalized[index].start = Number(Math.min(ceiling, Math.max(previous + 0.25, normalized[index].start)).toFixed(2));
-    previous = normalized[index].start;
+  timeline[0].start = 0;
+  let previous = 0;
+  for (let index = 1; index < timeline.length; index += 1) {
+    const remaining = timeline.length - index - 1;
+    const maxStart = Math.max(previous + 0.25, duration - remaining * 0.25);
+    const proposed = Math.max(previous + 0.25, timeline[index].start);
+    timeline[index].start = Number(Math.min(maxStart, proposed).toFixed(2));
+    previous = timeline[index].start;
   }
 
   return {
-    timeline: normalized,
+    timeline: normalizePathwayVideoTimeline(timeline, duration),
     matchedScriptureCues,
     totalScriptureCues: source.steps.length,
     alignmentCoverage: Number(coverage.toFixed(3)),
