@@ -3,6 +3,7 @@ import { getAdminAccess } from "@/auth";
 import { getSession } from "@/studio/repository";
 import LiveConsole from "./live-console";
 import "../../studio.css";
+import "./live-console.css";
 
 export const dynamic = "force-dynamic";
 
