@@ -17,7 +17,8 @@ export const SOCIAL_PUBLISHING_SECRET_NAMES = {
     clientId: "youtube_client_id",
     clientSecret: "youtube_client_secret",
     refreshToken: "youtube_refresh_token",
-    channelId: "youtube_channel_id"
+    channelId: "youtube_channel_id",
+    channelTitle: "youtube_channel_title"
   },
   instagram: {
     appId: "meta_instagram_app_id",
@@ -72,7 +73,7 @@ export function summarizeSocialPublishingCredentials(
       platform: "youtube",
       appConfigured: youtubeFields.clientId && youtubeFields.clientSecret,
       accountAuthorized: youtubeFields.refreshToken,
-      accountLabel: values.get(SOCIAL_PUBLISHING_SECRET_NAMES.youtube.channelId)?.trim() || null,
+      accountLabel: values.get(SOCIAL_PUBLISHING_SECRET_NAMES.youtube.channelTitle)?.trim() || values.get(SOCIAL_PUBLISHING_SECRET_NAMES.youtube.channelId)?.trim() || null,
       fields: youtubeFields,
       updatedAt: newest(SOCIAL_PUBLISHING_SECRET_NAMES.youtube)
     },
