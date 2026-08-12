@@ -17,7 +17,8 @@ export const SOCIAL_PUBLISHING_SECRET_NAMES = {
     clientId: "youtube_client_id",
     clientSecret: "youtube_client_secret",
     refreshToken: "youtube_refresh_token",
-    channelId: "youtube_channel_id"
+    channelId: "youtube_channel_id",
+    channelTitle: "youtube_channel_title"
   },
   instagram: {
     appId: "meta_instagram_app_id",
@@ -72,7 +73,7 @@ export function summarizeSocialPublishingCredentials(
       platform: "youtube",
       appConfigured: youtubeFields.clientId && youtubeFields.clientSecret,
       accountAuthorized: youtubeFields.refreshToken,
-      accountLabel: values.get(SOCIAL_PUBLISHING_SECRET_NAMES.youtube.channelId)?.trim() || null,
+      accountLabel: values.get(SOCIAL_PUBLISHING_SECRET_NAMES.youtube.channelTitle)?.trim() || values.get(SOCIAL_PUBLISHING_SECRET_NAMES.youtube.channelId)?.trim() || null,
       fields: youtubeFields,
       updatedAt: newest(SOCIAL_PUBLISHING_SECRET_NAMES.youtube)
     },
@@ -112,6 +113,19 @@ export async function getSocialPublishingCredentialStatus(): Promise<SocialPubli
   if (secretsResult.error) throw new Error(secretsResult.error.message);
   const instagramStatus = instagramResult.error ? null : instagramResult.data;
   return summarizeSocialPublishingCredentials((secretsResult.data ?? []) as SecretRow[], instagramStatus);
+}
+
+export async function getSocialPublishingCredentialValues(platform: SocialPublishingPlatform) {
+  const service = createServiceClient();
+  if (!service) throw new Error("Supabase service access is not configured.");
+  const names = SOCIAL_PUBLISHING_SECRET_NAMES[platform] as Record<string, string>;
+  const entries = Object.entries(names);
+  const { data, error } = await service.schema("analytics").from("integration_secrets")
+    .select("name,secret")
+    .in("name", entries.map(([, name]) => name));
+  if (error) throw new Error(error.message);
+  const values = new Map((data ?? []).map((row) => [String(row.name), String(row.secret)]));
+  return Object.fromEntries(entries.map(([field, name]) => [field, values.get(name)?.trim() || ""]));
 }
 
 export async function saveSocialPublishingCredentials(
