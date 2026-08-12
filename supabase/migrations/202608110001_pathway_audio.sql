@@ -53,4 +53,28 @@ alter table analytics.events add constraint events_event_name_check check (
   )
 );
 
+create or replace view analytics.pathway_audio_metrics as
+select
+  properties ->> 'pathwaySlug' as pathway_slug,
+  count(*) filter (where event_name = 'audio_started')::bigint as starts,
+  count(distinct anonymous_id)::bigint as unique_listeners,
+  count(*) filter (where event_name = 'audio_completed')::bigint as completions,
+  coalesce(sum(
+    case
+      when event_name = 'audio_progress'
+        and coalesce(properties ->> 'deltaListenedSeconds', '') ~ '^[0-9]+(?:\.[0-9]+)?$'
+        and (properties ->> 'deltaListenedSeconds')::numeric > 0
+        and (properties ->> 'deltaListenedSeconds')::numeric < 300
+      then (properties ->> 'deltaListenedSeconds')::numeric
+      else 0
+    end
+  ), 0)::numeric as listened_seconds
+from analytics.events
+where event_name in ('audio_started', 'audio_progress', 'audio_completed')
+  and coalesce(properties ->> 'pathwaySlug', '') <> ''
+group by properties ->> 'pathwaySlug';
+
+revoke all on analytics.pathway_audio_metrics from anon, authenticated;
+grant select on analytics.pathway_audio_metrics to authenticated;
+
 commit;
