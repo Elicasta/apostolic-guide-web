@@ -24,6 +24,7 @@ type EventRow = {
   properties: Record<string, unknown>;
   session_id: string;
   anonymous_id: string;
+  person_id: string | null;
   occurred_at: string;
 };
 
@@ -55,7 +56,7 @@ export default async function AdminAnalyticsPage() {
   if (service) {
     const [eventsResult, subscribersResult] = await Promise.all([
       service.schema("analytics").from("events")
-        .select("event_name,page_path,referrer_host,source,device_class,country_code,region,city,browser,os,utm_source,utm_medium,utm_campaign,properties,session_id,anonymous_id,occurred_at")
+        .select("event_name,page_path,referrer_host,source,device_class,country_code,region,city,browser,os,utm_source,utm_medium,utm_campaign,properties,session_id,anonymous_id,person_id,occurred_at")
         .order("occurred_at", { ascending: false })
         .limit(10000),
       service.from("email_subscribers")
@@ -104,9 +105,11 @@ export default async function AdminAnalyticsPage() {
   const missingCount = eventCounts.find(([key]) => key === "search_no_results")?.[1] ?? 0;
   const completedReads = eventCounts.find(([key]) => key === "article_completed")?.[1] ?? 0;
   const lastEvent = events[0]?.occurred_at;
-  const studyEvents = events.map((event) => ({ event_name: event.event_name, page_path: event.page_path, session_id: event.session_id, anonymous_id: event.anonymous_id, properties: event.properties ?? {} }));
+  const studyEvents = events.map((event) => ({ event_name: event.event_name, page_path: event.page_path, session_id: event.session_id, anonymous_id: event.anonymous_id, person_id: event.person_id, properties: event.properties ?? {} }));
   const pathwayIntelligence = buildPathwayIntelligence(studyEvents, allPathways.map((pathway) => ({ slug: pathway.slug, title: pathway.title, stepCount: pathway.steps.length }))).slice(0, 12);
   const articleIntelligence = buildArticleIntelligence(studyEvents, articles.map((article) => ({ slug: article.slug, title: article.title }))).slice(0, 12);
+  const completedPathwaySessions = pathwayIntelligence.reduce((sum, row) => sum + row.completions, 0);
+  const knownPathwayCompleters = pathwayIntelligence.reduce((sum, row) => sum + row.knownCompleters, 0);
 
   return (
     <>
@@ -123,6 +126,8 @@ export default async function AdminAnalyticsPage() {
         <div className="metric"><strong>{pageViews.length}</strong><span>Page views</span></div>
         <div className="metric"><strong>{uniqueVisitors}</strong><span>Unique visitors</span></div>
         <div className="metric"><strong>{uniqueSessions}</strong><span>Sessions</span></div>
+        <div className="metric"><strong>{completedPathwaySessions}</strong><span>Pathway completions</span></div>
+        <div className="metric"><strong>{knownPathwayCompleters}</strong><span>Known completers</span></div>
         <div className="metric"><strong>{appTransitions}</strong><span>App transitions</span></div>
         <div className="metric"><strong>{searchCount}</strong><span>Searches</span></div>
         <div className="metric"><strong>{missingCount}</strong><span>Missing-result searches</span></div>
@@ -131,11 +136,11 @@ export default async function AdminAnalyticsPage() {
       </div>
 
       <section className="study-intelligence-block">
-        <div className="studio-section-head study-intelligence-heading"><div><span className="section-kicker">Study intelligence</span><h2>What people are actually studying</h2></div><p>Observed website behavior only. Pathway progress reflects steps meaningfully viewed, not an inferred spiritual outcome.</p></div>
+        <div className="studio-section-head study-intelligence-heading"><div><span className="section-kicker">Study intelligence</span><h2>What people are actually studying</h2></div><p>A Pathway completion is recorded when someone meaningfully reaches the final study step or finishes the Pathway narration. Reading and audio are retained as separate methods while the Pathway itself is counted once per session.</p></div>
         <div className="study-intelligence-grid">
           <section className="admin-card study-intelligence-card">
             <div className="study-intelligence-card-head"><div><span className="section-kicker">Pathways</span><h3>Pathway depth</h3></div><Link href="/admin/app-content">Manage pathways</Link></div>
-            {pathwayIntelligence.length ? <div className="study-table-wrap"><table className="admin-table study-table"><thead><tr><th>Pathway</th><th>Starts</th><th>Avg. depth</th><th>Final step</th><th>App</th></tr></thead><tbody>{pathwayIntelligence.map((row) => <tr key={row.slug}><td><Link href={`/pathways/${row.slug}`}>{row.title}</Link><small>{row.observedSteps} observed steps · {row.uniqueSessions} sessions</small></td><td><strong>{row.starts}</strong></td><td><strong>{row.averageProgress}%</strong></td><td><strong>{row.reachedFinalStep}</strong></td><td><strong>{row.appTransitions}</strong></td></tr>)}</tbody></table></div> : <div className="studio-empty-state"><strong>No pathway study depth yet</strong><p>Step progress begins collecting as visitors meaningfully view pathway steps.</p></div>}
+            {pathwayIntelligence.length ? <div className="study-table-wrap"><table className="admin-table study-table"><thead><tr><th>Pathway</th><th>Starts</th><th>Avg. depth</th><th>Completed</th><th>Audio</th><th>Known</th><th>App</th></tr></thead><tbody>{pathwayIntelligence.map((row) => <tr key={row.slug}><td><Link href={`/pathways/${row.slug}`}>{row.title}</Link><small>{row.observedSteps} observed reading steps · {row.uniqueSessions} study sessions</small></td><td><strong>{row.starts}</strong><small>{row.audioStarts} audio starts</small></td><td><strong>{row.averageProgress}%</strong></td><td><strong>{row.completions}</strong><small>{row.completionRate}% rate · {row.readingCompletions} reading</small></td><td><strong>{row.audioCompletions}</strong></td><td><strong>{row.knownCompleters}</strong></td><td><strong>{row.appTransitions}</strong></td></tr>)}</tbody></table></div> : <div className="studio-empty-state"><strong>No pathway study depth yet</strong><p>Reading and audio progress begin collecting as visitors meaningfully study a Pathway.</p></div>}
           </section>
 
           <section className="admin-card study-intelligence-card">

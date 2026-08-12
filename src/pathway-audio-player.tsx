@@ -31,6 +31,7 @@ export function PathwayAudioPlayer({ slug, title, audioUrl }: { slug: string; ti
     lastReportedRef.current = listenedRef.current;
     trackEvent("audio_progress", {
       pathwaySlug: slug,
+      contentKey: slug,
       positionSeconds: Math.round(audioRef.current?.currentTime ?? position),
       durationSeconds: Math.round(duration || audioRef.current?.duration || 0),
       listenedSeconds: Math.round(listenedRef.current),
@@ -64,7 +65,7 @@ export function PathwayAudioPlayer({ slug, title, audioUrl }: { slug: string; ti
       setPlaying(true);
       if (!startedRef.current) {
         startedRef.current = true;
-        trackEvent("audio_started", { pathwaySlug: slug, positionSeconds: Math.round(audio.currentTime), resumed: audio.currentTime > 5 });
+        trackEvent("audio_started", { pathwaySlug: slug, contentKey: slug, positionSeconds: Math.round(audio.currentTime), resumed: audio.currentTime > 5 });
       }
     };
     const onPause = () => { setPlaying(false); reportProgress("pause"); };
@@ -81,7 +82,7 @@ export function PathwayAudioPlayer({ slug, title, audioUrl }: { slug: string; ti
         for (const milestone of [25, 50, 75]) {
           if (ratio >= milestone / 100 && !milestonesRef.current.has(milestone)) {
             milestonesRef.current.add(milestone);
-            trackEvent("audio_progress", { pathwaySlug: slug, milestone, positionSeconds: Math.round(current), durationSeconds: Math.round(total), listenedSeconds: Math.round(listenedRef.current), deltaListenedSeconds: 0, reason: "milestone" });
+            trackEvent("audio_progress", { pathwaySlug: slug, contentKey: slug, milestone, positionSeconds: Math.round(current), durationSeconds: Math.round(total), listenedSeconds: Math.round(listenedRef.current), deltaListenedSeconds: 0, reason: "milestone" });
           }
         }
       }
@@ -90,7 +91,9 @@ export function PathwayAudioPlayer({ slug, title, audioUrl }: { slug: string; ti
     const onEnded = () => {
       setPlaying(false);
       reportProgress("ended");
-      trackEvent("audio_completed", { pathwaySlug: slug, durationSeconds: Math.round(audio.duration || 0), listenedSeconds: Math.round(listenedRef.current) });
+      const completion = { pathwaySlug: slug, contentKey: slug, durationSeconds: Math.round(audio.duration || 0), listenedSeconds: Math.round(listenedRef.current) };
+      trackEvent("audio_completed", completion);
+      trackEvent("pathway_completed", { ...completion, completionMethod: "audio" });
       try { localStorage.removeItem(storageKey); } catch {}
     };
 

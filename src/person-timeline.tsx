@@ -32,12 +32,12 @@ function categoryFor(event: PersonTimelineEvent): Category {
   if (channel === "email" || type.includes("email") || type.includes("subscriber")) return "email";
   if (channel === "journey" || type.includes("journey")) return "journeys";
   if (type.includes("app") || type.includes("install")) return "app";
-  if (["article_opened","article_completed","pathway_started","pathway_step_completed","scripture_opened","topic_opened","answer_opened","search_submitted","search_result_opened","search_no_results","content_shared"].includes(type)) return "study";
+  if (["article_opened","article_completed","pathway_started","pathway_step_completed","pathway_completed","audio_started","audio_progress","audio_completed","scripture_opened","topic_opened","answer_opened","search_submitted","search_result_opened","search_no_results","content_shared"].includes(type)) return "study";
   return "activity";
 }
 
 function isNoise(event: PersonTimelineEvent) {
-  return ["page_viewed", "search_result_opened"].includes(event.type);
+  return ["page_viewed", "search_result_opened", "audio_progress"].includes(event.type);
 }
 
 function groupEvents(events: PersonTimelineEvent[]) {
@@ -74,7 +74,7 @@ function iconFor(type: string) {
   if (value.includes("email") || value.includes("subscriber")) return <Mail size={16}/>;
   if (value.includes("journey")) return <Route size={16}/>;
   if (value.includes("search")) return <Search size={16}/>;
-  if (value.includes("article") || value.includes("pathway") || value.includes("scripture") || value.includes("topic") || value.includes("answer")) return <BookOpen size={16}/>;
+  if (value.includes("article") || value.includes("pathway") || value.includes("audio") || value.includes("scripture") || value.includes("topic") || value.includes("answer")) return <BookOpen size={16}/>;
   if (value.includes("app") || value.includes("install")) return <AppWindow size={16}/>;
   if (value.includes("page")) return <Eye size={16}/>;
   return <UserRound size={16}/>;
@@ -94,7 +94,7 @@ function groupTitle(group: TimelineGroup) {
   if (significant.length === 1 && group.events.length === 1) return significant[0].label;
   if (group.category === "social") return "Instagram interaction";
   if (group.category === "study") {
-    const completed = group.events.find((event) => event.type === "article_completed" || event.type === "pathway_step_completed");
+    const completed = group.events.find((event) => ["article_completed", "pathway_step_completed", "pathway_completed", "audio_completed"].includes(event.type));
     return completed ? "Study session" : "Website study activity";
   }
   if (group.category === "journeys") return "Journey activity";

@@ -12,6 +12,7 @@ export type EventName =
   | "scripture_opened"
   | "pathway_started"
   | "pathway_step_completed"
+  | "pathway_completed"
   | "search_submitted"
   | "search_result_opened"
   | "search_no_results"

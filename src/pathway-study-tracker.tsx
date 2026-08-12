@@ -10,6 +10,7 @@ export function PathwayStudyTracker({ slug, stepCount }: { slug: string; stepCou
 
     const completed = new Set<number>();
     const timers = new Map<number, number>();
+    let pathwayCompletionSent = false;
     const observer = new IntersectionObserver((entries) => {
       for (const entry of entries) {
         const element = entry.target as HTMLElement;
@@ -23,11 +24,21 @@ export function PathwayStudyTracker({ slug, stepCount }: { slug: string; stepCou
             timers.delete(index);
             trackEvent("pathway_step_completed", {
               contentKey: slug,
+              pathwaySlug: slug,
               stepIndex: index,
               stepNumber: index + 1,
               stepCount,
               reference: element.dataset.pathwayReference ?? null
             });
+            if (!pathwayCompletionSent && index + 1 >= stepCount) {
+              pathwayCompletionSent = true;
+              trackEvent("pathway_completed", {
+                contentKey: slug,
+                pathwaySlug: slug,
+                completionMethod: "reading",
+                stepCount
+              });
+            }
             observer.unobserve(element);
           }, 1400);
           timers.set(index, timer);
