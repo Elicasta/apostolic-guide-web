@@ -78,7 +78,9 @@ async function resolvePersonId(service: NonNullable<ReturnType<typeof createServ
   if (!personId) {
     const identity = await service.from("person_browser_identities").select("person_id").eq("anonymous_id", anonymousId).maybeSingle();
     personId = identity.data?.person_id ? String(identity.data.person_id) : null;
-    if (personId) await service.from("person_browser_identities").update({ last_seen_at: new Date().toISOString() }).eq("anonymous_id", anonymousId);
+    if (personId) {
+      await service.from("person_browser_identities").update({ last_seen_at: new Date().toISOString() }).eq("anonymous_id", anonymousId);
+    }
   }
 
   return personId;
@@ -98,7 +100,10 @@ export async function POST(request: Request) {
   const service = createServiceClient();
   if (!service) return new NextResponse(null, { status: 204 });
 
-  const deviceClass = parsed.data.viewportWidth ? parsed.data.viewportWidth < 700 ? "mobile" : parsed.data.viewportWidth < 1024 ? "tablet" : "desktop" : "unknown";
+  const deviceClass = parsed.data.viewportWidth
+    ? parsed.data.viewportWidth < 700 ? "mobile" : parsed.data.viewportWidth < 1024 ? "tablet" : "desktop"
+    : "unknown";
+
   const userAgent = header(request, "user-agent") ?? "";
   const url = new URL(parsed.data.path, "https://apostolicguide.com");
   const analytics = service.schema("analytics");
