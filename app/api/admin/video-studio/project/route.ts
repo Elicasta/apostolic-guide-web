@@ -8,7 +8,7 @@ import { createServiceClient } from "@/supabase";
 const cueSchema = z.object({
   id: z.string().min(1).max(120),
   start: z.number().finite().min(0).max(60 * 60),
-  kind: z.enum(["brand", "scripture", "statement", "cta"]),
+  kind: z.enum(["question", "brand", "scripture", "statement", "recap", "cta"]),
   eyebrow: z.string().max(120),
   title: z.string().max(220),
   body: z.string().max(500),

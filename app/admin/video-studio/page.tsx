@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { getStudioPermission } from "@/auth";
 import { allPathways } from "@/pathway-catalog";
 import { PathwayVideoStudio } from "@/pathway-video-studio";
-import type { PathwayVideoCue, PathwayVideoFormat } from "@/pathway-video";
+import type { PathwayVideoCue, PathwayVideoCueKind, PathwayVideoFormat } from "@/pathway-video";
 import { createServiceClient } from "@/supabase";
 
 type AudioAssetRow = {
@@ -37,16 +37,21 @@ type RenderRow = {
   completed_at: string | null;
 };
 
+const CUE_KINDS = new Set<PathwayVideoCueKind>(["question", "brand", "scripture", "statement", "recap", "cta"]);
+
 function parseTimeline(value: unknown): PathwayVideoCue[] | null {
   if (!Array.isArray(value)) return null;
   const cues = value.flatMap((item) => {
     if (!item || typeof item !== "object") return [];
     const cue = item as Record<string, unknown>;
     if (typeof cue.id !== "string" || typeof cue.start !== "number" || typeof cue.title !== "string") return [];
+    const kind = typeof cue.kind === "string" && CUE_KINDS.has(cue.kind as PathwayVideoCueKind)
+      ? cue.kind as PathwayVideoCueKind
+      : "scripture";
     return [{
       id: cue.id,
       start: cue.start,
-      kind: cue.kind === "brand" || cue.kind === "statement" || cue.kind === "cta" ? cue.kind : "scripture",
+      kind,
       eyebrow: typeof cue.eyebrow === "string" ? cue.eyebrow : "",
       title: cue.title,
       body: typeof cue.body === "string" ? cue.body : "",

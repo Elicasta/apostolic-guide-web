@@ -3,6 +3,11 @@ import { z } from "zod";
 import { getStudioPermission } from "@/auth";
 import { pathwayBySlug } from "@/pathway-catalog";
 import { alignPathwayVideoTimeline, type TimedTranscriptWord } from "@/pathway-video-alignment";
+import {
+  normalizeDirectedPathwayVideoCues,
+  PATHWAY_VIDEO_DIRECTOR_SCHEMA,
+  type DirectedPathwayVideoCue
+} from "@/pathway-video-director";
 import { createServiceClient } from "@/supabase";
 
 export const runtime = "nodejs";
@@ -27,6 +32,91 @@ function audioFileName(contentType: string) {
   return "pathway.wav";
 }
 
+function extractResponseText(value: unknown) {
+  const response = value && typeof value === "object" ? value as Record<string, unknown> : {};
+  if (typeof response.output_text === "string") return response.output_text;
+  if (!Array.isArray(response.output)) return "";
+  for (const item of response.output) {
+    if (!item || typeof item !== "object") continue;
+    const content = (item as Record<string, unknown>).content;
+    if (!Array.isArray(content)) continue;
+    for (const part of content) {
+      if (!part || typeof part !== "object") continue;
+      const record = part as Record<string, unknown>;
+      if (record.type === "output_text" && typeof record.text === "string") return record.text;
+    }
+  }
+  return "";
+}
+
+async function directTalkingPoints(input: {
+  apiKey: string;
+  model: string;
+  title: string;
+  summary: string;
+  script: string;
+  scriptureFlow: string;
+  duration: number;
+  scriptureCount: number;
+}): Promise<DirectedPathwayVideoCue[]> {
+  const targetTotal = Math.max(16, Math.min(22, Math.round(input.duration / 16)));
+  const fixedCueCount = input.scriptureCount + 2; // brand + Scripture cards + CTA
+  const requested = Math.max(6, Math.min(16, targetTotal - fixedCueCount));
+  const response = await fetch("https://api.openai.com/v1/responses", {
+    method: "POST",
+    headers: { authorization: `Bearer ${input.apiKey}`, "content-type": "application/json" },
+    body: JSON.stringify({
+      model: input.model,
+      reasoning: { effort: "medium" },
+      text: {
+        verbosity: "low",
+        format: {
+          type: "json_schema",
+          name: "apostolic_guide_video_director",
+          strict: true,
+          schema: PATHWAY_VIDEO_DIRECTOR_SCHEMA
+        }
+      },
+      input: [
+        {
+          role: "developer",
+          content: [{ type: "input_text", text: [
+            "You are directing an audio-first Apostolic Guide Scripture video.",
+            "The approved narration is the theological source of truth. Do not add doctrine, historical claims, illustrations, or conclusions that are not in it.",
+            `Create exactly ${requested} additional visual talking-point cues. Scripture cards are added separately by the system, so do not return Scripture-card duplicates.`,
+            "The intended rhythm is the richer master template: opening question, brand moment, Scripture card, supporting statement, supporting statement when the narration supports it, next Scripture card, and so on, followed by recap/final declaration/CTA.",
+            "For a roughly five-minute video the finished timeline should feel active but restrained, normally around 18 to 21 total visual beats.",
+            "Return one QUESTION cue near the opening, several STATEMENT cues distributed through the teaching, and one RECAP cue near the conclusion. Statements should surface the strongest actual claims being spoken, not generic headings.",
+            "Every anchorText MUST be an exact contiguous phrase copied verbatim from the approved narration. Use 4 to 12 words when possible. This anchor is used to place the cue automatically against word timestamps.",
+            "Do not use an anchor from a Scripture quotation merely to create another Scripture card. Anchor supporting claims in the narrator's explanation.",
+            "Titles should be short enough to read instantly on YouTube, usually 2 to 8 words. Use line breaks only when they materially improve emphasis.",
+            "Bodies should be one short supporting line, not paragraphs. Eyebrows should identify the current idea or Scripture context.",
+            "Use uppercase editorial copy for eyebrow/title/reference fields. Keep body in normal sentence case unless a short all-caps phrase is visually stronger.",
+            "Avoid filler such as WHAT THIS MEANS, KEY POINT, IMPORTANT TRUTH, or generic section labels when the narration contains a stronger phrase."
+          ].join("\n") }]
+        },
+        {
+          role: "user",
+          content: [{ type: "input_text", text: [
+            `PATHWAY: ${input.title}`,
+            `SUMMARY: ${input.summary}`,
+            `DURATION: ${input.duration.toFixed(2)} seconds`,
+            `SCRIPTURE FLOW: ${input.scriptureFlow}`,
+            "APPROVED NARRATION:",
+            input.script
+          ].join("\n\n") }]
+        }
+      ]
+    })
+  });
+  if (!response.ok) throw new Error(`Video director failed (${response.status}): ${(await response.text().catch(() => "")).slice(0, 800)}`);
+  const result = await response.json();
+  const output = extractResponseText(result);
+  if (!output) throw new Error("Video director returned no structured output.");
+  const parsed = JSON.parse(output) as unknown;
+  return normalizeDirectedPathwayVideoCues(parsed);
+}
+
 export async function POST(request: Request) {
   const { access, allowed } = await getStudioPermission("manage_content");
   if (!allowed || access.state !== "allowed" || !access.user) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -40,6 +130,7 @@ export async function POST(request: Request) {
   if (!apiKey) return NextResponse.json({ error: "OPENAI_API_KEY is not configured." }, { status: 503 });
   const transcriptionModel = process.env.OPENAI_VIDEO_TRANSCRIBE_MODEL?.trim() || "whisper-1";
   if (transcriptionModel !== "whisper-1") return NextResponse.json({ error: "Video Studio word timing currently requires OPENAI_VIDEO_TRANSCRIBE_MODEL=whisper-1." }, { status: 503 });
+  const directorModel = process.env.OPENAI_VIDEO_DIRECTOR_MODEL?.trim() || "gpt-5.6-sol";
 
   const service = createServiceClient();
   if (!service) return NextResponse.json({ error: "Supabase service access is not configured." }, { status: 503 });
@@ -66,10 +157,10 @@ export async function POST(request: Request) {
     !parsed.data.force &&
     existing &&
     existing.audio_content_hash === asset.content_hash &&
-    existingAlignment?.status === "aligned" &&
+    existingAlignment?.status === "aligned-rich" &&
     existingAlignment?.scriptHash === script.script_hash &&
     Array.isArray(existing.timeline) &&
-    existing.timeline.length > 0
+    existing.timeline.length >= 12
   ) {
     return NextResponse.json({ project: existing, alignment: existingAlignment, analyzed: false });
   }
@@ -107,22 +198,52 @@ export async function POST(request: Request) {
   if (!words.length) return NextResponse.json({ error: "The transcription returned no word timestamps." }, { status: 502 });
 
   const duration = typeof transcription.duration === "number" && transcription.duration > 0 ? transcription.duration : (words.at(-1)?.end ?? 0);
-  const alignment = alignPathwayVideoTimeline({ source: pathway, scriptText: script.script_text, transcriptWords: words, duration });
+  let directedCues: DirectedPathwayVideoCue[] = [];
+  let directorError: string | null = null;
+  try {
+    directedCues = await directTalkingPoints({
+      apiKey,
+      model: directorModel,
+      title: pathway.title,
+      summary: pathway.summary,
+      script: script.script_text,
+      scriptureFlow: pathway.steps.map((step) => `${step.reference} — ${step.title}`).join(" | "),
+      duration,
+      scriptureCount: pathway.steps.length
+    });
+  } catch (error) {
+    directorError = error instanceof Error ? error.message : "Video director failed.";
+    console.error("video studio rich cue direction failed; using rich deterministic fallback", directorError);
+  }
+
+  const alignment = alignPathwayVideoTimeline({
+    source: pathway,
+    scriptText: script.script_text,
+    transcriptWords: words,
+    duration,
+    directedCues
+  });
   const analyzedAt = new Date().toISOString();
   const style = {
     ...existingStyle,
-    brandVersion: 1,
+    brandVersion: 2,
+    template: "audio-first-rich-v1",
     alignment: {
-      status: "aligned",
-      method: "approved-script-word-alignment",
+      status: "aligned-rich",
+      method: directedCues.length ? "gpt-directed-approved-script-word-alignment" : "approved-script-word-alignment-rich-fallback",
       transcriptionModel,
+      directorModel: directedCues.length ? directorModel : null,
+      directorError,
       scriptHash: script.script_hash,
       audioContentHash: asset.content_hash,
       analyzedAt,
       confidence: alignment.confidence,
       alignmentCoverage: alignment.alignmentCoverage,
       matchedScriptureCues: alignment.matchedScriptureCues,
-      totalScriptureCues: alignment.totalScriptureCues
+      totalScriptureCues: alignment.totalScriptureCues,
+      matchedDirectedCues: alignment.matchedDirectedCues,
+      totalDirectedCues: alignment.totalDirectedCues,
+      totalVideoCues: alignment.totalVideoCues
     }
   };
 
@@ -140,5 +261,11 @@ export async function POST(request: Request) {
     .single();
   if (saved.error) return NextResponse.json({ error: saved.error.message }, { status: 500 });
 
-  return NextResponse.json({ project: saved.data, alignment: style.alignment, analyzed: true, transcriptWordCount: words.length });
+  return NextResponse.json({
+    project: saved.data,
+    alignment: style.alignment,
+    analyzed: true,
+    transcriptWordCount: words.length,
+    directorFallback: !directedCues.length
+  });
 }
