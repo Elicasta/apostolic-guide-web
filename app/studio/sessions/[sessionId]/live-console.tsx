@@ -1,18 +1,20 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Camera, Monitor, PauseCircle, Radio, ShieldAlert, SkipForward, Video, Mic, RefreshCw } from "lucide-react";
+import { Camera, Monitor, PauseCircle, Radio, ShieldAlert, SkipForward, Video, Mic, RefreshCw, Users } from "lucide-react";
 import type { StudioProgramState } from "@/studio/types";
 import { connectHostMediaBridge, type HostBridgeStatus } from "./host-media-bridge";
+import { AutoDirectorControls } from "./auto-director-controls";
 
 type CueRow = { id:string; label:string; position:number; presenter_notes?:string|null; enabled:boolean; studio_assets?:{snapshot_data?:Record<string,unknown>|null}|null };
 type DeviceOption = { deviceId:string; label:string };
 
 const scenes = [
-  { id:"host-full", label:"Host", icon:Radio }, { id:"host-scripture", label:"Host + Scripture", icon:Monitor },
-  { id:"scripture-full", label:"Scripture", icon:Monitor }, { id:"question-full", label:"Question", icon:Monitor },
-  { id:"pathway-cta", label:"Pathway CTA", icon:Monitor }, { id:"holding", label:"Technical Hold", icon:PauseCircle },
-  { id:"black", label:"Blackout", icon:ShieldAlert }
+  { id:"host-full", label:"Host", icon:Radio }, { id:"split", label:"Host + Guest", icon:Users },
+  { id:"panel-grid", label:"Panel Grid", icon:Users }, { id:"panel-question", label:"Panel + Question", icon:Users },
+  { id:"host-scripture", label:"Host + Scripture", icon:Monitor }, { id:"scripture-full", label:"Scripture", icon:Monitor },
+  { id:"question-full", label:"Question", icon:Monitor }, { id:"pathway-cta", label:"Pathway CTA", icon:Monitor },
+  { id:"holding", label:"Technical Hold", icon:PauseCircle }, { id:"black", label:"Blackout", icon:ShieldAlert }
 ];
 const VIDEO_KEY="ag-studio-video-input"; const AUDIO_KEY="ag-studio-audio-input";
 
@@ -35,16 +37,18 @@ export default function LiveConsole({ initialState, initialCues }:{ initialState
   async function switchInput(kind:"video"|"audio",id:string){ if(kind==="video"){setVideoDeviceId(id);localStorage.setItem(VIDEO_KEY,id);}else{setAudioDeviceId(id);localStorage.setItem(AUDIO_KEY,id);} setTimeout(()=>void requestHostCamera(),0); }
   async function takeCue(cueId:string){if(busy)return;setBusy(true);setError("");try{const response=await fetch(`/api/studio/sessions/${state.sessionId}/cues/${cueId}/take`,{method:"POST"});const payload=await response.json();if(!response.ok){if(response.status===409)window.location.reload();throw new Error(payload.error??"Unable to take cue");}if(payload.state)setState(payload.state);}catch(err){setError(err instanceof Error?err.message:"Unable to take cue");}finally{setBusy(false);}}
   async function runManual(actions:Array<{id:string;cueId:string;position:number;type:string;payload:Record<string,unknown>}>){if(busy)return;setBusy(true);setError("");const actionId=crypto.randomUUID();try{const response=await fetch(`/api/studio/sessions/${state.sessionId}/action`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({actionId,expectedVersion:state.version,actions:actions.map((item,index)=>({...item,id:`${actionId}:${index}`}))})});const payload=await response.json();if(!response.ok){if(response.status===409)window.location.reload();throw new Error(payload.error??"Unable to update program");}if(payload.state)setState(payload.state);}catch(err){setError(err instanceof Error?err.message:"Unable to update program");}finally{setBusy(false);}}
-  const setScene=(sceneId:string)=>runManual([{id:"manual",cueId:"manual",position:0,type:"scene.set",payload:{sceneId}}]); const clearProgram=()=>runManual([{id:"manual",cueId:"manual",position:0,type:"program.clear",payload:{}}]);
+  async function setScene(sceneId:string,automatic=false){if(!automatic)void fetch(`/api/studio/sessions/${state.sessionId}/auto-director`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({type:"manual_override",seconds:30})});await runManual([{id:"manual",cueId:"manual",position:0,type:"scene.set",payload:{sceneId}}]);}
+  const clearProgram=()=>runManual([{id:"manual",cueId:"manual",position:0,type:"program.clear",payload:{}}]);
   const sourceLabel=bridgeStatus==="connected"?"LIVE TO OUTPUT":bridgeStatus==="signaling"?"CONNECTING":cameraReady?"LOCAL READY":"NOT CONNECTED";
 
   return <main className="ag-studio ag-studio-live-console"><header className="ag-studio-topbar"><div className="ag-studio-brand"><span className="ag-studio-mark">AG</span><div><strong>Broadcast Studio</strong><span>Live control</span></div></div><span className="ag-studio-status">STATE v{state.version}</span></header>
+    <AutoDirectorControls sessionId={state.sessionId} busy={busy} onScene={(sceneId,automatic)=>void setScene(sceneId,automatic)}/>
     <section className="ag-live-workspace"><div className="ag-live-program-column"><div className="ag-live-preview-card"><div className="ag-live-preview-head"><span className="ag-studio-eyebrow">Host source</span><span className={bridgeStatus==="connected"?"ready":"offline"}>{sourceLabel}</span></div>
       <div className="ag-live-camera-frame">{cameraReady?<video ref={videoRef} autoPlay muted playsInline/>:<div><Camera size={32}/><p>Connect an ATEM, HDMI-to-USB capture receiver, Continuity Camera, webcam, or other macOS video input.</p><button onClick={requestHostCamera}><Video size={16}/> Enable inputs</button></div>}</div>
       <div className="ag-live-device-panel"><label><span><Video size={14}/> VIDEO INPUT</span><select value={videoDeviceId} onChange={e=>void switchInput("video",e.target.value)}><option value="">System default / fallback</option>{videoDevices.map(d=><option key={d.deviceId} value={d.deviceId}>{d.label}</option>)}</select></label><label><span><Mic size={14}/> AUDIO INPUT</span><select value={audioDeviceId} onChange={e=>void switchInput("audio",e.target.value)}><option value="">System default / fallback</option>{audioDevices.map(d=><option key={d.deviceId} value={d.deviceId}>{d.label}</option>)}</select></label><div className="ag-live-meter"><span>AUDIO</span><div><i style={{width:`${Math.round(audioLevel*100)}%`}}/></div></div><button className="ag-live-refresh-devices" onClick={()=>void refreshDevices()} title="Refresh connected devices"><RefreshCw size={15}/></button></div>
       {cameraError?<div className="ag-studio-error">{cameraError}</div>:null}{cameraReady&&bridgeStatus!=="connected"?<button className="ag-live-reconnect-source" onClick={requestHostCamera}>Reconnect output media</button>:null}<small>Hardware is optional. If ATEM or capture hardware disappears, select another source and keep using Studio scenes, Scriptures, questions, media, holding, and blackout normally.</small></div>
       <div className="ag-live-program-card"><div><span className="ag-studio-eyebrow">Program scene</span><h1>{state.currentSceneId}</h1><p>Session {state.sessionId}</p></div><div className="ag-studio-live-indicator"><span/>PROGRAM</div></div></div>
       <aside className="ag-live-cue-stack"><div className="ag-live-cue-block current"><span>CURRENT</span><strong>{currentCue?.label??"Session ready"}</strong><p>{currentCue?.presenter_notes||"No presenter notes for the current cue."}</p></div><div className="ag-live-cue-block next"><span>NEXT</span><strong>{nextCue?.label??"End of run"}</strong><p>{nextCue?.presenter_notes||"Ready when you are."}</p></div><button className="ag-live-take" disabled={!nextCue||busy} onClick={()=>nextCue&&takeCue(nextCue.id)}><SkipForward size={19}/>{busy?"TAKING…":"TAKE NEXT"}<kbd>SPACE</kbd></button><div className="ag-live-run-list">{cues.map((cue,index)=><button key={cue.id} className={cue.id===state.currentCueId?"active":""} disabled={busy} onClick={()=>takeCue(cue.id)}><span>{String(index+1).padStart(2,"0")}</span><strong>{cue.label}</strong></button>)}</div></aside></section>
-    {error?<div className="ag-studio-error ag-live-error">{error}</div>:null}<section className="ag-studio-control-grid">{scenes.map(({id,label,icon:Icon})=><button key={id} className={state.currentSceneId===id?"active":""} disabled={busy} onClick={()=>setScene(id)}><Icon size={18}/><span>{label}</span></button>)}</section><section className="ag-studio-panic-row"><button onClick={()=>setScene("host-full")} disabled={busy}>RETURN TO HOST</button><button onClick={clearProgram} disabled={busy}>CLEAR GRAPHICS</button><button onClick={()=>setScene("holding")} disabled={busy}>TECHNICAL HOLD</button><button className="danger" onClick={()=>setScene("black")} disabled={busy}>BLACKOUT</button></section>
+    {error?<div className="ag-studio-error ag-live-error">{error}</div>:null}<section className="ag-studio-control-grid">{scenes.map(({id,label,icon:Icon})=><button key={id} className={state.currentSceneId===id?"active":""} disabled={busy} onClick={()=>void setScene(id)}><Icon size={18}/><span>{label}</span></button>)}</section><section className="ag-studio-panic-row"><button onClick={()=>void setScene("host-full")} disabled={busy}>RETURN TO HOST</button><button onClick={clearProgram} disabled={busy}>CLEAR GRAPHICS</button><button onClick={()=>void setScene("holding")} disabled={busy}>TECHNICAL HOLD</button><button className="danger" onClick={()=>void setScene("black")} disabled={busy}>BLACKOUT</button></section>
   </main>;
 }
