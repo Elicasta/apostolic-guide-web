@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { StudioProgramState } from "@/studio/types";
+import { connectOutputHostMedia, type OutputHostBridgeStatus } from "./host-media-receiver";
 
 type OutputAsset = {
   id: string;
@@ -21,11 +22,13 @@ type OutputSnapshot = {
 export default function StudioOutputClient({ sessionId, token }: { sessionId: string; token: string }) {
   const [snapshot, setSnapshot] = useState<OutputSnapshot | null>(null);
   const [failed, setFailed] = useState(false);
+  const [hostStream, setHostStream] = useState<MediaStream | null>(null);
+  const [hostBridgeStatus, setHostBridgeStatus] = useState<OutputHostBridgeStatus>("waiting");
+  const peerRef = useRef<RTCPeerConnection | null>(null);
 
   useEffect(() => {
     let alive = true;
     let timer: ReturnType<typeof setTimeout> | undefined;
-
     async function refresh() {
       try {
         const response = await fetch(`/api/studio/output/${sessionId}?token=${encodeURIComponent(token)}`, { cache: "no-store" });
@@ -41,9 +44,28 @@ export default function StudioOutputClient({ sessionId, token }: { sessionId: st
         if (alive) timer = setTimeout(refresh, 750);
       }
     }
-
     refresh();
     return () => { alive = false; if (timer) clearTimeout(timer); };
+  }, [sessionId, token]);
+
+  useEffect(() => {
+    if (!token) return;
+    let cancelled = false;
+    void connectOutputHostMedia(sessionId, token, (stream) => {
+      if (!cancelled) setHostStream(stream);
+    }, (status) => {
+      if (!cancelled) setHostBridgeStatus(status);
+    }).then((peer) => {
+      if (cancelled) peer.close();
+      else peerRef.current = peer;
+    }).catch(() => {
+      if (!cancelled) setHostBridgeStatus("failed");
+    });
+    return () => {
+      cancelled = true;
+      peerRef.current?.close();
+      peerRef.current = null;
+    };
   }, [sessionId, token]);
 
   const assets = useMemo(() => new Map((snapshot?.assets ?? []).map((asset) => [asset.id, asset])), [snapshot?.assets]);
@@ -58,29 +80,39 @@ export default function StudioOutputClient({ sessionId, token }: { sessionId: st
   return (
     <main className={`studio-output scene-${state.currentSceneId}`}>
       <div className="studio-output-bg" />
-      <Scene sceneId={state.currentSceneId} episodeTitle={snapshot?.session?.studio_episodes?.title} scripture={scripture} question={question} />
+      <Scene sceneId={state.currentSceneId} episodeTitle={snapshot?.session?.studio_episodes?.title} scripture={scripture} question={question} hostStream={hostStream} />
       <div className="studio-output-overlays">
         {[...state.activeOverlays].sort((a, b) => a.layer - b.layer).map((overlay) => <Overlay key={overlay.id} asset={overlay.assetId ? assets.get(overlay.assetId) : undefined} type={overlay.type} />)}
       </div>
-      {failed ? <span className="studio-output-reconnecting">Reconnecting</span> : null}
+      {failed ? <span className="studio-output-reconnecting">Reconnecting state</span> : null}
+      {hostBridgeStatus === "failed" ? <span className="studio-output-source-warning">Host media disconnected</span> : null}
     </main>
   );
 }
 
-function Scene({ sceneId, episodeTitle, scripture, question }: { sceneId: string; episodeTitle?: string; scripture?: OutputAsset; question?: OutputAsset }) {
+function Scene({ sceneId, episodeTitle, scripture, question, hostStream }: { sceneId: string; episodeTitle?: string; scripture?: OutputAsset; question?: OutputAsset; hostStream: MediaStream | null }) {
   if (sceneId === "black") return <div className="studio-black" />;
   if (sceneId === "holding") return <div className="studio-center-card"><AGMark /><span>APOSTOLIC GUIDE</span><h1>We’ll be right back.</h1><p>Please stand by.</p></div>;
   if (sceneId === "scripture-full") return <ScriptureCard asset={scripture} full />;
   if (sceneId === "question-full") return <QuestionCard asset={question} full />;
   if (sceneId === "pathway-cta") return <div className="studio-center-card"><span>KEEP STUDYING</span><h1>{episodeTitle ?? "Apostolic Guide"}</h1><p>Continue through the complete Scripture pathway on Apostolic Guide.</p></div>;
-  if (sceneId === "host-scripture") return <div className="studio-split"><div className="studio-camera-placeholder"><AGMark /><span>HOST CAMERA</span></div><ScriptureCard asset={scripture} /></div>;
+  if (sceneId === "host-scripture") return <div className="studio-split"><HostVideo stream={hostStream}/><ScriptureCard asset={scripture} /></div>;
   if (sceneId === "title-full") return <div className="studio-center-card"><span>APOSTOLIC GUIDE</span><h1>{episodeTitle ?? "Live"}</h1></div>;
-  return <div className="studio-camera-placeholder studio-camera-full"><AGMark /><span>HOST CAMERA</span></div>;
+  return <HostVideo stream={hostStream} full />;
+}
+
+function HostVideo({ stream, full = false }: { stream: MediaStream | null; full?: boolean }) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  useEffect(() => {
+    if (videoRef.current && stream) videoRef.current.srcObject = stream;
+  }, [stream]);
+  if (!stream) return <div className={`studio-camera-placeholder ${full ? "studio-camera-full" : ""}`}><AGMark /><span>HOST CAMERA CONNECTING</span></div>;
+  return <div className={`studio-host-video ${full ? "studio-camera-full" : ""}`}><video ref={videoRef} autoPlay playsInline /></div>;
 }
 
 function ScriptureCard({ asset, full = false }: { asset?: OutputAsset; full?: boolean }) {
   const data = asset?.snapshot_data ?? {};
-  return <div className={`studio-scripture ${full ? "full" : ""}`}><span>SCRIPTURE</span><h2>{String(data.reference ?? asset?.label ?? "Scripture")}</h2><p>{String(data.text ?? data.explanation ?? "Scripture text will appear here when the canonical text asset is connected.")}</p></div>;
+  return <div className={`studio-scripture ${full ? "full" : ""}`}><span>{String(data.translation ?? "SCRIPTURE")}</span><h2>{String(data.reference ?? asset?.label ?? "Scripture")}</h2><p>{String(data.text ?? data.explanation ?? "Scripture text unavailable")}</p></div>;
 }
 
 function QuestionCard({ asset, full = false }: { asset?: OutputAsset; full?: boolean }) {
