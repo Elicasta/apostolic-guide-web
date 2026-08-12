@@ -4,9 +4,11 @@ import { z } from "zod";
 import { getStudioPermission } from "@/auth";
 import { pathwayBySlug } from "@/pathway-catalog";
 import { hashAudioText, pathwayNarrationHash } from "@/pathway-audio";
+import { concatenateMp3Segments, MAX_PATHWAY_AUDIO_SCRIPT_CHARS, splitNarrationForTts } from "@/pathway-audio-render";
 import { createServiceClient } from "@/supabase";
 
 export const runtime = "nodejs";
+export const maxDuration = 300;
 
 const schema = z.object({
   slug: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
@@ -37,25 +39,40 @@ export async function POST(request: Request) {
   const narration = String(script.script_text).trim();
   const contentHash = hashAudioText(narration);
   if (contentHash !== script.script_hash) return NextResponse.json({ error: "Approved script hash mismatch. Save and approve the script again." }, { status: 409 });
-  if (narration.length > 4096) return NextResponse.json({ error: `Approved script is ${narration.length} characters. Shorten it before generating audio.` }, { status: 422 });
+  if (narration.length > MAX_PATHWAY_AUDIO_SCRIPT_CHARS) return NextResponse.json({ error: `Approved script is ${narration.length.toLocaleString()} characters. The current long-form limit is ${MAX_PATHWAY_AUDIO_SCRIPT_CHARS.toLocaleString()} characters.` }, { status: 422 });
 
   const existing = await service.from("pathway_audio_assets").select("pathway_slug,audio_url,storage_path,content_hash,model,voice,generated_at").eq("pathway_slug", pathway.slug).maybeSingle();
-  if (!parsed.data.force && existing.data?.content_hash === contentHash && existing.data?.audio_url) return NextResponse.json({ asset: existing.data, generated: false });
+  if (!parsed.data.force && existing.data?.content_hash === contentHash && existing.data?.audio_url) return NextResponse.json({ asset: existing.data, generated: false, segments: null });
+
+  const chunks = splitNarrationForTts(narration);
+  if (!chunks.length) return NextResponse.json({ error: "Approved script is empty." }, { status: 422 });
 
   const model = process.env.OPENAI_TTS_MODEL || "gpt-4o-mini-tts";
   const voice = process.env.OPENAI_TTS_VOICE || "cedar";
-  const speech = await fetch("https://api.openai.com/v1/audio/speech", {
-    method: "POST",
-    headers: { authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
-    body: JSON.stringify({ model, voice, input: narration, response_format: "mp3", instructions: "Read as a calm, confident Bible study guide. Natural pacing, clear Scripture references, restrained emotion, no theatrical delivery." })
-  });
+  const audioSegments: Buffer[] = [];
+  const instructions = "Read as a calm, confident Bible study guide. Natural pacing, clear Scripture references, restrained emotion, no theatrical delivery. Keep the same voice, pace, energy, and pronunciation throughout. Do not announce segment boundaries.";
 
-  if (!speech.ok) {
-    const detail = (await speech.text().catch(() => "")).slice(0, 1000);
-    return NextResponse.json({ error: `Audio generation failed (${speech.status}).`, detail }, { status: 502 });
+  for (let index = 0; index < chunks.length; index += 1) {
+    const speech = await fetch("https://api.openai.com/v1/audio/speech", {
+      method: "POST",
+      headers: { authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
+      body: JSON.stringify({ model, voice, input: chunks[index], response_format: "mp3", instructions })
+    });
+
+    if (!speech.ok) {
+      const detail = (await speech.text().catch(() => "")).slice(0, 1000);
+      return NextResponse.json({ error: `Audio generation failed on segment ${index + 1} of ${chunks.length} (${speech.status}).`, detail }, { status: 502 });
+    }
+    audioSegments.push(Buffer.from(await speech.arrayBuffer()));
   }
 
-  const audio = Buffer.from(await speech.arrayBuffer());
+  let audio: Buffer;
+  try {
+    audio = concatenateMp3Segments(audioSegments);
+  } catch (error) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Audio segments could not be combined." }, { status: 502 });
+  }
+
   const objectPath = `pathways/${pathway.slug}/${contentHash.slice(0, 16)}.mp3`;
   const upload = await service.storage.from("pathway-audio").upload(objectPath, audio, { contentType: "audio/mpeg", cacheControl: "31536000", upsert: true });
   if (upload.error) return NextResponse.json({ error: upload.error.message }, { status: 500 });
@@ -77,5 +94,5 @@ export async function POST(request: Request) {
 
   revalidatePath(`/pathways/${pathway.slug}`);
   revalidatePath("/admin/audio");
-  return NextResponse.json({ asset: saved.data, generated: true });
+  return NextResponse.json({ asset: saved.data, generated: true, segments: chunks.length });
 }
