@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getStudioPermission } from "@/auth";
 import { SocialPublishingCredentials } from "@/social-publishing-credentials";
+import { VideoRendererCredentials } from "@/video-renderer-credentials";
 
 const checks = [
   ["NEXT_PUBLIC_SUPABASE_URL", Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL)],
@@ -19,6 +20,7 @@ export default async function AdminSetupPage() {
       <h1>Setup</h1>
       <p className="admin-lede">Manage the server configuration and channel credentials Apostolic Guide uses for publishing, authentication, analytics, and distribution.</p>
 
+      <VideoRendererCredentials/>
       <SocialPublishingCredentials/>
 
       <section className="admin-card">
@@ -27,7 +29,7 @@ export default async function AdminSetupPage() {
       </section>
       <section className="admin-card">
         <h2>Launch order</h2>
-        <ol className="admin-list"><li>Keep Supabase and Vercel production environment variables healthy.</li><li>Store channel app credentials here. Existing Instagram values are reused rather than duplicated.</li><li>Authorize the YouTube, Instagram, and TikTok accounts through the channel OAuth flows.</li><li>Render approved video assets in Video Studio.</li><li>Send finished packages through Channel Publishing.</li><li>Bring post IDs and performance back into Analytics.</li></ol>
+        <ol className="admin-list"><li>Keep Supabase and Vercel production environment variables healthy.</li><li>Connect the Video Studio renderer so final MP4 jobs can run asynchronously.</li><li>Store channel app credentials here. Existing Instagram values are reused rather than duplicated.</li><li>Authorize the YouTube, Instagram, and TikTok accounts through the channel OAuth flows.</li><li>Render and review approved video assets in Video Studio.</li><li>Send reviewed packages through Channel Publishing.</li><li>Bring post IDs and performance back into Analytics.</li></ol>
       </section>
     </>
   );
