@@ -1,5 +1,24 @@
 export const MAX_PATHWAY_AUDIO_SCRIPT_CHARS = 20_000;
-export const MAX_TTS_CHUNK_CHARS = 3_600;
+export const MAX_TTS_CHUNK_CHARS = 1_800;
+export const DEFAULT_TTS_SPEED = 0.88;
+
+export const PATHWAY_TTS_INSTRUCTIONS = `
+Speak like a thoughtful Bible teacher guiding one listener through Scripture, not like an announcer or audiobook speed-reader.
+Use an unhurried, conversational cadence with natural variation in rhythm and emphasis.
+Pause briefly after rhetorical questions so the listener has time to consider them.
+Give Scripture quotations extra space: settle before the quotation, read the verse clearly and reverently, then leave a short beat before explaining it.
+Treat paragraph changes and major transitions as real breathing points. Do not run one idea directly into the next.
+Slow slightly on important doctrinal statements and let key conclusions land before continuing.
+Keep the tone warm, calm, confident, pastoral, and engaged. Restrained emotion is good, but do not sound flat, mechanical, rushed, or theatrical.
+Keep the same voice, pronunciation, energy, and overall pace throughout all generated segments. Never announce segment boundaries.
+`.trim();
+
+export function resolveTtsSpeed(value: string | undefined) {
+  if (!value?.trim()) return DEFAULT_TTS_SPEED;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return DEFAULT_TTS_SPEED;
+  return Math.min(4, Math.max(0.25, parsed));
+}
 
 function splitWords(value: string, maxChars: number) {
   const words = value.trim().split(/\s+/).filter(Boolean);
@@ -60,8 +79,7 @@ export function splitNarrationForTts(value: string, maxChars = MAX_TTS_CHUNK_CHA
       current = unit;
       continue;
     }
-    const separator = unit.includes("\n") || current.includes("\n") ? "\n\n" : "\n\n";
-    const next = `${current}${separator}${unit}`;
+    const next = `${current}\n\n${unit}`;
     if (next.length <= maxChars) current = next;
     else {
       chunks.push(current);
