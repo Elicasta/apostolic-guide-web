@@ -114,6 +114,19 @@ export async function getSocialPublishingCredentialStatus(): Promise<SocialPubli
   return summarizeSocialPublishingCredentials((secretsResult.data ?? []) as SecretRow[], instagramStatus);
 }
 
+export async function getSocialPublishingCredentialValues(platform: SocialPublishingPlatform) {
+  const service = createServiceClient();
+  if (!service) throw new Error("Supabase service access is not configured.");
+  const names = SOCIAL_PUBLISHING_SECRET_NAMES[platform] as Record<string, string>;
+  const entries = Object.entries(names);
+  const { data, error } = await service.schema("analytics").from("integration_secrets")
+    .select("name,secret")
+    .in("name", entries.map(([, name]) => name));
+  if (error) throw new Error(error.message);
+  const values = new Map((data ?? []).map((row) => [String(row.name), String(row.secret)]));
+  return Object.fromEntries(entries.map(([field, name]) => [field, values.get(name)?.trim() || ""]));
+}
+
 export async function saveSocialPublishingCredentials(
   platform: SocialPublishingPlatform,
   input: Record<string, string | undefined>
