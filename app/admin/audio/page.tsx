@@ -30,7 +30,7 @@ export default async function AdminPathwayAudioPage() {
 
   if (service) {
     const [assetsResult, metricsResult] = await Promise.all([
-      service.schema("content").from("pathway_audio_assets").select("pathway_slug,audio_url,content_hash,generated_at"),
+      service.from("pathway_audio_assets").select("pathway_slug,audio_url,content_hash,generated_at"),
       service.schema("analytics").from("pathway_audio_metrics").select("pathway_slug,starts,unique_listeners,completions,listened_seconds")
     ]);
     assetRows = (assetsResult.data ?? []) as AudioAssetRow[];
