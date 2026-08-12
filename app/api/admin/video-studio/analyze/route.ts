@@ -64,11 +64,12 @@ export async function POST(request: Request) {
   const existingAlignment = existingStyle.alignment && typeof existingStyle.alignment === "object" ? existingStyle.alignment as Record<string, unknown> : null;
   if (
     !parsed.data.force &&
-    existing?.audio_content_hash === asset.content_hash &&
+    existing &&
+    existing.audio_content_hash === asset.content_hash &&
     existingAlignment?.status === "aligned" &&
     existingAlignment?.scriptHash === script.script_hash &&
     Array.isArray(existing.timeline) &&
-    existing.timeline.length
+    existing.timeline.length > 0
   ) {
     return NextResponse.json({ project: existing, alignment: existingAlignment, analyzed: false });
   }
