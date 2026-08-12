@@ -2,6 +2,8 @@
 
 import { useMemo, useState } from "react";
 
+const MAX_SCRIPT_CHARS = 20_000;
+
 type PathwayRow = {
   slug: string;
   title: string;
@@ -116,7 +118,8 @@ export function PathwayAudioManager({ pathways }: { pathways: PathwayRow[] }) {
       if (!response.ok) throw new Error(data.error || "Audio generation failed.");
       const asset = data.asset;
       setRows((current) => current.map((row) => row.slug === slug ? { ...row, audioUrl: asset.audio_url, generatedAt: asset.generated_at, current: true } : row));
-      setMessage("Audio generated from the approved script.");
+      const segments = typeof data.segments === "number" ? data.segments : 1;
+      setMessage(segments > 1 ? `Audio generated from the approved script and assembled from ${segments} TTS-safe segments.` : "Audio generated from the approved script.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Audio generation failed.");
     } finally { setRunning(null); }
@@ -126,7 +129,7 @@ export function PathwayAudioManager({ pathways }: { pathways: PathwayRow[] }) {
 
   return <div className="pathway-audio-page">
     <div className="studio-page-heading pathway-audio-heading">
-      <div><span className="eyebrow">Publishing</span><h1>Pathway audio</h1><p className="admin-lede">Turn each canonical Pathway into a reviewed Apostolic Oneness narration, approve the wording, then generate the public audio. Pathway content remains the source of truth.</p></div>
+      <div><span className="eyebrow">Publishing</span><h1>Pathway audio</h1><p className="admin-lede">Turn each canonical Pathway into a reviewed Apostolic Oneness narration, approve the wording, then generate the public audio. Long-form scripts are automatically rendered in TTS-safe segments and assembled into one audio file.</p></div>
     </div>
 
     <div className="pathway-audio-metrics">
@@ -152,12 +155,12 @@ export function PathwayAudioManager({ pathways }: { pathways: PathwayRow[] }) {
         </div>
         <div className="pathway-audio-editor-body">
           <textarea className="pathway-audio-textarea" value={text} onChange={(event) => {
-            const value = event.target.value.slice(0, 4096);
+            const value = event.target.value.slice(0, MAX_SCRIPT_CHARS);
             setDrafts((current) => ({ ...current, [row.slug]: value }));
             setRows((current) => current.map((item) => item.slug === row.slug ? { ...item, scriptStatus: item.scriptStatus === "approved" && value === item.scriptText ? "approved" : "draft", current: value === item.scriptText ? item.current : false } : item));
           }} placeholder="Generate a draft or write the narration here…" />
           <div className="pathway-audio-editor-footer">
-            <small className="pathway-audio-editor-meta">{text.length.toLocaleString()} / 4,096 characters{row.scriptModel ? ` · Draft model: ${row.scriptModel}` : ""}</small>
+            <small className="pathway-audio-editor-meta">{text.length.toLocaleString()} / {MAX_SCRIPT_CHARS.toLocaleString()} characters · Long-form audio auto-chunks{text.length > 0 && row.scriptModel ? ` · Draft model: ${row.scriptModel}` : ""}</small>
             <div className="pathway-audio-editor-actions">
               <button className="button button-small" type="button" disabled={busy || text.trim().length < 100} onClick={() => saveScript(row.slug, "save")}>Save draft</button>
               <button className="button button-small" type="button" disabled={busy || text.trim().length < 100} onClick={() => saveScript(row.slug, "approve")}>{running === `approve:${row.slug}` ? "Approving…" : approved ? "Re-approve script" : "Approve script"}</button>
@@ -176,7 +179,7 @@ export function PathwayAudioManager({ pathways }: { pathways: PathwayRow[] }) {
           <thead><tr><th>Pathway</th><th>Script</th><th>Audio</th><th>Starts</th><th>Listening</th><th>Completed</th><th /></tr></thead>
           <tbody>{rows.map((row) => <tr key={row.slug}>
             <td><strong>{row.title}</strong><br/><small>{row.estimatedMinutes} min reading estimate</small></td>
-            <td><strong>{scriptLabel(row)}</strong>{row.scriptText ? <><br/><small>{(drafts[row.slug] ?? row.scriptText).length.toLocaleString()} / 4,096 chars</small></> : null}</td>
+            <td><strong>{scriptLabel(row)}</strong>{row.scriptText ? <><br/><small>{(drafts[row.slug] ?? row.scriptText).length.toLocaleString()} / {MAX_SCRIPT_CHARS.toLocaleString()} chars</small></> : null}</td>
             <td><strong>{audioLabel(row)}</strong></td>
             <td>{row.starts}</td><td>{formatListeningTime(row.listenedSeconds)}</td><td>{row.completions}<br/><small>{completionRate(row)}</small></td>
             <td><button className="button button-small" type="button" disabled={Boolean(running)} onClick={() => row.scriptText ? revealEditor(row.slug) : generateScript(row.slug)}>{running === `script:${row.slug}` ? "Generating…" : row.scriptText ? "Review" : "Generate draft"}</button></td>
