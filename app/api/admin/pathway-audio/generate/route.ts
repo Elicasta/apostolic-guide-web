@@ -30,7 +30,7 @@ export async function POST(request: Request) {
   if (!service) return NextResponse.json({ error: "Supabase service access is not configured." }, { status: 503 });
 
   const contentHash = pathwayNarrationHash(pathway);
-  const existing = await service.schema("content").from("pathway_audio_assets").select("pathway_slug,audio_url,storage_path,content_hash,model,voice,generated_at").eq("pathway_slug", pathway.slug).maybeSingle();
+  const existing = await service.from("pathway_audio_assets").select("pathway_slug,audio_url,storage_path,content_hash,model,voice,generated_at").eq("pathway_slug", pathway.slug).maybeSingle();
   if (!parsed.data.force && existing.data?.content_hash === contentHash && existing.data?.audio_url) {
     return NextResponse.json({ asset: existing.data, generated: false });
   }
@@ -81,7 +81,7 @@ export async function POST(request: Request) {
     generated_at: generatedAt,
     generated_by: access.user.id
   };
-  const saved = await service.schema("content").from("pathway_audio_assets").upsert(row, { onConflict: "pathway_slug" }).select("pathway_slug,audio_url,content_hash,model,voice,generated_at").single();
+  const saved = await service.from("pathway_audio_assets").upsert(row, { onConflict: "pathway_slug" }).select("pathway_slug,audio_url,content_hash,model,voice,generated_at").single();
   if (saved.error) {
     await service.storage.from("pathway-audio").remove([objectPath]);
     return NextResponse.json({ error: saved.error.message }, { status: 500 });
