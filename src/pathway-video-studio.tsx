@@ -25,6 +25,9 @@ type RenderRow = {
   error: string | null;
   requested_at: string;
   completed_at: string | null;
+  progress_percent?: number;
+  progress_stage?: string;
+  progress_heartbeat_at?: string | null;
 };
 
 type VideoProject = {
@@ -71,6 +74,12 @@ function renderStatusLabel(render: RenderRow) {
   if (render.status === "rendering") return "Rendering";
   if (render.status === "completed") return "Ready to review";
   return "Failed";
+}
+
+function renderProgressValue(render: RenderRow | undefined) {
+  if (!render) return 0;
+  const fallback = render.status === "completed" ? 100 : render.status === "rendering" ? 7 : render.status === "queued" ? 1 : 0;
+  return Math.round(Math.max(0, Math.min(100, Number(render.progress_percent ?? fallback))));
 }
 
 function readAlignment(style: Record<string, unknown> | undefined): AlignmentState | null {
@@ -145,15 +154,17 @@ export function PathwayVideoStudio({
 
   useEffect(() => {
     if (!renders.some((render) => render.status === "queued" || render.status === "rendering")) return;
-    const timer = window.setInterval(async () => {
+    const poll = async () => {
       try {
         const response = await fetch(`/api/admin/video-studio/renders?slug=${encodeURIComponent(selected.slug)}`, { cache: "no-store" });
         const data = await response.json().catch(() => ({}));
         if (response.ok && Array.isArray(data.renders)) setRenders(data.renders);
       } catch { /* next poll will retry */ }
-    }, 5000);
+    };
+    void poll();
+    const timer = window.setInterval(poll, 2000);
     return () => window.clearInterval(timer);
-  }, [renders, selected?.slug]);
+  }, [renders.some((render) => render.status === "queued" || render.status === "rendering"), selected?.slug]);
 
   const activeCue = useMemo(() => activePathwayVideoCue(timeline, currentTime), [timeline, currentTime]);
   const selectedCue = timeline.find((cue) => cue.id === selectedCueId) ?? activeCue;
@@ -296,8 +307,8 @@ export function PathwayVideoStudio({
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || "Render could not be queued.");
-      if (Array.isArray(data.renders)) setRenders((current) => [...data.renders, ...current]);
-      setMessage(`${formatLabel(targetFormat)} render queued. Its status will update here automatically, and the finished MP4 will appear in Final render review.`);
+      if (Array.isArray(data.renders)) setRenders((current) => data.renders.map((render: RenderRow) => ({ ...render, progress_percent: 1, progress_stage: "Queued" })).concat(current));
+      setMessage(`${formatLabel(targetFormat)} render queued. Live progress will update here automatically, and the finished MP4 will appear in Final render review.`);
     } catch (error) {
       const detail = error instanceof Error ? error.message : "Render could not be queued.";
       setRenderErrors((current) => ({ ...current, [targetFormat]: detail }));
@@ -391,9 +402,13 @@ export function PathwayVideoStudio({
         const latest = latestByFormat.get(key);
         const rendering = busy === `render:${key}` || latest?.status === "queued" || latest?.status === "rendering";
         const localError = renderErrors[key];
+        const renderPercent = renderProgressValue(latest);
+        const renderStage = latest?.progress_stage || (latest ? renderStatusLabel(latest) : "Waiting");
         return <div className="video-export-option" key={key}>
           <div className="video-export-icon">{key === "youtube" ? <Youtube size={22}/> : <Film size={22}/>}</div>
-          <div><strong>{formatLabel(key)}</strong><p>{VIDEO_FORMATS[key].purpose}</p>{latest ? <small className={`render-status is-${latest.status}`}>{renderStatusLabel(latest)}{latest.error ? ` · ${latest.error}` : ""}</small> : <small>No render yet</small>}</div>
+          <div><strong>{formatLabel(key)}</strong><p>{VIDEO_FORMATS[key].purpose}</p>{latest ? <small className={`render-status is-${latest.status}`}>{renderStatusLabel(latest)}{latest.error ? ` · ${latest.error}` : ""}</small> : <small>No render yet</small>}
+            {rendering ? <div className="video-render-progress" aria-label={`${renderStage} ${renderPercent}%`}><div className="video-render-progress-copy"><span>{renderStage}</span><strong>{renderPercent}%</strong></div><div className="video-render-progress-track"><i style={{ width: `${renderPercent}%` }}/></div></div> : null}
+          </div>
           {latest?.status === "completed" && latest.output_url ? <div className="video-render-actions"><button type="button" className="button primary" onClick={() => setReviewRenderId(latest.id)}><Play size={15}/> Watch</button><a className="button" href={latest.output_url} target="_blank" rel="noreferrer"><Download size={15}/> Download</a></div> : <button type="button" className="button" disabled={!databaseReady || !rendererReady || !selected.audioUrl || rendering || busy === "analyze"} onClick={() => void requestRender(key)}>{rendering ? <Loader2 className="spin" size={15}/> : <RefreshCw size={15}/>} {latest ? "Render again" : "Render"}</button>}
           {localError ? <div className="video-render-inline-error">{localError}{!rendererReady ? <> <a href="/admin/setup#video-renderer">Fix in Setup</a></> : null}</div> : null}
         </div>;

@@ -26,7 +26,7 @@ type ProjectRow = {
   updated_at: string;
 };
 
-type RenderRow = {
+type RawRenderRow = {
   id: string;
   pathway_slug: string;
   format: PathwayVideoFormat;
@@ -35,6 +35,13 @@ type RenderRow = {
   error: string | null;
   requested_at: string;
   completed_at: string | null;
+  config_snapshot: unknown;
+};
+
+type RenderRow = Omit<RawRenderRow, "config_snapshot"> & {
+  progress_percent: number;
+  progress_stage: string;
+  progress_heartbeat_at: string | null;
 };
 
 const CUE_KINDS = new Set<PathwayVideoCueKind>(["question", "brand", "scripture", "statement", "recap", "cta"]);
@@ -61,6 +68,26 @@ function parseTimeline(value: unknown): PathwayVideoCue[] | null {
   return cues.length ? cues : null;
 }
 
+function renderProgress(row: RawRenderRow): RenderRow {
+  const snapshot = row.config_snapshot && typeof row.config_snapshot === "object" ? row.config_snapshot as Record<string, unknown> : {};
+  const raw = snapshot.rendererProgress && typeof snapshot.rendererProgress === "object" ? snapshot.rendererProgress as Record<string, unknown> : {};
+  const fallbackPercent = row.status === "completed" ? 100 : row.status === "rendering" ? 7 : row.status === "queued" ? 1 : 0;
+  const fallbackStage = row.status === "completed" ? "Ready" : row.status === "rendering" ? "Rendering video" : row.status === "queued" ? "Queued" : "Failed";
+  return {
+    id: row.id,
+    pathway_slug: row.pathway_slug,
+    format: row.format,
+    status: row.status,
+    output_url: row.output_url,
+    error: row.error,
+    requested_at: row.requested_at,
+    completed_at: row.completed_at,
+    progress_percent: Math.max(0, Math.min(100, Number(raw.percent ?? fallbackPercent))),
+    progress_stage: typeof raw.stage === "string" && raw.stage.trim() ? raw.stage.trim() : fallbackStage,
+    progress_heartbeat_at: typeof raw.heartbeatAt === "string" ? raw.heartbeatAt : null
+  };
+}
+
 export default async function AdminVideoStudioPage() {
   const { access, allowed } = await getStudioPermission("manage_content");
   if (!allowed || access.state !== "allowed") redirect("/admin");
@@ -78,7 +105,7 @@ export default async function AdminVideoStudioPage() {
       service.from("pathway_audio_assets").select("pathway_slug,audio_url,content_hash,generated_at"),
       service.from("pathway_audio_scripts").select("pathway_slug,status"),
       service.from("pathway_video_projects").select("id,pathway_slug,audio_content_hash,timeline,style,updated_at"),
-      service.from("pathway_video_renders").select("id,pathway_slug,format,status,output_url,error,requested_at,completed_at").order("requested_at", { ascending: false }).limit(100),
+      service.from("pathway_video_renders").select("id,pathway_slug,format,status,output_url,error,requested_at,completed_at,config_snapshot").order("requested_at", { ascending: false }).limit(100),
       rendererReady
         ? Promise.resolve({ data: null, error: null })
         : service.schema("analytics").from("integration_secrets").select("name").eq("name", "video_studio_github_token").maybeSingle()
@@ -87,7 +114,7 @@ export default async function AdminVideoStudioPage() {
     assetRows = (assetsResult.data ?? []) as AudioAssetRow[];
     scriptRows = (scriptsResult.data ?? []) as ScriptRow[];
     projectRows = (projectsResult.data ?? []) as ProjectRow[];
-    renderRows = (rendersResult.data ?? []) as RenderRow[];
+    renderRows = ((rendersResult.data ?? []) as RawRenderRow[]).map(renderProgress);
     databaseReady = !projectsResult.error && !rendersResult.error;
     rendererReady = rendererReady || Boolean(rendererSecretResult.data);
 
