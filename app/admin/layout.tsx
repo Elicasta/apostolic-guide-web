@@ -30,6 +30,7 @@ import "./video-studio-auto.css";
 import "./video-publishing-kit.css";
 import "./social-publishing-credentials.css";
 import "./video-studio-review.css";
+import "./channel-publishing.css";
 
 export const dynamic = "force-dynamic";
 
