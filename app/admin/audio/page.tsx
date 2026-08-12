@@ -3,6 +3,7 @@ import { getStudioPermission } from "@/auth";
 import { allPathways } from "@/pathway-catalog";
 import { pathwayNarrationHash } from "@/pathway-audio";
 import { PathwayAudioManager } from "@/pathway-audio-manager";
+import { PathwayAudioMetricsRefresh } from "@/pathway-audio-metrics-refresh";
 import { createServiceClient } from "@/supabase";
 
 type AudioAssetRow = { pathway_slug: string; audio_url: string; content_hash: string; generated_at: string };
@@ -60,5 +61,12 @@ export default async function AdminPathwayAudioPage() {
     };
   });
 
-  return <PathwayAudioManager pathways={pathways}/>;
+  const metricsVersion = pathways
+    .map((row) => `${row.slug}:${row.starts}:${row.uniqueListeners}:${row.listenedSeconds}:${row.completions}`)
+    .join("|");
+
+  return <>
+    <PathwayAudioMetricsRefresh />
+    <PathwayAudioManager key={metricsVersion} pathways={pathways}/>
+  </>;
 }
