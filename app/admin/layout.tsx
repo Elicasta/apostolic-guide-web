@@ -25,6 +25,7 @@ import "./study-intelligence.css";
 import "./intelligence.css";
 import "./pathway-projects.css";
 import "./pathway-audio.css";
+import "./video-studio.css";
 
 export const dynamic = "force-dynamic";
 
