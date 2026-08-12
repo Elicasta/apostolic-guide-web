@@ -4,7 +4,8 @@ import { z } from "zod";
 import { getStudioPermission } from "@/auth";
 import { pathwayBySlug } from "@/pathway-catalog";
 import { hashAudioText, pathwayNarrationHash } from "@/pathway-audio";
-import { buildLosslessWavFromPcmSegments, MAX_PATHWAY_AUDIO_SCRIPT_CHARS, PATHWAY_TTS_INSTRUCTIONS, resolveTtsSpeed, splitNarrationForTts } from "@/pathway-audio-render";
+import { concatenatePcm16Segments, MAX_PATHWAY_AUDIO_SCRIPT_CHARS, PATHWAY_TTS_INSTRUCTIONS, pcm16MonoToWav, resolveTtsSpeed, splitNarrationForTts } from "@/pathway-audio-render";
+import { masterPathwayPcm16Mono, PATHWAY_MASTERING_PROFILE } from "@/pathway-audio-mastering";
 import { createServiceClient } from "@/supabase";
 
 export const runtime = "nodejs";
@@ -75,12 +76,14 @@ export async function POST(request: Request) {
 
   let audio: Buffer;
   try {
-    audio = buildLosslessWavFromPcmSegments(pcmSegments);
+    const combinedPcm = concatenatePcm16Segments(pcmSegments);
+    const masteredPcm = masterPathwayPcm16Mono(combinedPcm);
+    audio = pcm16MonoToWav(masteredPcm);
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Lossless audio segments could not be combined." }, { status: 502 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Lossless audio segments could not be mastered and combined." }, { status: 502 });
   }
 
-  const objectPath = `pathways/${pathway.slug}/${contentHash.slice(0, 16)}-${Date.now().toString(36)}.wav`;
+  const objectPath = `pathways/${pathway.slug}/${contentHash.slice(0, 16)}-${PATHWAY_MASTERING_PROFILE}-${Date.now().toString(36)}.wav`;
   const upload = await service.storage.from("pathway-audio").upload(objectPath, audio, { contentType: "audio/wav", cacheControl: "31536000", upsert: false });
   if (upload.error) return NextResponse.json({ error: upload.error.message }, { status: 500 });
 
@@ -101,5 +104,5 @@ export async function POST(request: Request) {
 
   revalidatePath(`/pathways/${pathway.slug}`);
   revalidatePath("/admin/audio");
-  return NextResponse.json({ asset: saved.data, generated: true, segments: chunks.length, speed, format: "wav", lossless: true });
+  return NextResponse.json({ asset: saved.data, generated: true, segments: chunks.length, speed, format: "wav", lossless: true, mastering: PATHWAY_MASTERING_PROFILE });
 }
