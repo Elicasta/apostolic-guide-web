@@ -108,12 +108,21 @@ def supabase_request(method: str, url: str, body: bytes | None = None, content_t
         return response.read()
 
 
-def update_render(job_id: str, values: dict) -> None:
+def update_row(table: str, row_id: str, values: dict) -> None:
     base = os.environ.get("VIDEO_STUDIO_SUPABASE_URL", "").rstrip("/")
     if not base:
         raise RuntimeError("VIDEO_STUDIO_SUPABASE_URL is missing from GitHub Actions secrets.")
-    url = f"{base}/rest/v1/pathway_video_renders?id=eq.{urllib.parse.quote(job_id)}"
+    url = f"{base}/rest/v1/{table}?id=eq.{urllib.parse.quote(row_id)}"
     supabase_request("PATCH", url, json.dumps(values).encode())
+
+
+def update_render(job_id: str, values: dict) -> None:
+    update_row("pathway_video_renders", job_id, values)
+
+
+def update_asset(asset_id: str, values: dict) -> None:
+    if asset_id:
+        update_row("pathway_assets", asset_id, values)
 
 
 def upload_render(output: Path, slug: str, job_id: str, video_format: str) -> tuple[str, str]:
@@ -188,6 +197,7 @@ def main() -> None:
     payload = json.loads(Path(sys.argv[1]).read_text())
     output = Path(sys.argv[2])
     job_id = str(payload.get("job_id", "")).strip()
+    asset_id = str(payload.get("asset_id", "")).strip()
     slug = str(payload.get("slug", "")).strip()
     video_format = str(payload.get("format", "youtube")).strip()
     if not job_id or not slug:
@@ -197,17 +207,25 @@ def main() -> None:
         update_render(job_id, {"status": "rendering", "started_at": dt.datetime.now(dt.timezone.utc).isoformat(), "error": None})
         render(payload, output)
         storage_path, public_url = upload_render(output, slug, job_id, video_format)
+        completed_at = dt.datetime.now(dt.timezone.utc).isoformat()
         update_render(job_id, {
             "status": "completed",
             "storage_path": storage_path,
             "output_url": public_url,
-            "completed_at": dt.datetime.now(dt.timezone.utc).isoformat(),
+            "completed_at": completed_at,
             "error": None,
+        })
+        update_asset(asset_id, {
+            "status": "ready_to_publish",
+            "file_url": public_url,
+            "updated_at": completed_at,
         })
         print(public_url)
     except Exception as error:
+        failed_at = dt.datetime.now(dt.timezone.utc).isoformat()
         try:
-            update_render(job_id, {"status": "failed", "error": str(error)[:1800], "completed_at": dt.datetime.now(dt.timezone.utc).isoformat()})
+            update_render(job_id, {"status": "failed", "error": str(error)[:1800], "completed_at": failed_at})
+            update_asset(asset_id, {"status": "blocked", "notes": f"Video Studio render failed: {str(error)[:1500]}", "updated_at": failed_at})
         except Exception as status_error:
             print(f"Could not update failed render status: {status_error}", file=sys.stderr)
         raise
