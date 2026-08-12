@@ -8,6 +8,7 @@ import { createServiceClient } from "@/supabase";
 
 export const runtime = "nodejs";
 
+const MAX_GENERATED_SCRIPT_CHARS = 10_000;
 const schema = z.object({ slug: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/) });
 
 type ResponsePayload = {
@@ -48,7 +49,7 @@ export async function POST(request: Request) {
   const response = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
     headers: { authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
-    body: JSON.stringify({ model, input: prompt, max_output_tokens: 1200 })
+    body: JSON.stringify({ model, input: prompt, max_output_tokens: 2600 })
   });
 
   if (!response.ok) {
@@ -59,7 +60,7 @@ export async function POST(request: Request) {
   const payload = await response.json() as ResponsePayload;
   const scriptText = extractOutputText(payload);
   if (scriptText.length < 100) return NextResponse.json({ error: "The model returned an empty or incomplete script." }, { status: 502 });
-  if (scriptText.length > 4096) return NextResponse.json({ error: `Generated script is ${scriptText.length} characters. Generate again or shorten it before approval.` }, { status: 422 });
+  if (scriptText.length > MAX_GENERATED_SCRIPT_CHARS) return NextResponse.json({ error: `Generated script is ${scriptText.length.toLocaleString()} characters. Regenerate it before editorial review.` }, { status: 422 });
 
   const now = new Date().toISOString();
   const row = {
