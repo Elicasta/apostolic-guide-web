@@ -69,7 +69,7 @@ function formatLabel(format: PathwayVideoFormat) {
 function renderStatusLabel(render: RenderRow) {
   if (render.status === "queued") return "Queued";
   if (render.status === "rendering") return "Rendering";
-  if (render.status === "completed") return "Ready";
+  if (render.status === "completed") return "Ready to review";
   return "Failed";
 }
 
@@ -91,7 +91,15 @@ function projectFromApi(value: unknown): VideoProject | null {
   };
 }
 
-export function PathwayVideoStudio({ pathways, databaseReady }: { pathways: StudioPathway[]; databaseReady: boolean }) {
+export function PathwayVideoStudio({
+  pathways,
+  databaseReady,
+  rendererReady
+}: {
+  pathways: StudioPathway[];
+  databaseReady: boolean;
+  rendererReady: boolean;
+}) {
   const available = pathways.filter((pathway) => pathway.audioUrl);
   const [selectedSlug, setSelectedSlug] = useState(available[0]?.slug ?? pathways[0]?.slug ?? "");
   const selected = pathways.find((pathway) => pathway.slug === selectedSlug) ?? pathways[0];
@@ -107,6 +115,8 @@ export function PathwayVideoStudio({ pathways, databaseReady }: { pathways: Stud
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
   const [renders, setRenders] = useState<RenderRow[]>(selected?.renders ?? []);
+  const [renderErrors, setRenderErrors] = useState<Partial<Record<PathwayVideoFormat, string>>>({});
+  const [reviewRenderId, setReviewRenderId] = useState<string | null>(null);
   const [projectSaved, setProjectSaved] = useState(Boolean(effectiveProject));
   const alignment = readAlignment(effectiveProject?.style);
   const timingCurrent = Boolean(selected?.audioContentHash && effectiveProject?.audioContentHash === selected.audioContentHash && alignment?.status === "aligned-rich");
@@ -115,6 +125,8 @@ export function PathwayVideoStudio({ pathways, databaseReady }: { pathways: Stud
     setDuration(0);
     setCurrentTime(0);
     setMessage("");
+    setRenderErrors({});
+    setReviewRenderId(null);
     setRenders(selected?.renders ?? []);
     const project = selected ? (localProjects[selected.slug] ?? selected.project) : null;
     const current = Boolean(project && selected?.audioContentHash && project.audioContentHash === selected.audioContentHash);
@@ -156,6 +168,16 @@ export function PathwayVideoStudio({ pathways, databaseReady }: { pathways: Stud
     for (const render of renders) if (!result.has(render.format)) result.set(render.format, render);
     return result;
   }, [renders]);
+  const readyRenders = useMemo(() => renders.filter((render) => render.status === "completed" && Boolean(render.output_url)), [renders]);
+  const reviewRender = useMemo(() => readyRenders.find((render) => render.id === reviewRenderId) ?? readyRenders[0] ?? null, [readyRenders, reviewRenderId]);
+
+  useEffect(() => {
+    if (!readyRenders.length) {
+      setReviewRenderId(null);
+      return;
+    }
+    setReviewRenderId((current) => current && readyRenders.some((render) => render.id === current) ? current : readyRenders[0].id);
+  }, [readyRenders]);
 
   async function analyzeAudio(force = false) {
     if (!selected?.audioUrl || !selected.scriptApproved || !databaseReady) return null;
@@ -256,6 +278,11 @@ export function PathwayVideoStudio({ pathways, databaseReady }: { pathways: Stud
   async function requestRender(targetFormat: PathwayVideoFormat) {
     if (!selected?.audioUrl) return;
     setMessage("");
+    setRenderErrors((current) => ({ ...current, [targetFormat]: "" }));
+    if (!rendererReady) {
+      setRenderErrors((current) => ({ ...current, [targetFormat]: "Video renderer is not connected yet. Open Setup → Video renderer first." }));
+      return;
+    }
     try {
       if (!projectSaved) {
         const project = await saveProject(true);
@@ -270,9 +297,10 @@ export function PathwayVideoStudio({ pathways, databaseReady }: { pathways: Stud
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || "Render could not be queued.");
       if (Array.isArray(data.renders)) setRenders((current) => [...data.renders, ...current]);
-      setMessage(`${formatLabel(targetFormat)} render queued. You can leave this page; the renderer runs independently.`);
+      setMessage(`${formatLabel(targetFormat)} render queued. Its status will update here automatically, and the finished MP4 will appear in Final render review.`);
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Render could not be queued.");
+      const detail = error instanceof Error ? error.message : "Render could not be queued.";
+      setRenderErrors((current) => ({ ...current, [targetFormat]: detail }));
     } finally {
       setBusy(null);
     }
@@ -357,17 +385,34 @@ export function PathwayVideoStudio({ pathways, databaseReady }: { pathways: Stud
     </div>
 
     <section className="admin-card video-export-card">
-      <div className="video-card-heading"><div><span className="section-kicker">Render queue</span><h2>Export once, publish anywhere</h2></div><span className={projectSaved ? "video-save-state is-saved" : "video-save-state"}>{projectSaved ? "Timeline saved" : "Unsaved changes"}</span></div>
+      <div className="video-card-heading"><div><span className="section-kicker">Render queue</span><h2>Render, then review</h2></div><span className={projectSaved ? "video-save-state is-saved" : "video-save-state"}>{projectSaved ? "Timeline saved" : "Unsaved changes"}</span></div>
+      {!rendererReady ? <div className="video-renderer-warning"><div><strong>Renderer not connected</strong><span>Your last Render click could not start a job because the GitHub Actions renderer token is missing.</span></div><a className="button" href="/admin/setup#video-renderer">Open Setup</a></div> : null}
       <div className="video-export-grid">{(Object.keys(VIDEO_FORMATS) as PathwayVideoFormat[]).map((key) => {
         const latest = latestByFormat.get(key);
         const rendering = busy === `render:${key}` || latest?.status === "queued" || latest?.status === "rendering";
+        const localError = renderErrors[key];
         return <div className="video-export-option" key={key}>
           <div className="video-export-icon">{key === "youtube" ? <Youtube size={22}/> : <Film size={22}/>}</div>
           <div><strong>{formatLabel(key)}</strong><p>{VIDEO_FORMATS[key].purpose}</p>{latest ? <small className={`render-status is-${latest.status}`}>{renderStatusLabel(latest)}{latest.error ? ` · ${latest.error}` : ""}</small> : <small>No render yet</small>}</div>
-          {latest?.status === "completed" && latest.output_url ? <a className="button" href={latest.output_url} target="_blank" rel="noreferrer"><Download size={15}/> Download</a> : <button type="button" className="button" disabled={!databaseReady || !selected.audioUrl || rendering || busy === "analyze"} onClick={() => void requestRender(key)}>{rendering ? <Loader2 className="spin" size={15}/> : <RefreshCw size={15}/>} {latest ? "Render again" : "Render"}</button>}
+          {latest?.status === "completed" && latest.output_url ? <div className="video-render-actions"><button type="button" className="button primary" onClick={() => setReviewRenderId(latest.id)}><Play size={15}/> Watch</button><a className="button" href={latest.output_url} target="_blank" rel="noreferrer"><Download size={15}/> Download</a></div> : <button type="button" className="button" disabled={!databaseReady || !rendererReady || !selected.audioUrl || rendering || busy === "analyze"} onClick={() => void requestRender(key)}>{rendering ? <Loader2 className="spin" size={15}/> : <RefreshCw size={15}/>} {latest ? "Render again" : "Render"}</button>}
+          {localError ? <div className="video-render-inline-error">{localError}{!rendererReady ? <> <a href="/admin/setup#video-renderer">Fix in Setup</a></> : null}</div> : null}
         </div>;
       })}</div>
-      <div className="video-distribution-note"><strong>Preview = export</strong><p>The renderer uses the same rich master-template language: red/blue ambient background, exact wordmark, visualizer, bottom-left section tracker, cue transitions, and red-to-blue progress bar.</p></div>
+      <div className="video-distribution-note"><strong>Nothing publishes from here</strong><p>Render creates the final MP4 only. When it is finished, the exact file appears in Final render review below. You can watch it, scrub it, use full screen, and download it before Channel Publishing ever receives it.</p></div>
+    </section>
+
+    <section className="admin-card video-review-card">
+      <div className="video-card-heading"><div><span className="section-kicker">Quality control</span><h2>Final render review</h2></div>{reviewRender ? <span className="video-review-ready">Ready to review</span> : <span>Waiting for render</span>}</div>
+      {reviewRender?.output_url ? <>
+        <div className={`video-final-player is-${reviewRender.format}`}>
+          <video key={reviewRender.id} controls playsInline preload="metadata" src={reviewRender.output_url}/>
+        </div>
+        <div className="video-review-controls">
+          <div><strong>{selected.title} · {formatLabel(reviewRender.format)}</strong><span>This is the actual rendered MP4, not the browser mockup.{reviewRender.completed_at ? ` Finished ${new Date(reviewRender.completed_at).toLocaleString()}.` : ""}</span></div>
+          <div className="video-review-actions"><a className="button" href={reviewRender.output_url} target="_blank" rel="noreferrer"><Download size={15}/> Download MP4</a></div>
+        </div>
+        {readyRenders.length > 1 ? <div className="video-review-versions">{readyRenders.map((render) => <button type="button" key={render.id} className={reviewRender.id === render.id ? "is-active" : ""} onClick={() => setReviewRenderId(render.id)}><strong>{formatLabel(render.format)}</strong><span>{render.completed_at ? new Date(render.completed_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : "Ready"}</span></button>)}</div> : null}
+      </> : <div className="video-review-empty"><Film size={28}/><div><strong>No finished video yet</strong><p>Once a render reaches Ready, the MP4 player will appear here automatically. You will be able to watch the entire export in-app before posting anywhere.</p></div></div>}
     </section>
 
     <PathwayVideoPublishingKit slug={selected.slug} title={selected.title}/>
