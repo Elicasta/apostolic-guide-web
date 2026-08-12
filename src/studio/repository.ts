@@ -1,5 +1,5 @@
 import { createServiceClient } from "@/supabase";
-import type { EpisodeAccessMode, EpisodeType, ProgramState } from "./types";
+import type { StudioAccessMode, StudioEpisodeType, StudioProgramState } from "./types";
 
 export class StudioPersistenceError extends Error {}
 
@@ -39,7 +39,7 @@ export async function getEpisode(episodeId: string) {
   return { episode, pathways: pathways ?? [], run, cues };
 }
 
-export async function createEpisode(input: { title: string; type?: EpisodeType; accessMode?: EpisodeAccessMode; pathwayId?: string; createdBy: string }) {
+export async function createEpisode(input: { title: string; type?: StudioEpisodeType; accessMode?: StudioAccessMode; pathwayId?: string; createdBy: string }) {
   const client = db();
   const { data: episode, error } = await client.from("studio_episodes").insert({
     title: input.title.trim(),
@@ -87,7 +87,7 @@ export async function createSession(input: { episodeId: string; runId: string })
   const client = db();
   const { data: session, error } = await client.from("studio_sessions").insert({ episode_id: input.episodeId, active_run_id: input.runId, status: "created" }).select("*").single();
   if (error) throw new StudioPersistenceError(error.message);
-  const initial: ProgramState = {
+  const initial: StudioProgramState = {
     sessionId: session.id,
     episodeId: input.episodeId,
     status: "prepared",
@@ -109,15 +109,35 @@ export async function getSession(sessionId: string) {
   if (!session) return null;
   const { data: row, error: stateError } = await client.from("studio_session_state").select("state, state_version, updated_at").eq("session_id", sessionId).maybeSingle();
   if (stateError) throw new StudioPersistenceError(stateError.message);
-  return { session, state: (row?.state ?? null) as ProgramState | null, stateVersion: Number(row?.state_version ?? 0) };
+  return { session, state: (row?.state ?? null) as StudioProgramState | null, stateVersion: Number(row?.state_version ?? 0) };
 }
 
-export async function saveSessionState(sessionId: string, state: ProgramState, expectedVersion: number) {
+export async function saveSessionState(sessionId: string, state: StudioProgramState, expectedVersion: number) {
   const client = db();
   const nextVersion = expectedVersion + 1;
-  const nextState = { ...state, sessionId, version: nextVersion, updatedAt: new Date().toISOString() };
+  const nextState: StudioProgramState = { ...state, sessionId, version: nextVersion, updatedAt: new Date().toISOString() };
   const { data, error } = await client.from("studio_session_state").update({ state: nextState, state_version: nextVersion }).eq("session_id", sessionId).eq("state_version", expectedVersion).select("state_version").maybeSingle();
   if (error) throw new StudioPersistenceError(error.message);
   if (!data) throw new StudioPersistenceError("Studio state changed on another controller. Refresh the authoritative state before retrying.");
-  return nextState as ProgramState;
+  return nextState;
+}
+
+export async function getAppliedActionIds(sessionId: string) {
+  const { data, error } = await db().from("studio_production_events").select("action_id").eq("session_id", sessionId).eq("success", true).not("action_id", "is", null);
+  if (error) throw new StudioPersistenceError(error.message);
+  return new Set((data ?? []).map((item) => item.action_id).filter((value): value is string => typeof value === "string"));
+}
+
+export async function logProductionEvent(input: { sessionId: string; actorId?: string; eventType: string; cueId?: string; actionId?: string; payload?: Record<string, unknown>; success?: boolean; error?: string }) {
+  const { error } = await db().from("studio_production_events").insert({
+    session_id: input.sessionId,
+    actor_id: input.actorId,
+    event_type: input.eventType,
+    cue_id: input.cueId,
+    action_id: input.actionId,
+    payload: input.payload ?? {},
+    success: input.success ?? true,
+    error: input.error
+  });
+  if (error) throw new StudioPersistenceError(error.message);
 }
