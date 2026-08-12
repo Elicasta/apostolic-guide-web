@@ -12,6 +12,8 @@ import { scriptures, topicBySlug } from "@/data";
 import { allPathways, pathwayBySlug } from "@/pathway-catalog";
 import { buildAppUrl } from "@/urls";
 
+export const revalidate = 60;
+
 export function generateStaticParams() { return allPathways.map((pathway) => ({ slug: pathway.slug })); }
 
 type Props = { params: Promise<{ slug: string }> };
