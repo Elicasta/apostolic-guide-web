@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { allPathways } from "../src/pathway-catalog";
-import { buildPathwayNarration, pathwayNarrationHash } from "../src/pathway-audio";
+import { buildPathwayNarration, hashAudioText, pathwayNarrationHash } from "../src/pathway-audio";
 
 test("every pathway produces TTS-safe narration", () => {
   for (const pathway of allPathways) {
@@ -22,4 +22,12 @@ test("pathway narration hashes are deterministic and distinct", () => {
     return first;
   });
   assert.equal(new Set(hashes).size, hashes.length, "Two pathway narrations produced the same content hash");
+});
+
+test("approved script hashes change when editorial wording changes", () => {
+  const original = hashAudioText("Jesus is God revealed in flesh.");
+  const edited = hashAudioText("Jesus Christ is God revealed in flesh.");
+  assert.match(original, /^[a-f0-9]{64}$/);
+  assert.notEqual(original, edited);
+  assert.equal(hashAudioText("  Jesus is God revealed in flesh.  "), original);
 });
