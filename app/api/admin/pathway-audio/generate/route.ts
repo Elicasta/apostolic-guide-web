@@ -1,3 +1,4 @@
+import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getStudioPermission } from "@/auth";
@@ -29,7 +30,7 @@ export async function POST(request: Request) {
   if (!service) return NextResponse.json({ error: "Supabase service access is not configured." }, { status: 503 });
 
   const contentHash = pathwayNarrationHash(pathway);
-  const existing = await service.schema("content").from("pathway_audio_assets").select("pathway_slug,audio_url,content_hash,model,voice,generated_at").eq("pathway_slug", pathway.slug).maybeSingle();
+  const existing = await service.schema("content").from("pathway_audio_assets").select("pathway_slug,audio_url,storage_path,content_hash,model,voice,generated_at").eq("pathway_slug", pathway.slug).maybeSingle();
   if (!parsed.data.force && existing.data?.content_hash === contentHash && existing.data?.audio_url) {
     return NextResponse.json({ asset: existing.data, generated: false });
   }
@@ -81,7 +82,18 @@ export async function POST(request: Request) {
     generated_by: access.user.id
   };
   const saved = await service.schema("content").from("pathway_audio_assets").upsert(row, { onConflict: "pathway_slug" }).select("pathway_slug,audio_url,content_hash,model,voice,generated_at").single();
-  if (saved.error) return NextResponse.json({ error: saved.error.message }, { status: 500 });
+  if (saved.error) {
+    await service.storage.from("pathway-audio").remove([objectPath]);
+    return NextResponse.json({ error: saved.error.message }, { status: 500 });
+  }
 
+  const previousStoragePath = existing.data?.storage_path ? String(existing.data.storage_path) : null;
+  if (previousStoragePath && previousStoragePath !== objectPath) {
+    const cleanup = await service.storage.from("pathway-audio").remove([previousStoragePath]);
+    if (cleanup.error) console.error("pathway audio cleanup failed", { pathway: pathway.slug, message: cleanup.error.message });
+  }
+
+  revalidatePath(`/pathways/${pathway.slug}`);
+  revalidatePath("/admin/audio");
   return NextResponse.json({ asset: saved.data, generated: true });
 }
