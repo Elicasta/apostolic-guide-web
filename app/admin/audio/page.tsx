@@ -23,11 +23,12 @@ export default async function AdminPathwayAudioPage() {
     const [assetsResult, scriptsResult, metricsResult] = await Promise.all([
       service.from("pathway_audio_assets").select("pathway_slug,audio_url,content_hash,generated_at"),
       service.from("pathway_audio_scripts").select("pathway_slug,script_text,source_hash,script_hash,status,model,updated_at"),
-      service.schema("analytics").from("pathway_audio_metrics").select("pathway_slug,starts,unique_listeners,completions,listened_seconds")
+      service.from("pathway_audio_metrics").select("pathway_slug,starts,unique_listeners,completions,listened_seconds")
     ]);
     assetRows = (assetsResult.data ?? []) as AudioAssetRow[];
     scriptRows = (scriptsResult.data ?? []) as ScriptRow[];
     metricRows = (metricsResult.data ?? []) as AudioMetricRow[];
+    if (metricsResult.error) console.error("pathway audio metrics load failed", { message: metricsResult.error.message, code: metricsResult.error.code });
   }
 
   const assets = new Map(assetRows.map((row) => [row.pathway_slug, row]));
