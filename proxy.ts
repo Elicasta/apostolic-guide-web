@@ -2,6 +2,12 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 const STUDIO_HOST = "studio.apostolicguide.com";
+const STUDIO_PASSTHROUGH_ROUTES = new Set([
+  "/login",
+  "/forgot-password",
+  "/update-password",
+  "/favicon.ico"
+]);
 
 function requestHost(request: NextRequest) {
   return (request.headers.get("x-forwarded-host") ?? request.headers.get("host") ?? "")
@@ -14,15 +20,16 @@ function studioRewrite(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname;
 
-  // APIs, Next internals, assets, auth callbacks, guest invites and clean OBS output
-  // already have canonical application routes and should not be prefixed.
+  // These routes already exist at the application root and must remain canonical
+  // on the Studio hostname. In particular, auth routes must never become
+  // /studio/login or /studio/update-password.
   if (
+    STUDIO_PASSTHROUGH_ROUTES.has(pathname) ||
     pathname.startsWith("/api/") ||
     pathname.startsWith("/_next/") ||
     pathname.startsWith("/auth/") ||
     pathname.startsWith("/guest/") ||
-    pathname.startsWith("/output/") ||
-    pathname === "/favicon.ico"
+    pathname.startsWith("/output/")
   ) {
     return null;
   }
