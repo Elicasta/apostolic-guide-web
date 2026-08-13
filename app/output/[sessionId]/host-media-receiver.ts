@@ -14,6 +14,7 @@ export async function connectOutputHostMedia(
   const peer = new RTCPeerConnection();
   const remoteStream = new MediaStream();
   let mirror:LiveKitConnection|null=null,mirrorTimer:ReturnType<typeof setTimeout>|null=null,mirrorStarted=false;
+  const disconnectMirror=()=>{const active=mirror as LiveKitConnection|null;if(active)active.disconnect();mirror=null;};
   async function startMonitorMirror(){if(mirrorStarted||!remoteStream.getVideoTracks().length)return;mirrorStarted=true;try{const response=await fetch(`/api/studio/output/${sessionId}/remote-media?token=${encodeURIComponent(token)}`,{cache:"no-store"});if(!response.ok)return;const payload=await response.json();if(!payload.hostPreviewPublisher)return;mirror=await publishGuestStream(payload.hostPreviewPublisher,remoteStream);}catch{mirrorStarted=false;}}
   peer.ontrack = (event) => {
     event.streams[0]?.getTracks().forEach((track) => {
@@ -41,11 +42,11 @@ export async function connectOutputHostMedia(
 
     peer.onconnectionstatechange = () => {
       if (peer.connectionState === "connected") onStatus("connected");
-      if (["failed", "closed", "disconnected"].includes(peer.connectionState)){onStatus("failed");mirror?.disconnect();mirror=null;}
+      if (["failed", "closed", "disconnected"].includes(peer.connectionState)){onStatus("failed");disconnectMirror();}
     };
     return peer;
   } catch (error) {
-    if(mirrorTimer)clearTimeout(mirrorTimer);mirror?.disconnect();peer.close();
+    if(mirrorTimer)clearTimeout(mirrorTimer);disconnectMirror();peer.close();
     onStatus("failed");
     throw error;
   }
