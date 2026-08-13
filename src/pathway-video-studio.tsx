@@ -286,7 +286,7 @@ export function PathwayVideoStudio({
     }
   }
 
-  async function requestRender(targetFormat: PathwayVideoFormat) {
+  async function requestRender(targetFormat: PathwayVideoFormat, replaceExisting = false) {
     if (!selected?.audioUrl) return;
     setMessage("");
     setRenderErrors((current) => ({ ...current, [targetFormat]: "" }));
@@ -303,12 +303,14 @@ export function PathwayVideoStudio({
       const response = await fetch("/api/admin/video-studio/render", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ slug: selected.slug, formats: [targetFormat] })
+        body: JSON.stringify({ slug: selected.slug, formats: [targetFormat], replaceExisting })
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || "Render could not be queued.");
       if (Array.isArray(data.renders)) setRenders((current) => data.renders.map((render: RenderRow) => ({ ...render, progress_percent: 1, progress_stage: "Queued" })).concat(current));
-      setMessage(`${formatLabel(targetFormat)} render queued. Live progress will update here automatically, and the finished MP4 will appear in Final render review.`);
+      setMessage(replaceExisting
+        ? `${formatLabel(targetFormat)} regeneration queued. The current MP4 stays available until the replacement is ready, then the old local video is deleted automatically.`
+        : `${formatLabel(targetFormat)} render queued. Live progress will update here automatically, and the finished MP4 will appear in Final render review.`);
     } catch (error) {
       const detail = error instanceof Error ? error.message : "Render could not be queued.";
       setRenderErrors((current) => ({ ...current, [targetFormat]: detail }));
@@ -409,7 +411,14 @@ export function PathwayVideoStudio({
           <div><strong>{formatLabel(key)}</strong><p>{VIDEO_FORMATS[key].purpose}</p>{latest ? <small className={`render-status is-${latest.status}`}>{renderStatusLabel(latest)}{latest.error ? ` · ${latest.error}` : ""}</small> : <small>No render yet</small>}
             {rendering ? <div className="video-render-progress" aria-label={`${renderStage} ${renderPercent}%`}><div className="video-render-progress-copy"><span>{renderStage}</span><strong>{renderPercent}%</strong></div><div className="video-render-progress-track"><i style={{ width: `${renderPercent}%` }}/></div></div> : null}
           </div>
-          {latest?.status === "completed" && latest.output_url ? <div className="video-render-actions"><button type="button" className="button primary" onClick={() => setReviewRenderId(latest.id)}><Play size={15}/> Watch</button><a className="button" href={latest.output_url} target="_blank" rel="noreferrer"><Download size={15}/> Download</a></div> : <button type="button" className="button" disabled={!databaseReady || !rendererReady || !selected.audioUrl || rendering || busy === "analyze"} onClick={() => void requestRender(key)}>{rendering ? <Loader2 className="spin" size={15}/> : <RefreshCw size={15}/>} {latest ? "Render again" : "Render"}</button>}
+          {latest?.status === "completed" && latest.output_url ? <div className="video-render-actions">
+            <button type="button" className="button primary" onClick={() => setReviewRenderId(latest.id)}><Play size={15}/> Watch</button>
+            <a className="button" href={latest.output_url} target="_blank" rel="noreferrer"><Download size={15}/> Download</a>
+            <button type="button" className="button" disabled={!databaseReady || !rendererReady || !selected.audioUrl || rendering || busy === "analyze"} onClick={() => {
+              const confirmed = window.confirm(`Regenerate ${formatLabel(key)}? The current MP4 will stay available until the new render finishes successfully, then the old local video will be deleted.`);
+              if (confirmed) void requestRender(key, true);
+            }}>{busy === `render:${key}` ? <Loader2 className="spin" size={15}/> : <RefreshCw size={15}/>} Regenerate</button>
+          </div> : <button type="button" className="button" disabled={!databaseReady || !rendererReady || !selected.audioUrl || rendering || busy === "analyze"} onClick={() => void requestRender(key)}>{rendering ? <Loader2 className="spin" size={15}/> : <RefreshCw size={15}/>} {latest ? "Render again" : "Render"}</button>}
           {localError ? <div className="video-render-inline-error">{localError}{!rendererReady ? <> <a href="/admin/setup#video-renderer">Fix in Setup</a></> : null}</div> : null}
         </div>;
       })}</div>
