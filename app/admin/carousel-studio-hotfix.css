@@ -1,0 +1,8 @@
+/* Small interaction pass loaded last so manual constraints affect every slide type, including Verse Connection. */
+.is-verse .carousel-verse-connection{top:var(--copy-y,49%)!important;gap:var(--copy-gap,3.1cqw)!important;justify-items:var(--copy-align,center)!important;text-align:var(--copy-align,center)!important}
+.is-verse .carousel-verse-connection>strong{font-size:calc(9.2cqw * var(--headline-scale,1))!important;max-width:92%;font-weight:800!important}
+.is-verse .carousel-verse-connection>p{width:var(--body-width,86%)!important;font-size:calc(2.55cqw * var(--body-scale,1))!important;font-weight:700!important}
+.is-verse .carousel-verse-connection>i{font-size:calc(5.1cqw * var(--headline-scale,1))!important}
+.is-editorial .carousel-brand-mark,.is-verse .carousel-brand-mark{filter:none!important}
+.carousel-preview-card>.carousel-manual-panel{margin-top:14px;margin-bottom:14px}
+.carousel-preview-card>.carousel-manual-panel .carousel-manual-heading span{font-weight:700}
