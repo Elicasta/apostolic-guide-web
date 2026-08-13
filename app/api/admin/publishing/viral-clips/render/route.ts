@@ -29,6 +29,19 @@ async function rendererCredentials(service: ReturnType<typeof createServiceClien
   return { token, repository };
 }
 
+function callbackOrigin(request: Request) {
+  const configured = process.env.NEXT_PUBLIC_SITE_URL?.trim();
+  if (configured) {
+    try {
+      return new URL(configured).origin;
+    } catch {
+      // Fall through to the canonical production origin.
+    }
+  }
+  const origin = new URL(request.url).origin;
+  return origin.includes("localhost") ? origin : "https://www.apostolicguide.com";
+}
+
 export async function POST(request: Request) {
   const { access, allowed } = await getStudioPermission("manage_distribution");
   if (!allowed || access.state !== "allowed" || !access.user) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -107,23 +120,25 @@ export async function POST(request: Request) {
 
   const publicUrl = service.storage.from("pathway-video").getPublicUrl(storagePath).data.publicUrl;
   const coverPublicUrl = service.storage.from("pathway-video").getPublicUrl(coverStoragePath).data.publicUrl;
-  const callbackUrl = `${new URL(request.url).origin}/api/admin/publishing/viral-clips/render-callback`;
+  const callbackUrl = `${callbackOrigin(request)}/api/admin/publishing/viral-clips/render-callback`;
   const now = new Date().toISOString();
   const existingMetadata = clip.analysis_metadata && typeof clip.analysis_metadata === "object"
     ? clip.analysis_metadata as Record<string, unknown>
     : {};
   const socialPackage = normalizeSocialClipPackage(existingMetadata);
+  const queuedMetadata = {
+    ...existingMetadata,
+    renderBridge: { publicUrl, coverPublicUrl, coverStoragePath },
+    renderProgress: { progress: 1, stage: "Queued for render worker", updatedAt: now },
+    requestedAt: now
+  };
   const prepared = await service.from("pathway_social_clips").update({
     asset_id: assetId,
     status: "queued",
     error: null,
     storage_path: storagePath,
     callback_token_hash: callbackTokenHash,
-    analysis_metadata: {
-      ...existingMetadata,
-      renderBridge: { publicUrl, coverPublicUrl, coverStoragePath },
-      requestedAt: now
-    },
+    analysis_metadata: queuedMetadata,
     updated_at: now
   }).eq("id", clip.id);
   if (prepared.error) return NextResponse.json({ error: prepared.error.message }, { status: 500 });
@@ -163,12 +178,24 @@ export async function POST(request: Request) {
   if (!dispatch.ok) {
     const detail = (await dispatch.text().catch(() => "")).slice(0, 800);
     const error = `Social clip renderer dispatch failed (${dispatch.status})${detail ? `: ${detail}` : ""}`;
+    const failedAt = new Date().toISOString();
     await Promise.all([
-      service.from("pathway_social_clips").update({ status: "failed", error, updated_at: new Date().toISOString() }).eq("id", clip.id),
-      assetId ? service.from("pathway_assets").update({ status: "blocked", notes: error, updated_at: new Date().toISOString() }).eq("id", assetId) : Promise.resolve({ error: null })
+      service.from("pathway_social_clips").update({
+        status: "failed",
+        error,
+        analysis_metadata: {
+          ...queuedMetadata,
+          renderProgress: { progress: 100, stage: "Failed to start renderer", updatedAt: failedAt }
+        },
+        updated_at: failedAt
+      }).eq("id", clip.id),
+      assetId ? service.from("pathway_assets").update({ status: "blocked", notes: error, updated_at: failedAt }).eq("id", assetId) : Promise.resolve({ error: null })
     ]);
     return NextResponse.json({ error }, { status: 502 });
   }
 
-  return NextResponse.json({ clip: { ...clip, asset_id: assetId, status: "queued" }, queued: true });
+  return NextResponse.json({
+    clip: { ...clip, asset_id: assetId, status: "queued", analysis_metadata: queuedMetadata },
+    queued: true
+  });
 }
