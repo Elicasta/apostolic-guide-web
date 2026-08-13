@@ -83,18 +83,18 @@ export function CarouselTextureDirector({ aiReady }: { aiReady: boolean }) {
       const target = document.querySelector(".carousel-preview-card");
       if (target) setPortalTarget(target);
       const nextStyle = readStyle();
+      const nextChoice = loadChoice(nextStyle);
+      applyTexture(nextChoice);
       setStyle((current) => {
         if (current === nextStyle) return current;
-        const nextChoice = loadChoice(nextStyle);
         setChoice(nextChoice);
-        applyTexture(nextChoice);
         return nextStyle;
       });
     };
 
     sync();
     const observer = new MutationObserver(sync);
-    observer.observe(document.body, { subtree: true, attributes: true, attributeFilter: ["class"] });
+    observer.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ["class"] });
 
     const selects = Array.from(document.querySelectorAll<HTMLSelectElement>(".carousel-sourcebar select"));
     const modeSelect = selects[1];
