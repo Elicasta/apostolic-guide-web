@@ -45,3 +45,11 @@
   .carousel-background-modes{grid-template-columns:repeat(2,1fr)}
   .carousel-background-recommendation{grid-template-columns:auto 1fr}.carousel-background-recommendation>.button{grid-column:1/-1;width:100%;justify-content:center}
 }
+
+/* Do not darken or reveal an AI image layer until the image exists. This keeps the preview visually stable while AI is only analyzing the slide. */
+.carousel-artboard[data-bg-mode="image"]:not([style*="--generated-bg-image"]) .carousel-artwork::before,
+.carousel-artboard[data-bg-mode="image"]:not([style*="--generated-bg-image"]) .carousel-artwork::after,
+.carousel-export-artboard[data-bg-mode="image"]:not([style*="--generated-bg-image"]) .carousel-artwork::before,
+.carousel-export-artboard[data-bg-mode="image"]:not([style*="--generated-bg-image"]) .carousel-artwork::after{opacity:0!important}
+.carousel-artboard[data-bg-mode="image"]:not([style*="--generated-bg-image"]) .carousel-city,
+.carousel-export-artboard[data-bg-mode="image"]:not([style*="--generated-bg-image"]) .carousel-city{display:block!important}
