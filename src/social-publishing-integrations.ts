@@ -1,6 +1,6 @@
 import { createServiceClient } from "./supabase";
 
-export type SocialPublishingPlatform = "youtube" | "instagram" | "tiktok";
+export type SocialPublishingPlatform = "youtube" | "instagram" | "threads" | "tiktok";
 
 export type SocialPublishingCredentialStatus = {
   platform: SocialPublishingPlatform;
@@ -27,6 +27,13 @@ export const SOCIAL_PUBLISHING_SECRET_NAMES = {
     instagramUserId: "meta_instagram_user_id",
     graphVersion: "meta_instagram_graph_version"
   },
+  threads: {
+    appId: "meta_threads_app_id",
+    appSecret: "meta_threads_app_secret",
+    accessToken: "meta_threads_access_token",
+    userId: "meta_threads_user_id",
+    username: "meta_threads_username"
+  },
   tiktok: {
     clientKey: "tiktok_client_key",
     clientSecret: "tiktok_client_secret",
@@ -39,10 +46,12 @@ export const SOCIAL_PUBLISHING_SECRET_NAMES = {
 export type SocialPublishingCredentialInput = {
   youtube?: Partial<Record<keyof typeof SOCIAL_PUBLISHING_SECRET_NAMES.youtube, string>>;
   instagram?: Partial<Record<keyof typeof SOCIAL_PUBLISHING_SECRET_NAMES.instagram, string>>;
+  threads?: Partial<Record<keyof typeof SOCIAL_PUBLISHING_SECRET_NAMES.threads, string>>;
   tiktok?: Partial<Record<keyof typeof SOCIAL_PUBLISHING_SECRET_NAMES.tiktok, string>>;
 };
 
 type SecretRow = { name: string; secret: string; updated_at?: string | null };
+type ConnectionStatus = { username?: string | null; last_verified_at?: string | null } | null | undefined;
 
 function allSecretNames() {
   return Object.values(SOCIAL_PUBLISHING_SECRET_NAMES).flatMap((group) => Object.values(group));
@@ -54,7 +63,8 @@ function boolFields<T extends Record<string, string>>(names: T, values: Map<stri
 
 export function summarizeSocialPublishingCredentials(
   rows: SecretRow[],
-  instagramStatus?: { username?: string | null; last_verified_at?: string | null } | null
+  instagramStatus?: ConnectionStatus,
+  threadsStatus?: ConnectionStatus
 ): SocialPublishingCredentialStatus[] {
   const values = new Map(rows.map((row) => [row.name, row.secret]));
   const updated = new Map(rows.map((row) => [row.name, row.updated_at ?? null]));
@@ -66,6 +76,7 @@ export function summarizeSocialPublishingCredentials(
 
   const youtubeFields = boolFields(SOCIAL_PUBLISHING_SECRET_NAMES.youtube, values);
   const instagramFields = boolFields(SOCIAL_PUBLISHING_SECRET_NAMES.instagram, values);
+  const threadsFields = boolFields(SOCIAL_PUBLISHING_SECRET_NAMES.threads, values);
   const tiktokFields = boolFields(SOCIAL_PUBLISHING_SECRET_NAMES.tiktok, values);
 
   return [
@@ -86,6 +97,14 @@ export function summarizeSocialPublishingCredentials(
       updatedAt: instagramStatus?.last_verified_at ?? newest(SOCIAL_PUBLISHING_SECRET_NAMES.instagram)
     },
     {
+      platform: "threads",
+      appConfigured: threadsFields.appId && threadsFields.appSecret,
+      accountAuthorized: threadsFields.accessToken && threadsFields.userId,
+      accountLabel: threadsStatus?.username ? `@${threadsStatus.username.replace(/^@/, "")}` : values.get(SOCIAL_PUBLISHING_SECRET_NAMES.threads.username)?.trim() ? `@${values.get(SOCIAL_PUBLISHING_SECRET_NAMES.threads.username)?.trim()?.replace(/^@/, "")}` : values.get(SOCIAL_PUBLISHING_SECRET_NAMES.threads.userId)?.trim() || null,
+      fields: threadsFields,
+      updatedAt: threadsStatus?.last_verified_at ?? newest(SOCIAL_PUBLISHING_SECRET_NAMES.threads)
+    },
+    {
       platform: "tiktok",
       appConfigured: tiktokFields.clientKey && tiktokFields.clientSecret,
       accountAuthorized: tiktokFields.refreshToken || tiktokFields.accessToken,
@@ -100,19 +119,22 @@ export async function getSocialPublishingCredentialStatus(): Promise<SocialPubli
   const service = createServiceClient();
   if (!service) return summarizeSocialPublishingCredentials([]);
 
-  const [secretsResult, instagramResult] = await Promise.all([
+  const [secretsResult, statusResult] = await Promise.all([
     service.schema("analytics").from("integration_secrets")
       .select("name,secret,updated_at")
       .in("name", allSecretNames()),
     service.from("social_connection_status")
-      .select("username,last_verified_at")
-      .eq("platform", "instagram")
-      .maybeSingle()
+      .select("platform,username,last_verified_at")
+      .in("platform", ["instagram", "threads"])
   ]);
 
   if (secretsResult.error) throw new Error(secretsResult.error.message);
-  const instagramStatus = instagramResult.error ? null : instagramResult.data;
-  return summarizeSocialPublishingCredentials((secretsResult.data ?? []) as SecretRow[], instagramStatus);
+  const statuses = new Map((statusResult.error ? [] : statusResult.data ?? []).map((row) => [String(row.platform), row]));
+  return summarizeSocialPublishingCredentials(
+    (secretsResult.data ?? []) as SecretRow[],
+    statuses.get("instagram") as ConnectionStatus,
+    statuses.get("threads") as ConnectionStatus
+  );
 }
 
 export async function getSocialPublishingCredentialValues(platform: SocialPublishingPlatform) {
