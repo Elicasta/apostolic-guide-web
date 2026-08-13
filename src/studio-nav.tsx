@@ -39,7 +39,56 @@ export const studioNavSections: Array<{ label: string; items: Array<{ href: stri
     { href: "/admin/setup", label: "Setup", icon: Settings, permission: "manage_integrations" }
   ]}
 ];
-function isActive(pathname:string,href:string,exact?:boolean){if(exact)return pathname===href;return pathname===href||pathname.startsWith(`${href}/`)}
-function NavigationSections({role,onNavigate,mobile=false}:{role:StudioRole;onNavigate?:()=>void;mobile?:boolean}){const pathname=usePathname();return <>{studioNavSections.map((section)=>{const visibleItems=section.items.filter((item)=>hasStudioPermission(role,item.permission));if(!visibleItems.length)return null;return <div className={mobile?"studio-mobile-nav-section":"studio-nav-group"} key={section.label}><div className="admin-nav-section">{section.label}</div><div className={mobile?"studio-mobile-nav-items":undefined}>{visibleItems.map((item)=>{const Icon=item.icon;const active=isActive(pathname,item.href,item.exact);return <Link onClick={onNavigate} className={active?"is-active":""} aria-current={active?"page":undefined} href={item.href} key={item.href}><Icon size={17}/><span>{item.label}</span></Link>})}</div></div>})}</>}
-export function StudioNav({role}:{role:StudioRole}){return <NavigationSections role={role}/>}
-export function StudioMobileNav({role}:{role:StudioRole}){const pathname=usePathname();const[open,setOpen]=useState(false);useEffect(()=>setOpen(false),[pathname]);useEffect(()=>{if(!open)return;const previous=document.body.style.overflow;document.body.style.overflow="hidden";return()=>{document.body.style.overflow=previous}},[open]);return <div className="studio-mobile-nav-root"><button type="button" className="studio-mobile-menu-button" onClick={()=>setOpen(true)} aria-label="Open Studio navigation" aria-expanded={open}><Menu size={20}/></button>{open?<><button type="button" className="studio-mobile-nav-backdrop" onClick={()=>setOpen(false)} aria-label="Close navigation"/><aside className="studio-mobile-nav-drawer" aria-label="Studio navigation"><div className="studio-mobile-nav-head"><div><strong>Studio</strong><span>Navigate workspace</span></div><button type="button" onClick={()=>setOpen(false)} aria-label="Close navigation"><X size={20}/></button></div><div className="studio-mobile-nav-scroll"><NavigationSections role={role} mobile onNavigate={()=>setOpen(false)}/></div><div className="studio-mobile-nav-footer"><Link href="/" onClick={()=>setOpen(false)}>View public site</Link></div></aside></>:null}</div>}
+
+function isActive(pathname: string, href: string, exact?: boolean) {
+  if (exact) return pathname === href;
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+function NavigationSections({ role, onNavigate, mobile = false }: { role: StudioRole; onNavigate?: () => void; mobile?: boolean }) {
+  const pathname = usePathname();
+  return <>
+    {studioNavSections.map((section) => {
+      const visibleItems = section.items.filter((item) => hasStudioPermission(role, item.permission));
+      if (!visibleItems.length) return null;
+      return <div className={mobile ? "studio-mobile-nav-section" : "studio-nav-group"} key={section.label}>
+        <div className="admin-nav-section">{section.label}</div>
+        <div className={mobile ? "studio-mobile-nav-items" : undefined}>
+          {visibleItems.map((item) => {
+            const Icon = item.icon;
+            const active = isActive(pathname, item.href, item.exact);
+            return <Link onClick={onNavigate} className={active ? "is-active" : ""} aria-current={active ? "page" : undefined} href={item.href} key={item.href}><Icon size={17}/><span>{item.label}</span></Link>;
+          })}
+        </div>
+      </div>;
+    })}
+  </>;
+}
+
+export function StudioNav({ role }: { role: StudioRole }) {
+  return <NavigationSections role={role}/>;
+}
+
+export function StudioMobileNav({ role }: { role: StudioRole }) {
+  const pathname = usePathname();
+  const [open, setOpen] = useState(false);
+  useEffect(() => setOpen(false), [pathname]);
+  useEffect(() => {
+    if (!open) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = previous; };
+  }, [open]);
+
+  return <div className="studio-mobile-nav-root">
+    <button type="button" className="studio-mobile-menu-button" onClick={() => setOpen(true)} aria-label="Open Studio navigation" aria-expanded={open}><Menu size={20}/></button>
+    {open ? <>
+      <button type="button" className="studio-mobile-nav-backdrop" onClick={() => setOpen(false)} aria-label="Close navigation"/>
+      <aside className="studio-mobile-nav-drawer" aria-label="Studio navigation">
+        <div className="studio-mobile-nav-head"><div><strong>Studio</strong><span>Navigate workspace</span></div><button type="button" onClick={() => setOpen(false)} aria-label="Close navigation"><X size={20}/></button></div>
+        <div className="studio-mobile-nav-scroll"><NavigationSections role={role} mobile onNavigate={() => setOpen(false)}/></div>
+        <div className="studio-mobile-nav-footer"><Link href="/" onClick={() => setOpen(false)}>View public site</Link></div>
+      </aside>
+    </> : null}
+  </div>;
+}
