@@ -15,6 +15,9 @@ export const AG_CAROUSEL_COLORS = {
 
 export type CarouselTextureId =
   | "none"
+  | "ag-navy-paper"
+  | "ag-paper-white"
+  | "ag-navy-speckle"
   | "paper-soft"
   | "paper-fibrous"
   | "grit-fine"
@@ -37,6 +40,9 @@ export type CarouselTexture = {
 
 export const CAROUSEL_TEXTURES: CarouselTexture[] = [
   { id: "none", label: "None", description: "Clean flat surface.", mood: "clean", bestFor: ["editorial", "verse"], defaultStrength: 0 },
+  { id: "ag-navy-paper", label: "AG Navy Paper", description: "The supplied Apostolic Guide navy paper texture. Tactile and even, with no distracting speckles.", mood: "brand", bestFor: ["street", "cinematic", "manifesto"], defaultStrength: 42 },
+  { id: "ag-paper-white", label: "AG White Paper", description: "The supplied warm-white paper texture for teaching, word studies, and verse connections.", mood: "brand editorial", bestFor: ["editorial", "verse"], defaultStrength: 36 },
+  { id: "ag-navy-speckle", label: "AG Navy Speckle", description: "The supplied navy texture with sparse bright flecks for stronger short-form statements.", mood: "brand grit", bestFor: ["street", "cinematic", "manifesto"], defaultStrength: 34 },
   { id: "paper-soft", label: "Paper Soft", description: "Subtle warm paper tooth without visible dirt.", mood: "editorial", bestFor: ["editorial", "verse", "manifesto"], defaultStrength: 24 },
   { id: "paper-fibrous", label: "Paper Fibrous", description: "Visible paper fibers for study-note tactility.", mood: "scholarly", bestFor: ["editorial", "verse"], defaultStrength: 30 },
   { id: "grit-fine", label: "Grit Fine", description: "Tight film-like grit that adds weight without obscuring type.", mood: "grounded", bestFor: ["street", "cinematic", "manifesto"], defaultStrength: 42 },
@@ -58,11 +64,11 @@ export const MODE_STYLE_DEFAULTS: Record<CarouselMode, CarouselVisualStyle> = {
 };
 
 export const STYLE_TEXTURE_DEFAULTS: Record<CarouselVisualStyle, { texture: CarouselTextureId; strength: number }> = {
-  street: { texture: "grit-fine", strength: 42 },
-  editorial: { texture: "paper-soft", strength: 22 },
-  cinematic: { texture: "fog-soft", strength: 30 },
-  verse: { texture: "paper-fibrous", strength: 24 },
-  manifesto: { texture: "dust-speckle", strength: 28 }
+  street: { texture: "ag-navy-paper", strength: 42 },
+  editorial: { texture: "ag-paper-white", strength: 34 },
+  cinematic: { texture: "ag-navy-speckle", strength: 26 },
+  verse: { texture: "ag-paper-white", strength: 32 },
+  manifesto: { texture: "ag-navy-paper", strength: 36 }
 };
 
 export const CAROUSEL_GENERATOR_RULES = [
@@ -72,8 +78,13 @@ export const CAROUSEL_GENERATOR_RULES = [
   "Never depend on low contrast for softness. Text must be readable at a glance on a phone.",
   "Use a locked Apostolic Guide palette: ink #10202a, paper #f5f7f4, crimson #a12d3d, blue #15566a, blue-soft #dcebee. Crimson is an accent, not a background default.",
   "Use at most two font families per visual system.",
+  "Do not use thin display weights for Scripture references or doctrinal claims. Reference typography must be at least 700 weight; major claims should usually be 700–800.",
   "Keep at least 5% frame margin and preserve consistent logo/footer placement across a set.",
   "Centered copy is only for short statements. Teaching copy and anything longer than two lines should favor a clear reading axis.",
+  "Verse Connection slides are diagrams: reference A, a short relationship statement, connector, reference B. Do not bury the references in paragraph copy.",
+  "Word Study slides favor brand-white editorial surfaces, dark ink, clear lexical labels, and left-aligned explanatory copy.",
+  "Pathway slides favor Street Theology with strong contrast and one progression point per slide.",
+  "Informational and App Guide slides favor editorial hierarchy and scanning clarity over dramatic poster styling.",
   "Slide 1 is the hook, middle slides teach one point at a time, and the last slide closes with one restrained next action.",
   "Carousels should reward attention with insight, clarity, and completion rather than sensational cliffhangers or visual overload.",
   "Use texture as atmosphere or structure only. Texture must never reduce text readability or become decorative noise."
