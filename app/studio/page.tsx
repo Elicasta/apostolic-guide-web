@@ -4,6 +4,7 @@ import { Plus } from "lucide-react";
 import { redirect } from "next/navigation";
 import { getAdminAccess } from "@/auth";
 import { allPathways } from "@/pathway-catalog";
+import { listEpisodes } from "@/studio/repository";
 import StudioClient from "./studio-client";
 import "./studio.css";
 
@@ -28,6 +29,7 @@ export default async function StudioPage() {
     level: pathway.level,
     steps: pathway.steps.map((step) => ({ title: step.title, reference: step.reference, explanation: step.explanation }))
   }));
+  const episodes = await listEpisodes().catch(() => []);
 
-  return <><StudioClient pathways={pathways} /><Link className="ag-studio-floating-new" href="/studio/episodes/new"><Plus size={17}/> Create real episode</Link></>;
+  return <><StudioClient pathways={pathways} episodes={episodes.map((episode) => ({ id: String(episode.id), title: String(episode.title), type: String(episode.episode_type ?? "episode"), status: String(episode.status ?? "draft"), updatedAt: String(episode.updated_at ?? "") }))} /><Link className="ag-studio-floating-new" href="/studio/episodes/new"><Plus size={17}/> New episode</Link></>;
 }
