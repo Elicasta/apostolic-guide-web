@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { BarChart3, Bell, BookOpen, FileClock, FileText, Film, Headphones, HeartPulse, Inbox, Instagram, ListFilter, Mail, Menu, Route, Send, Settings, Sparkles, UserCog, Users, X } from "lucide-react";
 import { hasStudioPermission, type StudioPermission, type StudioRole } from "@/studio-permissions";
+import { MediaPublishingOverviewPortal } from "@/media-publishing-overview";
 
 export const studioNavSections: Array<{ label: string; items: Array<{ href: string; label: string; icon: typeof BarChart3; permission: StudioPermission; exact?: boolean }> }> = [
   { label: "Workspace", items: [
@@ -79,15 +80,18 @@ export function StudioMobileNav({ role }: { role: StudioRole }) {
     return () => { document.body.style.overflow = previous; };
   }, [open]);
 
-  return <div className="studio-mobile-nav-root">
-    <button type="button" className="studio-mobile-menu-button" onClick={() => setOpen(true)} aria-label="Open Studio navigation" aria-expanded={open}><Menu size={20}/></button>
-    {open ? <>
-      <button type="button" className="studio-mobile-nav-backdrop" onClick={() => setOpen(false)} aria-label="Close navigation"/>
-      <aside className="studio-mobile-nav-drawer" aria-label="Studio navigation">
-        <div className="studio-mobile-nav-head"><div><strong>Studio</strong><span>Navigate workspace</span></div><button type="button" onClick={() => setOpen(false)} aria-label="Close navigation"><X size={20}/></button></div>
-        <div className="studio-mobile-nav-scroll"><NavigationSections role={role} mobile onNavigate={() => setOpen(false)}/></div>
-        <div className="studio-mobile-nav-footer"><Link href="/" onClick={() => setOpen(false)}>View public site</Link></div>
-      </aside>
-    </> : null}
-  </div>;
+  return <>
+    <MediaPublishingOverviewPortal/>
+    <div className="studio-mobile-nav-root">
+      <button type="button" className="studio-mobile-menu-button" onClick={() => setOpen(true)} aria-label="Open Studio navigation" aria-expanded={open}><Menu size={20}/></button>
+      {open ? <>
+        <button type="button" className="studio-mobile-nav-backdrop" onClick={() => setOpen(false)} aria-label="Close navigation"/>
+        <aside className="studio-mobile-nav-drawer" aria-label="Studio navigation">
+          <div className="studio-mobile-nav-head"><div><strong>Studio</strong><span>Navigate workspace</span></div><button type="button" onClick={() => setOpen(false)} aria-label="Close navigation"><X size={20}/></button></div>
+          <div className="studio-mobile-nav-scroll"><NavigationSections role={role} mobile onNavigate={() => setOpen(false)}/></div>
+          <div className="studio-mobile-nav-footer"><Link href="/" onClick={() => setOpen(false)}>View public site</Link></div>
+        </aside>
+      </> : null}
+    </div>
+  </>;
 }
