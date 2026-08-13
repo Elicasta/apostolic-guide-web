@@ -1,0 +1,47 @@
+/* Carousel Studio interaction/brand controls. Loaded last so manual choices win without loosening the brand system. */
+.carousel-studio-page{--ag-paper:#f5f7f4;--ag-white:#fff;--ag-ink:#10202a;--ag-ink-2:#263a44;--ag-crimson:#a12d3d;--ag-blue:#15566a;--ag-blue-soft:#dcebee}
+
+/* Per-slide typography overrides. Fonts remain limited to the three approved brand families. */
+.carousel-artboard .carousel-copy>strong,.carousel-export-artboard .carousel-copy>strong{font-family:var(--manual-headline-font,'Montserrat',Arial,sans-serif)!important;color:var(--manual-headline-color,inherit)!important;font-weight:800!important}
+.carousel-artboard .carousel-copy>p,.carousel-export-artboard .carousel-copy>p{font-family:var(--manual-body-font,'Montserrat',Arial,sans-serif)!important;color:var(--manual-body-color,inherit)!important;font-weight:600!important}
+.carousel-artboard .carousel-verse-connection>strong,.carousel-export-artboard .carousel-verse-connection>strong{font-family:var(--manual-headline-font,'Bebas Neue','Montserrat',Arial,sans-serif)!important;color:var(--manual-headline-color,var(--ag-ink))!important;line-height:.96!important}
+.carousel-artboard .carousel-verse-connection>p,.carousel-export-artboard .carousel-verse-connection>p{font-family:var(--manual-body-font,'Montserrat',Arial,sans-serif)!important;color:var(--manual-body-color,var(--ag-ink-2))!important;font-weight:700!important}
+.carousel-artboard .carousel-verse-connection>span,.carousel-export-artboard .carousel-verse-connection>span{font-family:'Montserrat',Arial,sans-serif!important;font-weight:800!important}
+
+/* Bebas is a display face; do not synthesize a thin-looking teaching body. */
+.carousel-artboard[style*="Bebas Neue"] .carousel-copy>strong,.carousel-export-artboard[style*="Bebas Neue"] .carousel-copy>strong{font-weight:400!important;letter-spacing:.005em!important}
+.carousel-artboard[style*="Cormorant Garamond"] .carousel-copy>strong,.carousel-export-artboard[style*="Cormorant Garamond"] .carousel-copy>strong{font-weight:700!important}
+
+.carousel-brand-manual{display:grid;gap:10px;padding-top:12px;margin-top:2px;border-top:1px solid var(--admin-border,#d8dde3)}
+.carousel-brand-manual-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}.carousel-brand-manual-heading strong{font-size:12px}.carousel-brand-manual-heading small{font-size:10px;color:var(--admin-muted,#69727d)}
+.carousel-brand-layer-tabs,.carousel-brand-fonts{display:flex;gap:7px;flex-wrap:wrap}.carousel-brand-layer-tabs button,.carousel-brand-fonts button{border:1px solid var(--admin-border,#d8dde3);border-radius:9px;background:#fff;color:var(--ag-ink);padding:8px 10px;font-size:11px;font-weight:700;cursor:pointer}.carousel-brand-layer-tabs button.is-active,.carousel-brand-fonts button.is-active{border-color:var(--ag-crimson);box-shadow:0 0 0 1px var(--ag-crimson);background:rgba(161,45,61,.045)}
+.carousel-brand-fonts [data-font="Montserrat"]{font-family:'Montserrat',Arial,sans-serif}.carousel-brand-fonts [data-font="Bebas Neue"]{font-family:'Bebas Neue','Montserrat',sans-serif;font-size:14px;font-weight:400;letter-spacing:.03em}.carousel-brand-fonts [data-font="Cormorant Garamond"]{font-family:'Cormorant Garamond',Georgia,serif;font-size:14px;font-weight:700}
+.carousel-brand-palette{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px}.carousel-brand-palette button{display:flex;align-items:center;gap:7px;min-width:0;border:1px solid var(--admin-border,#d8dde3);border-radius:9px;background:#fff;padding:7px 8px;color:var(--ag-ink);font-size:9px;font-weight:700;text-align:left;cursor:pointer}.carousel-brand-palette button i{width:18px;height:18px;border-radius:50%;border:1px solid rgba(16,32,42,.16);box-shadow:inset 0 0 0 1px rgba(255,255,255,.28);flex:0 0 18px}.carousel-brand-palette button span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.carousel-brand-palette button.is-active{border-color:var(--ag-crimson);box-shadow:0 0 0 1px var(--ag-crimson)}.carousel-brand-palette button:disabled{opacity:.3;cursor:not-allowed;filter:grayscale(.3)}
+
+/* Generated background layer. Texture remains a separate ::after surface treatment. */
+.carousel-artwork::before{content:"";position:absolute;inset:0;z-index:0;pointer-events:none;background-image:var(--generated-bg-image,none);background-size:cover;background-position:center;opacity:0;transition:opacity .2s ease}
+.carousel-artwork::after{content:"";position:absolute;inset:0;z-index:1;pointer-events:none;background:rgba(7,20,30,var(--generated-bg-overlay,.48));opacity:0;transition:opacity .2s ease}
+.carousel-artboard[data-bg-mode="image"] .carousel-artwork::before,.carousel-export-artboard[data-bg-mode="image"] .carousel-artwork::before{opacity:1}
+.carousel-artboard[data-bg-mode="image"] .carousel-artwork::after,.carousel-export-artboard[data-bg-mode="image"] .carousel-artwork::after{opacity:1}
+.carousel-artboard[data-bg-mode="image"] .carousel-ambient,.carousel-export-artboard[data-bg-mode="image"] .carousel-ambient{opacity:.16}
+.carousel-artboard[data-bg-mode="image"] .carousel-city,.carousel-export-artboard[data-bg-mode="image"] .carousel-city{display:none}
+.carousel-artboard[data-bg-mode="none"]::after,.carousel-export-artboard[data-bg-mode="none"]::after{opacity:0!important}
+
+.carousel-background-director{display:grid;gap:11px;margin-top:14px;padding:14px;border:1px solid var(--admin-border,#d8dde3);border-radius:12px;background:rgba(255,255,255,.58)}
+.carousel-background-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:14px}.carousel-background-heading>div{display:grid;gap:2px}.carousel-background-heading span{font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--ag-crimson)}.carousel-background-heading strong{font-size:16px}.carousel-background-heading small{font-size:10px;color:var(--admin-muted,#69727d)}
+.carousel-background-modes{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}.carousel-background-modes button{border:1px solid var(--admin-border,#d8dde3);border-radius:9px;background:#fff;color:var(--ag-ink);padding:8px 5px;font-size:10px;font-weight:800;text-transform:capitalize;cursor:pointer}.carousel-background-modes button.is-active{border-color:var(--ag-crimson);box-shadow:0 0 0 1px var(--ag-crimson);background:rgba(161,45,61,.045)}
+.carousel-background-recommendation{display:grid;grid-template-columns:auto 1fr auto;gap:9px;align-items:center;padding:10px;border-radius:10px;background:rgba(16,32,42,.04)}.carousel-background-recommendation>svg{color:var(--ag-blue)}.carousel-background-recommendation div{display:grid;gap:2px;min-width:0}.carousel-background-recommendation strong{font-size:11px}.carousel-background-recommendation p{margin:0;color:var(--admin-muted,#69727d);font-size:10px;line-height:1.35}.carousel-background-recommendation.is-image{background:rgba(21,86,106,.08)}.carousel-background-recommendation.is-texture{background:rgba(161,45,61,.055)}
+.carousel-background-generator{display:grid;gap:9px;padding-top:9px;border-top:1px solid var(--admin-border,#d8dde3)}.carousel-background-generator label{display:grid;gap:6px}.carousel-background-generator label>span{font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--admin-muted,#69727d)}.carousel-background-generator textarea{width:100%;resize:vertical;border:1px solid var(--admin-border,#d8dde3);border-radius:9px;padding:9px 10px;background:#fff;color:inherit;font:inherit}.carousel-bg-overlay{grid-template-columns:110px minmax(0,1fr) 42px!important;align-items:center}.carousel-bg-overlay input{width:100%}.carousel-bg-overlay b{text-align:right;font-size:10px;color:var(--admin-muted,#69727d)}
+
+/* iOS: use explicit tap targets rather than depending on Safari's select popover. */
+.carousel-mobile-mode-picker{display:none}
+@media(max-width:760px){
+  .carousel-sourcebar label:nth-child(2)>select{display:none!important}
+  .carousel-mobile-mode-picker{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:4px}
+  .carousel-mobile-mode-picker button{min-height:42px;border:1px solid var(--admin-border,#d8dde3);border-radius:10px;background:#fff;color:var(--ag-ink);padding:8px;text-align:left;font:700 11px/1.2 'Montserrat',Arial,sans-serif;cursor:pointer}
+  .carousel-mobile-mode-picker button:active{background:rgba(161,45,61,.06);border-color:var(--ag-crimson)}
+  .carousel-mobile-mode-picker button:last-child{grid-column:1/-1}
+  .carousel-brand-palette{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .carousel-background-modes{grid-template-columns:repeat(2,1fr)}
+  .carousel-background-recommendation{grid-template-columns:auto 1fr}.carousel-background-recommendation>.button{grid-column:1/-1;width:100%;justify-content:center}
+}

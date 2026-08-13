@@ -2,9 +2,7 @@
   "name": "apostolic-guide-web",
   "version": "0.1.0",
   "private": true,
-  "engines": {
-    "node": "22.x"
-  },
+  "engines": { "node": "22.x" },
   "scripts": {
     "dev": "next dev",
     "build": "npm test && next build",
@@ -18,6 +16,7 @@
     "@supabase/supabase-js": "2.110.8",
     "@vercel/analytics": "2.0.1",
     "@vercel/speed-insights": "2.0.0",
+    "html-to-image": "^1.11.13",
     "lucide-react": "0.468.0",
     "next": "16.2.11",
     "react": "19.2.8",
