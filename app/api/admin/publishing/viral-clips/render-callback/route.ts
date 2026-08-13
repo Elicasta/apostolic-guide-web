@@ -9,7 +9,9 @@ const schema = z.object({
   clip_id: z.string().uuid(),
   token: z.string().min(32).max(256),
   status: z.enum(["rendering", "completed", "failed"]),
-  error: z.string().max(2000).optional()
+  error: z.string().max(2000).optional(),
+  progress: z.number().int().min(0).max(100).optional(),
+  stage: z.string().max(120).optional()
 });
 
 function tokenMatches(raw: string, expected: string) {
@@ -20,6 +22,17 @@ function tokenMatches(raw: string, expected: string) {
 
 function record(value: unknown) {
   return value && typeof value === "object" ? value as Record<string, unknown> : {};
+}
+
+function progressMetadata(metadata: Record<string, unknown>, progress: number, stage: string, now: string) {
+  return {
+    ...metadata,
+    renderProgress: {
+      progress,
+      stage,
+      updatedAt: now
+    }
+  };
 }
 
 export async function POST(request: Request) {
@@ -40,15 +53,30 @@ export async function POST(request: Request) {
   }
 
   const now = new Date().toISOString();
+  const metadata = record(clip.analysis_metadata);
+
   if (parsed.data.status === "rendering") {
-    const updated = await service.from("pathway_social_clips").update({ status: "rendering", error: null, updated_at: now }).eq("id", clip.id);
+    const progress = parsed.data.progress ?? 5;
+    const stage = parsed.data.stage?.trim() || "Rendering";
+    const updated = await service.from("pathway_social_clips").update({
+      status: "rendering",
+      error: null,
+      analysis_metadata: progressMetadata(metadata, progress, stage, now),
+      updated_at: now
+    }).eq("id", clip.id);
     if (updated.error) return NextResponse.json({ error: updated.error.message }, { status: 500 });
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true, progress, stage });
   }
 
   if (parsed.data.status === "failed") {
     const error = parsed.data.error?.trim() || "Social clip renderer failed without an error message.";
-    const updates = [service.from("pathway_social_clips").update({ status: "failed", error, updated_at: now }).eq("id", clip.id)];
+    const failedMetadata = progressMetadata(metadata, parsed.data.progress ?? 100, parsed.data.stage?.trim() || "Failed", now);
+    const updates = [service.from("pathway_social_clips").update({
+      status: "failed",
+      error,
+      analysis_metadata: failedMetadata,
+      updated_at: now
+    }).eq("id", clip.id)];
     if (clip.asset_id) updates.push(service.from("pathway_assets").update({ status: "blocked", notes: `Social clip render failed: ${error.slice(0, 1500)}`, updated_at: now }).eq("id", clip.asset_id));
     const results = await Promise.all(updates);
     const failed = results.find((result) => result.error);
@@ -56,7 +84,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true });
   }
 
-  const metadata = record(clip.analysis_metadata);
   const bridge = record(metadata.renderBridge);
   const socialPackage = record(metadata.socialPackage);
   const publicUrl = typeof bridge.publicUrl === "string" ? bridge.publicUrl : "";
@@ -64,7 +91,7 @@ export async function POST(request: Request) {
   if (!clip.storage_path || !publicUrl) return NextResponse.json({ error: "Social clip output metadata is missing." }, { status: 409 });
 
   const completedMetadata = {
-    ...metadata,
+    ...progressMetadata(metadata, 100, parsed.data.stage?.trim() || "Ready", now),
     socialPackage: {
       ...socialPackage,
       coverUrl: coverPublicUrl || (typeof socialPackage.coverUrl === "string" ? socialPackage.coverUrl : null)

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   CalendarDays,
   Check,
@@ -73,6 +73,7 @@ type SocialClip = {
   analysis_metadata: unknown;
   created_at: string;
   completed_at: string | null;
+  updated_at?: string;
 };
 
 type PublishingPackage = {
@@ -133,6 +134,29 @@ function copyText(value: string) {
   void navigator.clipboard?.writeText(value);
 }
 
+function clipRenderProgress(value: unknown, status: SocialClip["status"], fallbackUpdatedAt?: string) {
+  const metadata = value && typeof value === "object" ? value as Record<string, unknown> : {};
+  const rawProgress = metadata.renderProgress && typeof metadata.renderProgress === "object"
+    ? metadata.renderProgress as Record<string, unknown>
+    : {};
+  const fallbackPercent = status === "queued" ? 1 : status === "rendering" ? 5 : status === "completed" ? 100 : 0;
+  const rawPercent = typeof rawProgress.progress === "number" ? rawProgress.progress : fallbackPercent;
+  const percent = Math.max(0, Math.min(100, Math.round(rawPercent)));
+  const fallbackStage = status === "queued"
+    ? "Queued for render worker"
+    : status === "rendering"
+      ? "Rendering"
+      : status === "completed"
+        ? "Ready"
+        : status === "failed"
+          ? "Failed"
+          : "";
+  const stage = typeof rawProgress.stage === "string" && rawProgress.stage.trim() ? rawProgress.stage.trim() : fallbackStage;
+  const requestedAt = typeof metadata.requestedAt === "string" ? metadata.requestedAt : undefined;
+  const updatedAt = typeof rawProgress.updatedAt === "string" ? rawProgress.updatedAt : requestedAt || fallbackUpdatedAt;
+  return { percent, stage, updatedAt };
+}
+
 export function ChannelPublishing({ packages, credentials, canPublish }: {
   packages: PublishingPackage[];
   credentials: SocialPublishingCredentialStatus[];
@@ -161,6 +185,31 @@ export function ChannelPublishing({ packages, credentials, canPublish }: {
   const completedClips = selectedClips.filter((clip) => clip.status === "completed" && clip.output_url);
   const selectedClip = selected ? completedClips.find((clip) => clip.id === selectedClipIds[selected.slug]) ?? null : null;
   const selectedClipPackage = selectedClip ? normalizeSocialClipPackage(selectedClip.analysis_metadata) : null;
+  const selectedSlugForPoll = selected?.slug ?? "";
+  const hasActiveClipRender = selectedClips.some((clip) => clip.status === "queued" || clip.status === "rendering");
+
+  useEffect(() => {
+    if (!selectedSlugForPoll || !hasActiveClipRender) return;
+    let cancelled = false;
+
+    const sync = async () => {
+      try {
+        const response = await fetch(`/api/admin/publishing/viral-clips/status?slug=${encodeURIComponent(selectedSlugForPoll)}`, { cache: "no-store" });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || cancelled || !Array.isArray(data.clips)) return;
+        setClipsBySlug((current) => ({ ...current, [selectedSlugForPoll]: data.clips as SocialClip[] }));
+      } catch {
+        // Keep the current UI state and try again on the next poll.
+      }
+    };
+
+    void sync();
+    const timer = window.setInterval(() => void sync(), 1800);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [selectedSlugForPoll, hasActiveClipRender]);
 
   const calendarItems = useMemo(() => packages.flatMap((item) => item.publications.flatMap((publication) => {
     const timestamp = publication.scheduled_for || publication.published_at;
@@ -280,21 +329,23 @@ export function ChannelPublishing({ packages, credentials, canPublish }: {
 
   async function renderClip(item: PublishingPackage, clip: SocialClip) {
     const actionKey = key(item.slug, `clip:${clip.id}`);
+    const active = clip.status === "queued" || clip.status === "rendering";
     setBusy(actionKey);
-    setMessage(actionKey, clip.status === "completed" ? "Regenerating animated clip and cover…" : "Rendering animated captions, motion, and cover…");
+    setMessage(actionKey, clip.status === "completed" ? "Regenerating animated clip and cover…" : active ? "Restarting stalled render…" : "Starting animated clip and cover…");
     try {
       const response = await fetch("/api/admin/publishing/viral-clips/render", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ clipId: clip.id, regenerate: clip.status === "completed" })
+        body: JSON.stringify({ clipId: clip.id, regenerate: clip.status === "completed" || active })
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || "Clip render failed to start.");
+      const queuedClip = data.clip && typeof data.clip === "object" ? data.clip as Partial<SocialClip> : {};
       setClipsBySlug((current) => ({
         ...current,
-        [item.slug]: (current[item.slug] ?? []).map((currentClip) => currentClip.id === clip.id ? { ...currentClip, status: "queued" } : currentClip)
+        [item.slug]: (current[item.slug] ?? []).map((currentClip) => currentClip.id === clip.id ? { ...currentClip, ...queuedClip, status: "queued" } : currentClip)
       }));
-      setMessage(actionKey, "Animated clip + cover queued. Refresh when the render finishes.");
+      setMessage(actionKey, "Queued. Live progress will update here automatically.");
     } catch (error) {
       setMessage(actionKey, error instanceof Error ? error.message : "Clip render failed to start.");
     } finally {
@@ -386,11 +437,21 @@ export function ChannelPublishing({ packages, credentials, canPublish }: {
           const clipDuration = Number(clip.end_seconds) - Number(clip.start_seconds);
           const social = normalizeSocialClipPackage(clip.analysis_metadata);
           const tags = social.hashtags.join(" ");
+          const progress = clipRenderProgress(clip.analysis_metadata, clip.status, clip.updated_at || clip.created_at);
+          const activeRender = clip.status === "queued" || clip.status === "rendering";
+          const progressUpdatedAt = progress.updatedAt ? new Date(progress.updatedAt).getTime() : NaN;
+          const stalled = activeRender && Number.isFinite(progressUpdatedAt) && Date.now() - progressUpdatedAt > 180_000;
+          const progressStage = stalled ? "No renderer progress for 3 minutes" : progress.stage;
           return <article className={`ai-clip-card ${clip.rank === 1 ? "top-pick" : ""}`} key={clip.id}>
             <div className="ai-clip-card-head"><div><span className="clip-rank">#{clip.rank}</span><div><strong>{clip.title}</strong><span>{clip.platform === "both" ? "Instagram + TikTok" : clip.platform === "instagram" ? "Instagram" : "TikTok"}</span></div></div><span className="viral-score"><strong>{clip.score}</strong><small>potential</small></span></div>
             <div className="ai-clip-media-grid">{clip.output_url ? <video className="ai-clip-video" src={clip.output_url} controls preload="metadata"/> : <div className="ai-clip-placeholder"><Scissors size={22}/><span>Animated cut not rendered yet</span></div>}{social.coverUrl ? <a className="ai-clip-cover" href={social.coverUrl} target="_blank" rel="noreferrer"><img src={social.coverUrl} alt={`${clip.title} cover`}/><span>9:16 cover</span></a> : <div className="ai-clip-cover empty"><ImageIcon size={22}/><span>Cover renders with the clip</span></div>}</div>
             <blockquote>{clip.hook}</blockquote><p>{clip.rationale}</p>
             <div className="clip-metrics"><span>{seconds(Number(clip.start_seconds))} → {seconds(Number(clip.end_seconds))}</span><span>{seconds(clipDuration)} cut</span><span className={`clip-state ${clip.status}`}>{clip.status}</span><span>Kinetic captions</span></div>
+            {activeRender ? <div className={`clip-render-progress ${stalled ? "stalled" : ""}`} aria-label={`${progressStage} ${progress.percent}%`}>
+              <div className="clip-render-progress-head"><span>{progressStage}</span><strong>{progress.percent}%</strong></div>
+              <div className="clip-render-progress-track"><span style={{ width: `${progress.percent}%` }}/></div>
+              {stalled ? <small>The worker stopped reporting. Restarting creates a fresh render job.</small> : null}
+            </div> : null}
             <div className="clip-social-package">
               <div className="clip-copy-block"><div><strong>Instagram caption</strong><button type="button" onClick={() => copyText(social.instagramCaption || clip.caption)}><Copy size={12}/> Copy</button></div><p>{social.instagramCaption || clip.caption}</p></div>
               <div className="clip-copy-block"><div><strong>TikTok caption</strong><button type="button" onClick={() => copyText(social.tiktokCaption || clip.caption)}><Copy size={12}/> Copy</button></div><p>{social.tiktokCaption || clip.caption}</p></div>
@@ -398,7 +459,7 @@ export function ChannelPublishing({ packages, credentials, canPublish }: {
               <div className="clip-cover-direction"><ImageIcon size={14}/><div><strong>{social.coverHeadline || clip.title}</strong><span>{social.coverSubline || selected.title}</span></div></div>
             </div>
             {clip.error ? <p className="clip-error">{clip.error}</p> : null}{messages[clipKey] ? <p className="channel-action-message">{messages[clipKey]}</p> : null}
-            <div className="clip-actions">{clip.status === "completed" && clip.output_url ? <><button className="button button-primary" type="button" onClick={() => { setSelectedClipIds((current) => ({ ...current, [selected.slug]: clip.id })); setPlatform(clip.platform === "tiktok" ? "tiktok" : "instagram"); setTab("publish"); }}><Send size={14}/> Use this cut</button><button className="button" type="button" disabled={busy === clipKey} onClick={() => void renderClip(selected, clip)}>{busy === clipKey ? <Loader2 className="spin" size={14}/> : <RefreshCw size={14}/>} {social.coverUrl ? "Regenerate clip + cover" : "Create cover + animation"}</button><a className="button" href={clip.output_url} target="_blank" rel="noreferrer">Open video <ExternalLink size={14}/></a></> : <button className="button button-primary" type="button" disabled={busy === clipKey || clip.status === "queued" || clip.status === "rendering"} onClick={() => void renderClip(selected, clip)}>{busy === clipKey || clip.status === "queued" || clip.status === "rendering" ? <Loader2 className="spin" size={14}/> : <Sparkles size={14}/>} {clip.status === "queued" || clip.status === "rendering" ? "Rendering…" : "Render animated clip + cover"}</button>}</div>
+            <div className="clip-actions">{clip.status === "completed" && clip.output_url ? <><button className="button button-primary" type="button" onClick={() => { setSelectedClipIds((current) => ({ ...current, [selected.slug]: clip.id })); setPlatform(clip.platform === "tiktok" ? "tiktok" : "instagram"); setTab("publish"); }}><Send size={14}/> Use this cut</button><button className="button" type="button" disabled={busy === clipKey} onClick={() => void renderClip(selected, clip)}>{busy === clipKey ? <Loader2 className="spin" size={14}/> : <RefreshCw size={14}/>} {social.coverUrl ? "Regenerate clip + cover" : "Create cover + animation"}</button><a className="button" href={clip.output_url} target="_blank" rel="noreferrer">Open video <ExternalLink size={14}/></a></> : <button className="button button-primary" type="button" disabled={busy === clipKey || (activeRender && !stalled)} onClick={() => void renderClip(selected, clip)}>{busy === clipKey || (activeRender && !stalled) ? <Loader2 className="spin" size={14}/> : stalled ? <RefreshCw size={14}/> : <Sparkles size={14}/>} {stalled ? "Restart stalled render" : activeRender ? `${progressStage} · ${progress.percent}%` : "Render animated clip + cover"}</button>}</div>
           </article>;
         })}</div>}
       </div> : null}
