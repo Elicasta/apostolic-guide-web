@@ -6,3 +6,16 @@
 .is-editorial .carousel-brand-mark,.is-verse .carousel-brand-mark{filter:none!important}
 .carousel-preview-card>.carousel-manual-panel{margin-top:14px;margin-bottom:14px}
 .carousel-preview-card>.carousel-manual-panel .carousel-manual-heading span{font-weight:700}
+
+/* iOS/WebKit preview stability: keep the artboard on one composited layer and never animate artboard internals. */
+.carousel-artboard,.carousel-artwork{transform:translateZ(0);backface-visibility:hidden;-webkit-backface-visibility:hidden;will-change:auto;contain:paint}
+.carousel-artboard *,.carousel-artwork *{transition:none!important;animation-duration:0s!important}
+.carousel-artboard::after,.carousel-artwork::before,.carousel-artwork::after{backface-visibility:hidden;-webkit-backface-visibility:hidden}
+
+/* Contrast is a hard constraint while async texture/background controls settle. */
+.is-editorial .carousel-copy>strong,.is-verse .carousel-copy>strong{color:#10202a!important}
+.is-editorial .carousel-copy>p,.is-verse .carousel-copy>p{color:#263a44!important;opacity:1!important}
+.is-editorial .carousel-verse-connection>strong,.is-verse .carousel-verse-connection>strong{color:#10202a!important}
+.is-editorial .carousel-verse-connection>p,.is-verse .carousel-verse-connection>p{color:#263a44!important}
+.is-cinematic .carousel-copy>strong,.is-manifesto .carousel-copy>strong,.carousel-artboard:not(.is-editorial):not(.is-verse) .carousel-copy>strong{font-weight:700!important}
+.carousel-verse-connection>strong{font-weight:800!important}
