@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getStudioPermission } from "@/auth";
 import { allPathways } from "@/pathway-catalog";
 import { PathwayCarouselStudio } from "@/pathway-carousel-studio";
+import { CarouselTextureDirector } from "@/carousel-texture-director";
 
 export default async function AdminCarouselStudioPage() {
   const { access, allowed } = await getStudioPermission("manage_content");
@@ -19,10 +20,12 @@ export default async function AdminCarouselStudioPage() {
     }))
   }));
 
+  const aiReady = Boolean(process.env.OPENAI_API_KEY?.trim());
+
   return (
     <>
-      <style>{`.carousel-crown{display:none!important}`}</style>
-      <PathwayCarouselStudio pathways={pathways} aiReady={Boolean(process.env.OPENAI_API_KEY?.trim())}/>
+      <PathwayCarouselStudio pathways={pathways} aiReady={aiReady}/>
+      <CarouselTextureDirector aiReady={aiReady}/>
     </>
   );
 }
