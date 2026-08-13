@@ -51,6 +51,8 @@ import "./footer-connect.css";
 import "./bible-links.css";
 import "./contact-form.css";
 
+const socialShareImage = "/opengraph-image?v=20260812";
+
 export const metadata: Metadata = {
   metadataBase: new URL(websiteUrl),
   title: { default: "Apostolic Guide | Scripture, Doctrine, and Biblical Answers", template: "%s | Apostolic Guide" },
@@ -72,19 +74,19 @@ export const metadata: Metadata = {
     }
   },
   openGraph: {
-    title: "Apostolic Guide | Know What You Believe and Why",
-    description: "Search Scripture, follow connected passages, and understand Apostolic doctrine from the biblical text.",
+    title: "Apostolic Guide | Know What You Believe. Know Why.",
+    description: "Search Scripture, follow connected passages, and understand Apostolic doctrine from the text itself.",
     type: "website",
     siteName: "Apostolic Guide",
     url: websiteUrl,
     locale: "en_US",
-    images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "Apostolic Guide — Scripture, doctrine, and biblical answers" }]
+    images: [{ url: socialShareImage, width: 1200, height: 630, alt: "Apostolic Guide. Know what you believe. Know why." }]
   },
   twitter: {
     card: "summary_large_image",
-    title: "Apostolic Guide | Know What You Believe and Why",
-    description: "Search Scripture, follow connected passages, and understand Apostolic doctrine from the biblical text.",
-    images: ["/opengraph-image"]
+    title: "Apostolic Guide | Know What You Believe. Know Why.",
+    description: "Search Scripture, follow connected passages, and understand Apostolic doctrine from the text itself.",
+    images: [socialShareImage]
   },
   icons: { icon: "/favicon.png", apple: "/icons/icon-192.png" },
   alternates: { types: { "application/rss+xml": "/feed.xml" } }
