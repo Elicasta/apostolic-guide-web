@@ -1,0 +1,62 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
+import { CalendarDays, Instagram, Mic2, Music2, RefreshCw, Send, Youtube } from "lucide-react";
+
+type PlatformStat = { platform: "youtube" | "instagram" | "tiktok" | "threads"; views: number; impressions: number; reach: number; likes: number; comments: number; shares: number; saves: number; capturedAt: string | null; records: number };
+type CalendarItem = { id: string; title: string; content_type: string; platform: string | null; status: string; scheduled_for: string | null; created_at: string };
+type Credential = { platform: string; accountAuthorized: boolean; accountLabel: string | null };
+type Payload = { platforms: PlatformStat[]; calendarItems: CalendarItem[]; credentials: Credential[] };
+const EMPTY: Payload = { platforms: [], calendarItems: [], credentials: [] };
+
+function compact(value: number) { return new Intl.NumberFormat(undefined, { notation: "compact", maximumFractionDigits: 1 }).format(value || 0); }
+function Icon({ platform }: { platform: string }) { if (platform === "youtube") return <Youtube size={18}/>; if (platform === "instagram") return <Instagram size={18}/>; if (platform === "threads") return <span className="media-thread-glyph">@</span>; return <span className="media-tiktok-glyph">♪</span>; }
+
+export function MediaPublishingOverviewPortal() {
+  const pathname = usePathname();
+  const [target, setTarget] = useState<Element | null>(null);
+  const [data, setData] = useState<Payload>(EMPTY);
+  const [loading, setLoading] = useState(false);
+
+  async function refresh() {
+    setLoading(true);
+    try {
+      const response = await fetch("/api/admin/media-overview", { cache: "no-store" });
+      const json = await response.json().catch(() => ({}));
+      if (response.ok) setData({ ...EMPTY, ...json });
+    } finally { setLoading(false); }
+  }
+
+  useEffect(() => {
+    if (pathname !== "/admin/publish") { setTarget(null); return; }
+    const timer = window.setInterval(() => {
+      const next = document.querySelector(".channel-publishing-page");
+      setTarget((current) => current === next ? current : next);
+    }, 400);
+    void refresh();
+    const refreshTimer = window.setInterval(() => void refresh(), 60000);
+    return () => { window.clearInterval(timer); window.clearInterval(refreshTimer); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
+
+  const credentialMap = useMemo(() => new Map(data.credentials.map((item) => [item.platform, item])), [data.credentials]);
+  const drafts = data.calendarItems.filter((item) => item.status === "draft" || item.status === "ready");
+  const upcoming = data.calendarItems.filter((item) => item.scheduled_for).slice(0, 5);
+  const platforms = ["youtube", "instagram", "tiktok", "threads"] as const;
+  if (!target || pathname !== "/admin/publish") return null;
+
+  return createPortal(<section className="media-overview">
+    <div className="media-overview-head"><div><span className="section-kicker">Media control center</span><h2>Publishing + live performance</h2><p>Latest synced platform performance, content drafts, and every distribution lane in one place.</p></div><button type="button" className="button" onClick={() => void refresh()} disabled={loading}><RefreshCw className={loading ? "spin" : ""} size={15}/> Refresh stats</button></div>
+    <div className="media-stat-grid">{platforms.map((platform) => { const stat = data.platforms.find((item) => item.platform === platform); const credential = credentialMap.get(platform); return <article className={`media-stat-card ${platform}`} key={platform}><div className="media-stat-card-head"><span><Icon platform={platform}/></span><div><strong>{platform === "youtube" ? "YouTube" : platform === "instagram" ? "Instagram" : platform === "tiktok" ? "TikTok" : "Threads"}</strong><small>{credential?.accountAuthorized ? credential.accountLabel || "Connected" : platform === "threads" ? "Reserved · connection next" : "Connection / sync pending"}</small></div></div><div className="media-stat-primary"><strong>{compact(stat?.views || stat?.impressions || 0)}</strong><span>{stat?.views ? "views" : "impressions"}</span></div><div className="media-stat-secondary"><span><b>{compact(stat?.reach || 0)}</b> reach</span><span><b>{compact(stat?.likes || 0)}</b> likes</span><span><b>{compact((stat?.comments || 0) + (stat?.shares || 0) + (stat?.saves || 0))}</b> actions</span></div><small className="media-stat-freshness">{stat?.capturedAt ? `Synced ${new Date(stat.capturedAt).toLocaleString()}` : "Awaiting first metric sync"}</small></article>; })}</div>
+    <div className="media-lane-grid">
+      <article className="media-lane-card instagram-lane"><div className="media-lane-icon"><Instagram size={20}/></div><div><strong>Instagram Publishing</strong><p>Reels and Carousel Studio assets share one review and calendar flow.</p><span>{drafts.filter((item) => item.platform === "instagram").length} drafts in pipeline</span></div><div className="media-lane-actions"><Link className="button" href="/admin/carousel-studio">Carousel Studio</Link><a className="button" href="#publishing-workspace">Reels suite</a></div></article>
+      <article className="media-lane-card"><div className="media-lane-icon threads"><span>@</span></div><div><strong>Threads</strong><p>Reserved for text, image, and conversation posts.</p><span>Publishing connection next</span></div></article>
+      <article className="media-lane-card"><div className="media-lane-icon"><Music2 size={20}/></div><div><strong>Music</strong><p>Release artwork, songs, clips, and distribution metrics.</p><span>Lane reserved</span></div></article>
+      <article className="media-lane-card"><div className="media-lane-icon"><Mic2 size={20}/></div><div><strong>Podcast</strong><p>Episodes, clips, audio platforms, and listener metrics.</p><span>Lane reserved</span></div></article>
+    </div>
+    <div className="media-pipeline-grid"><article className="media-pipeline-card"><div className="media-pipeline-title"><CalendarDays size={17}/><div><strong>Content pipeline</strong><span>{drafts.length} active drafts</span></div></div>{drafts.length ? <div className="media-draft-list">{drafts.slice(0, 6).map((item) => <div key={item.id}><span className={`media-type-badge ${item.content_type}`}>{item.content_type}</span><div><strong>{item.title}</strong><small>{item.platform || "unassigned"} · {item.status}</small></div></div>)}</div> : <p>Carousel and media drafts will collect here.</p>}</article><article className="media-pipeline-card"><div className="media-pipeline-title"><Send size={17}/><div><strong>Next on calendar</strong><span>{upcoming.length} scheduled</span></div></div>{upcoming.length ? <div className="media-draft-list">{upcoming.map((item) => <div key={item.id}><span className={`media-type-badge ${item.content_type}`}>{item.platform || item.content_type}</span><div><strong>{item.title}</strong><small>{item.scheduled_for ? new Date(item.scheduled_for).toLocaleString() : item.status}</small></div></div>)}</div> : <p>Nothing scheduled in the unified calendar yet.</p>}</article></div>
+  </section>, target, "media-overview");
+}
