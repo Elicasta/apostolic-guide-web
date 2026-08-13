@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import { getStudioPermission } from "@/auth";
 import { SocialPublishingCredentials } from "@/social-publishing-credentials";
-import { ThreadsPublishingCredentials } from "@/threads-publishing-credentials";
 import { VideoRendererCredentials } from "@/video-renderer-credentials";
 
 const checks = [
@@ -23,7 +22,6 @@ export default async function AdminSetupPage() {
 
       <VideoRendererCredentials/>
       <SocialPublishingCredentials/>
-      <ThreadsPublishingCredentials/>
 
       <section className="admin-card">
         <h2>Environment</h2>
