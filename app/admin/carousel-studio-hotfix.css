@@ -1,4 +1,4 @@
-/* Final interaction + iOS stability pass. */
+/* Final interaction + browser stability pass. */
 .is-verse .carousel-verse-connection{top:var(--copy-y,49%)!important;gap:var(--copy-gap,3.1cqw)!important;justify-items:var(--copy-align,center)!important;text-align:var(--copy-align,center)!important}
 .is-verse .carousel-verse-connection>strong{font-size:calc(9.2cqw * var(--headline-scale,1))!important;max-width:92%;font-weight:800!important}
 .is-verse .carousel-verse-connection>p{width:var(--body-width,86%)!important;font-size:calc(2.55cqw * var(--body-scale,1))!important;font-weight:700!important}
@@ -6,8 +6,12 @@
 .is-editorial .carousel-brand-mark,.is-verse .carousel-brand-mark{filter:none!important}
 .carousel-preview-card>.carousel-manual-panel{margin-top:14px;margin-bottom:14px}
 .carousel-preview-card>.carousel-manual-panel .carousel-manual-heading span{font-weight:700}
-.carousel-artboard,.carousel-artwork{transform:translateZ(0);backface-visibility:hidden;-webkit-backface-visibility:hidden;will-change:auto;contain:paint}
-.carousel-artboard *,.carousel-artwork *,.carousel-artboard::after,.carousel-artwork::before,.carousel-artwork::after{transition:none!important;animation:none!important;backface-visibility:hidden;-webkit-backface-visibility:hidden}
+/* Keep the preview on one stable paint layer while AI responses update state. Chrome/WebKit can flash when transform-backed layers are recreated during rapid React renders. */
+.carousel-preview-card{isolation:isolate;contain:layout style}
+.carousel-artboard,.carousel-artwork{transform:none!important;backface-visibility:visible!important;-webkit-backface-visibility:visible!important;will-change:auto!important;contain:layout paint style;isolation:isolate;background-clip:padding-box}
+.carousel-artboard *,.carousel-artwork *,.carousel-artboard::before,.carousel-artboard::after,.carousel-artwork::before,.carousel-artwork::after{transition:none!important;animation:none!important;filter:none;backface-visibility:visible!important;-webkit-backface-visibility:visible!important}
+.carousel-artboard img,.carousel-artwork img{transform:none!important;will-change:auto!important}
+.carousel-preview-card[aria-busy="true"] .carousel-artboard,.carousel-preview-card.is-analyzing .carousel-artboard{opacity:1!important;visibility:visible!important}
 .is-editorial:not([style*="--generated-bg-image"]) .carousel-copy>strong,.is-verse:not([style*="--generated-bg-image"]) .carousel-copy>strong{color:#10202a!important}
 .is-editorial:not([style*="--generated-bg-image"]) .carousel-copy>p,.is-verse:not([style*="--generated-bg-image"]) .carousel-copy>p{color:#263a44!important;opacity:1!important}
 .is-editorial:not([style*="--generated-bg-image"]) .carousel-verse-connection>strong,.is-verse:not([style*="--generated-bg-image"]) .carousel-verse-connection>strong{color:#10202a!important}
