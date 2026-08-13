@@ -34,6 +34,7 @@ import "./channel-publishing.css";
 import "./carousel-studio.css";
 import "./carousel-studio-rules.css";
 import "./carousel-studio-copy-fixes.css";
+import "./carousel-studio-final.css";
 
 export const dynamic = "force-dynamic";
 
