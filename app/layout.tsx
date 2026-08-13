@@ -50,6 +50,7 @@ import "./about-page-v2.css";
 import "./footer-connect.css";
 import "./bible-links.css";
 import "./contact-form.css";
+import "./studio-host.css";
 
 const socialShareImage = "/opengraph-image?v=20260812";
 
