@@ -33,6 +33,7 @@ import "./video-studio-review.css";
 import "./channel-publishing.css";
 import "./carousel-studio.css";
 import "./carousel-studio-rules.css";
+import "./carousel-studio-copy-fixes.css";
 
 export const dynamic = "force-dynamic";
 
