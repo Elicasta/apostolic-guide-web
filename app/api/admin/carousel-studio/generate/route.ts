@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getStudioPermission } from "@/auth";
 import { pathwayBySlug } from "@/pathway-catalog";
+import { CAROUSEL_GENERATOR_RULES, MODE_STYLE_DEFAULTS } from "@/carousel-design-rules";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -93,6 +94,15 @@ export async function POST(request: Request) {
     ...pathway.steps.map((step, index) => `${index + 1}. ${step.reference} — ${step.title}: ${step.explanation}`)
   ].join("\n") : "No Pathway source was selected.";
 
+  const preferredStyle = MODE_STYLE_DEFAULTS[parsed.data.mode];
+  const modeDirection = {
+    pathway: "Write for Street Theology: direct, Scripture-forward, declarative, and easy to scan. Do not make every slide a slogan; evidence slides still need clear explanatory body copy.",
+    informational: "Write for Brand White Editorial: calm, ordered teaching with restrained headlines and highly readable body copy.",
+    "word-study": "Write for Brand White Editorial: scholarly but accessible. Keep lexical claims conservative and clearly separated from the biblical text itself.",
+    "verse-connection": "Write for Verse Connection: make the paired passages and the relationship between them the visual and conceptual center of each connection slide.",
+    "app-guide": "Write for Brand White Editorial: task-oriented, simple, sequential steps with one action per slide."
+  }[parsed.data.mode];
+
   const response = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
     headers: { authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
@@ -108,15 +118,24 @@ export async function POST(request: Request) {
           role: "developer",
           content: [{ type: "input_text", text: [
             "You are the content director for Apostolic Guide, a Scripture-first Apostolic Bible study platform.",
+            "The final asset is a mobile social carousel. Write for deliberate learning, clarity, retention, and a clean sense of completion rather than sensationalism.",
+            `This carousel type defaults to the ${preferredStyle} visual system. Shape the copy for that visual language.`,
+            modeDirection,
+            "DESIGN CONTRACT:",
+            ...CAROUSEL_GENERATOR_RULES,
+            "CONTENT RULES:",
             "Create concise social graphics, not sermon paragraphs. Each slide must read cleanly on a phone.",
-            "Prefer one strong idea per slide. Keep headlines short. If an idea needs many words, move detail into body copy and shorten the headline.",
+            "Prefer one strong idea per slide. Keep display headlines short. If an idea needs many words, move detail into body copy and shorten the headline.",
+            "Use body copy as a scannable explanation, not a second headline. Prefer roughly 1–3 short sentences and avoid dense blocks.",
+            "Slide 1 is a hook and promise, not an explanation dump. Middle slides progress one point at a time. The final slide provides closure and one next action.",
+            "Use repetition only when it strengthens the teaching thread. Avoid repetitive sentence shapes from slide to slide.",
             "Do not invent quotations, verse wording, lexical facts, Greek/Hebrew claims, historical claims, or doctrinal claims. When exact verse wording is not supplied, paraphrase and keep the reference.",
             "For word studies, distinguish the biblical text from lexical explanation. Use conservative transliteration/definition language and avoid claims based only on an English gloss.",
             "For verse connections, create paired-reference slides that make the relationship visually obvious and state the connection in one short line.",
             "For app-guide content, write task-oriented steps showing what a reader can do in Apostolic Guide. Do not claim a feature unless it is present in the provided source context.",
-            "The visual system has three template hints: standard, verse-connection, manifesto. Use verse-connection for paired verses and manifesto for short declarative belief/identity slides.",
-            `Return about ${parsed.data.targetSlides} slides, including a strong cover and a restrained CTA when the format calls for it.`,
-            "Never make every slide a giant headline. Alternate hierarchy: cover, teaching, evidence, connection, recap, CTA."
+            "The renderer has three template hints: standard, verse-connection, manifesto. Use verse-connection only for paired passages. Use manifesto only for a genuinely short declarative belief or identity statement.",
+            `Return about ${parsed.data.targetSlides} slides. Prefer 5–10 total slides unless the requested target requires otherwise.`,
+            "Never make every slide a giant headline. Alternate hook, teaching, evidence, connection, recap, and CTA as the material requires."
           ].join("\n") }]
         },
         {
@@ -142,7 +161,7 @@ export async function POST(request: Request) {
 
   try {
     const output = outputSchema.parse(JSON.parse(outputText));
-    return NextResponse.json({ plan: output, model });
+    return NextResponse.json({ plan: output, model, preferredStyle });
   } catch {
     return NextResponse.json({ error: "Carousel planner returned invalid structured output." }, { status: 502 });
   }
