@@ -13,19 +13,9 @@ import {
 } from "@/carousel-design-rules";
 
 type TextureChoice = { texture: CarouselTextureId; strength: number };
+type TextureResponse = { direction?: { texture: CarouselTextureId; strength: number; rationale: string }; error?: string };
 
-type TextureResponse = {
-  direction?: { texture: CarouselTextureId; strength: number; rationale: string };
-  error?: string;
-};
-
-const STYLE_INDEX: Record<CarouselVisualStyle, number> = {
-  street: 0,
-  editorial: 1,
-  cinematic: 2,
-  verse: 3,
-  manifesto: 4
-};
+const STYLE_INDEX: Record<CarouselVisualStyle, number> = { street: 0, editorial: 1, cinematic: 2, verse: 3, manifesto: 4 };
 
 function readStyle(): CarouselVisualStyle {
   const board = document.querySelector<HTMLElement>(".carousel-artboard");
@@ -36,6 +26,19 @@ function readStyle(): CarouselVisualStyle {
   return "street";
 }
 
+function readSlidePosition() {
+  const label = document.querySelector<HTMLElement>(".carousel-preview-nav strong")?.innerText?.trim() ?? "01 / 01";
+  const match = label.match(/(\d+)\s*\/\s*(\d+)/);
+  return { slide: Number(match?.[1] ?? 1), total: Number(match?.[2] ?? 1) };
+}
+
+function readDeckKey() {
+  const heading = document.querySelector<HTMLElement>(".carousel-preview-card .carousel-card-heading h2")?.innerText?.trim()
+    || document.querySelector<HTMLElement>(".carousel-studio-heading h1")?.innerText?.trim()
+    || "carousel";
+  return heading.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 72) || "carousel";
+}
+
 function readSlideCopy() {
   const board = document.querySelector<HTMLElement>(".carousel-artboard");
   if (!board) return { title: "", body: "" };
@@ -44,20 +47,19 @@ function readSlideCopy() {
   return { title, body };
 }
 
-function applyTexture(choice: TextureChoice) {
-  document.querySelectorAll<HTMLElement>(".carousel-artboard, .carousel-export-artboard").forEach((board) => {
-    board.dataset.texture = choice.texture;
-    board.style.setProperty("--texture-strength", String(choice.strength / 100));
-  });
+function applyTexture(board: HTMLElement | undefined | null, choice: TextureChoice) {
+  if (!board) return;
+  board.dataset.texture = choice.texture;
+  board.style.setProperty("--texture-strength", String(choice.strength / 100));
 }
 
-function storageKey(style: CarouselVisualStyle) {
-  return `ag-carousel-texture-v1:${style}`;
+function storageKey(deck: string, style: CarouselVisualStyle, slide: number) {
+  return `ag-carousel-texture-v2:${deck}:${style}:${slide}`;
 }
 
-function loadChoice(style: CarouselVisualStyle): TextureChoice {
+function loadChoice(deck: string, style: CarouselVisualStyle, slide: number): TextureChoice {
   try {
-    const saved = localStorage.getItem(storageKey(style));
+    const saved = localStorage.getItem(storageKey(deck, style, slide));
     if (saved) {
       const parsed = JSON.parse(saved) as TextureChoice;
       if (CAROUSEL_TEXTURES.some((texture) => texture.id === parsed.texture) && Number.isFinite(parsed.strength)) return parsed;
@@ -66,13 +68,25 @@ function loadChoice(style: CarouselVisualStyle): TextureChoice {
   return STYLE_TEXTURE_DEFAULTS[style];
 }
 
+function saveChoice(deck: string, style: CarouselVisualStyle, slide: number, choice: TextureChoice) {
+  try { localStorage.setItem(storageKey(deck, style, slide), JSON.stringify(choice)); } catch {}
+}
+
+function syncExportBoards(deck: string, style: CarouselVisualStyle) {
+  const boards = Array.from(document.querySelectorAll<HTMLElement>(".carousel-export-artboard"));
+  boards.forEach((board, index) => applyTexture(board, loadChoice(deck, style, index + 1)));
+}
+
 export function CarouselTextureDirector({ aiReady }: { aiReady: boolean }) {
   const [portalTarget, setPortalTarget] = useState<Element | null>(null);
   const [style, setStyle] = useState<CarouselVisualStyle>("street");
+  const [slide, setSlide] = useState(1);
+  const [total, setTotal] = useState(1);
+  const [deck, setDeck] = useState("carousel");
   const [choice, setChoice] = useState<TextureChoice>(STYLE_TEXTURE_DEFAULTS.street);
-  const [instruction, setInstruction] = useState("Add a restrained texture that supports this slide without reducing readability.");
+  const [instruction, setInstruction] = useState("Use the approved Apostolic Guide texture that best supports this slide without reducing readability.");
   const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState("Texture follows the active post style. You can override it here.");
+  const [message, setMessage] = useState("Texture is saved per slide. Change this slide without changing the others.");
 
   const compatibleTextures = useMemo(() => CAROUSEL_TEXTURES.filter((texture) => texture.id === "none" || texture.bestFor.includes(style)), [style]);
 
@@ -83,18 +97,21 @@ export function CarouselTextureDirector({ aiReady }: { aiReady: boolean }) {
       const target = document.querySelector(".carousel-preview-card");
       if (target) setPortalTarget(target);
       const nextStyle = readStyle();
-      const nextChoice = loadChoice(nextStyle);
-      applyTexture(nextChoice);
-      setStyle((current) => {
-        if (current === nextStyle) return current;
-        setChoice(nextChoice);
-        return nextStyle;
-      });
+      const position = readSlidePosition();
+      const nextDeck = readDeckKey();
+      setStyle(nextStyle);
+      setSlide(position.slide);
+      setTotal(position.total);
+      setDeck(nextDeck);
+      const nextChoice = loadChoice(nextDeck, nextStyle, position.slide);
+      setChoice(nextChoice);
+      applyTexture(document.querySelector<HTMLElement>(".carousel-artboard"), nextChoice);
+      syncExportBoards(nextDeck, nextStyle);
     };
 
     sync();
     const observer = new MutationObserver(sync);
-    observer.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ["class"] });
+    observer.observe(document.body, { subtree: true, attributes: true, childList: true, characterData: true, attributeFilter: ["class"] });
 
     const selects = Array.from(document.querySelectorAll<HTMLSelectElement>(".carousel-sourcebar select"));
     const modeSelect = selects[1];
@@ -108,12 +125,6 @@ export function CarouselTextureDirector({ aiReady }: { aiReady: boolean }) {
     };
     modeSelect?.addEventListener("change", handleModeChange);
 
-    const initial = readStyle();
-    const initialChoice = loadChoice(initial);
-    setStyle(initial);
-    setChoice(initialChoice);
-    applyTexture(initialChoice);
-
     return () => {
       disposed = true;
       observer.disconnect();
@@ -122,14 +133,16 @@ export function CarouselTextureDirector({ aiReady }: { aiReady: boolean }) {
   }, []);
 
   useEffect(() => {
-    applyTexture(choice);
-    try { localStorage.setItem(storageKey(style), JSON.stringify(choice)); } catch {}
-  }, [choice, style]);
+    saveChoice(deck, style, slide, choice);
+    applyTexture(document.querySelector<HTMLElement>(".carousel-artboard"), choice);
+    const exports = Array.from(document.querySelectorAll<HTMLElement>(".carousel-export-artboard"));
+    applyTexture(exports[slide - 1], choice);
+  }, [choice, deck, slide, style]);
 
   async function directTexture() {
     if (!aiReady || busy) return;
     setBusy(true);
-    setMessage("AI is choosing a texture from the approved library…");
+    setMessage("AI is choosing from the approved Apostolic Guide texture library…");
     try {
       const copy = readSlideCopy();
       const response = await fetch("/api/admin/carousel-studio/texture-direct", {
@@ -148,6 +161,12 @@ export function CarouselTextureDirector({ aiReady }: { aiReady: boolean }) {
     }
   }
 
+  function applyToAll() {
+    for (let index = 1; index <= total; index += 1) saveChoice(deck, style, index, choice);
+    syncExportBoards(deck, style);
+    setMessage(`Applied ${CAROUSEL_TEXTURES.find((texture) => texture.id === choice.texture)?.label ?? "texture"} to all ${total} slides.`);
+  }
+
   if (!portalTarget) return null;
 
   return createPortal(
@@ -157,8 +176,10 @@ export function CarouselTextureDirector({ aiReady }: { aiReady: boolean }) {
           <span>Surface treatment</span>
           <strong>Texture Library</strong>
         </div>
-        <small>{style.replace("-", " ")} style</small>
+        <small>Slide {String(slide).padStart(2, "0")} / {String(total).padStart(2, "0")}</small>
       </div>
+
+      <p className="carousel-texture-slide-note">Texture edits are per slide. The three AG textures are the supplied brand surfaces.</p>
 
       <div className="carousel-texture-grid">
         {compatibleTextures.map((texture) => (
@@ -184,13 +205,16 @@ export function CarouselTextureDirector({ aiReady }: { aiReady: boolean }) {
       <div className="carousel-texture-ai">
         <label>
           <span><WandSparkles size={14}/> AI texture direction</span>
-          <textarea rows={2} value={instruction} onChange={(event) => setInstruction(event.target.value)} placeholder="Example: subtle worn paper, clean enough for teaching copy"/>
+          <textarea rows={2} value={instruction} onChange={(event) => setInstruction(event.target.value)} placeholder="Example: use the supplied navy paper, subtle enough for teaching copy"/>
         </label>
         <button type="button" className="button" disabled={!aiReady || busy || !instruction.trim()} onClick={() => void directTexture()}>
           {busy ? <Loader2 className="spin" size={15}/> : <Sparkles size={15}/>} Choose texture
         </button>
       </div>
-      <p className="carousel-texture-message">{message}</p>
+      <div style={{display:"flex",justifyContent:"space-between",gap:8,alignItems:"center",marginTop:8}}>
+        <p className="carousel-texture-message">{message}</p>
+        <button type="button" className="button button-outline" onClick={applyToAll}>Use on all</button>
+      </div>
     </section>,
     portalTarget
   );
