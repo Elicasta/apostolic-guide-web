@@ -1,3 +1,4 @@
+import{publishGuestStream,type LiveKitConnection}from"@/studio/livekit-client";
 export type OutputHostBridgeStatus = "waiting" | "connecting" | "connected" | "failed";
 
 export async function connectOutputHostMedia(
@@ -12,12 +13,15 @@ export async function connectOutputHostMedia(
 
   const peer = new RTCPeerConnection();
   const remoteStream = new MediaStream();
+  let mirror:LiveKitConnection|null=null,mirrorTimer:ReturnType<typeof setTimeout>|null=null,mirrorStarted=false;
+  async function startMonitorMirror(){if(mirrorStarted||!remoteStream.getVideoTracks().length)return;mirrorStarted=true;try{const response=await fetch(`/api/studio/output/${sessionId}/remote-media?token=${encodeURIComponent(token)}`,{cache:"no-store"});if(!response.ok)return;const payload=await response.json();if(!payload.hostPreviewPublisher)return;mirror=await publishGuestStream(payload.hostPreviewPublisher,remoteStream);}catch{mirrorStarted=false;}}
   peer.ontrack = (event) => {
     event.streams[0]?.getTracks().forEach((track) => {
       if (!remoteStream.getTracks().some((item) => item.id === track.id)) remoteStream.addTrack(track);
     });
     if (!event.streams[0] && !remoteStream.getTracks().some((item) => item.id === event.track.id)) remoteStream.addTrack(event.track);
     onStream(remoteStream);
+    if(mirrorTimer)clearTimeout(mirrorTimer);mirrorTimer=setTimeout(()=>void startMonitorMirror(),250);
   };
 
   try {
@@ -37,11 +41,11 @@ export async function connectOutputHostMedia(
 
     peer.onconnectionstatechange = () => {
       if (peer.connectionState === "connected") onStatus("connected");
-      if (["failed", "closed", "disconnected"].includes(peer.connectionState)) onStatus("failed");
+      if (["failed", "closed", "disconnected"].includes(peer.connectionState)){onStatus("failed");mirror?.disconnect();mirror=null;}
     };
     return peer;
   } catch (error) {
-    peer.close();
+    if(mirrorTimer)clearTimeout(mirrorTimer);mirror?.disconnect();peer.close();
     onStatus("failed");
     throw error;
   }
