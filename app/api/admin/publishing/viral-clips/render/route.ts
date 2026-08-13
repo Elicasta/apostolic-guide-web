@@ -109,7 +109,7 @@ export async function POST(request: Request) {
   const callbackTokenHash = createHash("sha256").update(callbackToken).digest("hex");
   const [signedUpload, signedCoverUpload] = await Promise.all([
     service.storage.from("pathway-video").createSignedUploadUrl(storagePath, { upsert: true }),
-    service.storage.from("pathway-video").createSignedUploadUrl(coverStoragePath, { upsert: true })
+    service.storage.from("pathway-thumbnail").createSignedUploadUrl(coverStoragePath, { upsert: true })
   ]);
   if (signedUpload.error || !signedUpload.data?.signedUrl) {
     return NextResponse.json({ error: `Could not create signed clip upload URL: ${signedUpload.error?.message ?? "unknown storage error"}` }, { status: 500 });
@@ -119,7 +119,7 @@ export async function POST(request: Request) {
   }
 
   const publicUrl = service.storage.from("pathway-video").getPublicUrl(storagePath).data.publicUrl;
-  const coverPublicUrl = service.storage.from("pathway-video").getPublicUrl(coverStoragePath).data.publicUrl;
+  const coverPublicUrl = service.storage.from("pathway-thumbnail").getPublicUrl(coverStoragePath).data.publicUrl;
   const callbackUrl = `${callbackOrigin(request)}/api/admin/publishing/viral-clips/render-callback`;
   const now = new Date().toISOString();
   const existingMetadata = clip.analysis_metadata && typeof clip.analysis_metadata === "object"
@@ -128,7 +128,7 @@ export async function POST(request: Request) {
   const socialPackage = normalizeSocialClipPackage(existingMetadata);
   const queuedMetadata = {
     ...existingMetadata,
-    renderBridge: { publicUrl, coverPublicUrl, coverStoragePath },
+    renderBridge: { publicUrl, coverPublicUrl, coverStoragePath, coverBucket: "pathway-thumbnail" },
     renderProgress: { progress: 1, stage: "Queued for render worker", updatedAt: now },
     requestedAt: now
   };
@@ -185,7 +185,7 @@ export async function POST(request: Request) {
         error,
         analysis_metadata: {
           ...queuedMetadata,
-          renderProgress: { progress: 100, stage: "Failed to start renderer", updatedAt: failedAt }
+          renderProgress: { progress: 1, stage: "Failed to start renderer", updatedAt: failedAt }
         },
         updated_at: failedAt
       }).eq("id", clip.id),

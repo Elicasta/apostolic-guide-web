@@ -8,6 +8,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import urllib.error
 import urllib.request
 
 
@@ -27,7 +28,9 @@ def callback(
     if error:
         body["error"] = error[:2000]
     if progress is not None:
-        body["progress"] = max(0, min(100, int(progress)))
+        normalized_progress = max(0, min(100, int(progress)))
+        body["progress"] = normalized_progress
+        payload["_last_progress"] = normalized_progress
     if stage:
         body["stage"] = stage[:120]
 
@@ -38,7 +41,10 @@ def callback(
                 payload["callback_url"],
                 data=json.dumps(body).encode(),
                 method="POST",
-                headers={"Content-Type": "application/json"},
+                headers={
+                    "Content-Type": "application/json",
+                    "User-Agent": "apostolic-guide-social-clip-renderer",
+                },
             )
             with urllib.request.urlopen(request, timeout=30) as response:
                 response.read()
@@ -265,15 +271,24 @@ def render(payload: dict, output: Path, cover: Path) -> None:
         callback(payload, "rendering", progress=91, stage="Cover ready")
 
 
-def upload(url: str, output: Path, content_type: str) -> None:
+def upload(url: str, output: Path, content_type: str, label: str) -> None:
     request = urllib.request.Request(
         url,
         data=output.read_bytes(),
         method="PUT",
-        headers={"Content-Type": content_type, "x-upsert": "true"},
+        headers={
+            "Content-Type": content_type,
+            "x-upsert": "true",
+            "User-Agent": "apostolic-guide-social-clip-renderer",
+        },
     )
-    with urllib.request.urlopen(request, timeout=300) as response:
-        response.read()
+    try:
+        with urllib.request.urlopen(request, timeout=600) as response:
+            response.read()
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode("utf-8", errors="replace").strip()[:1200]
+        message = detail or str(exc.reason or "storage rejected the upload")
+        raise RuntimeError(f"{label} upload failed ({exc.code}): {message}") from exc
 
 
 def main() -> int:
@@ -287,14 +302,15 @@ def main() -> int:
         callback(payload, "rendering", progress=3, stage="Worker started")
         render(payload, output, cover)
         callback(payload, "rendering", progress=94, stage="Uploading video")
-        upload(payload["upload_url"], output, "video/mp4")
+        upload(payload["upload_url"], output, "video/mp4", "Video")
         callback(payload, "rendering", progress=97, stage="Uploading cover")
-        upload(payload["cover_upload_url"], cover, "image/jpeg")
+        upload(payload["cover_upload_url"], cover, "image/jpeg", "Cover")
         callback(payload, "completed", progress=100, stage="Ready", required=True)
         return 0
     except Exception as exc:
+        last_progress = int(payload.get("_last_progress", 0) or 0)
         try:
-            callback(payload, "failed", str(exc), progress=100, stage="Failed")
+            callback(payload, "failed", str(exc), progress=last_progress, stage="Failed")
         except Exception as callback_error:
             print(f"callback failed: {callback_error}", file=sys.stderr)
         print(str(exc), file=sys.stderr)
