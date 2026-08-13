@@ -12,8 +12,7 @@ export function createStudioLiveKitToken(input:{episodeId:string;identity:string
  const url=process.env.LIVEKIT_URL,apiKey=process.env.LIVEKIT_API_KEY,secret=process.env.LIVEKIT_API_SECRET;
  if(!url||!apiKey||!secret)return null;
  const now=Math.floor(Date.now()/1000),ttl=Math.max(60,Math.min(input.ttlSeconds??3600,21600));
- const publish=input.role!=="output";
- const subscribe=input.role!=="guest"||true;
- const token=signJwt({iss:apiKey,sub:input.identity,name:input.name,nbf:now-5,exp:now+ttl,metadata:JSON.stringify({agRole:input.role,episodeId:input.episodeId}),video:{room:studioRoomName(input.episodeId),roomJoin:true,canPublish:publish,canSubscribe:subscribe,canPublishData:publish,canUpdateOwnMetadata:false}},secret);
+ const canPublish=input.role!=="output",canSubscribe=input.role!=="guest";
+ const token=signJwt({iss:apiKey,sub:input.identity,name:input.name,nbf:now-5,exp:now+ttl,metadata:JSON.stringify({agRole:input.role,episodeId:input.episodeId}),video:{room:studioRoomName(input.episodeId),roomJoin:true,canPublish,canSubscribe,canPublishData:canPublish,canUpdateOwnMetadata:false}},secret);
  return {url,token,room:studioRoomName(input.episodeId),identity:input.identity,role:input.role};
 }
