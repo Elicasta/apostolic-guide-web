@@ -3,12 +3,16 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getStudioPermission } from "@/auth";
 import { pathwayBySlug } from "@/pathway-catalog";
+import { normalizeSocialClipPackage } from "@/social-clip-package";
 import { createServiceClient } from "@/supabase";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
 
-const schema = z.object({ clipId: z.string().uuid() });
+const schema = z.object({
+  clipId: z.string().uuid(),
+  regenerate: z.boolean().optional().default(false)
+});
 
 async function rendererCredentials(service: ReturnType<typeof createServiceClient>) {
   let token = process.env.VIDEO_STUDIO_GITHUB_TOKEN?.trim() || "";
@@ -41,7 +45,7 @@ export async function POST(request: Request) {
   if (clipResult.error) return NextResponse.json({ error: clipResult.error.message }, { status: 500 });
   const clip = clipResult.data;
   if (!clip) return NextResponse.json({ error: "Social clip not found." }, { status: 404 });
-  if (clip.status === "completed" && clip.output_url) return NextResponse.json({ clip, queued: false });
+  if (!parsed.data.regenerate && clip.status === "completed" && clip.output_url) return NextResponse.json({ clip, queued: false });
   const pathway = pathwayBySlug(clip.pathway_slug);
   if (!pathway) return NextResponse.json({ error: "Pathway not found." }, { status: 404 });
 
@@ -80,25 +84,35 @@ export async function POST(request: Request) {
       source_url: sourceResult.data.output_url,
       cta_type: "visit_pathway",
       destination_url: `https://www.apostolicguide.com/pathways/${pathway.slug}`,
-      notes: `AI-selected short-form cut. Viral potential score ${clip.score}/100.`
+      notes: `AI-selected animated short-form cut. Viral potential score ${clip.score}/100.`
     }).select("id").single();
     if (assetResult.error) return NextResponse.json({ error: assetResult.error.message }, { status: 500 });
     assetId = assetResult.data.id;
   }
 
   const storagePath = `pathways/${pathway.slug}/social-clips/${clip.id}.mp4`;
+  const coverStoragePath = `pathways/${pathway.slug}/social-clips/${clip.id}-cover.jpg`;
   const callbackToken = randomBytes(32).toString("hex");
   const callbackTokenHash = createHash("sha256").update(callbackToken).digest("hex");
-  const signedUpload = await service.storage.from("pathway-video").createSignedUploadUrl(storagePath, { upsert: true });
+  const [signedUpload, signedCoverUpload] = await Promise.all([
+    service.storage.from("pathway-video").createSignedUploadUrl(storagePath, { upsert: true }),
+    service.storage.from("pathway-video").createSignedUploadUrl(coverStoragePath, { upsert: true })
+  ]);
   if (signedUpload.error || !signedUpload.data?.signedUrl) {
     return NextResponse.json({ error: `Could not create signed clip upload URL: ${signedUpload.error?.message ?? "unknown storage error"}` }, { status: 500 });
   }
+  if (signedCoverUpload.error || !signedCoverUpload.data?.signedUrl) {
+    return NextResponse.json({ error: `Could not create signed cover upload URL: ${signedCoverUpload.error?.message ?? "unknown storage error"}` }, { status: 500 });
+  }
+
   const publicUrl = service.storage.from("pathway-video").getPublicUrl(storagePath).data.publicUrl;
+  const coverPublicUrl = service.storage.from("pathway-video").getPublicUrl(coverStoragePath).data.publicUrl;
   const callbackUrl = `${new URL(request.url).origin}/api/admin/publishing/viral-clips/render-callback`;
   const now = new Date().toISOString();
   const existingMetadata = clip.analysis_metadata && typeof clip.analysis_metadata === "object"
     ? clip.analysis_metadata as Record<string, unknown>
     : {};
+  const socialPackage = normalizeSocialClipPackage(existingMetadata);
   const prepared = await service.from("pathway_social_clips").update({
     asset_id: assetId,
     status: "queued",
@@ -107,7 +121,7 @@ export async function POST(request: Request) {
     callback_token_hash: callbackTokenHash,
     analysis_metadata: {
       ...existingMetadata,
-      renderBridge: { publicUrl },
+      renderBridge: { publicUrl, coverPublicUrl, coverStoragePath },
       requestedAt: now
     },
     updated_at: now
@@ -131,8 +145,17 @@ export async function POST(request: Request) {
         start_seconds: Number(clip.start_seconds),
         end_seconds: Number(clip.end_seconds),
         upload_url: signedUpload.data.signedUrl,
+        cover_upload_url: signedCoverUpload.data.signedUrl,
         callback_url: callbackUrl,
-        callback_token: callbackToken
+        callback_token: callbackToken,
+        creative: {
+          pathway: pathway.title,
+          title: clip.title,
+          hook: clip.hook,
+          cover_headline: socialPackage.coverHeadline || clip.title,
+          cover_subline: socialPackage.coverSubline || pathway.title,
+          caption_cues: socialPackage.captionCues
+        }
       }
     })
   });

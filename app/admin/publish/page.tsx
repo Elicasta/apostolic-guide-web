@@ -57,6 +57,7 @@ type SocialClipRow = {
   output_url: string | null;
   error: string | null;
   model: string | null;
+  analysis_metadata: unknown;
   created_at: string;
   completed_at: string | null;
 };
@@ -88,7 +89,7 @@ export default async function AdminChannelPublishingPage() {
         .order("created_at", { ascending: false })
         .limit(250),
       service.from("pathway_social_clips")
-        .select("id,pathway_slug,source_render_id,asset_id,platform,rank,score,start_seconds,end_seconds,hook,title,rationale,caption,status,output_url,error,model,created_at,completed_at")
+        .select("id,pathway_slug,source_render_id,asset_id,platform,rank,score,start_seconds,end_seconds,hook,title,rationale,caption,status,output_url,error,model,analysis_metadata,created_at,completed_at")
         .neq("status", "archived")
         .order("created_at", { ascending: false })
         .limit(250)

@@ -18,6 +18,10 @@ function tokenMatches(raw: string, expected: string) {
   return actual.length === wanted.length && timingSafeEqual(actual, wanted);
 }
 
+function record(value: unknown) {
+  return value && typeof value === "object" ? value as Record<string, unknown> : {};
+}
+
 export async function POST(request: Request) {
   const parsed = schema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Invalid social clip renderer callback." }, { status: 400 });
@@ -52,14 +56,26 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true });
   }
 
-  const metadata = clip.analysis_metadata && typeof clip.analysis_metadata === "object" ? clip.analysis_metadata as Record<string, unknown> : {};
-  const bridge = metadata.renderBridge && typeof metadata.renderBridge === "object" ? metadata.renderBridge as Record<string, unknown> : {};
+  const metadata = record(clip.analysis_metadata);
+  const bridge = record(metadata.renderBridge);
+  const socialPackage = record(metadata.socialPackage);
   const publicUrl = typeof bridge.publicUrl === "string" ? bridge.publicUrl : "";
+  const coverPublicUrl = typeof bridge.coverPublicUrl === "string" ? bridge.coverPublicUrl : "";
   if (!clip.storage_path || !publicUrl) return NextResponse.json({ error: "Social clip output metadata is missing." }, { status: 409 });
+
+  const completedMetadata = {
+    ...metadata,
+    socialPackage: {
+      ...socialPackage,
+      coverUrl: coverPublicUrl || (typeof socialPackage.coverUrl === "string" ? socialPackage.coverUrl : null)
+    },
+    renderedAt: now
+  };
 
   const updates = [service.from("pathway_social_clips").update({
     status: "completed",
     output_url: publicUrl,
+    analysis_metadata: completedMetadata,
     error: null,
     completed_at: now,
     updated_at: now
@@ -69,5 +85,5 @@ export async function POST(request: Request) {
   const failed = results.find((result) => result.error);
   if (failed?.error) return NextResponse.json({ error: failed.error.message }, { status: 500 });
 
-  return NextResponse.json({ ok: true, output_url: publicUrl });
+  return NextResponse.json({ ok: true, output_url: publicUrl, cover_url: coverPublicUrl || null });
 }
