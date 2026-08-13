@@ -92,7 +92,12 @@ type Platform = "youtube" | "instagram" | "tiktok";
 type YouTubePrivacy = "private" | "unlisted" | "public";
 
 function platformStatus(packageItem: PublishingPackage, platform: string) {
-  return packageItem.publications.find((publication) => publication.platform === platform && publication.status !== "cancelled") ?? null;
+  const currentYouTubeAssetId = packageItem.youtubeRender?.asset_id ?? null;
+  return packageItem.publications.find((publication) =>
+    publication.platform === platform &&
+    publication.status !== "cancelled" &&
+    (platform !== "youtube" || Boolean(currentYouTubeAssetId && publication.asset_id === currentYouTubeAssetId))
+  ) ?? null;
 }
 
 function StatusPill({ publication }: { publication: Publication | null }) {
