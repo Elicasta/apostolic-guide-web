@@ -36,6 +36,7 @@ import "./carousel-studio-rules.css";
 import "./carousel-studio-copy-fixes.css";
 import "./carousel-studio-final.css";
 import "./carousel-studio-hotfix.css";
+import "./carousel-studio-enhancements.css";
 
 export const dynamic = "force-dynamic";
 
