@@ -89,6 +89,7 @@ type PublishingPackage = {
 
 type SuiteTab = "publish" | "clips" | "calendar";
 type Platform = "youtube" | "instagram" | "tiktok";
+type YouTubePrivacy = "private" | "unlisted" | "public";
 
 function platformStatus(packageItem: PublishingPackage, platform: string) {
   return packageItem.publications.find((publication) => publication.platform === platform && publication.status !== "cancelled") ?? null;
@@ -125,7 +126,7 @@ export function ChannelPublishing({ packages, credentials, canPublish }: {
 }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [messages, setMessages] = useState<Record<string, string>>({});
-  const [privacy, setPrivacy] = useState<Record<string, "private" | "unlisted" | "public">>({});
+  const [privacy, setPrivacy] = useState<Record<string, YouTubePrivacy>>({});
   const [selectedSlug, setSelectedSlug] = useState(packages[0]?.slug ?? "");
   const [tab, setTab] = useState<SuiteTab>("publish");
   const [platform, setPlatform] = useState<Platform>("youtube");
@@ -296,6 +297,7 @@ export function ChannelPublishing({ packages, credentials, canPublish }: {
   const publishKey = key(selected.slug, `publish:${platform}`);
   const analyzeKey = key(selected.slug, "analyze-clips");
   const channelAuthorized = platform === "youtube" ? youtube?.accountAuthorized : platform === "instagram" ? instagram?.accountAuthorized : tiktok?.accountAuthorized;
+  const selectedPrivacy = privacy[selected.slug] ?? "private";
 
   return <div className="channel-publishing-page">
     <header className="channel-publishing-hero compact">
@@ -358,7 +360,19 @@ export function ChannelPublishing({ packages, credentials, canPublish }: {
           <div className="publish-control-column">
             <div className="channel-platform-head"><div><PlatformIcon platform={platform} size={20}/><strong>{platform === "youtube" ? "YouTube" : platform === "instagram" ? "Instagram Reel" : "TikTok"}</strong></div><StatusPill publication={publication}/></div>
             {platform === "youtube" ? <label><span>Title</span><textarea rows={2} readOnly value={metadata?.youtubeTitle || "Generate the publishing kit in Video Studio."}/></label> : <label><span>Caption</span><textarea rows={5} readOnly value={selectedClip?.caption || (platform === "instagram" ? metadata?.reelCaption : metadata?.tiktokCaption) || "Generate the publishing kit in Video Studio."}/></label>}
-            {platform === "youtube" ? <label><span>Visibility</span><select value={privacy[selected.slug] ?? "private"} onChange={(event) => setPrivacy((current) => ({ ...current, [selected.slug]: event.target.value as "private" | "unlisted" | "public" }))}><option value="private">Private</option><option value="unlisted">Unlisted</option><option value="public">Public</option></select></label> : null}
+            {platform === "youtube" ? <div className="youtube-visibility-card">
+              <div className="youtube-visibility-copy"><strong>YouTube visibility</strong><span>Choose this before publishing or scheduling. The selected setting is sent directly with the YouTube upload.</span></div>
+              <div className="youtube-visibility-options" role="radiogroup" aria-label="YouTube visibility">
+                {(["private", "unlisted", "public"] as YouTubePrivacy[]).map((value) => <button
+                  key={value}
+                  type="button"
+                  role="radio"
+                  aria-checked={selectedPrivacy === value}
+                  className={selectedPrivacy === value ? "active" : ""}
+                  onClick={() => setPrivacy((current) => ({ ...current, [selected.slug]: value }))}
+                >{value === "private" ? "Private" : value === "unlisted" ? "Unlisted" : "Public"}</button>)}
+              </div>
+            </div> : null}
 
             <div className="publishing-action-card">
               <div><strong>Publish now</strong><span>{platform === "tiktok" ? "Direct Post activates after TikTok approves the connection." : selectedClip ? "Publish the selected AI cut." : "Send the finished video now."}</span></div>
