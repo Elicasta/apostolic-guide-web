@@ -59,10 +59,11 @@ def map_word_to_output(word, keep_segments):
     end = float(word.get("end", start))
     midpoint = (start + end) / 2
     cursor = 0.0
-    for segment in keep_segments:
+    for index, segment in enumerate(keep_segments):
         seg_start = float(segment["start"])
         seg_end = float(segment["end"])
-        if seg_start <= midpoint < seg_end or (midpoint == seg_end and segment is keep_segments[-1]):
+        is_last = index == len(keep_segments) - 1
+        if seg_start <= midpoint < seg_end or (is_last and midpoint == seg_end):
             mapped_start = cursor + max(0.0, start - seg_start)
             mapped_end = cursor + min(seg_end - seg_start, max(0.02, end - seg_start))
             if mapped_end <= mapped_start:
@@ -298,7 +299,7 @@ def make_bumper(manifest, output_file, duration, outro=False):
         f"[1:v]scale={logo_width}:-1[logo];"
         f"[0:v][logo]overlay=(W-w)/2:(H-h)/2-28,"
         f"drawtext=font='Noto Sans':text='{subtitle}':fontcolor=white@0.62:fontsize={28 if width > height else 34}:"
-        f"x=(w-text_w)/2:y=(h/2)+120:tracking=5,"
+        f"x=(w-text_w)/2:y=(h/2)+120,"
         f"fade=t=in:st=0:d=0.22,fade=t=out:st={fade_out_start:.2f}:d=0.28,format=yuv420p[v];"
         f"[2:a]afade=t=in:st=0:d=0.12,afade=t=out:st={fade_out_start:.2f}:d=0.25,"
         "aresample=48000,aformat=sample_fmts=fltp:sample_rates=48000:channel_layouts=stereo[a]"
