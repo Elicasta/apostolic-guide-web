@@ -33,11 +33,20 @@ export function isOpenStudyReply(text: string) {
 }
 
 export function buildStudyCardImageUrl(title: string) {
-  // Meta fetches this URL server-to-server. Use the canonical www host directly so
-  // the image request returns 200 instead of the apex-domain 308 redirect.
   const url = new URL("https://www.apostolicguide.com/api/social/study-card");
   url.searchParams.set("title", title);
   return url.toString();
+}
+
+export function buildStudyCardImageMessage(title: string) {
+  return {
+    attachment: {
+      type: "image",
+      payload: {
+        url: buildStudyCardImageUrl(title)
+      }
+    }
+  };
 }
 
 export function buildStudyCardMessage(input: { title: string; destinationUrl: string }) {
@@ -45,23 +54,13 @@ export function buildStudyCardMessage(input: { title: string; destinationUrl: st
     attachment: {
       type: "template",
       payload: {
-        template_type: "generic",
-        elements: [
+        template_type: "button",
+        text: `${input.title}\nScripture first. Questions welcome.`,
+        buttons: [
           {
-            title: input.title.slice(0, 80),
-            image_url: buildStudyCardImageUrl(input.title),
-            subtitle: "Scripture first. Questions welcome.",
-            default_action: {
-              type: "web_url",
-              url: input.destinationUrl
-            },
-            buttons: [
-              {
-                type: "web_url",
-                url: input.destinationUrl,
-                title: "Open the Study"
-              }
-            ]
+            type: "web_url",
+            url: input.destinationUrl,
+            title: "Open the Study"
           }
         ]
       }
