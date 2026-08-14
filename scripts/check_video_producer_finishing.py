@@ -110,4 +110,8 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as error:
+        print(f"::error title=Video Producer finishing smoke::{type(error).__name__}: {error}", flush=True)
+        raise
