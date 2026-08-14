@@ -7,6 +7,7 @@ import {
   compileVideoProducerRenderPlan,
   formatProducerTime,
   VIDEO_PRODUCER_MODE_DEFAULTS,
+  type VideoProducerCaptionAnimation,
   type VideoProducerCaptionStyle,
   type VideoProducerEditPlan,
   type VideoProducerMode,
@@ -20,8 +21,14 @@ const CAPTION_STYLES: { id: VideoProducerCaptionStyle; label: string; descriptio
   { id: "editorial", label: "Editorial", description: "Larger composed cards for theology, quotes and teaching clips." },
   { id: "minimal", label: "Minimal", description: "Low-motion captions when the footage should stay dominant." }
 ];
+const CAPTION_ANIMATIONS: { id: VideoProducerCaptionAnimation; label: string }[] = [
+  { id: "highlight", label: "Word Highlight" },
+  { id: "pop", label: "Pop" },
+  { id: "rise", label: "Rise" },
+  { id: "none", label: "Static" }
+];
 
-const SCRIPTURE_PATTERN = /\b(?:Genesis|Exodus|Leviticus|Numbers|Deuteronomy|Joshua|Judges|Ruth|Samuel|Kings|Chronicles|Ezra|Nehemiah|Esther|Job|Psalms?|Proverbs|Ecclesiastes|Isaiah|Jeremiah|Lamentations|Ezekiel|Daniel|Hosea|Joel|Amos|Obadiah|Jonah|Micah|Nahum|Habakkuk|Zephaniah|Haggai|Zechariah|Malachi|Matthew|Mark|Luke|John|Acts|Romans|Corinthians|Galatians|Ephesians|Philippians|Colossians|Thessalonians|Timothy|Titus|Philemon|Hebrews|James|Peter|Jude|Revelation)\s+\d{1,3}:\d{1,3}(?:-\d{1,3})?/i;
+const SCRIPTURE_PATTERN = /\b(?:[1-3]\s+)?(?:Genesis|Exodus|Leviticus|Numbers|Deuteronomy|Joshua|Judges|Ruth|Samuel|Kings|Chronicles|Ezra|Nehemiah|Esther|Job|Psalms?|Proverbs|Ecclesiastes|Song(?: of (?:Solomon|Songs))?|Isaiah|Jeremiah|Lamentations|Ezekiel|Daniel|Hosea|Joel|Amos|Obadiah|Jonah|Micah|Nahum|Habakkuk|Zephaniah|Haggai|Zechariah|Malachi|Matthew|Mark|Luke|John|Acts|Romans|Corinthians|Galatians|Ephesians|Philippians|Colossians|Thessalonians|Timothy|Titus|Philemon|Hebrews|James|Peter|Jude|Revelation)\s+\d{1,3}:\d{1,3}(?:-\d{1,3})?/i;
 
 export function VideoProducerStudio() {
   const [mode, setMode] = useState<VideoProducerMode>("podcast");
@@ -30,18 +37,24 @@ export function VideoProducerStudio() {
   const [duration, setDuration] = useState(0);
   const [transcript, setTranscript] = useState("");
   const [captionStyle, setCaptionStyle] = useState<VideoProducerCaptionStyle>("kinetic-clean");
+  const [captionAnimation, setCaptionAnimation] = useState<VideoProducerCaptionAnimation>("highlight");
   const [plan, setPlan] = useState<VideoProducerEditPlan | null>(null);
   const [approved, setApproved] = useState(false);
 
   const renderPlan = useMemo(() => plan ? compileVideoProducerRenderPlan(plan) : null, [plan]);
   const defaults = VIDEO_PRODUCER_MODE_DEFAULTS[mode];
 
+  function invalidatePlan() {
+    setPlan(null);
+    setApproved(false);
+  }
+
   function selectMode(nextMode: VideoProducerMode) {
     if (nextMode === mode) return;
     setMode(nextMode);
     setCaptionStyle(nextMode === "reels" ? "kinetic-clean" : "minimal");
-    setPlan(null);
-    setApproved(false);
+    setCaptionAnimation(nextMode === "reels" ? "highlight" : "none");
+    invalidatePlan();
   }
 
   function onFile(file?: File) {
@@ -50,8 +63,7 @@ export function VideoProducerStudio() {
     setSourceName(file.name);
     setSourceUrl(URL.createObjectURL(file));
     setDuration(0);
-    setPlan(null);
-    setApproved(false);
+    invalidatePlan();
   }
 
   function generatePlan() {
@@ -68,13 +80,18 @@ export function VideoProducerStudio() {
           duration: mode === "reels" ? 4.5 : 7,
           title: scripture[0],
           reference: scripture[0],
-          body: line
+          body: line,
+          animation: mode === "reels" ? "rise" as const : "fade" as const,
+          placement: mode === "reels" ? "center" as const : "lower-third" as const
         };
       })
       .filter((item): item is NonNullable<typeof item> => Boolean(item));
 
     const nextPlan = buildDefaultVideoProducerPlan(mode, duration, overlays.length ? overlays : SAMPLE_OVERLAYS);
-    if (mode === "reels") nextPlan.captions.style = captionStyle;
+    if (mode === "reels") {
+      nextPlan.captions.style = captionStyle;
+      nextPlan.captions.animation = captionAnimation;
+    }
     setPlan(nextPlan);
     setApproved(false);
   }
@@ -163,13 +180,19 @@ export function VideoProducerStudio() {
 
             {mode === "reels" && (
               <div className="rounded-3xl border border-white/10 bg-white/[0.025] p-5">
-                <div className="mb-4"><div className="text-sm font-bold">Caption direction</div><div className="mt-1 text-xs text-white/45">Style is part of the render plan, not baked into random AI choices.</div></div>
+                <div className="mb-4"><div className="text-sm font-bold">Caption direction</div><div className="mt-1 text-xs text-white/45">Style and animation are explicit render settings. The edit director can group words, but it cannot silently change the approved visual language.</div></div>
                 <div className="grid gap-3 md:grid-cols-2">
                   {CAPTION_STYLES.map((style) => (
-                    <button key={style.id} type="button" onClick={() => { setCaptionStyle(style.id); setPlan(null); setApproved(false); }} className={`rounded-2xl border p-4 text-left transition ${captionStyle === style.id ? "border-[#4c8dff]/60 bg-[#4c8dff]/10" : "border-white/8 bg-black/20 hover:border-white/20"}`}>
+                    <button key={style.id} type="button" onClick={() => { setCaptionStyle(style.id); invalidatePlan(); }} className={`rounded-2xl border p-4 text-left transition ${captionStyle === style.id ? "border-[#4c8dff]/60 bg-[#4c8dff]/10" : "border-white/8 bg-black/20 hover:border-white/20"}`}>
                       <div className="flex items-center justify-between gap-3"><span className="text-sm font-bold">{style.label}</span>{captionStyle === style.id && <Check size={15} className="text-[#6aa2ff]"/>}</div>
                       <div className="mt-2 text-xs leading-5 text-white/45">{style.description}</div>
                     </button>
+                  ))}
+                </div>
+                <div className="mt-5 text-[10px] font-bold uppercase tracking-[.18em] text-white/35">Animation</div>
+                <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  {CAPTION_ANIMATIONS.map((animation) => (
+                    <button key={animation.id} type="button" onClick={() => { setCaptionAnimation(animation.id); invalidatePlan(); }} className={`rounded-xl border px-3 py-3 text-xs font-bold transition ${captionAnimation === animation.id ? "border-[#ff5757]/50 bg-[#ff3b3b]/10 text-white" : "border-white/8 bg-black/20 text-white/45 hover:text-white/75"}`}>{animation.label}</button>
                   ))}
                 </div>
               </div>
@@ -194,14 +217,17 @@ export function VideoProducerStudio() {
                 <Metric label={mode === "reels" ? "Graphics" : "Overlays"} value={String(plan?.overlays.length ?? 0)}/>
               </div>
               {mode === "reels" && plan && (
-                <div className="mt-3 flex items-center justify-between rounded-xl border border-white/8 bg-black/25 px-3 py-3 text-xs"><span className="text-white/45">Captions</span><span className="font-bold text-white/80">{CAPTION_STYLES.find((style) => style.id === plan.captions.style)?.label ?? plan.captions.style}</span></div>
+                <div className="mt-3 space-y-2">
+                  <div className="flex items-center justify-between rounded-xl border border-white/8 bg-black/25 px-3 py-3 text-xs"><span className="text-white/45">Caption style</span><span className="font-bold text-white/80">{CAPTION_STYLES.find((style) => style.id === plan.captions.style)?.label ?? plan.captions.style}</span></div>
+                  <div className="flex items-center justify-between rounded-xl border border-white/8 bg-black/25 px-3 py-3 text-xs"><span className="text-white/45">Animation</span><span className="font-bold text-white/80">{CAPTION_ANIMATIONS.find((animation) => animation.id === plan.captions.animation)?.label ?? plan.captions.animation}</span></div>
+                </div>
               )}
-              {plan?.overlays.length ? <div className="mt-4 space-y-2">{plan.overlays.slice(0, 6).map((overlay) => <div key={overlay.id} className="rounded-xl border border-white/8 bg-black/25 p-3"><div className="text-[10px] font-bold uppercase tracking-[.18em] text-[#4c8dff]">{overlay.kind} · {formatProducerTime(overlay.start)}</div><div className="mt-1 text-sm font-semibold">{overlay.title}</div></div>)}</div> : <div className="mt-4 rounded-xl border border-dashed border-white/10 p-5 text-center text-xs text-white/35">No decisions generated yet.</div>}
+              {plan?.overlays.length ? <div className="mt-4 space-y-2">{plan.overlays.slice(0, 6).map((overlay) => <div key={overlay.id} className="rounded-xl border border-white/8 bg-black/25 p-3"><div className="text-[10px] font-bold uppercase tracking-[.18em] text-[#4c8dff]">{overlay.kind} · {formatProducerTime(overlay.start)}{overlay.animation ? ` · ${overlay.animation}` : ""}</div><div className="mt-1 text-sm font-semibold">{overlay.title}</div></div>)}</div> : <div className="mt-4 rounded-xl border border-dashed border-white/10 p-5 text-center text-xs text-white/35">No decisions generated yet.</div>}
             </div>
 
             <div className="rounded-3xl border border-white/10 bg-white/[0.025] p-5">
               <div className="text-sm font-bold">Render handoff</div>
-              <p className="mt-2 text-xs leading-5 text-white/45">The worker gets normalized cuts, remapped graphics, remapped music, motion directions, caption settings, media presets and the exact output geometry. The model never edits video frames directly.</p>
+              <p className="mt-2 text-xs leading-5 text-white/45">The worker gets normalized cuts, remapped graphics, animated overlay direction, remapped music, numeric motion transforms, caption settings, media presets and exact output geometry. The model never edits video frames directly.</p>
               <button disabled={!renderPlan} onClick={() => setApproved(true)} className="mt-4 w-full rounded-xl bg-[#e72c33] px-4 py-3 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-30">{approved ? "APPROVED FOR RENDER" : "APPROVE EDIT"}</button>
             </div>
           </aside>
