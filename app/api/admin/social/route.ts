@@ -4,6 +4,7 @@ import { getAdminAccess } from "@/auth";
 import { hasStudioPermission } from "@/studio-permissions";
 import { createServiceClient } from "@/supabase";
 import { saveInstagramConfig, verifyAndSubscribeInstagram } from "@/social-messaging";
+import { retryInstagramAutomationEvent } from "@/social-attribution";
 import { recordStudioAudit } from "@/studio-audit";
 
 const automationFields = z.object({
@@ -21,6 +22,7 @@ const requestSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("update_automation"), id: z.string().uuid(), automation: automationFields }),
   z.object({ action: z.literal("toggle_automation"), id: z.string().uuid(), enabled: z.boolean() }),
   z.object({ action: z.literal("delete_automation"), id: z.string().uuid() }),
+  z.object({ action: z.literal("retry_event"), id: z.number().int().positive() }),
   z.object({
     action: z.literal("save_connection"),
     appSecret: z.string().trim().max(500).optional(),
@@ -83,6 +85,12 @@ export async function POST(request: Request) {
       if (error) throw new Error(error.message);
       await recordStudioAudit({ actorUserId: access.user.id, action: "social.automation_deleted", resourceType: "social_automation", resourceId: body.id });
       return NextResponse.json({ ok: true });
+    }
+
+    if (body.action === "retry_event") {
+      const result = await retryInstagramAutomationEvent(body.id);
+      await recordStudioAudit({ actorUserId: access.user.id, action: "social.automation_retried", resourceType: "social_event", resourceId: String(body.id), metadata: { retry_event_id: result.id, delivery_status: result.status, provider_message_id: result.providerMessageId } });
+      return NextResponse.json({ ok: true, retry: result });
     }
 
     if (body.action === "save_connection") {

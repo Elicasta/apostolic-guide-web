@@ -3,7 +3,9 @@ import { Activity, Instagram, MessageSquareReply, Send } from "lucide-react";
 import { getStudioPermission } from "@/auth";
 import { hasStudioPermission } from "@/studio-permissions";
 import { SocialAutomationManager, type SocialLinkSource } from "@/social-automation-manager";
-import { getInstagramConnection, listRecentSocialEvents, listSocialAutomations, socialMetrics } from "@/social-messaging";
+import { SocialEventRetryButton } from "@/social-event-retry-button";
+import { listSocialEventHistory } from "@/social-event-history";
+import { getInstagramConnection, listSocialAutomations, socialMetrics } from "@/social-messaging";
 import { articles, answers, pathways, topics } from "@/data";
 import { listAdminContent } from "@/database-content";
 
@@ -18,7 +20,7 @@ export default async function SocialMessagingPage() {
     listSocialAutomations(),
     getInstagramConnection(),
     socialMetrics(),
-    listRecentSocialEvents(12),
+    listSocialEventHistory(12),
     listAdminContent()
   ]);
 
@@ -58,8 +60,11 @@ export default async function SocialMessagingPage() {
       <SocialAutomationManager automations={automations} connection={connection} sources={sources} canManageAutomations={canManageAutomations} canManageConnection={canManageConnection}/>
 
       <section className="admin-card publishing-card social-event-section">
-        <div className="card-heading"><div><span className="section-kicker">Activity</span><h2>Recent automation events</h2></div><p>Privacy-first delivery logs. We keep the rule, keyword, status, and time, not the person’s Instagram username or message body.</p></div>
-        {recentEvents.length ? <div className="content-library">{recentEvents.map((event) => <div className="content-library-row" key={String(event.id)}><div><span className="content-kind">{event.trigger_type === "comment_keyword" ? "Comment" : "DM"}</span><strong>{event.automation_id ? automationNames.get(String(event.automation_id)) ?? "Deleted automation" : "No matching automation"}</strong><small>{event.matched_keyword ? `Keyword: ${event.matched_keyword} · ` : ""}{new Date(String(event.event_at)).toLocaleString()}</small></div><div className="content-row-end"><span className={event.delivery_status === "sent" ? "status-pill" : event.delivery_status === "failed" ? "status-pill status-error" : "status-pill status-pending"}>{String(event.delivery_status)}</span></div></div>)}</div> : <div className="empty-state"><Activity size={24} /><strong>No Instagram automation activity yet.</strong><p>Once the webhook is connected and a keyword rule fires, the event will appear here.</p></div>}
+        <div className="card-heading"><div><span className="section-kicker">Activity</span><h2>Recent automation events</h2></div><p>Original failures remain visible. Once a retry succeeds, the event is marked recovered and cannot accidentally send a second private reply.</p></div>
+        {recentEvents.length ? <div className="content-library">{recentEvents.map((event) => {
+          const status = event.retry_recovered ? "recovered" : event.delivery_status;
+          return <div className="content-library-row" key={String(event.id)}><div><span className="content-kind">{event.trigger_type === "comment_keyword" ? "Comment" : "DM"}</span><strong>{event.automation_id ? automationNames.get(String(event.automation_id)) ?? "Deleted automation" : "No matching automation"}</strong><small>{event.matched_keyword ? `Keyword: ${event.matched_keyword} · ` : ""}{new Date(String(event.event_at)).toLocaleString()}</small></div><div className="content-row-end social-event-row-end"><span className={status === "sent" || status === "recovered" ? "status-pill" : status === "failed" ? "status-pill status-error" : "status-pill status-pending"}>{status}</span>{status === "failed" && canManageAutomations ? <SocialEventRetryButton eventId={Number(event.id)} /> : null}</div></div>;
+        })}</div> : <div className="empty-state"><Activity size={24} /><strong>No Instagram automation activity yet.</strong><p>Once the webhook is connected and a keyword rule fires, the event will appear here.</p></div>}
       </section>
     </>
   );
