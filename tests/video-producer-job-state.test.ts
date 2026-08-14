@@ -35,10 +35,10 @@ test("transcription becomes stale only after the two-hour recovery margin", () =
   assert.equal(isVideoProducerWorkerStale(isoBefore(VIDEO_PRODUCER_TRANSCRIPTION_STALE_MS + 1), VIDEO_PRODUCER_TRANSCRIPTION_STALE_MS, NOW), true);
 });
 
-test("render stays active through the four-hour recovery boundary", () => {
+test("render stays active through the three-minute heartbeat recovery boundary", () => {
   assert.equal(isVideoProducerWorkerStale(isoBefore(VIDEO_PRODUCER_RENDER_STALE_MS), VIDEO_PRODUCER_RENDER_STALE_MS, NOW), false);
 });
 
-test("render becomes stale only after the four-hour recovery margin", () => {
+test("render becomes retryable immediately after the three-minute heartbeat margin", () => {
   assert.equal(isVideoProducerWorkerStale(isoBefore(VIDEO_PRODUCER_RENDER_STALE_MS + 1), VIDEO_PRODUCER_RENDER_STALE_MS, NOW), true);
 });
