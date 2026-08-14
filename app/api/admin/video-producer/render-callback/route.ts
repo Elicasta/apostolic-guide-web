@@ -51,10 +51,25 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true });
   }
 
+  const terminalSnapshot = {
+    ...snapshot,
+    rendererBridge: {
+      ...bridge,
+      callbackTokenHash: null,
+      ...(parsed.data.status === "completed" ? { completedAt: now } : { failedAt: now })
+    }
+  };
+
   if (parsed.data.status === "failed") {
     const error = parsed.data.error?.trim() || "Render worker failed.";
     const [renderUpdate, projectUpdate] = await Promise.all([
-      service.from("video_producer_renders").update({ status: "failed", progress, error, completed_at: now }).eq("id", renderResult.data.id),
+      service.from("video_producer_renders").update({
+        status: "failed",
+        progress,
+        error,
+        completed_at: now,
+        config_snapshot: terminalSnapshot
+      }).eq("id", renderResult.data.id),
       service.from("video_producer_projects").update({ status: "approved" }).eq("id", renderResult.data.project_id)
     ]);
     if (renderUpdate.error || projectUpdate.error) return NextResponse.json({ error: renderUpdate.error?.message || projectUpdate.error?.message }, { status: 500 });
@@ -62,10 +77,6 @@ export async function POST(request: Request) {
   }
 
   if (typeof bridge.outputPath !== "string" || !bridge.outputPath) return NextResponse.json({ error: "Render output locator is missing." }, { status: 409 });
-  const completedSnapshot = {
-    ...snapshot,
-    rendererBridge: { ...bridge, callbackTokenHash: null, completedAt: now }
-  };
   const [renderUpdate, projectUpdate] = await Promise.all([
     service.from("video_producer_renders").update({
       status: "completed",
@@ -74,7 +85,7 @@ export async function POST(request: Request) {
       output_url: null,
       error: null,
       completed_at: now,
-      config_snapshot: completedSnapshot
+      config_snapshot: terminalSnapshot
     }).eq("id", renderResult.data.id),
     service.from("video_producer_projects").update({ status: "review" }).eq("id", renderResult.data.project_id)
   ]);
