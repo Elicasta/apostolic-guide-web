@@ -4,6 +4,7 @@ import {
   buildDefaultVideoProducerPlan,
   buildKeepSegments,
   compileVideoProducerRenderPlan,
+  findVideoProducerScriptureReference,
   mapSourceRangeToOutputRanges,
   normalizeVideoProducerCuts,
   outputDurationForPlan,
@@ -29,6 +30,14 @@ test("rejects invalid duration and timestamps instead of emitting NaN", () => {
   assert.deepEqual(buildKeepSegments([], Number.NaN), []);
   assert.equal(sourceTimeToOutputTime(Number.NaN, [], 60), null);
   assert.equal(sourceTimeToOutputTime(10, [], Number.NaN), null);
+});
+
+test("detects standard and numbered Scripture references without false numbering", () => {
+  assert.equal(findVideoProducerScriptureReference("Jesus says in John 14:9 that seeing Him reveals the Father."), "John 14:9");
+  assert.equal(findVideoProducerScriptureReference("Read 1 John 4:2 before the next point."), "1 John 4:2");
+  assert.equal(findVideoProducerScriptureReference("Paul writes in 2 Corinthians 5:19-20."), "2 Corinthians 5:19-20");
+  assert.equal(findVideoProducerScriptureReference("Song of Solomon 2:1 is referenced here."), "Song of Solomon 2:1");
+  assert.equal(findVideoProducerScriptureReference("There is no such book as 3 Corinthians 1:1."), null);
 });
 
 test("builds keep segments around cuts", () => {
