@@ -6,7 +6,9 @@ Video Producer is the post-production system for recorded Apostolic Guide video.
 
 **AI decides. Code edits.**
 
-The transcript and Apostolic Guide content data are editorial inputs. Language models may propose edit decisions, titles, graphics, captions, motion cues and clip structure. Deterministic media tooling performs the actual cuts, audio processing, color transforms, graphics, motion, music mixing and exports.
+GPT-5.6 Sol may propose editorial decisions from a timestamped transcript. Server code validates those decisions and freezes an approved render manifest. FFmpeg performs the actual cuts, audio processing, color transforms, captions, motion, graphics, bumpers and encoding.
+
+The language model never receives permission to alter video frames directly and no model output can render until it survives normalization and human approval.
 
 ## Two production lanes
 
@@ -18,176 +20,244 @@ Default delivery:
 
 - 16:9
 - 1920x1080
-- 30 fps MP4
-- AG voice cleanup
-- AG Studio grade
-- chapters and Scripture graphics
-- intro and outro enabled
+- 30 fps H.264/AAC MP4
+- `ag-voice-clean` dialogue processing
+- `ag-studio` grade
+- conservative editorial cuts
+- chapter, Scripture and statement overlays
+- restrained motion
+- branded code-generated intro and outro
 - captions off by default
 
-The producer pass is allowed to prioritize pacing, clarity and polish over aggressive retention editing.
+Podcast directing prioritizes doctrinal continuity, clarity and natural pacing over aggressive retention editing. The server rejects a model plan that removes more than 35% of the source.
 
 ### Reels Producer
 
-Short-form production for Reels, TikTok, Shorts and other vertical distribution.
+Short-form production for Reels, TikTok, Shorts and vertical distribution.
 
 Default delivery:
 
 - 9:16
 - 1080x1920
-- 30 fps MP4
-- punchier AG voice preset
-- clean social grade
-- animated captions enabled
-- current-word emphasis enabled
-- reframing and punch-in motion cues available
+- 30 fps H.264/AAC MP4
+- `ag-voice-punch` dialogue processing
+- `ag-clean` social grade
+- animated captions
+- current-word emphasis
+- punch-in and reframe motion
+- sanitized focal point and zoom data
 - Scripture, statement and CTA overlays
-- intro and outro disabled by default
+- no long-form bumper by default
 
-Caption style and caption animation are explicit project settings rather than uncontrolled model decisions. Initial styles are `kinetic-clean`, `word-pop`, `editorial` and `minimal`. Initial animations are `highlight`, `pop`, `rise` and `none`.
+Caption styles:
 
-## Workspace flow
+- `kinetic-clean`
+- `word-pop`
+- `editorial`
+- `minimal`
 
-1. Open `/admin/video-producer`.
-2. Select Podcast Mode or Reels Producer.
-3. Load the raw video source.
-4. Review or paste the transcript.
-5. Configure mode-specific direction such as reel caption style and animation.
-6. Generate the edit plan.
-7. Review cuts, overlays, motion and production presets.
-8. Compile the edit plan into the worker-safe render plan.
-9. Approve before rendering.
+Caption animations:
 
-The browser workspace intentionally does not pretend to render long media inside a Vercel request. Media jobs belong in the renderer/worker pattern already used by Video Studio.
+- `highlight`
+- `pop`
+- `rise`
+- `none`
 
-## Edit plan v2
+Caption direction is explicit project state. If it changes after Sol generated a plan, the old plan cannot be approved until the Reels Director is run again.
 
-`VideoProducerEditPlan` is source-time based. It describes:
+## Implemented production flow
 
-- production mode
-- cut ranges
-- graphic overlays
-- overlay animation and placement
-- motion cues
-- numeric focal point and scale for crop/reframe motion
-- music cues
-- caption settings
-- audio preset
-- color preset
-- intro/outro usage
+```text
+private raw video
+      ↓
+word-level transcription worker
+      ↓
+normalized transcript
+      ↓
+Podcast Director OR Reels Director
+      ↓
+validated source-time edit plan
+      ↓
+human review
+      ↓
+approval fingerprint
+      ↓
+immutable private render manifest
+      ↓
+GitHub Actions FFmpeg worker
+      ↓
+private review master
+```
 
-`compileVideoProducerRenderPlan()` normalizes cuts, builds keep segments, calculates edited duration and maps timed media into the edited output timeline.
+The browser never needs to stay open for transcription or rendering.
 
-Timed ranges are cut-aware. If a cut happens inside an overlay, motion cue or music cue, `outputRanges` splits the event around the removed media rather than letting timing drift.
+## Storage architecture
 
-A point event whose start lands inside removed footage receives `outputStart: null`. A renderer must not silently move it to an unrelated sentence.
+Raw camera masters do **not** use Supabase Storage. The current Supabase organization cannot safely accept multi-gigabyte source files under its present storage limits.
 
-Model-proposed focal points are normalized to `0..1`, and zoom scale is clamped to the supported `1..2.5` range before the worker receives it. Invalid timestamps and invalid source durations are rejected or normalized. NaN must never become an FFmpeg timestamp or transform.
+Video Producer therefore separates storage responsibilities:
 
-## Production presets
+- **Supabase Postgres**: project state, transcript, edit plan, approval fingerprint, reel candidates, render jobs and progress.
+- **Private Vercel Blob**: raw source video, immutable render manifests and finished review masters.
+- **GitHub Actions**: long-running transcription and FFmpeg rendering compute.
 
-### `ag-voice-clean`
+Browser uploads use Vercel Blob client multipart upload so the raw file does not pass through a Vercel Function body. Workers receive short-lived private GET/PUT URLs. Persistent database records store the provider pathname, never an expiring signed URL.
 
-Podcast-oriented target chain:
+### Required Vercel setup
 
-1. high-pass filter
-2. corrective EQ
-3. compression
-4. de-essing
-5. presence EQ
-6. limiter
-7. final loudness normalization
+Connect a Vercel Blob store to the Apostolic Guide web project so `BLOB_READ_WRITE_TOKEN` is available to the deployment.
 
-### `ag-voice-punch`
+Source uploads are application-limited to 20 GB, but the connected Vercel account/store limits remain authoritative.
 
-Short-form target chain using the same clean foundation with tighter dynamics and controlled presence so phone playback remains clear without clipping or becoming harsh.
+## Transcription
 
-### `ag-studio`
+`video-producer-transcribe` is an asynchronous GitHub Actions worker.
 
-Long-form target grade:
+The worker:
 
-1. known camera/log transform when available
-2. restrained contrast curve
-3. light saturation correction
-4. highlight protection
-5. final Rec.709 output
+1. downloads the private source from a short-lived URL
+2. reads source duration with `ffprobe`
+3. extracts mono 16 kHz dialogue audio with FFmpeg
+4. splits long audio into 30-minute MP3 chunks
+5. sends each chunk to `whisper-1` with word and segment timestamps
+6. offsets each chunk back onto the original source timeline
+7. sends only the compact transcript back to Apostolic Guide
 
-### `ag-clean`
+Chunking keeps long podcasts below transcription file-upload limits while preserving source-accurate word timing.
 
-Short-form target grade. Keep skin and brand graphics clean, preserve phone-screen readability and avoid extreme contrast that destroys caption legibility.
+### Required GitHub Actions secret
 
-These presets remain deterministic. AI rescue/enhancement can be an opt-in path for damaged recordings later.
+The repository needs an Actions secret named:
 
-## Renderer boundary
+```text
+OPENAI_API_KEY
+```
 
-The renderer receives `VideoProducerRenderPlan`, not free-form model output.
+This is used only by the transcription worker. The Sol Director continues to use the server-side `OPENAI_API_KEY` already configured for the web application.
 
-A production worker should:
+## Sol Edit Director
 
-1. validate the source asset
-2. cut and concatenate `keepSegments`
-3. process voice audio using the selected preset
-4. apply the selected color preset
-5. reframe to the requested output geometry using sanitized focal and scale values
-6. render branded overlays using approved placement and animation values
-7. render captions using word-level timestamps and the approved style/animation
-8. execute motion cues such as punch-ins or emphasis
-9. mix library music using remapped cue ranges and explicit gains
-10. prepend/append approved bumper assets when enabled
-11. encode the final master
-12. save output metadata and progress
-13. return the project to review
+The route uses strict structured output and defaults to `gpt-5.6-sol`.
 
-## Next production layer
+### Podcast Director rules
 
-### Transcript service
+The model may propose:
 
-Generate word-level timestamps from the uploaded source and persist the transcript. The editing model must reference timestamped transcript segments rather than estimate times from paragraph position.
-
-### Sol Edit Director
-
-Use structured output with separate prompts/rules per mode.
-
-Podcast Mode can propose:
-
-- false-start and repetition cuts
-- pause tightening
-- chapter beats
-- Scripture/pathway graphics
-- statement cards
-- music moments
-- CTA placement
-
-Reels Producer can propose:
-
-- hook protection
-- dead-air and repetition removal
-- caption grouping
-- punch-ins and reframes
-- focal point and zoom values
-- emphasis cards
-- overlay placement and animation
+- obvious false-start removal
+- repeated-take removal
+- accidental dead-air tightening
+- chapter graphics
 - Scripture graphics
-- CTA placement
-- safe crop direction
+- concise statement cards
+- restrained punch-ins/reframes
 
-Every returned plan is normalized and validated before it can reach the renderer.
+It is explicitly instructed not to shorten substantive teaching merely for runtime.
 
-### Reels extraction from a podcast master
+### Reels Director rules
 
-Reels Producer should also be able to receive an approved podcast master/transcript, identify self-contained short-form moments and create independent 9:16 projects. Those reel projects still use the same `VideoProducerEditPlan` contract instead of becoming a separate editing stack.
+The model may propose:
 
-### Publishing
+- dead-air and stumble cuts
+- hook protection
+- vertical punch-ins/reframes
+- focal points and zoom scale
+- Scripture graphics
+- statement/CTA overlays
 
-After explicit review, create the cover/thumbnail package, title, description and platform-specific copy, then hand approved assets to the existing content control/publishing workflow.
+It may not manufacture a spoken hook or fake B-roll. A `b-roll` cue is only a note for later asset selection.
+
+## Edit-plan safety
+
+`VideoProducerEditPlan` remains source-time based. `compileVideoProducerRenderPlan()`:
+
+- normalizes and merges cut ranges
+- rejects invalid duration/timestamps
+- builds keep segments
+- maps source time into edited output time
+- splits overlay, motion and music ranges around cuts
+- clamps `focusX` and `focusY` to `0..1`
+- clamps zoom scale to `1..2.5`
+- outputs exact 16:9 or 9:16 geometry based on mode
+
+If an event begins inside deleted footage, it is not silently moved onto another sentence.
+
+## Approval fingerprint
+
+Approval is tied to a SHA-256 fingerprint of the exact edit plan.
+
+The render route recomputes the fingerprint before dispatch. If the plan changed after approval, rendering is rejected and the edit must be reviewed again.
+
+This prevents stale UI state, caption changes or future manual edits from rendering instructions that were never approved.
+
+## FFmpeg render worker
+
+The `video-producer-render` GitHub Actions worker executes the frozen manifest.
+
+Implemented operations:
+
+1. source range extraction for child reels
+2. cut/concat from normalized keep segments
+3. Podcast or Reels output geometry
+4. selected audio preset
+5. selected color preset
+6. cut-aware ASS captions
+7. current-word caption emphasis
+8. cut-aware branded overlays
+9. numeric punch-in/reframe motion
+10. AG wordmark intro/outro when enabled
+11. H.264/AAC encoding
+12. private Vercel Blob upload
+13. render progress callbacks
+14. review-state handoff
+
+`video-producer-worker-check.yml` smoke-renders synthetic Podcast and Reels files in CI so FFmpeg filter graphs are exercised rather than merely syntax-checked.
+
+## Podcast → Reels
+
+An approved Podcast project can ask Sol for 5–15 candidate moments.
+
+Candidate validation:
+
+- 12–150 second hard range
+- score normalized to `0..100`
+- strongly overlapping candidates are deduplicated
+- score is editorial ranking, not a promise of virality
+
+Accepting a candidate creates a **child Reels project** that references the same immutable raw source instead of duplicating the media file.
+
+The child's transcript is sliced from the podcast transcript and shifted onto a local `0.00` timeline before the Reels Director runs. This prevents a clip taken at minute 32 from carrying 32-minute timestamps into its render plan.
+
+## Database
+
+Service-role-only tables:
+
+- `video_producer_projects`
+- `video_producer_renders`
+
+Both have RLS enabled and intentionally expose no client-write policies. Admin APIs authenticate `manage_content` permission and perform mutations through the service client.
+
+## Current boundary / next layer
+
+Not implemented yet:
+
+- selectable first-party music library and deterministic ducking/mix automation
+- automatic camera/log-profile identification and camera-specific transforms
+- actual external B-roll library insertion
+- cover/thumbnail generation for Video Producer masters
+- direct publishing handoff from Video Producer into the existing content-control queue
+- detailed manual timeline correction UI
+
+These should build on the current approved render-plan contract rather than creating another editor stack.
 
 ## Guardrails
 
 - Never publish directly from model output.
-- Never let an invalid timestamp silently delete media.
-- Never let cuts silently drift overlays, motion or music.
-- Never execute unbounded model-proposed crop/zoom values.
-- Never overwrite Video Studio pathway projects.
-- Never make FFmpeg rendering depend on a browser staying open.
-- Keep source assets immutable. Render from edit decisions instead of destructively modifying uploads.
-- Mode changes invalidate the current plan so a 16:9 plan cannot accidentally render as a reel or vice versa.
+- Never render unapproved model output.
+- Never let invalid timestamps silently delete media.
+- Never let cuts silently drift timed graphics or motion.
+- Never execute unbounded crop/zoom values.
+- Never overwrite Pathway Video Studio projects.
+- Never make FFmpeg or transcription depend on the browser staying open.
+- Keep raw source assets immutable.
+- Create child Reels projects by source range instead of duplicating podcast masters.
+- Any visual-direction change after planning must invalidate approval before render.
