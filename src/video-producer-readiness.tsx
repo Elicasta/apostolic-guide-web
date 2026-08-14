@@ -1,7 +1,7 @@
 import "server-only";
 import { CheckCircle2, CircleAlert, CircleHelp, Database, Film, Github, HardDrive, Sparkles } from "lucide-react";
 import { createServiceClient } from "./supabase";
-import { videoProducerRendererCredentials } from "./video-producer-server";
+import { videoProducerOpenAIKey, videoProducerRendererCredentials } from "./video-producer-server";
 
 type ReadinessState = "ready" | "warning" | "error";
 
@@ -43,13 +43,13 @@ async function checkActionsTranscriptionSecret(repository: string, token: string
     });
     if (response.ok) {
       const payload = await response.json() as { secrets?: { name?: string }[] };
-      const configured = payload.secrets?.some((secret) => secret.name === "OPENAI_API_KEY");
+      const configured = payload.secrets?.some((secret) => secret.name === "VIDEO_PRODUCER_OPENAI_API_KEY");
       return configured
-        ? { state: "ready" as const, detail: "GitHub Actions OPENAI_API_KEY is configured." }
-        : { state: "error" as const, detail: "Add OPENAI_API_KEY to GitHub Actions repository secrets." };
+        ? { state: "ready" as const, detail: "GitHub Actions VIDEO_PRODUCER_OPENAI_API_KEY is configured." }
+        : { state: "error" as const, detail: "Add VIDEO_PRODUCER_OPENAI_API_KEY to GitHub Actions repository secrets." };
     }
     if (response.status === 403 || response.status === 404) {
-      return { state: "warning" as const, detail: "Actions secret cannot be inspected with the render token. Verify OPENAI_API_KEY once in GitHub Actions." };
+      return { state: "warning" as const, detail: "Actions secret cannot be inspected with the render token. Verify VIDEO_PRODUCER_OPENAI_API_KEY once in GitHub Actions." };
     }
     return { state: "warning" as const, detail: `GitHub secret check returned ${response.status}; verify the Actions transcription secret manually.` };
   } catch {
@@ -78,11 +78,11 @@ export async function VideoProducerReadiness() {
     icon: HardDrive
   });
 
-  const openAiReady = Boolean(process.env.OPENAI_API_KEY?.trim());
+  const openAiReady = Boolean(videoProducerOpenAIKey());
   const directorModel = process.env.OPENAI_VIDEO_PRODUCER_MODEL?.trim() || process.env.OPENAI_VIDEO_DIRECTOR_MODEL?.trim() || "gpt-5.6-sol";
   items.push({
     label: "Sol Edit Director",
-    detail: openAiReady ? `OpenAI connected · ${directorModel}` : "OPENAI_API_KEY is not configured in the app environment.",
+    detail: openAiReady ? `Dedicated Video Producer OpenAI key connected · ${directorModel}` : "VIDEO_PRODUCER_OPENAI_API_KEY is not configured in the app environment.",
     state: openAiReady ? "ready" : "error",
     icon: Sparkles
   });
