@@ -2,6 +2,7 @@ import { buildSocialReply, findMatchingAutomation, getInstagramConfig, listSocia
 import { createServiceClient } from "./supabase";
 import { recordPersonEvent, upsertInstagramPerson } from "./people-crm";
 import { recordInboxOutbound } from "./inbox";
+import { buildStudyCardMessage, buildStudyHandshake, isOpenStudyReply, STUDY_FOLLOW_UP, studyTitleFromDestination } from "./social-signature-flow";
 
 export function attributedDestination(destinationUrl: string | null | undefined, token: string | null | undefined) {
   const raw = destinationUrl?.trim();
@@ -36,6 +37,98 @@ async function graphFetch(path: string, accessToken: string, graphVersion: strin
   return json;
 }
 
+async function sendInstagramMessage(config: NonNullable<Awaited<ReturnType<typeof getInstagramConfig>>>, recipientId: string, message: Record<string, unknown>) {
+  return graphFetch(`${encodeURIComponent(config.instagramUserId)}/messages`, config.accessToken, config.graphVersion, {
+    method: "POST",
+    body: JSON.stringify({ recipient: { id: recipientId }, messaging_type: "RESPONSE", message })
+  });
+}
+
+async function deliverPendingStudyCard(input: {
+  config: NonNullable<Awaited<ReturnType<typeof getInstagramConfig>>>;
+  personId: string;
+  recipientId: string;
+  inboundExternalEventId: string;
+  eventAt: string;
+}) {
+  const service = createServiceClient();
+  if (!service) return null;
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  const { data: sourceEvent } = await service.from("social_events")
+    .select("id,automation_id,matched_keyword,destination_url,source_media_id,event_at")
+    .eq("person_id", input.personId)
+    .eq("trigger_type", "comment_keyword")
+    .eq("delivery_status", "sent")
+    .not("destination_url", "is", null)
+    .gte("event_at", sevenDaysAgo)
+    .order("event_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!sourceEvent?.destination_url) return null;
+
+  const { data: automation } = sourceEvent.automation_id
+    ? await service.from("social_automations").select("id,name").eq("id", sourceEvent.automation_id).maybeSingle()
+    : { data: null } as { data: null };
+  const destinationUrl = String(sourceEvent.destination_url);
+  const title = studyTitleFromDestination(destinationUrl, typeof automation?.name === "string" ? automation.name.replace(/[!]+$/g, "") : "Apostolic Guide Study");
+
+  const card = await sendInstagramMessage(input.config, input.recipientId, buildStudyCardMessage({ title, destinationUrl }));
+  const cardMessageId = typeof card.message_id === "string" ? card.message_id : null;
+  let followUpMessageId: string | null = null;
+  try {
+    const followUp = await sendInstagramMessage(input.config, input.recipientId, { text: STUDY_FOLLOW_UP });
+    followUpMessageId = typeof followUp.message_id === "string" ? followUp.message_id : null;
+  } catch (error) {
+    console.warn("Instagram study card follow-up could not be sent", error);
+  }
+
+  await service.from("social_events").insert({
+    external_event_id: input.inboundExternalEventId,
+    automation_id: sourceEvent.automation_id,
+    trigger_type: "dm_keyword",
+    matched_keyword: "OPEN",
+    source_media_id: sourceEvent.source_media_id,
+    person_id: input.personId,
+    destination_url: destinationUrl,
+    delivery_status: "sent",
+    provider_message_id: cardMessageId,
+    event_at: input.eventAt
+  });
+
+  await Promise.all([
+    recordPersonEvent({
+      personId: input.personId,
+      eventType: "study_card_delivered",
+      channel: "instagram",
+      eventName: `${title} study card delivered`,
+      automationId: sourceEvent.automation_id,
+      externalEventId: `crm:study-card:${input.inboundExternalEventId}`,
+      metadata: { source_event_id: sourceEvent.id, destination_url: destinationUrl, matched_keyword: sourceEvent.matched_keyword },
+      occurredAt: input.eventAt
+    }),
+    recordInboxOutbound({
+      personId: input.personId,
+      body: `Study card · ${title}\n${destinationUrl}`,
+      providerMessageId: cardMessageId,
+      externalEventId: `study-card:${input.inboundExternalEventId}`,
+      kind: "automation",
+      at: input.eventAt,
+      metadata: { automation_id: sourceEvent.automation_id, source_event_id: sourceEvent.id, signature_flow: "you-found-the-study" }
+    }),
+    followUpMessageId ? recordInboxOutbound({
+      personId: input.personId,
+      body: STUDY_FOLLOW_UP,
+      providerMessageId: followUpMessageId,
+      externalEventId: `study-follow-up:${input.inboundExternalEventId}`,
+      kind: "automation",
+      at: input.eventAt,
+      metadata: { automation_id: sourceEvent.automation_id, source_event_id: sourceEvent.id, signature_flow: "you-found-the-study" }
+    }) : Promise.resolve()
+  ]);
+
+  return { title, destinationUrl, providerMessageId: cardMessageId };
+}
+
 export async function processInstagramWebhookAttributed(payload: unknown) {
   const config = await getInstagramConfig();
   const service = createServiceClient();
@@ -50,10 +143,32 @@ export async function processInstagramWebhookAttributed(payload: unknown) {
   for (const trigger of triggers) {
     const existing = await service.from("social_events").select("id").eq("external_event_id", trigger.externalEventId).maybeSingle();
     if (existing.data) continue;
-    const match = findMatchingAutomation(trigger.text, automations.filter((item) => item.trigger_type === trigger.triggerType));
+
     const person = trigger.senderId ? await upsertInstagramPerson({ instagramUserId: trigger.senderId, sourceDetail: trigger.triggerType === "comment_keyword" ? "instagram_comment" : "instagram_dm", seenAt: trigger.eventAt }) : null;
     const personWithToken = person as (typeof person & { attribution_token?: string | null });
 
+    if (trigger.triggerType === "dm_keyword" && trigger.senderId && person && isOpenStudyReply(trigger.text)) {
+      try {
+        const delivered = await deliverPendingStudyCard({ config, personId: person.id, recipientId: trigger.senderId, inboundExternalEventId: trigger.externalEventId, eventAt: trigger.eventAt });
+        if (delivered) {
+          sent += 1;
+          continue;
+        }
+      } catch (error) {
+        await service.from("social_events").insert({
+          external_event_id: trigger.externalEventId,
+          trigger_type: "dm_keyword",
+          matched_keyword: "OPEN",
+          person_id: person.id,
+          delivery_status: "failed",
+          error_code: (error instanceof Error ? error.message : "Study card delivery failed").slice(0, 500),
+          event_at: trigger.eventAt
+        });
+        continue;
+      }
+    }
+
+    const match = findMatchingAutomation(trigger.text, automations.filter((item) => item.trigger_type === trigger.triggerType));
     if (!match) {
       await service.from("social_events").insert({ external_event_id: trigger.externalEventId, trigger_type: trigger.triggerType, source_media_id: trigger.mediaId, person_id: person?.id ?? null, delivery_status: "ignored", event_at: trigger.eventAt });
       continue;
@@ -63,7 +178,10 @@ export async function processInstagramWebhookAttributed(payload: unknown) {
     try {
       const recipient = trigger.triggerType === "comment_keyword" ? { comment_id: trigger.commentId } : { id: trigger.senderId };
       if ((trigger.triggerType === "comment_keyword" && !trigger.commentId) || (trigger.triggerType === "dm_keyword" && !trigger.senderId)) throw new Error("Instagram webhook did not include a usable recipient.");
-      const reply = buildSocialReply(match.automation.reply_text, destinationUrl);
+      const title = studyTitleFromDestination(destinationUrl, match.automation.name.replace(/[!]+$/g, ""));
+      const reply = trigger.triggerType === "comment_keyword" && destinationUrl
+        ? buildStudyHandshake(title)
+        : buildSocialReply(match.automation.reply_text, destinationUrl);
       const result = await graphFetch(`${encodeURIComponent(config.instagramUserId)}/messages`, config.accessToken, config.graphVersion, { method: "POST", body: JSON.stringify({ recipient, message: { text: reply } }) });
       const providerMessageId = typeof result.message_id === "string" ? result.message_id : null;
 
@@ -71,8 +189,8 @@ export async function processInstagramWebhookAttributed(payload: unknown) {
 
       if (person) {
         await Promise.all([
-          recordPersonEvent({ personId: person.id, eventType: "automation_reply_sent", channel: "instagram", eventName: "Instagram automation reply sent", automationId: match.automation.id, externalEventId: `crm:reply:${trigger.externalEventId}`, metadata: { matched_keyword: match.keyword, destination_url: destinationUrl, source_media_id: trigger.mediaId }, occurredAt: trigger.eventAt }),
-          recordInboxOutbound({ personId: person.id, body: reply, providerMessageId, externalEventId: `automation:${trigger.externalEventId}`, kind: "automation", at: trigger.eventAt, metadata: { automation_id: match.automation.id, matched_keyword: match.keyword } })
+          recordPersonEvent({ personId: person.id, eventType: "automation_reply_sent", channel: "instagram", eventName: trigger.triggerType === "comment_keyword" && destinationUrl ? "Instagram study handshake sent" : "Instagram automation reply sent", automationId: match.automation.id, externalEventId: `crm:reply:${trigger.externalEventId}`, metadata: { matched_keyword: match.keyword, destination_url: destinationUrl, source_media_id: trigger.mediaId, signature_flow: trigger.triggerType === "comment_keyword" && destinationUrl ? "you-found-the-study" : null }, occurredAt: trigger.eventAt }),
+          recordInboxOutbound({ personId: person.id, body: reply, providerMessageId, externalEventId: `automation:${trigger.externalEventId}`, kind: "automation", at: trigger.eventAt, metadata: { automation_id: match.automation.id, matched_keyword: match.keyword, signature_flow: trigger.triggerType === "comment_keyword" && destinationUrl ? "you-found-the-study" : null } })
         ]);
       }
       sent += 1;
@@ -116,7 +234,7 @@ export async function retryInstagramAutomationEvent(eventId: number) {
   const sourceEvent = originalEvent ?? event;
 
   const { data: automation, error: automationError } = await service.from("social_automations")
-    .select("id,reply_text,destination_url")
+    .select("id,name,reply_text,destination_url")
     .eq("id", sourceEvent.automation_id)
     .maybeSingle();
   if (automationError) throw new Error(automationError.message);
@@ -150,7 +268,10 @@ export async function retryInstagramAutomationEvent(eventId: number) {
   const destinationUrl = typeof sourceEvent.destination_url === "string" && sourceEvent.destination_url.trim()
     ? sourceEvent.destination_url
     : automation.destination_url;
-  const reply = buildSocialReply(automation.reply_text, destinationUrl);
+  const title = studyTitleFromDestination(destinationUrl, automation.name.replace(/[!]+$/g, ""));
+  const reply = sourceEvent.trigger_type === "comment_keyword" && destinationUrl
+    ? buildStudyHandshake(title)
+    : buildSocialReply(automation.reply_text, destinationUrl);
   const now = new Date().toISOString();
   const retryExternalEventId = `${baseExternalEventId}:retry:${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
 
@@ -183,8 +304,8 @@ export async function retryInstagramAutomationEvent(eventId: number) {
 
     if (personId) {
       await Promise.all([
-        recordPersonEvent({ personId, eventType: "automation_reply_sent", channel: "instagram", eventName: "Instagram automation retry sent", automationId: sourceEvent.automation_id, externalEventId: `crm:retry:${retryExternalEventId}`, metadata: { retry_of_event_id: sourceEvent.id, matched_keyword: sourceEvent.matched_keyword, destination_url: destinationUrl, source_media_id: sourceEvent.source_media_id }, occurredAt: now }),
-        recordInboxOutbound({ personId, body: reply, providerMessageId, externalEventId: `automation-retry:${retryExternalEventId}`, kind: "automation", at: now, metadata: { automation_id: sourceEvent.automation_id, matched_keyword: sourceEvent.matched_keyword, retry_of_event_id: sourceEvent.id } })
+        recordPersonEvent({ personId, eventType: "automation_reply_sent", channel: "instagram", eventName: sourceEvent.trigger_type === "comment_keyword" && destinationUrl ? "Instagram study handshake retry sent" : "Instagram automation retry sent", automationId: sourceEvent.automation_id, externalEventId: `crm:retry:${retryExternalEventId}`, metadata: { retry_of_event_id: sourceEvent.id, matched_keyword: sourceEvent.matched_keyword, destination_url: destinationUrl, source_media_id: sourceEvent.source_media_id, signature_flow: sourceEvent.trigger_type === "comment_keyword" && destinationUrl ? "you-found-the-study" : null }, occurredAt: now }),
+        recordInboxOutbound({ personId, body: reply, providerMessageId, externalEventId: `automation-retry:${retryExternalEventId}`, kind: "automation", at: now, metadata: { automation_id: sourceEvent.automation_id, matched_keyword: sourceEvent.matched_keyword, retry_of_event_id: sourceEvent.id, signature_flow: sourceEvent.trigger_type === "comment_keyword" && destinationUrl ? "you-found-the-study" : null } })
       ]);
     }
 
