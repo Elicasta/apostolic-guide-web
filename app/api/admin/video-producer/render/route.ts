@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getStudioPermission } from "@/auth";
+import { pathwayBySlug } from "@/pathway-catalog";
 import { createServiceClient } from "@/supabase";
 import { compileVideoProducerRenderPlan, type VideoProducerEditPlan } from "@/video-producer";
 import { normalizeVideoProducerTranscript, sliceVideoProducerTranscript } from "@/video-producer-ai";
@@ -23,6 +24,14 @@ export const maxDuration = 60;
 const schema = z.object({ projectId: z.string().uuid() });
 const MAX_RENDER_BYTES = 20 * 1024 * 1024 * 1024;
 
+type MusicManifestTrack = {
+  id: string;
+  title: string;
+  url: string;
+  gainDb: number;
+  duckUnderVoice: boolean;
+};
+
 export async function POST(request: Request) {
   const { access, allowed } = await getStudioPermission("manage_content");
   if (!allowed || access.state !== "allowed" || !access.user) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -32,7 +41,7 @@ export async function POST(request: Request) {
   if (!service) return NextResponse.json({ error: "Supabase service access is not configured." }, { status: 503 });
 
   const result = await service.from("video_producer_projects")
-    .select("id,title,mode,status,source_provider,source_locator,source_filename,source_duration,source_range_start,source_range_end,transcript,edit_plan,approval_fingerprint,approved_at")
+    .select("id,title,mode,status,pathway_slug,selected_music_track_id,source_provider,source_locator,source_filename,source_duration,source_range_start,source_range_end,transcript,edit_plan,approval_fingerprint,approved_at")
     .eq("id", parsed.data.projectId)
     .maybeSingle();
   if (result.error) return NextResponse.json({ error: result.error.message }, { status: 500 });
@@ -58,6 +67,32 @@ export async function POST(request: Request) {
     : fullTranscript;
   if (renderPlan.captions.enabled && !localTranscript.words.length) return NextResponse.json({ error: "Captioned renders require word-level transcript timing." }, { status: 409 });
 
+  const pathway = project.pathway_slug ? pathwayBySlug(project.pathway_slug) : null;
+  if (project.pathway_slug && !pathway) return NextResponse.json({ error: "The selected pathway is no longer available." }, { status: 409 });
+
+  const musicTracks: MusicManifestTrack[] = [];
+  const musicCue = renderPlan.music.at(0);
+  const musicTrackId = musicCue?.trackId || project.selected_music_track_id || null;
+  if (musicTrackId) {
+    const trackResult = await service.from("video_producer_music_tracks")
+      .select("id,title,storage_provider,storage_locator,active")
+      .eq("id", musicTrackId)
+      .maybeSingle();
+    if (trackResult.error) return NextResponse.json({ error: trackResult.error.message }, { status: 500 });
+    const track = trackResult.data;
+    if (!track?.active || track.storage_provider !== "vercel_blob" || !track.storage_locator) {
+      return NextResponse.json({ error: "The selected AG music track is unavailable." }, { status: 409 });
+    }
+    const url = await createPrivateBlobDownloadUrl(track.storage_locator, 8 * 60 * 60 * 1000);
+    musicTracks.push({
+      id: track.id,
+      title: track.title,
+      url,
+      gainDb: Number(musicCue?.gainDb ?? -28),
+      duckUnderVoice: musicCue?.duckUnderVoice ?? true
+    });
+  }
+
   let githubToken = "";
   let repository = "";
   try { ({ token: githubToken, repository } = await videoProducerRendererCredentials(service)); }
@@ -74,10 +109,21 @@ export async function POST(request: Request) {
     : null;
   const manifest = {
     version: 1,
-    project: { id: project.id, title: project.title, mode: project.mode },
+    project: {
+      id: project.id,
+      title: project.title,
+      mode: project.mode,
+      pathway: pathway ? {
+        slug: pathway.slug,
+        title: pathway.title,
+        summary: pathway.summary,
+        steps: pathway.steps.map((step) => ({ title: step.title, reference: step.reference, explanation: step.explanation }))
+      } : null
+    },
     source: { filename: project.source_filename, duration: project.source_duration, range: sourceRange },
     renderPlan,
     transcript: localTranscript,
+    musicTracks,
     brand: {
       logo: "public/brand/apostolic-guide-mark-reversed.png",
       wordmark: "public/brand/apostolic-guide-wordmark-reversed.png"
@@ -100,6 +146,8 @@ export async function POST(request: Request) {
       version: 1,
       approvalFingerprint: currentFingerprint,
       mode: project.mode,
+      pathwaySlug: pathway?.slug ?? null,
+      musicTrackId,
       output: renderPlan.output,
       sourceRange,
       workerRef,
