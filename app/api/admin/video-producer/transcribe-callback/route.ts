@@ -60,7 +60,11 @@ export async function POST(request: Request) {
   if (parsed.data.status === "failed") {
     const update = await service.from("video_producer_projects").update({
       status: "failed",
-      director_metadata: { ...nextMetadata, transcriptionError: parsed.data.error?.trim() || "Transcription worker failed." }
+      director_metadata: {
+        ...nextMetadata,
+        transcriptionBridge: { ...bridge, callbackTokenHash: null, failedAt: now },
+        transcriptionError: parsed.data.error?.trim() || "Transcription worker failed."
+      }
     }).eq("id", projectResult.data.id);
     if (update.error) return NextResponse.json({ error: update.error.message }, { status: 500 });
     return NextResponse.json({ ok: true });
