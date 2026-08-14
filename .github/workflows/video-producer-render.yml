@@ -1,0 +1,51 @@
+name: Video Producer render
+
+on:
+  repository_dispatch:
+    types: [video-producer-render]
+
+permissions:
+  contents: read
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - name: Check out renderer
+        uses: actions/checkout@v4
+
+      - name: Prepare ffmpeg, libass, fonts, and curl
+        shell: bash
+        run: |
+          missing=()
+          command -v ffmpeg >/dev/null 2>&1 || missing+=(ffmpeg)
+          command -v curl >/dev/null 2>&1 || missing+=(curl)
+          if ! fc-match "Noto Sans" 2>/dev/null | grep -qi "Noto"; then
+            missing+=(fonts-noto-core fontconfig)
+          fi
+          if ((${#missing[@]})); then
+            sudo apt-get update -qq
+            sudo apt-get install -y --no-install-recommends "${missing[@]}"
+          fi
+
+      - name: Write render payload
+        env:
+          RENDER_PAYLOAD: ${{ toJson(github.event.client_payload) }}
+        run: |
+          printf '%s' "$RENDER_PAYLOAD" > /tmp/video-producer-render.json
+
+      - name: Render, upload, and report status
+        run: |
+          python3 scripts/render_video_producer_worker.py /tmp/video-producer-render.json /tmp/video-producer.mp4
+
+      - name: Keep failed render for diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: video-producer-failed-${{ github.run_id }}
+          path: |
+            /tmp/video-producer-render.json
+            /tmp/video-producer.mp4
+          if-no-files-found: ignore
+          retention-days: 2
