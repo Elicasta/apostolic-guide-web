@@ -207,9 +207,12 @@ export function VideoProducerStudio() {
 
   useEffect(() => () => {
     if (localPreviewUrl) URL.revokeObjectURL(localPreviewUrl);
+  }, [localPreviewUrl]);
+
+  useEffect(() => () => {
     uploadAbortRef.current?.abort();
     void wakeLockRef.current?.release().catch(() => undefined);
-  }, [localPreviewUrl]);
+  }, []);
 
   async function api<T>(url: string, init?: RequestInit): Promise<T> {
     const response = await fetch(url, { ...init, headers: { "content-type": "application/json", ...(init?.headers ?? {}) } });
