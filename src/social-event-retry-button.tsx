@@ -21,8 +21,9 @@ export function SocialEventRetryButton({ eventId }: { eventId: number }) {
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.error ?? "Retry failed.");
+      const alreadySent = result.retry?.status === "already_sent";
       setState("success");
-      setMessage("Sent");
+      setMessage(alreadySent ? "Already recovered" : "Sent");
       router.refresh();
     } catch (error) {
       setState("error");
@@ -40,7 +41,7 @@ export function SocialEventRetryButton({ eventId }: { eventId: number }) {
         title="Retry this failed automation"
       >
         {state === "success" ? <Check size={14} /> : <RotateCcw size={14} />}
-        {state === "retrying" ? "Retrying…" : state === "success" ? "Sent" : "Retry"}
+        {state === "retrying" ? "Checking…" : state === "success" ? message : "Retry"}
       </button>
       {state === "error" ? <span className="social-retry-error" role="alert">{message}</span> : null}
     </div>
