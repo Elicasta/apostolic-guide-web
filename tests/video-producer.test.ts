@@ -12,6 +12,12 @@ import {
   sourceTimeToOutputTime,
   type VideoProducerEditPlan
 } from "../src/video-producer";
+import {
+  normalizeVideoProducerDirectorOutput,
+  normalizeVideoProducerReelCandidates,
+  normalizeVideoProducerTranscript,
+  sliceVideoProducerTranscript
+} from "../src/video-producer-ai";
 
 test("normalizes, clamps and merges overlapping cuts", () => {
   assert.deepEqual(normalizeVideoProducerCuts([
@@ -128,4 +134,67 @@ test("compiles overlays, motion and music into cut-aware output ranges", () => {
     { sourceStart: 5, sourceEnd: 10, outputStart: 5, outputEnd: 10 },
     { sourceStart: 20, sourceEnd: 25, outputStart: 10, outputEnd: 15 }
   ]);
+});
+
+test("slices an inherited podcast transcript onto a reel-local zero timeline", () => {
+  const transcript = normalizeVideoProducerTranscript({
+    text: "before one two after",
+    duration: 140,
+    words: [
+      { word: "before", start: 99, end: 99.5 },
+      { word: "one", start: 100, end: 100.5 },
+      { word: "two", start: 109, end: 109.5 },
+      { word: "after", start: 121, end: 121.5 }
+    ],
+    segments: [
+      { text: "one two", start: 100, end: 110 },
+      { text: "after", start: 121, end: 122 }
+    ]
+  });
+  const local = sliceVideoProducerTranscript(transcript, 100, 120);
+  assert.equal(local.duration, 20);
+  assert.equal(local.text, "one two");
+  assert.deepEqual(local.words, [
+    { word: "one", start: 0, end: 0.5 },
+    { word: "two", start: 9, end: 9.5 }
+  ]);
+  assert.deepEqual(local.segments, [{ text: "one two", start: 0, end: 10 }]);
+});
+
+test("director normalization accepts strict-schema nulls and clamps visual transforms", () => {
+  const directed = normalizeVideoProducerDirectorOutput({
+    summary: "Tighten the setup and show the verse.",
+    cuts: [{ start: 2, end: 3, reason: "false start" }],
+    overlays: [{
+      kind: "scripture", start: 5, duration: 4, title: "John 14:9",
+      body: null, reference: "John 14:9", animation: null, placement: null
+    }],
+    motion: [{
+      kind: "punch-in", start: 7, duration: 1.5, intensity: null,
+      focusX: 2, focusY: -1, scale: 8, note: null
+    }]
+  }, "reels", 30);
+  assert.equal(directed.plan.overlays[0]?.animation, "rise");
+  assert.equal(directed.plan.overlays[0]?.placement, "center");
+  assert.deepEqual(directed.plan.motion[0]?.transform, { focusX: 1, focusY: 0, scale: 2.5 });
+  assert.equal(directed.plan.cuts[0]?.start, 2);
+});
+
+test("podcast director guard rejects destructive over-cut plans", () => {
+  assert.throws(() => normalizeVideoProducerDirectorOutput({
+    summary: "Too aggressive",
+    cuts: [{ start: 0, end: 30, reason: "remove half" }],
+    overlays: [],
+    motion: []
+  }, "podcast", 60), /more than 35%/);
+});
+
+test("reel candidate normalization removes overlapping selections and invalid durations", () => {
+  const candidates = normalizeVideoProducerReelCandidates({ candidates: [
+    { start: 10, end: 50, hook: "A", title: "Best", score: 95, reason: "strong" },
+    { start: 15, end: 48, hook: "B", title: "Overlap", score: 90, reason: "same moment" },
+    { start: 80, end: 105, hook: "C", title: "Second", score: 88, reason: "separate" },
+    { start: 130, end: 135, hook: "D", title: "Too short", score: 100, reason: "invalid" }
+  ] }, 180);
+  assert.deepEqual(candidates.map((candidate) => candidate.title), ["Best", "Second"]);
 });
