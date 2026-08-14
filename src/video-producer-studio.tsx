@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { Captions, Check, Film, Music2, Play, Scissors, Smartphone, Sparkles, Type, Upload, WandSparkles, ZoomIn } from "lucide-react";
 import {
   buildDefaultVideoProducerPlan,
@@ -211,7 +211,7 @@ export function VideoProducerStudio() {
   );
 }
 
-function ModeCard({ active, eyebrow, title, description, spec, icon, onClick }: { active: boolean; eyebrow: string; title: string; description: string; spec: string; icon: React.ReactNode; onClick: () => void }) {
+function ModeCard({ active, eyebrow, title, description, spec, icon, onClick }: { active: boolean; eyebrow: string; title: string; description: string; spec: string; icon: ReactNode; onClick: () => void }) {
   return (
     <button type="button" onClick={onClick} className={`group rounded-3xl border p-5 text-left transition ${active ? "border-[#4c8dff]/60 bg-[linear-gradient(135deg,rgba(76,141,255,.14),rgba(231,44,51,.06))] shadow-[0_0_40px_rgba(76,141,255,.08)]" : "border-white/10 bg-white/[0.025] hover:border-white/20"}`}>
       <div className="flex items-start justify-between gap-4">
