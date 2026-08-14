@@ -7,7 +7,7 @@ import tempfile
 
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-WORKER_PATH = os.path.join(ROOT, "scripts", "render_video_producer_worker.py")
+WORKER_PATH = os.path.join(ROOT, "scripts", "render_video_producer_broadcast_worker.py")
 SPEC = importlib.util.spec_from_file_location("video_producer_worker", WORKER_PATH)
 worker = importlib.util.module_from_spec(SPEC)
 assert SPEC and SPEC.loader
@@ -30,6 +30,10 @@ def create_source(path):
         "-shortest", "-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p",
         "-c:a", "aac", "-b:a", "128k", path
     ], check=True)
+
+
+def visible(start, end):
+    return [{"sourceStart": start, "sourceEnd": end, "outputStart": start, "outputEnd": end}]
 
 
 def reel_manifest():
@@ -56,8 +60,8 @@ def reel_manifest():
             "keepSegments": [{"start": 0, "end": 1.5}, {"start": 2, "end": 4}],
             "overlays": [{
                 "id": "verse", "kind": "scripture", "start": 0.3, "duration": 0.8,
-                "title": "John 14:9", "reference": "John 14:9", "animation": "rise", "placement": "center",
-                "outputStart": 0.3,
+                "title": "Hear, O Israel: the Lord our God is one Lord.", "reference": "Deuteronomy 6:4 / KJV",
+                "animation": "rise", "placement": "center", "outputStart": 0.3,
                 "outputRanges": [{"sourceStart": 0.3, "sourceEnd": 1.1, "outputStart": 0.3, "outputEnd": 1.1}]
             }],
             "motion": [{
@@ -77,6 +81,15 @@ def reel_manifest():
 
 
 def podcast_manifest():
+    overlays = [
+        {"id": "host", "kind": "lower-third", "start": 0.10, "duration": 0.45, "title": "ELI CASTANEDA", "body": "HOST", "animation": "slide", "placement": "lower-third", "outputStart": 0.10, "outputRanges": visible(0.10, 0.55)},
+        {"id": "path", "kind": "pathway", "start": 0.58, "duration": 0.42, "title": "GOD IS ONE PATHWAY", "body": "Follow along through the Scriptures", "animation": "rise", "placement": "lower-third", "outputStart": 0.58, "outputRanges": visible(0.58, 1.00)},
+        {"id": "verse-lower", "kind": "scripture", "start": 1.02, "duration": 0.48, "title": "Hear, O Israel: The Lord our God is one Lord.", "reference": "Deuteronomy 6:4 / KJV", "animation": "fade", "placement": "lower-third", "outputStart": 1.02, "outputRanges": visible(1.02, 1.50)},
+        {"id": "point", "kind": "statement", "start": 1.52, "duration": 0.48, "title": "SCRIPTURE FIRST. QUESTIONS WELCOME.", "animation": "pop", "placement": "center", "outputStart": 1.52, "outputRanges": visible(1.52, 2.00)},
+        {"id": "quote", "kind": "quote", "start": 2.02, "duration": 0.48, "title": "Truth over trend", "body": "Apostolic Guide", "animation": "fade", "placement": "center", "outputStart": 2.02, "outputRanges": visible(2.02, 2.50)},
+        {"id": "chapter", "kind": "chapter", "start": 2.52, "duration": 0.48, "title": "FOUNDATIONS", "animation": "wipe", "placement": "full-frame", "outputStart": 2.52, "outputRanges": visible(2.52, 3.00)},
+        {"id": "cta", "kind": "cta", "start": 3.05, "duration": 0.75, "title": "KEEP FOLLOWING THE BIBLICAL CASE", "body": "apostolicguide.com", "animation": "slide", "placement": "lower-third", "outputStart": 3.05, "outputRanges": visible(3.05, 3.80)}
+    ]
     return {
         "version": 1,
         "project": {"id": "smoke", "title": "Smoke Podcast", "mode": "podcast"},
@@ -89,7 +102,7 @@ def podcast_manifest():
             "sourceDuration": 4,
             "outputDuration": 4,
             "keepSegments": [{"start": 0, "end": 4}],
-            "overlays": [], "motion": [], "music": [],
+            "overlays": overlays, "motion": [], "music": [],
             "captions": {"enabled": False, "style": "minimal", "animation": "none", "maxWordsPerCard": 8, "position": "lower", "highlightCurrentWord": False},
             "audioPreset": "ag-voice-clean",
             "colorPreset": "ag-studio",
@@ -110,6 +123,10 @@ def render(manifest, source, directory, stem):
     worker.package_with_bumpers(manifest, main_path, final_path, directory)
     if not os.path.exists(final_path) or os.path.getsize(final_path) < 1024:
         raise RuntimeError(stem + " smoke render did not create output")
+    with open(ass_path, "r", encoding="utf-8") as handle:
+        ass_text = handle.read()
+    if "APOSTOLIC GUIDE" not in ass_text or "GOD IS ONE PATHWAY" not in ass_text and stem == "podcast":
+        raise RuntimeError(stem + " smoke ASS did not contain AG broadcast graphics")
     return final_path
 
 
@@ -128,7 +145,7 @@ def main():
         podcast_video = next(stream for stream in podcast_probe["streams"] if "width" in stream)
         assert (podcast_video["width"], podcast_video["height"]) == (1920, 1080), podcast_probe
         assert float(podcast_probe["format"]["duration"]) > 6.5, podcast_probe
-        print("Video Producer FFmpeg smoke test passed")
+        print("Video Producer AG broadcast graphics smoke test passed")
 
 
 if __name__ == "__main__":

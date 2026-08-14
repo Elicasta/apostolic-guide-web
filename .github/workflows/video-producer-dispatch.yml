@@ -74,19 +74,17 @@ jobs:
           ref: ${{ env.WORKER_REF }}
           persist-credentials: false
 
-      - name: Prepare ffmpeg, fonts, and curl
+      - name: Prepare ffmpeg, AG fonts, and curl
         shell: bash
         run: |
-          missing=()
-          command -v ffmpeg >/dev/null 2>&1 || missing+=(ffmpeg)
-          command -v curl >/dev/null 2>&1 || missing+=(curl)
-          if ! fc-match "Noto Sans" 2>/dev/null | grep -qi "Noto"; then
-            missing+=(fonts-noto-core fontconfig)
-          fi
-          if ((${#missing[@]})); then
-            sudo apt-get update -qq
-            sudo apt-get install -y --no-install-recommends "${missing[@]}"
-          fi
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends ffmpeg curl fonts-noto-core fontconfig
+          for pkg in fonts-bebas-neue fonts-montserrat fonts-playfair-display; do
+            if apt-cache show "$pkg" >/dev/null 2>&1; then
+              sudo apt-get install -y --no-install-recommends "$pkg"
+            fi
+          done
+          fc-cache -f >/dev/null 2>&1 || true
 
       - name: Write render payload
         env:
@@ -96,7 +94,7 @@ jobs:
 
       - name: Render, upload, and report status
         run: |
-          python3 scripts/render_video_producer_worker.py /tmp/video-producer-render.json /tmp/video-producer.mp4
+          python3 scripts/render_video_producer_broadcast_worker.py /tmp/video-producer-render.json /tmp/video-producer.mp4
 
       - name: Keep failed render for diagnostics
         if: failure()
