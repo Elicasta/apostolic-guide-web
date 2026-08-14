@@ -22,6 +22,7 @@ export const studioNavSections: Array<{ label: string; items: Array<{ href: stri
     { href: "/admin/pathways", label: "Pathway publishing", icon: Route, permission: "view_content" },
     { href: "/admin/audio", label: "Pathway audio", icon: Headphones, permission: "manage_content" },
     { href: "/admin/video-studio", label: "Video Studio", icon: Film, permission: "manage_content" },
+    { href: "/admin/video-producer", label: "Video Producer", icon: Sparkles, permission: "manage_content" },
     { href: "/admin/carousel-studio", label: "Carousel Studio", icon: Layers3, permission: "manage_content" },
     { href: "/admin/content", label: "Website content", icon: FileText, permission: "view_content" },
     { href: "/admin/app-content", label: "App content", icon: BookOpen, permission: "view_content" }
