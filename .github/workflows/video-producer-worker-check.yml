@@ -13,13 +13,11 @@ permissions:
   contents: read
 
 jobs:
-  smoke:
+  transcription-readiness:
+    name: transcription readiness
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 3
     steps:
-      - name: Check out branch
-        uses: actions/checkout@v4
-
       - name: Verify transcription secret
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
@@ -28,6 +26,15 @@ jobs:
             echo "OPENAI_API_KEY repository secret is required for Video Producer transcription." >&2
             exit 1
           fi
+          echo "Video Producer transcription secret is configured."
+
+  smoke:
+    name: media smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@v4
 
       - name: Install FFmpeg and fonts
         run: |
