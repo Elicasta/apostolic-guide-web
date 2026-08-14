@@ -1,0 +1,293 @@
+/* Progressive-disclosure polish for the Video Producer workspace.
+   Scoped by the page marker so these rules cannot leak into other admin tools. */
+
+.admin-main:has(> .video-producer-page-marker) {
+  --vp-flow-line: rgba(169, 191, 206, .16);
+  --vp-flow-muted: #8498a7;
+  --vp-flow-text: #f4f8fb;
+  --vp-flow-blue: #4f8dff;
+  --vp-flow-red: #ef5e70;
+  --vp-flow-green: #45d39a;
+  --vp-flow-amber: #f1b64b;
+}
+
+/* The pass rows describe included operations, not completed work. */
+.admin-main:has(> .video-producer-page-marker)
+  > main.min-h-screen.text-white
+  aside > div:first-child .space-y-2 > div > svg:last-child {
+  display: none;
+}
+
+.admin-main:has(> .video-producer-page-marker)
+  > main.min-h-screen.text-white
+  aside > div:first-child .space-y-2 > div::after {
+  content: "INCLUDED";
+  flex: 0 0 auto;
+  border: 1px solid rgba(116, 166, 255, .20);
+  border-radius: 999px;
+  background: rgba(79, 141, 255, .08);
+  color: #8bb4ff;
+  padding: 4px 7px;
+  font-size: 8px;
+  font-weight: 850;
+  letter-spacing: .12em;
+}
+
+/* Before Sol has generated a plan, Step 4 should look intentionally locked. */
+.admin-main:has(> .video-producer-page-marker)
+  > main.min-h-screen.text-white
+  aside > div:nth-child(2):has(.border-dashed) {
+  position: relative;
+  border-style: dashed;
+  border-color: rgba(169, 191, 206, .14);
+  background: rgba(255,255,255,.018);
+}
+
+.admin-main:has(> .video-producer-page-marker)
+  > main.min-h-screen.text-white
+  aside > div:nth-child(2):has(.border-dashed) > .grid {
+  display: none;
+}
+
+.admin-main:has(> .video-producer-page-marker)
+  > main.min-h-screen.text-white
+  aside > div:nth-child(2):has(.border-dashed) .border-dashed {
+  min-height: 96px;
+  display: grid;
+  place-items: center;
+  margin-top: 0;
+  border: 0;
+  background: transparent;
+  color: #738795;
+  font-size: 12px;
+}
+
+.admin-main:has(> .video-producer-page-marker)
+  > main.min-h-screen.text-white
+  aside > div:nth-child(2):has(.border-dashed) .border-dashed::before {
+  content: "WAITING FOR PRODUCER PASS";
+  display: block;
+  margin-bottom: 7px;
+  color: #9aabb6;
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: .15em;
+}
+
+/* Keep implementation detail out of the primary production path. */
+.admin-main:has(> .video-producer-page-marker)
+  > main.min-h-screen.text-white
+  aside > div:last-child:not(:first-child):has(> div.font-bold:first-child) {
+  display: none;
+}
+
+/* If any infrastructure blocker exists, flag the upload stage once instead of
+   making the user discover the problem after choosing a file. */
+.admin-main:has(> .video-producer-system .vp-system-row--error)
+  > main.min-h-screen.text-white
+  .overflow-hidden.rounded-3xl.border.bg-black.shadow-2xl::after {
+  content: "SETUP REQUIRED · CHECK SYSTEM STATUS BELOW";
+  position: absolute;
+  z-index: 4;
+  top: 14px;
+  right: 14px;
+  max-width: calc(100% - 160px);
+  border: 1px solid rgba(239, 94, 112, .34);
+  border-radius: 999px;
+  background: rgba(78, 14, 25, .82);
+  color: #ff9aa7;
+  padding: 6px 9px;
+  font-size: 8px;
+  font-weight: 850;
+  letter-spacing: .11em;
+  text-align: right;
+  backdrop-filter: blur(10px);
+}
+
+/* Compact system status. */
+.admin-main:has(> .video-producer-page-marker) > .video-producer-system {
+  width: min(calc(100% - 36px), 1120px);
+  margin: 0 auto 44px;
+  color: var(--vp-flow-text);
+}
+
+.video-producer-system .vp-system-details {
+  overflow: hidden;
+  border: 1px solid rgba(169, 191, 206, .20);
+  border-radius: 18px;
+  background: #0b151e;
+  box-shadow: 0 20px 50px rgba(0,0,0,.18);
+}
+
+.video-producer-system .vp-system-summary {
+  min-height: 78px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 17px 20px;
+  cursor: pointer;
+  list-style: none;
+}
+.video-producer-system .vp-system-summary::-webkit-details-marker { display: none; }
+
+.video-producer-system .vp-system-summary > div {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.video-producer-system .vp-system-eyebrow {
+  color: #8093a2;
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+}
+
+.video-producer-system .vp-system-summary strong {
+  color: #f5f8fa;
+  font-size: 16px;
+  line-height: 1.2;
+}
+
+.video-producer-system .vp-system-summary small {
+  max-width: 720px;
+  color: #8498a7;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.video-producer-system .vp-system-summary-icon {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.video-producer-system .vp-system-summary-icon.is-ready { color: var(--vp-flow-green); }
+.video-producer-system .vp-system-summary-icon.is-error { color: var(--vp-flow-red); }
+.video-producer-system .vp-system-summary-icon svg:last-child { color: #6f8492; transition: transform .18s ease; }
+.video-producer-system .vp-system-details[open] .vp-system-summary-icon svg:last-child { transform: rotate(180deg); }
+
+.video-producer-system .vp-system-body {
+  border-top: 1px solid rgba(169, 191, 206, .14);
+  padding: 8px 12px 14px;
+}
+
+.video-producer-system .vp-system-group + .vp-system-group { margin-top: 8px; }
+.video-producer-system .vp-system-group-title {
+  padding: 10px 8px 5px;
+  color: #6f8492;
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+}
+
+.video-producer-system .vp-system-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  border-radius: 12px;
+  padding: 11px 9px;
+}
+.video-producer-system .vp-system-row + .vp-system-row { border-top: 1px solid rgba(169,191,206,.08); }
+.video-producer-system .vp-system-row--error { background: rgba(239,94,112,.045); }
+.video-producer-system .vp-system-row--warning { background: rgba(241,182,75,.035); }
+
+.video-producer-system .vp-system-icon {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(169,191,206,.14);
+  border-radius: 10px;
+  color: #8398a7;
+  background: rgba(255,255,255,.025);
+}
+
+.video-producer-system .vp-system-copy { min-width: 0; flex: 1; }
+.video-producer-system .vp-system-label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #edf3f6;
+  font-size: 12px;
+}
+.video-producer-system .vp-system-row--ready .vp-system-label svg { color: var(--vp-flow-green); }
+.video-producer-system .vp-system-row--warning .vp-system-label svg { color: var(--vp-flow-amber); }
+.video-producer-system .vp-system-row--error .vp-system-label svg { color: var(--vp-flow-red); }
+.video-producer-system .vp-system-copy p {
+  margin: 5px 0 0;
+  color: #8094a2;
+  font-size: 11px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.video-producer-system .vp-system-all-checks {
+  margin-top: 8px;
+  border-top: 1px solid rgba(169,191,206,.11);
+  padding: 10px 8px 0;
+}
+.video-producer-system .vp-system-all-checks > summary {
+  width: fit-content;
+  cursor: pointer;
+  color: #97a9b5;
+  font-size: 10px;
+  font-weight: 750;
+}
+.video-producer-system .vp-system-passing-list { margin-top: 8px; }
+.video-producer-system .vp-system-footnote {
+  margin: 11px 8px 0;
+  color: #607481;
+  font-size: 9px;
+  line-height: 1.45;
+}
+
+@media (max-width: 760px) {
+  /* The lane choice is important, but it should not consume half the first screen. */
+  .admin-main:has(> .video-producer-page-marker)
+    > main.min-h-screen.text-white
+    .group.rounded-3xl.border.p-5.text-left.transition {
+    min-height: 0;
+    padding: 17px;
+  }
+
+  .admin-main:has(> .video-producer-page-marker)
+    > main.min-h-screen.text-white
+    .group.rounded-3xl.border.p-5.text-left.transition > div:nth-child(4) {
+    line-height: 1.45;
+  }
+
+  .admin-main:has(> .video-producer-page-marker)
+    > main.min-h-screen.text-white
+    aside > div:first-child .space-y-2 > div::after {
+    content: "INCLUDED";
+    font-size: 7px;
+  }
+
+  .admin-main:has(> .video-producer-system .vp-system-row--error)
+    > main.min-h-screen.text-white
+    .overflow-hidden.rounded-3xl.border.bg-black.shadow-2xl::after {
+    top: 49px;
+    left: 14px;
+    right: auto;
+    max-width: calc(100% - 28px);
+    text-align: left;
+  }
+
+  .admin-main:has(> .video-producer-page-marker) > .video-producer-system {
+    width: calc(100% - 36px);
+    margin-bottom: 30px;
+  }
+
+  .video-producer-system .vp-system-summary {
+    min-height: 72px;
+    padding: 15px 16px;
+  }
+  .video-producer-system .vp-system-summary strong { font-size: 14px; }
+  .video-producer-system .vp-system-summary small { font-size: 10px; }
+  .video-producer-system .vp-system-body { padding: 6px 8px 11px; }
+}
