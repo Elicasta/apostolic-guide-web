@@ -20,13 +20,13 @@ jobs:
     steps:
       - name: Verify transcription secret
         env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.VIDEO_PRODUCER_OPENAI_API_KEY }}
         run: |
           if [ -z "$OPENAI_API_KEY" ]; then
-            echo "OPENAI_API_KEY repository secret is required for Video Producer transcription." >&2
+            echo "VIDEO_PRODUCER_OPENAI_API_KEY repository secret is required for Video Producer transcription." >&2
             exit 1
           fi
-          echo "Video Producer transcription secret is configured."
+          echo "Dedicated Video Producer transcription secret is configured."
 
   smoke:
     name: media smoke
