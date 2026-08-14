@@ -1,0 +1,88 @@
+name: Video Producer dispatcher
+
+on:
+  repository_dispatch:
+    types: [video-producer-transcribe, video-producer-render]
+
+permissions:
+  contents: read
+
+jobs:
+  transcribe:
+    if: github.event.action == 'video-producer-transcribe'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Check out requested worker ref
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.client_payload.worker_ref || github.event.repository.default_branch }}
+
+      - name: Prepare ffmpeg
+        shell: bash
+        run: |
+          if ! command -v ffmpeg >/dev/null 2>&1 || ! command -v ffprobe >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo apt-get install -y --no-install-recommends ffmpeg
+          fi
+
+      - name: Write worker payload
+        env:
+          WORKER_PAYLOAD: ${{ toJson(github.event.client_payload) }}
+        run: |
+          printf '%s' "$WORKER_PAYLOAD" > /tmp/video-producer-transcribe.json
+
+      - name: Extract, chunk, transcribe, and report
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          if [ -z "$OPENAI_API_KEY" ]; then
+            echo "OPENAI_API_KEY repository secret is required for Video Producer transcription." >&2
+            exit 1
+          fi
+          python3 scripts/transcribe_video_producer_worker.py /tmp/video-producer-transcribe.json
+
+  render:
+    if: github.event.action == 'video-producer-render'
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - name: Check out requested worker ref
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.client_payload.worker_ref || github.event.repository.default_branch }}
+
+      - name: Prepare ffmpeg, fonts, and curl
+        shell: bash
+        run: |
+          missing=()
+          command -v ffmpeg >/dev/null 2>&1 || missing+=(ffmpeg)
+          command -v curl >/dev/null 2>&1 || missing+=(curl)
+          if ! fc-match "Noto Sans" 2>/dev/null | grep -qi "Noto"; then
+            missing+=(fonts-noto-core fontconfig)
+          fi
+          if ((${#missing[@]})); then
+            sudo apt-get update -qq
+            sudo apt-get install -y --no-install-recommends "${missing[@]}"
+          fi
+
+      - name: Write render payload
+        env:
+          RENDER_PAYLOAD: ${{ toJson(github.event.client_payload) }}
+        run: |
+          printf '%s' "$RENDER_PAYLOAD" > /tmp/video-producer-render.json
+
+      - name: Render, upload, and report status
+        run: |
+          python3 scripts/render_video_producer_worker.py /tmp/video-producer-render.json /tmp/video-producer.mp4
+
+      - name: Keep failed render for diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: video-producer-failed-${{ github.run_id }}
+          path: |
+            /tmp/video-producer-render.json
+            /tmp/video-producer.mp4
+          if-no-files-found: ignore
+          retention-days: 2
