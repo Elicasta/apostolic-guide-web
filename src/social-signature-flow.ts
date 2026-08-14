@@ -32,24 +32,8 @@ export function isOpenStudyReply(text: string) {
   return normalized === "open" || normalized === "open study" || normalized === "open it";
 }
 
-export function buildStudyCardImageUrl(title: string) {
-  const normalized = title.trim().toLowerCase();
-  if (normalized === "jesus is god") return "https://www.apostolicguide.com/social-cards/jesus-is-god.png";
-  if (normalized === "god is one") return "https://www.apostolicguide.com/social-cards/god-is-one.png";
-  const url = new URL("https://www.apostolicguide.com/api/social/study-card");
-  url.searchParams.set("title", title);
-  return url.toString();
-}
-
-export function buildStudyCardImageMessage(title: string) {
-  return {
-    attachment: {
-      type: "image",
-      payload: {
-        url: buildStudyCardImageUrl(title)
-      }
-    }
-  };
+export function buildStudyIntroText() {
+  return "Here you go.\n\nStart with Scripture. Follow the key passages and connections, then see how they come together.\n\nIf something raises a question, send it here. I’ll help you work through it from Scripture.";
 }
 
 export function buildStudyCardMessage(input: { title: string; destinationUrl: string }) {
@@ -58,7 +42,7 @@ export function buildStudyCardMessage(input: { title: string; destinationUrl: st
       type: "template",
       payload: {
         template_type: "button",
-        text: `${input.title}\n\nStart with the Scripture, follow the key passages and connections, and see how the Bible reveals who Jesus is.\n\nIf a verse raises a question, send it here. I’ll help you work through it from Scripture.`,
+        text: input.title,
         buttons: [
           {
             type: "web_url",
@@ -70,5 +54,3 @@ export function buildStudyCardMessage(input: { title: string; destinationUrl: st
     }
   };
 }
-
-export const STUDY_FOLLOW_UP = "If a verse raises a question, send it here. I’ll point you back to Scripture.";
