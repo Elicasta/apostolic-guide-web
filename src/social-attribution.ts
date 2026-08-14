@@ -2,7 +2,7 @@ import { buildSocialReply, findMatchingAutomation, getInstagramConfig, listSocia
 import { createServiceClient } from "./supabase";
 import { recordPersonEvent, upsertInstagramPerson } from "./people-crm";
 import { recordInboxOutbound } from "./inbox";
-import { buildStudyCardImageUrl, buildStudyCardMessage, buildStudyHandshake, isOpenStudyReply, STUDY_FOLLOW_UP, studyTitleFromDestination } from "./social-signature-flow";
+import { buildStudyCardMessage, buildStudyHandshake, isOpenStudyReply, studyTitleFromDestination } from "./social-signature-flow";
 
 export function attributedDestination(destinationUrl: string | null | undefined, token: string | null | undefined) {
   const raw = destinationUrl?.trim();
@@ -49,26 +49,6 @@ async function sendInstagramMessage(config: NonNullable<Awaited<ReturnType<typeo
   });
 }
 
-async function uploadInstagramImageAttachment(config: NonNullable<Awaited<ReturnType<typeof getInstagramConfig>>>, imageUrl: string) {
-  const uploaded = await graphFetch(`${encodeURIComponent(config.instagramUserId)}/message_attachments`, config.accessToken, config.graphVersion, {
-    method: "POST",
-    body: JSON.stringify({
-      message: {
-        attachment: {
-          type: "image",
-          payload: {
-            url: imageUrl,
-            is_reusable: true
-          }
-        }
-      }
-    })
-  });
-  const attachmentId = typeof uploaded.attachment_id === "string" ? uploaded.attachment_id : null;
-  if (!attachmentId) throw new Error("Instagram attachment upload did not return an attachment_id.");
-  return attachmentId;
-}
-
 async function deliverPendingStudyCard(input: {
   config: NonNullable<Awaited<ReturnType<typeof getInstagramConfig>>>;
   personId: string;
@@ -97,29 +77,8 @@ async function deliverPendingStudyCard(input: {
   const destinationUrl = String(sourceEvent.destination_url);
   const title = studyTitleFromDestination(destinationUrl, typeof automation?.name === "string" ? automation.name.replace(/[!]+$/g, "") : "Apostolic Guide Study");
 
-  let imageMessageId: string | null = null;
-  try {
-    const attachmentId = await uploadInstagramImageAttachment(input.config, buildStudyCardImageUrl(title));
-    const image = await sendInstagramMessage(input.config, input.recipientId, {
-      attachment: {
-        type: "image",
-        payload: { attachment_id: attachmentId }
-      }
-    });
-    imageMessageId = typeof image.message_id === "string" ? image.message_id : null;
-  } catch (error) {
-    console.warn("Instagram branded study artwork could not be sent", error);
-  }
-
   const card = await sendInstagramMessage(input.config, input.recipientId, buildStudyCardMessage({ title, destinationUrl }));
   const cardMessageId = typeof card.message_id === "string" ? card.message_id : null;
-  let followUpMessageId: string | null = null;
-  try {
-    const followUp = await sendInstagramMessage(input.config, input.recipientId, { text: STUDY_FOLLOW_UP });
-    followUpMessageId = typeof followUp.message_id === "string" ? followUp.message_id : null;
-  } catch (error) {
-    console.warn("Instagram study card follow-up could not be sent", error);
-  }
 
   await service.from("social_events").insert({
     external_event_id: input.inboundExternalEventId,
@@ -142,18 +101,9 @@ async function deliverPendingStudyCard(input: {
       eventName: `${title} study card delivered`,
       automationId: sourceEvent.automation_id,
       externalEventId: `crm:study-card:${input.inboundExternalEventId}`,
-      metadata: { source_event_id: sourceEvent.id, destination_url: destinationUrl, matched_keyword: sourceEvent.matched_keyword, branded_artwork_sent: Boolean(imageMessageId) },
+      metadata: { source_event_id: sourceEvent.id, destination_url: destinationUrl, matched_keyword: sourceEvent.matched_keyword },
       occurredAt: input.eventAt
     }),
-    imageMessageId ? recordInboxOutbound({
-      personId: input.personId,
-      body: `Branded study artwork · ${title}`,
-      providerMessageId: imageMessageId,
-      externalEventId: `study-art:${input.inboundExternalEventId}`,
-      kind: "automation",
-      at: input.eventAt,
-      metadata: { automation_id: sourceEvent.automation_id, source_event_id: sourceEvent.id, signature_flow: "you-found-the-study" }
-    }) : Promise.resolve(),
     recordInboxOutbound({
       personId: input.personId,
       body: `Study card · ${title}\n${destinationUrl}`,
@@ -162,16 +112,7 @@ async function deliverPendingStudyCard(input: {
       kind: "automation",
       at: input.eventAt,
       metadata: { automation_id: sourceEvent.automation_id, source_event_id: sourceEvent.id, signature_flow: "you-found-the-study" }
-    }),
-    followUpMessageId ? recordInboxOutbound({
-      personId: input.personId,
-      body: STUDY_FOLLOW_UP,
-      providerMessageId: followUpMessageId,
-      externalEventId: `study-follow-up:${input.inboundExternalEventId}`,
-      kind: "automation",
-      at: input.eventAt,
-      metadata: { automation_id: sourceEvent.automation_id, source_event_id: sourceEvent.id, signature_flow: "you-found-the-study" }
-    }) : Promise.resolve()
+    })
   ]);
 
   return { title, destinationUrl, providerMessageId: cardMessageId };
