@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getStudioPermission } from "@/auth";
+import { pathwayBySlug } from "@/pathway-catalog";
 import { createServiceClient } from "@/supabase";
 import {
   normalizeVideoProducerDirectorOutput,
@@ -20,36 +21,40 @@ const schema = z.object({
   captionAnimation: z.enum(["pop", "rise", "highlight", "none"]).optional()
 });
 
-function directorRules(mode: "podcast" | "reels") {
+function directorRules(mode: "podcast" | "reels", hasPathway: boolean) {
   const shared = [
     "You are the Apostolic Guide Video Producer Edit Director.",
     "The supplied transcript is the source of truth. Never invent, paraphrase into a new theological claim, reorder spoken words, or manufacture a hook that was not actually spoken.",
     "All timestamps must refer to the supplied LOCAL transcript timeline, starting at 0.00 seconds.",
     "Cuts remove source time. Only cut ranges that are clearly expendable from the spoken material.",
     "Scripture overlays may quote only references or ideas actually present in the transcript. Do not fabricate a Bible reference.",
-    "Apostolic Guide owns a fixed broadcast graphics system. You choose semantic overlay kind, timing, copy, placement and restrained animation; code owns typography, colors, scale, framing and visual execution. Never describe a design inside overlay copy.",
+    "Apostolic Guide owns a fixed Broadcast Graphics System V2. You choose semantic overlay kind, timing, copy, placement and restrained animation; code owns typography, colors, scale, framing and visual execution. Never describe a design inside overlay copy.",
     "Use lower-third for a speaker/name identifier only when the identity or role is actually known from project/transcript context.",
-    "Use pathway for a compact pathway/topic follow-along bug. Use statement for one especially strong key point. Use quote for a short direct quotable line. Use cta only for a real next action supported by context.",
-    "For scripture, lower-third is the normal treatment during teaching. Use center or full-frame only when the passage itself is the visual focus; keep the actual reference in reference and the readable verse/claim in title.",
-    "Use chapter only for a genuine major section change, normally full-frame. Graphics should support the speaker, not cover every sentence.",
-    "Titles must be concise enough for broadcast typography. Prefer one strong sentence or phrase rather than paragraph copy.",
+    "Use pathway for one compact pathway introduction near the beginning when pathway context is supplied. Do not repeatedly emit pathway bugs; the renderer owns the persistent left-side pathway follower.",
+    "SCRIPTURE V2: a short, readable Scripture claim should use lower-third and normally stay under about 70 characters. A longer passage, anchor verse, or verse that would need tiny text must use full-frame or center. Never solve a long verse by shrinking it.",
+    "Scripture title contains the readable verse/claim in normal sentence case. reference contains the Bible reference. Do not put the reference into title.",
+    "Use chapter only for a genuine pathway/teaching section transition. When pathway context is supplied, chapter means PATHWAY STOP; align the chapter title and reference to the closest supplied pathway step rather than inventing generic chapter numbers.",
+    "Use statement for one especially strong key point. Use quote for a short direct quotable line. Use cta only for a real next action supported by context.",
+    "Graphics should support the speaker, not cover every sentence. Titles must be concise enough for broadcast typography.",
     "Return decisions only. Code performs the edit."
   ];
+  if (hasPathway) shared.push("A PATHWAY CONTEXT block is supplied. Treat its step order, step titles and Bible references as authoritative for pathway-stop structure.");
   if (mode === "podcast") return [...shared,
     "PODCAST MODE: prioritize professional long-form clarity, natural pacing, and doctrinal continuity over aggressive retention editing.",
     "Cuts may remove false starts, obvious repeated takes, accidental dead air, and verbal resets. Do not remove substantive teaching merely to shorten runtime.",
     "Normally keep total removed source under 20 percent. The system will reject a plan over 35 percent.",
-    "Use chapter overlays for genuine topic transitions, Scripture lower thirds while a passage is being explained, and statement cards only for especially strong spoken claims.",
+    "Use full-frame pathway-stop cards only at meaningful transitions. Between stops, the renderer will maintain a compact left-side follower automatically.",
+    "Use Scripture lower-thirds for short lines while teaching; promote anchor/long Scripture to a full-frame card.",
     "Motion should be restrained. Use subtle punch-ins or reframes only when useful. Avoid strong social-media style motion.",
-    "Do not return music decisions. Music is selected later from the approved AG library."
+    "Do not return music decisions. Music is selected separately from the approved AG library."
   ];
   return [...shared,
     "REELS MODE: optimize a self-contained short clip for retention without making it frantic or generic.",
     "Protect the actual spoken hook. Tighten dead air, repeated phrases, stumbles, and unnecessary setup, but preserve the logical sentence that makes the claim understandable.",
     "Use punch-ins and reframes at meaningful emphasis beats. focusX and focusY are normalized 0 to 1. scale should usually stay between 1.04 and 1.22.",
-    "Use animated captions separately from overlays. Overlays are for Scripture, one key statement, a pathway/topic bug, or the final CTA.",
+    "Use animated captions separately from overlays. Overlays are for Scripture, one key statement, a pathway/topic marker, or the final CTA.",
     "Never fake B-roll. A b-roll cue may only be a note for later human/asset selection.",
-    "Do not return music decisions. Music is selected later from the approved AG library."
+    "Do not return music decisions. Music is selected separately from the approved AG library."
   ];
 }
 
@@ -65,7 +70,7 @@ export async function POST(request: Request) {
   if (!service) return NextResponse.json({ error: "Supabase service access is not configured." }, { status: 503 });
 
   const projectResult = await service.from("video_producer_projects")
-    .select("id,title,mode,status,source_duration,source_range_start,source_range_end,transcript,director_metadata")
+    .select("id,title,mode,status,pathway_slug,selected_music_track_id,source_duration,source_range_start,source_range_end,transcript,director_metadata")
     .eq("id", parsed.data.projectId)
     .maybeSingle();
   if (projectResult.error) return NextResponse.json({ error: projectResult.error.message }, { status: 500 });
@@ -79,6 +84,15 @@ export async function POST(request: Request) {
     ? sliceVideoProducerTranscript(fullTranscript, Number(project.source_range_start), Number(project.source_range_end))
     : fullTranscript;
   if (!localTranscript.words.length || localTranscript.duration <= 0) return NextResponse.json({ error: "The selected reel source range has no transcript content." }, { status: 409 });
+
+  const pathway = project.pathway_slug ? pathwayBySlug(project.pathway_slug) : null;
+  if (project.pathway_slug && !pathway) return NextResponse.json({ error: "The selected pathway is no longer available." }, { status: 409 });
+  const pathwayContext = pathway ? [
+    `PATHWAY: ${pathway.title}`,
+    `PATHWAY SUMMARY: ${pathway.summary}`,
+    "PATHWAY STEPS:",
+    ...pathway.steps.map((step, index) => `${index + 1}. ${step.title} — ${step.reference} — ${step.explanation}`)
+  ].join("\n") : "PATHWAY: none selected";
 
   const metadata = project.director_metadata && typeof project.director_metadata === "object"
     ? project.director_metadata as Record<string, unknown>
@@ -97,11 +111,12 @@ export async function POST(request: Request) {
           format: { type: "json_schema", name: `ag_video_producer_${project.mode}_director`, strict: true, schema: VIDEO_PRODUCER_DIRECTOR_JSON_SCHEMA }
         },
         input: [
-          { role: "developer", content: [{ type: "input_text", text: directorRules(project.mode).join("\n") }] },
+          { role: "developer", content: [{ type: "input_text", text: directorRules(project.mode, Boolean(pathway)).join("\n") }] },
           { role: "user", content: [{ type: "input_text", text: [
             `PROJECT: ${project.title}`,
             `MODE: ${project.mode}`,
             `LOCAL DURATION: ${localTranscript.duration.toFixed(2)} seconds`,
+            pathwayContext,
             "TIMESTAMPED TRANSCRIPT:",
             transcriptForModel(localTranscript)
           ].join("\n\n") }] }
@@ -117,6 +132,16 @@ export async function POST(request: Request) {
       if (parsed.data.captionStyle) directed.plan.captions.style = parsed.data.captionStyle;
       if (parsed.data.captionAnimation) directed.plan.captions.animation = parsed.data.captionAnimation;
     }
+    if (project.selected_music_track_id) {
+      directed.plan.music = [{
+        id: "ag-music-bed",
+        trackId: project.selected_music_track_id,
+        start: 0,
+        end: localTranscript.duration,
+        gainDb: project.mode === "reels" ? -24 : -28,
+        duckUnderVoice: true
+      }];
+    }
     const now = new Date().toISOString();
     const saved = await service.from("video_producer_projects").update({
       status: "planned",
@@ -125,7 +150,7 @@ export async function POST(request: Request) {
       approved_at: null,
       director_metadata: {
         ...metadata,
-        director: { model, directedAt: now, summary: directed.summary, mode: project.mode, localDuration: localTranscript.duration }
+        director: { model, directedAt: now, summary: directed.summary, mode: project.mode, localDuration: localTranscript.duration, pathwaySlug: pathway?.slug ?? null }
       },
       updated_by: access.user.id
     }).eq("id", project.id).select("*").single();
