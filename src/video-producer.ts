@@ -117,6 +117,13 @@ export type VideoProducerRenderPlan = {
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 const finiteNumber = (value: number, fallback = 0) => Number.isFinite(value) ? value : fallback;
 
+const SCRIPTURE_REFERENCE_PATTERN = /\b(?:Genesis|Exodus|Leviticus|Numbers|Deuteronomy|Joshua|Judges|Ruth|(?:1|2)\s+Samuel|(?:1|2)\s+Kings|(?:1|2)\s+Chronicles|Ezra|Nehemiah|Esther|Job|Psalms?|Proverbs|Ecclesiastes|Song(?: of (?:Solomon|Songs))?|Isaiah|Jeremiah|Lamentations|Ezekiel|Daniel|Hosea|Joel|Amos|Obadiah|Jonah|Micah|Nahum|Habakkuk|Zephaniah|Haggai|Zechariah|Malachi|Matthew|Mark|Luke|John|Acts|Romans|(?:1|2)\s+Corinthians|Galatians|Ephesians|Philippians|Colossians|(?:1|2)\s+Thessalonians|(?:1|2)\s+Timothy|Titus|Philemon|Hebrews|James|(?:1|2)\s+Peter|(?:1|2|3)\s+John|Jude|Revelation)\s+\d{1,3}:\d{1,3}(?:-\d{1,3})?/i;
+
+export function findVideoProducerScriptureReference(text: string): string | null {
+  if (!text) return null;
+  return text.match(SCRIPTURE_REFERENCE_PATTERN)?.[0] ?? null;
+}
+
 export const VIDEO_PRODUCER_MODE_DEFAULTS: Record<VideoProducerMode, {
   label: string;
   description: string;
