@@ -82,3 +82,109 @@ export async function processInstagramWebhookAttributed(payload: unknown) {
   }
   return { processed: triggers.length, sent };
 }
+
+export async function retryInstagramAutomationEvent(eventId: number) {
+  const config = await getInstagramConfig();
+  const service = createServiceClient();
+  if (!config || !service) throw new Error("Instagram is not configured.");
+
+  const { data: event, error: eventError } = await service.from("social_events")
+    .select("id,external_event_id,automation_id,trigger_type,matched_keyword,source_media_id,person_id,destination_url,delivery_status")
+    .eq("id", eventId)
+    .maybeSingle();
+  if (eventError) throw new Error(eventError.message);
+  if (!event) throw new Error("Automation event not found.");
+  if (event.delivery_status !== "failed") throw new Error("Only failed automation events can be retried.");
+  if (!event.automation_id) throw new Error("The failed event no longer has an automation to retry.");
+
+  const { data: automation, error: automationError } = await service.from("social_automations")
+    .select("id,reply_text,destination_url")
+    .eq("id", event.automation_id)
+    .maybeSingle();
+  if (automationError) throw new Error(automationError.message);
+  if (!automation) throw new Error("The automation used by this event no longer exists.");
+
+  let personId = typeof event.person_id === "string" ? event.person_id : null;
+  let instagramRecipientId: string | null = null;
+
+  if (event.trigger_type === "dm_keyword") {
+    if (!personId) {
+      const messageId = String(event.external_event_id).match(/^message:([^:]+)/)?.[1] ?? null;
+      if (messageId) {
+        const { data: inbound } = await service.from("inbox_messages")
+          .select("person_id")
+          .eq("platform", "instagram")
+          .eq("direction", "inbound")
+          .eq("provider_message_id", messageId)
+          .maybeSingle();
+        if (typeof inbound?.person_id === "string") personId = inbound.person_id;
+      }
+    }
+    if (personId) {
+      const { data: person } = await service.from("people").select("instagram_user_id").eq("id", personId).maybeSingle();
+      if (typeof person?.instagram_user_id === "string") instagramRecipientId = person.instagram_user_id;
+    }
+  }
+
+  const commentId = event.trigger_type === "comment_keyword"
+    ? String(event.external_event_id).match(/^comment:([^:]+)/)?.[1] ?? null
+    : null;
+  const destinationUrl = typeof event.destination_url === "string" && event.destination_url.trim()
+    ? event.destination_url
+    : automation.destination_url;
+  const reply = buildSocialReply(automation.reply_text, destinationUrl);
+  const now = new Date().toISOString();
+  const retryExternalEventId = `${event.external_event_id}:retry:${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
+
+  try {
+    const recipient = event.trigger_type === "comment_keyword"
+      ? { comment_id: commentId }
+      : { id: instagramRecipientId };
+    if ((event.trigger_type === "comment_keyword" && !commentId) || (event.trigger_type === "dm_keyword" && !instagramRecipientId)) {
+      throw new Error("The original Instagram recipient could not be recovered for this retry.");
+    }
+
+    const result = await graphFetch(`${encodeURIComponent(config.instagramUserId)}/messages`, config.accessToken, config.graphVersion, {
+      method: "POST",
+      body: JSON.stringify({ recipient, message: { text: reply } })
+    });
+    const providerMessageId = typeof result.message_id === "string" ? result.message_id : null;
+    const { data: retryEvent, error: retryEventError } = await service.from("social_events").insert({
+      external_event_id: retryExternalEventId,
+      automation_id: event.automation_id,
+      trigger_type: event.trigger_type,
+      matched_keyword: event.matched_keyword,
+      source_media_id: event.source_media_id,
+      person_id: personId,
+      destination_url: destinationUrl,
+      delivery_status: "sent",
+      provider_message_id: providerMessageId,
+      event_at: now
+    }).select("id").single();
+    if (retryEventError) throw new Error(retryEventError.message);
+
+    if (personId) {
+      await Promise.all([
+        recordPersonEvent({ personId, eventType: "automation_reply_sent", channel: "instagram", eventName: "Instagram automation retry sent", automationId: event.automation_id, externalEventId: `crm:retry:${retryExternalEventId}`, metadata: { retry_of_event_id: event.id, matched_keyword: event.matched_keyword, destination_url: destinationUrl, source_media_id: event.source_media_id }, occurredAt: now }),
+        recordInboxOutbound({ personId, body: reply, providerMessageId, externalEventId: `automation-retry:${retryExternalEventId}`, kind: "automation", at: now, metadata: { automation_id: event.automation_id, matched_keyword: event.matched_keyword, retry_of_event_id: event.id } })
+      ]);
+    }
+
+    return { id: retryEvent.id, status: "sent" as const, providerMessageId };
+  } catch (error) {
+    const message = (error instanceof Error ? error.message : "Instagram retry failed").slice(0, 500);
+    await service.from("social_events").insert({
+      external_event_id: retryExternalEventId,
+      automation_id: event.automation_id,
+      trigger_type: event.trigger_type,
+      matched_keyword: event.matched_keyword,
+      source_media_id: event.source_media_id,
+      person_id: personId,
+      destination_url: destinationUrl,
+      delivery_status: "failed",
+      error_code: `Retry of event ${event.id}: ${message}`.slice(0, 500),
+      event_at: now
+    });
+    throw new Error(message);
+  }
+}
