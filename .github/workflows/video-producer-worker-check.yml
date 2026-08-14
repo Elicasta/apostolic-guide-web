@@ -20,6 +20,15 @@ jobs:
       - name: Check out branch
         uses: actions/checkout@v4
 
+      - name: Verify transcription secret
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          if [ -z "$OPENAI_API_KEY" ]; then
+            echo "OPENAI_API_KEY repository secret is required for Video Producer transcription." >&2
+            exit 1
+          fi
+
       - name: Install FFmpeg and fonts
         run: |
           sudo apt-get update -qq
