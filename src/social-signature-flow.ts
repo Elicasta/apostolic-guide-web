@@ -33,9 +33,9 @@ export function isOpenStudyReply(text: string) {
 }
 
 export function buildStudyCardImageUrl(title: string) {
-  // Meta's media fetcher rejects the www -> apex redirect as an upload failure.
-  // Keep this URL on the canonical host so the response is the PNG itself.
-  const url = new URL("https://apostolicguide.com/api/social/study-card");
+  // www is the direct production host for this PNG route. The apex domain
+  // redirects to www, which Meta's media uploader should not have to follow.
+  const url = new URL("https://www.apostolicguide.com/api/social/study-card");
   url.searchParams.set("title", title);
   return url.toString();
 }
