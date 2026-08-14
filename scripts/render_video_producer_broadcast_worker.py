@@ -19,6 +19,12 @@ from video_producer_broadcast_graphics import build_broadcast_ass  # noqa: E402
 # graphics compiler so rollout risk stays isolated to presentation.
 base.build_ass = build_broadcast_ass
 
+# Public smoke-test hooks mirror the base worker interface.
+validate_manifest = base.validate_manifest
+build_ass = build_broadcast_ass
+build_ffmpeg = base.build_ffmpeg
+package_with_bumpers = base.package_with_bumpers
+
 
 def main():
     base.main()
