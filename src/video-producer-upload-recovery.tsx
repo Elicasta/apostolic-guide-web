@@ -7,7 +7,7 @@ type ProjectList = {
 };
 
 type RecoveryResult = {
-  state?: "uploaded" | "reset" | "unchanged";
+  state?: "uploaded" | "reset" | "pending" | "unchanged";
 };
 
 export function VideoProducerUploadRecovery() {
