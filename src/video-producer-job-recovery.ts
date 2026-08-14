@@ -40,6 +40,7 @@ export async function reconcileVideoProducerWorkerState(service: ServiceClient, 
           ...metadata,
           transcriptionError: "Transcription worker stopped reporting progress. Retry transcription.",
           transcriptionRecoveredAt: now,
+          transcriptionBridge: { ...bridge, callbackTokenHash: null, timedOutAt: now },
           transcriptionProgress: {
             ...progress,
             stage: "Transcription timed out",
@@ -53,7 +54,7 @@ export async function reconcileVideoProducerWorkerState(service: ServiceClient, 
 
   if (project.status !== "rendering") return;
   const renderResult = await service.from("video_producer_renders")
-    .select("id,status,progress,requested_at")
+    .select("id,status,progress,requested_at,config_snapshot")
     .eq("project_id", projectId)
     .in("status", ["queued", "rendering"])
     .order("requested_at", { ascending: false })
@@ -67,12 +68,18 @@ export async function reconcileVideoProducerWorkerState(service: ServiceClient, 
 
   const now = new Date().toISOString();
   const error = "Render worker stopped reporting progress. The approved edit is preserved and can be rendered again.";
+  const snapshot = record(render.config_snapshot);
+  const bridge = record(snapshot.rendererBridge);
   await Promise.all([
     service.from("video_producer_renders").update({
       status: "failed",
       progress: { ...progress, stage: "Render timed out", heartbeatAt: now },
       error,
-      completed_at: now
+      completed_at: now,
+      config_snapshot: {
+        ...snapshot,
+        rendererBridge: { ...bridge, callbackTokenHash: null, timedOutAt: now }
+      }
     }).eq("id", render.id),
     service.from("video_producer_projects").update({ status: "approved" }).eq("id", projectId)
   ]);
