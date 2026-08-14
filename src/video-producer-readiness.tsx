@@ -84,6 +84,7 @@ export async function VideoProducerReadiness() {
       : { label: "Project database", detail: `${databaseProbe.count ?? 0} Video Producer project${databaseProbe.count === 1 ? "" : "s"} stored.`, state: "ready", icon: Database });
   }
 
+  // Vercel injects the private Blob connection into each fresh deployment.
   const blobReady = Boolean(process.env.BLOB_READ_WRITE_TOKEN?.trim());
   items.push({
     label: "Private media storage",
