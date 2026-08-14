@@ -2,7 +2,7 @@ import { buildSocialReply, findMatchingAutomation, getInstagramConfig, listSocia
 import { createServiceClient } from "./supabase";
 import { recordPersonEvent, upsertInstagramPerson } from "./people-crm";
 import { recordInboxOutbound } from "./inbox";
-import { buildStudyCardMessage, buildStudyHandshake, isOpenStudyReply, studyTitleFromDestination } from "./social-signature-flow";
+import { buildStudyCardMessage, buildStudyHandshake, buildStudyIntroText, isOpenStudyReply, studyTitleFromDestination } from "./social-signature-flow";
 
 export function attributedDestination(destinationUrl: string | null | undefined, token: string | null | undefined) {
   const raw = destinationUrl?.trim();
@@ -76,7 +76,10 @@ async function deliverPendingStudyCard(input: {
     : { data: null } as { data: null };
   const destinationUrl = String(sourceEvent.destination_url);
   const title = studyTitleFromDestination(destinationUrl, typeof automation?.name === "string" ? automation.name.replace(/[!]+$/g, "") : "Apostolic Guide Study");
+  const introText = buildStudyIntroText();
 
+  const intro = await sendInstagramMessage(input.config, input.recipientId, { text: introText });
+  const introMessageId = typeof intro.message_id === "string" ? intro.message_id : null;
   const card = await sendInstagramMessage(input.config, input.recipientId, buildStudyCardMessage({ title, destinationUrl }));
   const cardMessageId = typeof card.message_id === "string" ? card.message_id : null;
 
@@ -98,7 +101,7 @@ async function deliverPendingStudyCard(input: {
       personId: input.personId,
       eventType: "study_card_delivered",
       channel: "instagram",
-      eventName: `${title} study card delivered`,
+      eventName: `${title} study delivered`,
       automationId: sourceEvent.automation_id,
       externalEventId: `crm:study-card:${input.inboundExternalEventId}`,
       metadata: { source_event_id: sourceEvent.id, destination_url: destinationUrl, matched_keyword: sourceEvent.matched_keyword },
@@ -106,7 +109,16 @@ async function deliverPendingStudyCard(input: {
     }),
     recordInboxOutbound({
       personId: input.personId,
-      body: `Study card · ${title}\n${destinationUrl}`,
+      body: introText,
+      providerMessageId: introMessageId,
+      externalEventId: `study-intro:${input.inboundExternalEventId}`,
+      kind: "automation",
+      at: input.eventAt,
+      metadata: { automation_id: sourceEvent.automation_id, source_event_id: sourceEvent.id, signature_flow: "you-found-the-study" }
+    }),
+    recordInboxOutbound({
+      personId: input.personId,
+      body: `Study link · ${title}\n${destinationUrl}`,
       providerMessageId: cardMessageId,
       externalEventId: `study-card:${input.inboundExternalEventId}`,
       kind: "automation",
