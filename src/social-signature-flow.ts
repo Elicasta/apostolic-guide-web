@@ -33,8 +33,9 @@ export function isOpenStudyReply(text: string) {
 }
 
 export function buildStudyCardImageUrl(title: string) {
-  // www is the direct production host for this PNG route. The apex domain
-  // redirects to www, which Meta's media uploader should not have to follow.
+  const normalized = title.trim().toLowerCase();
+  if (normalized === "jesus is god") return "https://www.apostolicguide.com/social-cards/jesus-is-god.png";
+  if (normalized === "god is one") return "https://www.apostolicguide.com/social-cards/god-is-one.png";
   const url = new URL("https://www.apostolicguide.com/api/social/study-card");
   url.searchParams.set("title", title);
   return url.toString();
