@@ -1,25 +1,38 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
-import { Captions, Check, Film, Music2, Play, Scissors, Smartphone, Sparkles, Type, Upload, WandSparkles, ZoomIn } from "lucide-react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { upload } from "@vercel/blob/client";
 import {
-  buildDefaultVideoProducerPlan,
+  Captions,
+  Check,
+  Film,
+  Loader2,
+  Music2,
+  Play,
+  RefreshCw,
+  Scissors,
+  Smartphone,
+  Sparkles,
+  Type,
+  Upload,
+  WandSparkles,
+  ZoomIn
+} from "lucide-react";
+import {
   compileVideoProducerRenderPlan,
-  findVideoProducerScriptureReference,
   formatProducerTime,
   VIDEO_PRODUCER_MODE_DEFAULTS,
   type VideoProducerCaptionAnimation,
   type VideoProducerCaptionStyle,
   type VideoProducerEditPlan,
-  type VideoProducerMode,
-  type VideoProducerOverlay
+  type VideoProducerMode
 } from "@/video-producer";
+import type { VideoProducerReelCandidate } from "@/video-producer-ai";
 
-const SAMPLE_OVERLAYS: VideoProducerOverlay[] = [];
 const CAPTION_STYLES: { id: VideoProducerCaptionStyle; label: string; description: string }[] = [
-  { id: "kinetic-clean", label: "Kinetic Clean", description: "AG default. Fast emphasis without looking like generic creator captions." },
+  { id: "kinetic-clean", label: "Kinetic Clean", description: "AG default. Fast emphasis without generic creator-caption energy." },
   { id: "word-pop", label: "Word Pop", description: "Higher-energy word emphasis for hooks and strong statements." },
-  { id: "editorial", label: "Editorial", description: "Larger composed cards for theology, quotes and teaching clips." },
+  { id: "editorial", label: "Editorial", description: "Larger composed typography for theology and teaching clips." },
   { id: "minimal", label: "Minimal", description: "Low-motion captions when the footage should stay dominant." }
 ];
 const CAPTION_ANIMATIONS: { id: VideoProducerCaptionAnimation; label: string }[] = [
@@ -29,73 +42,326 @@ const CAPTION_ANIMATIONS: { id: VideoProducerCaptionAnimation; label: string }[]
   { id: "none", label: "Static" }
 ];
 
+type ProducerProject = {
+  id: string;
+  title: string;
+  mode: VideoProducerMode;
+  status: string;
+  parent_project_id: string | null;
+  source_provider?: string | null;
+  source_locator?: string | null;
+  source_filename?: string | null;
+  source_size_bytes?: number | null;
+  source_duration?: number | null;
+  source_range_start?: number | null;
+  source_range_end?: number | null;
+  transcript_text?: string | null;
+  transcript_local_text?: string | null;
+  transcript_local_duration?: number | null;
+  edit_plan?: VideoProducerEditPlan | null;
+  director_metadata?: Record<string, unknown> | null;
+  reel_candidates?: VideoProducerReelCandidate[] | null;
+  approval_fingerprint?: string | null;
+  approved_at?: string | null;
+  updated_at?: string;
+};
+
+type RenderRow = {
+  id: string;
+  status: "queued" | "rendering" | "completed" | "failed";
+  progress?: { percent?: number; stage?: string; heartbeatAt?: string } | null;
+  output_storage_path?: string | null;
+  error?: string | null;
+  requested_at?: string;
+};
+
+type ProjectDetail = {
+  project: ProducerProject;
+  renders: RenderRow[];
+  sourcePreviewUrl: string | null;
+  renderPreviewUrl: string | null;
+};
+
+function safeSourceName(value: string) {
+  return value.replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/-+/g, "-").slice(-140) || "source.mp4";
+}
+
+function titleFromFile(value: string) {
+  return value.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ").trim().slice(0, 180) || "Untitled Video";
+}
+
+function readRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" ? value as Record<string, unknown> : {};
+}
+
+function statusLabel(project: ProducerProject | null) {
+  if (!project) return "NEW PROJECT";
+  if (project.status === "uploading") return "UPLOADING";
+  if (project.status === "transcribing") return "TRANSCRIBING";
+  if (project.status === "directing") return "SOL DIRECTING";
+  if (project.status === "planned") return "PLAN READY";
+  if (project.status === "approved") return "APPROVED";
+  if (project.status === "rendering") return "RENDERING";
+  if (project.status === "review") return "READY TO REVIEW";
+  if (project.status === "completed") return "COMPLETE";
+  if (project.status === "failed") return "NEEDS ATTENTION";
+  return project.source_locator ? "SOURCE READY" : "DRAFT";
+}
+
 export function VideoProducerStudio() {
   const [mode, setMode] = useState<VideoProducerMode>("podcast");
-  const [sourceName, setSourceName] = useState("");
-  const [sourceUrl, setSourceUrl] = useState("");
-  const [duration, setDuration] = useState(0);
-  const [transcript, setTranscript] = useState("");
+  const [title, setTitle] = useState("");
+  const [projects, setProjects] = useState<ProducerProject[]>([]);
+  const [selectedId, setSelectedId] = useState<string>("");
+  const [detail, setDetail] = useState<ProjectDetail | null>(null);
+  const [localPreviewUrl, setLocalPreviewUrl] = useState("");
   const [captionStyle, setCaptionStyle] = useState<VideoProducerCaptionStyle>("kinetic-clean");
   const [captionAnimation, setCaptionAnimation] = useState<VideoProducerCaptionAnimation>("highlight");
-  const [plan, setPlan] = useState<VideoProducerEditPlan | null>(null);
-  const [approved, setApproved] = useState(false);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [message, setMessage] = useState("");
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const autoProduceRef = useRef(false);
+  const autoDirectorKeyRef = useRef<string | null>(null);
 
-  const renderPlan = useMemo(() => plan ? compileVideoProducerRenderPlan(plan) : null, [plan]);
-  const defaults = VIDEO_PRODUCER_MODE_DEFAULTS[mode];
+  const project = detail?.project ?? null;
+  const plan = project?.edit_plan ?? null;
+  const renderPlan = useMemo(() => {
+    if (!plan) return null;
+    try { return compileVideoProducerRenderPlan(plan); }
+    catch { return null; }
+  }, [plan]);
+  const defaults = VIDEO_PRODUCER_MODE_DEFAULTS[project?.mode ?? mode];
+  const latestRender = detail?.renders?.[0] ?? null;
+  const transcriptionMetadata = readRecord(project?.director_metadata);
+  const transcriptionProgress = readRecord(transcriptionMetadata.transcriptionProgress);
+  const transcriptionError = typeof transcriptionMetadata.transcriptionError === "string" ? transcriptionMetadata.transcriptionError : "";
 
-  function invalidatePlan() {
-    setPlan(null);
-    setApproved(false);
+  useEffect(() => { void loadProjects(); }, []);
+
+  useEffect(() => {
+    if (!selectedId) return;
+    void refreshProject(selectedId);
+  }, [selectedId]);
+
+  useEffect(() => {
+    if (!selectedId || !project || !["uploading", "transcribing", "directing", "rendering"].includes(project.status)) return;
+    const timer = window.setInterval(() => { void refreshProject(selectedId); }, 3000);
+    return () => window.clearInterval(timer);
+  }, [selectedId, project?.status]);
+
+  async function api<T>(url: string, init?: RequestInit): Promise<T> {
+    const response = await fetch(url, { ...init, headers: { "content-type": "application/json", ...(init?.headers ?? {}) } });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || `Request failed (${response.status}).`);
+    return data as T;
   }
 
-  function selectMode(nextMode: VideoProducerMode) {
-    if (nextMode === mode) return;
+  async function loadProjects() {
+    try {
+      const data = await api<{ projects: ProducerProject[] }>("/api/admin/video-producer/projects", { cache: "no-store" });
+      setProjects(data.projects ?? []);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Projects could not be loaded.");
+    }
+  }
+
+  async function refreshProject(id: string) {
+    try {
+      const data = await api<ProjectDetail>(`/api/admin/video-producer/projects/${id}`, { cache: "no-store" });
+      setDetail(data);
+      setMode(data.project.mode);
+      setTitle(data.project.title);
+      if (data.project.edit_plan?.captions) {
+        setCaptionStyle(data.project.edit_plan.captions.style);
+        setCaptionAnimation(data.project.edit_plan.captions.animation);
+      }
+      setProjects((current) => {
+        const next = [data.project, ...current.filter((item) => item.id !== data.project.id)];
+        return next.sort((a, b) => String(b.updated_at ?? "").localeCompare(String(a.updated_at ?? "")));
+      });
+      if (
+        autoProduceRef.current &&
+        data.project.status === "uploaded" &&
+        data.project.transcript_local_text &&
+        !data.project.edit_plan &&
+        autoDirectorKeyRef.current !== data.project.id
+      ) {
+        autoDirectorKeyRef.current = data.project.id;
+        void runDirector(data.project.id);
+      }
+      return data;
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Project could not be refreshed.");
+      return null;
+    }
+  }
+
+  function startNew(nextMode: VideoProducerMode) {
+    if (localPreviewUrl) URL.revokeObjectURL(localPreviewUrl);
+    setLocalPreviewUrl("");
+    setSelectedId("");
+    setDetail(null);
     setMode(nextMode);
+    setTitle("");
     setCaptionStyle(nextMode === "reels" ? "kinetic-clean" : "minimal");
     setCaptionAnimation(nextMode === "reels" ? "highlight" : "none");
-    invalidatePlan();
+    setBusy(null);
+    setMessage("");
+    setUploadProgress(0);
+    autoProduceRef.current = false;
+    autoDirectorKeyRef.current = null;
   }
 
-  function onFile(file?: File) {
+  async function createProject(nextMode: VideoProducerMode, projectTitle: string) {
+    const data = await api<{ project: ProducerProject }>("/api/admin/video-producer/projects", {
+      method: "POST",
+      body: JSON.stringify({ title: projectTitle, mode: nextMode })
+    });
+    setSelectedId(data.project.id);
+    setDetail({ project: data.project, renders: [], sourcePreviewUrl: null, renderPreviewUrl: null });
+    return data.project;
+  }
+
+  async function uploadSource(file?: File) {
     if (!file) return;
-    if (sourceUrl) URL.revokeObjectURL(sourceUrl);
-    setSourceName(file.name);
-    setSourceUrl(URL.createObjectURL(file));
-    setDuration(0);
-    invalidatePlan();
-  }
-
-  function generatePlan() {
-    if (!duration) return;
-    const lines = transcript.split(/\n+/).map((line) => line.trim()).filter(Boolean);
-    const overlays = lines
-      .map((line, index) => {
-        const scripture = findVideoProducerScriptureReference(line);
-        if (!scripture) return null;
-        return {
-          id: `overlay-${index + 1}`,
-          kind: "scripture" as const,
-          start: Math.min(Math.max(0, duration - 0.1), Math.max(0, (index / Math.max(1, lines.length)) * duration)),
-          duration: mode === "reels" ? 4.5 : 7,
-          title: scripture,
-          reference: scripture,
-          body: line,
-          animation: mode === "reels" ? "rise" as const : "fade" as const,
-          placement: mode === "reels" ? "center" as const : "lower-third" as const
-        };
-      })
-      .filter((item): item is NonNullable<typeof item> => Boolean(item));
-
-    const nextPlan = buildDefaultVideoProducerPlan(mode, duration, overlays.length ? overlays : SAMPLE_OVERLAYS);
-    if (mode === "reels") {
-      nextPlan.captions.style = captionStyle;
-      nextPlan.captions.animation = captionAnimation;
+    const mime = file.type || (file.name.toLowerCase().endsWith(".mov") ? "video/quicktime" : "video/mp4");
+    const projectTitle = title.trim() || titleFromFile(file.name);
+    setBusy("upload");
+    setMessage("Creating project and uploading the raw source directly to private media storage…");
+    setUploadProgress(0);
+    if (localPreviewUrl) URL.revokeObjectURL(localPreviewUrl);
+    const preview = URL.createObjectURL(file);
+    setLocalPreviewUrl(preview);
+    try {
+      const active = project && !project.parent_project_id ? project : await createProject(mode, projectTitle);
+      const pathname = `video-producer/sources/${active.id}/${safeSourceName(file.name)}`;
+      await upload(pathname, file, {
+        access: "private",
+        handleUploadUrl: "/api/admin/video-producer/upload",
+        multipart: true,
+        contentType: mime,
+        clientPayload: JSON.stringify({ projectId: active.id, filename: file.name, contentType: mime, size: file.size }),
+        onUploadProgress(event) { setUploadProgress(Math.round(event.percentage)); }
+      });
+      setUploadProgress(100);
+      autoProduceRef.current = true;
+      setMessage("Source uploaded. Starting word-level transcription…");
+      await startTranscription(active.id);
+      await refreshProject(active.id);
+      void loadProjects();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Source upload failed.");
+    } finally {
+      setBusy(null);
     }
-    setPlan(nextPlan);
-    setApproved(false);
   }
 
-  const passItems = mode === "podcast"
+  async function startTranscription(id = project?.id) {
+    if (!id) return;
+    setBusy("transcribe");
+    setMessage("Dispatching the long-form transcription worker…");
+    try {
+      await api("/api/admin/video-producer/transcribe", { method: "POST", body: JSON.stringify({ projectId: id }) });
+      autoProduceRef.current = true;
+      autoDirectorKeyRef.current = null;
+      setMessage("Transcription is running. Video Producer will send the completed timestamp map directly to Sol.");
+      await refreshProject(id);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Transcription could not start.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function runDirector(id = project?.id) {
+    if (!id) return;
+    setBusy("direct");
+    setMessage(`${project?.mode === "reels" || mode === "reels" ? "Reels" : "Podcast"} Edit Director is reading the timestamped transcript and building the production plan…`);
+    try {
+      const data = await api<{ project: ProducerProject; plan: VideoProducerEditPlan; summary: string }>("/api/admin/video-producer/direct", {
+        method: "POST",
+        body: JSON.stringify({ projectId: id, captionStyle, captionAnimation })
+      });
+      autoProduceRef.current = false;
+      setDetail((current) => current ? { ...current, project: data.project } : { project: data.project, renders: [], sourcePreviewUrl: null, renderPreviewUrl: null });
+      setMessage(data.summary ? `Director pass ready: ${data.summary}` : "Director pass ready for review.");
+      void loadProjects();
+    } catch (error) {
+      autoProduceRef.current = false;
+      setMessage(error instanceof Error ? error.message : "Edit Director failed.");
+      await refreshProject(id);
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function approveEdit() {
+    if (!project) return;
+    setBusy("approve");
+    setMessage("Locking this exact edit plan for rendering…");
+    try {
+      const data = await api<{ project: ProducerProject }>("/api/admin/video-producer/approve", {
+        method: "POST", body: JSON.stringify({ projectId: project.id })
+      });
+      setDetail((current) => current ? { ...current, project: data.project } : current);
+      setMessage("Edit approved. The fingerprint now protects this version from stale rendering.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Edit approval failed.");
+    } finally { setBusy(null); }
+  }
+
+  async function renderMaster() {
+    if (!project) return;
+    setBusy("render");
+    setMessage("Creating an immutable render manifest and dispatching FFmpeg…");
+    try {
+      await api("/api/admin/video-producer/render", { method: "POST", body: JSON.stringify({ projectId: project.id }) });
+      setMessage("Render queued. Progress will update here automatically.");
+      await refreshProject(project.id);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Render could not be queued.");
+    } finally { setBusy(null); }
+  }
+
+  async function generateReelCandidates() {
+    if (!project || project.mode !== "podcast") return;
+    setBusy("candidates");
+    setMessage("Sol is finding self-contained reel moments in the approved podcast…");
+    try {
+      const data = await api<{ candidates: VideoProducerReelCandidate[] }>("/api/admin/video-producer/reel-candidates", {
+        method: "POST", body: JSON.stringify({ projectId: project.id })
+      });
+      setDetail((current) => current ? { ...current, project: { ...current.project, reel_candidates: data.candidates } } : current);
+      setMessage(`${data.candidates.length} reel candidates are ready.`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Reel candidates could not be generated.");
+    } finally { setBusy(null); }
+  }
+
+  async function createReel(candidate: VideoProducerReelCandidate) {
+    if (!project) return;
+    setBusy(`reel:${candidate.id}`);
+    setMessage(`Creating “${candidate.title}” from the podcast master…`);
+    try {
+      const data = await api<{ project: ProducerProject }>("/api/admin/video-producer/reels-from-podcast", {
+        method: "POST", body: JSON.stringify({ projectId: project.id, candidateId: candidate.id })
+      });
+      autoProduceRef.current = false;
+      autoDirectorKeyRef.current = data.project.id;
+      setSelectedId(data.project.id);
+      setMode("reels");
+      setCaptionStyle("kinetic-clean");
+      setCaptionAnimation("highlight");
+      await refreshProject(data.project.id);
+      await runDirector(data.project.id);
+      void loadProjects();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Reel project could not be created.");
+    } finally { setBusy(null); }
+  }
+
+  const activeMode = project?.mode ?? mode;
+  const passItems = activeMode === "podcast"
     ? [
         { label: "Long-form tighten pass", icon: Scissors },
         { label: "AG voice cleanup", icon: Music2 },
@@ -111,82 +377,118 @@ export function VideoProducerStudio() {
         { label: "Scripture + CTA overlays", icon: Type }
       ];
 
+  const sourcePreview = localPreviewUrl || detail?.sourcePreviewUrl || "";
+  const displayDuration = project?.transcript_local_duration || project?.source_duration || 0;
+  const canApprove = project?.status === "planned" && Boolean(plan);
+  const canRender = project?.status === "approved" && Boolean(project.approval_fingerprint);
+  const canExtract = project?.mode === "podcast" && ["approved", "rendering", "review", "completed"].includes(project.status);
+
   return (
     <main className="min-h-screen bg-[#05070b] text-white">
-      <div className="mx-auto max-w-[1500px] px-5 py-8 lg:px-8">
-        <div className="mb-6 flex flex-wrap items-end justify-between gap-4 border-b border-white/10 pb-6">
+      <div className="mx-auto max-w-[1540px] px-4 py-6 sm:px-6 lg:px-8">
+        <header className="mb-6 flex flex-wrap items-end justify-between gap-4 border-b border-white/10 pb-6">
           <div>
-            <div className="mb-2 text-xs font-bold uppercase tracking-[0.28em] text-[#ff3b3b]">Apostolic Guide Media</div>
+            <div className="mb-2 text-xs font-bold uppercase tracking-[0.28em] text-[#ff4e55]">Apostolic Guide Media</div>
             <h1 className="text-4xl font-black tracking-tight md:text-5xl">Video Producer</h1>
-            <p className="mt-3 max-w-3xl text-sm leading-6 text-white/55">Two production lanes. Podcast Mode builds the polished long-form master. Reels Producer builds the fast vertical version with captions, motion and social graphics.</p>
+            <p className="mt-3 max-w-3xl text-sm leading-6 text-white/55">Upload once. The system transcribes, directs, renders, reviews, and can turn the approved podcast into its short-form distribution package.</p>
           </div>
-          <div className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs font-semibold text-white/65">{approved ? "APPROVED" : plan ? "PLAN READY" : sourceName ? "SOURCE READY" : "NEW PROJECT"}</div>
-        </div>
+          <div className="flex items-center gap-2">
+            <select
+              value={selectedId}
+              onChange={(event) => { autoProduceRef.current = false; setSelectedId(event.target.value); }}
+              className="max-w-64 rounded-xl border border-white/10 bg-black/50 px-3 py-2 text-xs text-white/70 outline-none"
+            >
+              <option value="">New project</option>
+              {projects.map((item) => <option key={item.id} value={item.id}>{item.mode === "podcast" ? "Podcast" : "Reel"} · {item.title}</option>)}
+            </select>
+            <div className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-[10px] font-black tracking-[.14em] text-white/65">{statusLabel(project)}</div>
+          </div>
+        </header>
 
-        <section className="mb-6 grid gap-3 lg:grid-cols-2">
+        <section className="mb-5 grid gap-3 lg:grid-cols-2">
           <ModeCard
-            active={mode === "podcast"}
+            active={activeMode === "podcast"}
             eyebrow="LONG FORM"
             title="Podcast Mode"
-            description="Professional episode production. Tight edits, clean dialogue, color, chapters, Scripture graphics, intro/outro and a finished YouTube master."
+            description="Professional episode production with dialogue cleanup, restrained editorial cuts, chapters, Scripture graphics, color, intro/outro and a finished YouTube master."
             spec="16:9 · 1920×1080"
-            icon={<Film size={21}/>} 
-            onClick={() => selectMode("podcast")}
+            icon={<Film size={21}/>} onClick={() => startNew("podcast")}
           />
           <ModeCard
-            active={mode === "reels"}
+            active={activeMode === "reels"}
             eyebrow="SHORT FORM"
             title="Reels Producer"
-            description="Retention-first vertical editing. Animated captions, punch-ins, reframing, branded text, Scripture overlays and CTA motion."
+            description="Standalone vertical shoots or clips inherited from an approved podcast. Animated captions, reframing, punch-ins, Scripture overlays and CTA motion."
             spec="9:16 · 1080×1920"
-            icon={<Smartphone size={21}/>} 
-            onClick={() => selectMode("reels")}
+            icon={<Smartphone size={21}/>} onClick={() => startNew("reels")}
           />
         </section>
 
-        <div className="mb-6 flex items-center gap-2 rounded-2xl border border-white/8 bg-white/[0.025] px-4 py-3 text-xs text-white/50">
-          <Sparkles size={15} className="text-[#4c8dff]"/>
-          <span><strong className="text-white/80">{defaults.label}:</strong> {defaults.description}</span>
-        </div>
-
-        <div className="grid gap-5 xl:grid-cols-[1.55fr_.8fr]">
+        <div className="mb-5 grid gap-5 xl:grid-cols-[1.55fr_.8fr]">
           <section className="space-y-5">
+            {!project && (
+              <div className="rounded-2xl border border-white/10 bg-white/[0.025] p-4">
+                <label className="text-[10px] font-bold uppercase tracking-[.18em] text-white/35">Project title</label>
+                <input value={title} onChange={(event) => setTitle(event.target.value)} placeholder={mode === "podcast" ? "Episode title" : "Reel title"} className="mt-2 w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm outline-none focus:border-[#4c8dff]/60"/>
+              </div>
+            )}
+
             <div className="overflow-hidden rounded-3xl border border-white/10 bg-black shadow-2xl">
-              <div className="aspect-video bg-[radial-gradient(circle_at_center,#182033_0%,#080b11_52%,#030405_100%)]">
-                {sourceUrl ? (
-                  <video className="h-full w-full object-contain" controls src={sourceUrl} onLoadedMetadata={(event) => {
-                    const nextDuration = event.currentTarget.duration;
-                    setDuration(Number.isFinite(nextDuration) && nextDuration > 0 ? nextDuration : 0);
-                    invalidatePlan();
-                  }} />
+              <div className={activeMode === "reels" ? "mx-auto aspect-[9/16] max-h-[680px] bg-black" : "aspect-video bg-black"}>
+                {detail?.renderPreviewUrl ? (
+                  <video className="h-full w-full object-contain" controls src={detail.renderPreviewUrl}/>
+                ) : sourcePreview ? (
+                  <video className="h-full w-full object-contain" controls src={sourcePreview}/>
                 ) : (
-                  <label className="flex h-full cursor-pointer flex-col items-center justify-center gap-4 text-white/45">
+                  <label className="flex h-full min-h-72 cursor-pointer flex-col items-center justify-center gap-4 bg-[radial-gradient(circle_at_center,#182033_0%,#080b11_52%,#030405_100%)] text-white/45">
                     <div className="rounded-2xl border border-white/10 bg-white/[0.05] p-5"><Upload size={30}/></div>
-                    <div className="text-center"><div className="font-bold text-white/80">Drop in the raw video</div><div className="mt-1 text-xs">MP4, MOV or browser-playable video</div></div>
-                    <input className="hidden" type="file" accept="video/*" onChange={(event) => onFile(event.target.files?.[0])}/>
+                    <div className="text-center"><div className="font-bold text-white/80">Drop in the raw {mode === "podcast" ? "episode" : "reel"}</div><div className="mt-1 text-xs">Private multipart upload · MP4, MOV, M4V, WebM, MPEG or AVI</div></div>
+                    <input className="hidden" type="file" accept="video/*" onChange={(event) => void uploadSource(event.target.files?.[0])}/>
                   </label>
                 )}
               </div>
-              <div className="flex items-center justify-between border-t border-white/10 px-5 py-3 text-xs text-white/50">
-                <span>{sourceName || "No source selected"}</span>
-                <span>{duration ? formatProducerTime(duration) : "0:00"}</span>
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/10 px-5 py-3 text-xs text-white/50">
+                <span>{project?.source_filename || "No source selected"}</span>
+                <div className="flex items-center gap-3">
+                  {busy === "upload" && <span>{uploadProgress}% uploaded</span>}
+                  <span>{displayDuration ? formatProducerTime(displayDuration) : "0:00"}</span>
+                </div>
               </div>
             </div>
 
-            <div className="rounded-3xl border border-white/10 bg-white/[0.025] p-5">
-              <div className="mb-4 flex items-center justify-between">
-                <div><div className="text-sm font-bold">Transcript</div><div className="mt-1 text-xs text-white/45">The edit director will work from word-level timestamps. Manual transcript input stays available for correction.</div></div>
-                <Sparkles size={18} className="text-[#4c8dff]"/>
-              </div>
-              <textarea value={transcript} onChange={(event) => { setTranscript(event.target.value); invalidatePlan(); }} placeholder={mode === "podcast" ? "Paste the episode transcript here..." : "Paste the reel transcript or selected clip transcript here..."} className="min-h-72 w-full resize-y rounded-2xl border border-white/10 bg-black/40 p-4 text-sm leading-7 text-white outline-none placeholder:text-white/25 focus:border-[#4c8dff]/60"/>
-            </div>
+            {message && <div className="rounded-2xl border border-[#4c8dff]/20 bg-[#4c8dff]/[0.07] px-4 py-3 text-xs leading-5 text-white/70">{message}</div>}
 
-            {mode === "reels" && (
+            {project && (
               <div className="rounded-3xl border border-white/10 bg-white/[0.025] p-5">
-                <div className="mb-4"><div className="text-sm font-bold">Caption direction</div><div className="mt-1 text-xs text-white/45">Style and animation are explicit render settings. The edit director can group words, but it cannot silently change the approved visual language.</div></div>
+                <div className="mb-4 flex items-center justify-between gap-4">
+                  <div><div className="text-sm font-bold">Timestamped transcript</div><div className="mt-1 text-xs text-white/45">Word timing remains authoritative. Text is shown for review; the director edits by timestamp, not paragraph position.</div></div>
+                  {project.status === "transcribing" && <Loader2 size={18} className="animate-spin text-[#4c8dff]"/>}
+                </div>
+                {project.status === "transcribing" ? (
+                  <div className="rounded-2xl border border-white/8 bg-black/25 p-5">
+                    <div className="flex items-center justify-between text-xs"><span className="text-white/55">{String(transcriptionProgress.stage || "Transcribing")}</span><span className="font-bold">{Number(transcriptionProgress.percent || 0)}%</span></div>
+                    <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/8"><div className="h-full bg-white transition-all" style={{ width: `${Math.max(2, Number(transcriptionProgress.percent || 2))}%` }}/></div>
+                  </div>
+                ) : project.transcript_local_text ? (
+                  <div className="max-h-72 overflow-y-auto whitespace-pre-wrap rounded-2xl border border-white/8 bg-black/30 p-4 text-sm leading-7 text-white/70">{project.transcript_local_text}</div>
+                ) : (
+                  <div className="rounded-2xl border border-dashed border-white/10 p-6 text-center text-xs text-white/35">No transcript yet.</div>
+                )}
+                {(project.status === "failed" || (!project.transcript_local_text && project.source_locator && project.status !== "transcribing")) && (
+                  <div className="mt-4">
+                    {transcriptionError && <div className="mb-3 text-xs text-[#ff777d]">{transcriptionError}</div>}
+                    <button disabled={Boolean(busy)} onClick={() => void startTranscription()} className="rounded-xl border border-white/12 bg-white/[0.05] px-4 py-2.5 text-xs font-black disabled:opacity-40"><RefreshCw size={14} className="mr-2 inline"/>RETRY TRANSCRIPTION</button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeMode === "reels" && (
+              <div className="rounded-3xl border border-white/10 bg-white/[0.025] p-5">
+                <div className="mb-4"><div className="text-sm font-bold">Caption direction</div><div className="mt-1 text-xs text-white/45">These are render rules, not AI suggestions. Changing them requires a new director pass and approval.</div></div>
                 <div className="grid gap-3 md:grid-cols-2">
                   {CAPTION_STYLES.map((style) => (
-                    <button key={style.id} type="button" onClick={() => { setCaptionStyle(style.id); invalidatePlan(); }} className={`rounded-2xl border p-4 text-left transition ${captionStyle === style.id ? "border-[#4c8dff]/60 bg-[#4c8dff]/10" : "border-white/8 bg-black/20 hover:border-white/20"}`}>
+                    <button key={style.id} type="button" disabled={Boolean(project?.approval_fingerprint)} onClick={() => setCaptionStyle(style.id)} className={`rounded-2xl border p-4 text-left transition disabled:opacity-45 ${captionStyle === style.id ? "border-[#4c8dff]/60 bg-[#4c8dff]/10" : "border-white/8 bg-black/20 hover:border-white/20"}`}>
                       <div className="flex items-center justify-between gap-3"><span className="text-sm font-bold">{style.label}</span>{captionStyle === style.id && <Check size={15} className="text-[#6aa2ff]"/>}</div>
                       <div className="mt-2 text-xs leading-5 text-white/45">{style.description}</div>
                     </button>
@@ -195,43 +497,66 @@ export function VideoProducerStudio() {
                 <div className="mt-5 text-[10px] font-bold uppercase tracking-[.18em] text-white/35">Animation</div>
                 <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
                   {CAPTION_ANIMATIONS.map((animation) => (
-                    <button key={animation.id} type="button" onClick={() => { setCaptionAnimation(animation.id); invalidatePlan(); }} className={`rounded-xl border px-3 py-3 text-xs font-bold transition ${captionAnimation === animation.id ? "border-[#ff5757]/50 bg-[#ff3b3b]/10 text-white" : "border-white/8 bg-black/20 text-white/45 hover:text-white/75"}`}>{animation.label}</button>
+                    <button key={animation.id} type="button" disabled={Boolean(project?.approval_fingerprint)} onClick={() => setCaptionAnimation(animation.id)} className={`rounded-xl border px-3 py-3 text-xs font-bold transition disabled:opacity-45 ${captionAnimation === animation.id ? "border-[#ff5757]/50 bg-[#ff3b3b]/10 text-white" : "border-white/8 bg-black/20 text-white/45 hover:text-white/75"}`}>{animation.label}</button>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {project?.mode === "podcast" && canExtract && (
+              <div className="rounded-3xl border border-white/10 bg-white/[0.025] p-5">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div><div className="text-sm font-bold">Reels from this podcast</div><div className="mt-1 text-xs text-white/45">Sol ranks self-contained moments. Accepting one creates a child Reels project from the same raw master.</div></div>
+                  <button disabled={Boolean(busy)} onClick={() => void generateReelCandidates()} className="rounded-xl bg-white px-4 py-2.5 text-xs font-black text-black disabled:opacity-40">{project.reel_candidates?.length ? "REFRESH CANDIDATES" : "FIND REELS"}</button>
+                </div>
+                {project.reel_candidates?.length ? <div className="mt-4 grid gap-3 md:grid-cols-2">{project.reel_candidates.map((candidate) => (
+                  <div key={candidate.id} className="rounded-2xl border border-white/8 bg-black/25 p-4">
+                    <div className="flex items-center justify-between gap-3"><div className="text-[10px] font-black uppercase tracking-[.16em] text-[#4c8dff]">{formatProducerTime(candidate.start)}–{formatProducerTime(candidate.end)}</div><div className="text-xs font-black">{candidate.score}/100</div></div>
+                    <div className="mt-2 font-bold">{candidate.title}</div>
+                    <div className="mt-1 text-xs leading-5 text-white/50">{candidate.hook}</div>
+                    <div className="mt-2 text-[11px] leading-5 text-white/35">{candidate.reason}</div>
+                    <button disabled={Boolean(busy)} onClick={() => void createReel(candidate)} className="mt-3 w-full rounded-xl border border-white/12 bg-white/[0.05] px-3 py-2.5 text-xs font-black disabled:opacity-40">CREATE REEL PROJECT</button>
+                  </div>
+                ))}</div> : null}
               </div>
             )}
           </section>
 
           <aside className="space-y-5">
             <div className="rounded-3xl border border-white/10 bg-white/[0.035] p-5">
-              <div className="mb-5 flex items-center gap-3"><div className="rounded-xl bg-[#ff3b3b]/10 p-2 text-[#ff5757]"><WandSparkles size={19}/></div><div><div className="font-bold">{mode === "podcast" ? "Podcast producer pass" : "Reels producer pass"}</div><div className="text-xs text-white/45">Build the mode-specific edit decision list</div></div></div>
-              <div className="space-y-3 text-sm">
+              <div className="mb-5 flex items-center gap-3"><div className="rounded-xl bg-[#ff3b3b]/10 p-2 text-[#ff5757]"><WandSparkles size={19}/></div><div><div className="font-bold">{activeMode === "podcast" ? "Podcast producer" : "Reels producer"}</div><div className="text-xs text-white/45">{defaults.description}</div></div></div>
+              <div className="space-y-2 text-sm">
                 {passItems.map(({ label, icon: Icon }) => <div key={label} className="flex items-center justify-between rounded-xl border border-white/8 bg-black/20 px-3 py-3"><span className="flex items-center gap-2 text-white/70"><Icon size={15}/>{label}</span><Check size={15} className="text-emerald-400"/></div>)}
               </div>
-              <button disabled={!duration} onClick={generatePlan} className="mt-5 w-full rounded-xl bg-white px-4 py-3 text-sm font-black text-black disabled:cursor-not-allowed disabled:opacity-30">GENERATE {mode === "podcast" ? "PODCAST" : "REEL"} EDIT PLAN</button>
+              {project?.transcript_local_text && !plan && project.status !== "directing" && <button disabled={Boolean(busy)} onClick={() => void runDirector()} className="mt-5 w-full rounded-xl bg-white px-4 py-3 text-sm font-black text-black disabled:opacity-30">RUN {activeMode === "podcast" ? "PODCAST" : "REELS"} DIRECTOR</button>}
+              {project?.status === "directing" && <div className="mt-5 flex items-center justify-center gap-2 rounded-xl border border-white/8 bg-black/25 px-4 py-3 text-xs text-white/55"><Loader2 size={15} className="animate-spin"/> Sol is directing this edit</div>}
             </div>
 
             <div className="rounded-3xl border border-white/10 bg-white/[0.025] p-5">
               <div className="mb-4 flex items-center justify-between gap-3"><div className="text-sm font-bold">Edit plan</div>{renderPlan && <div className="text-[10px] font-bold uppercase tracking-[.16em] text-[#4c8dff]">{renderPlan.output.width}×{renderPlan.output.height}</div>}</div>
               <div className="grid grid-cols-2 gap-3">
-                <Metric label="Raw" value={duration ? formatProducerTime(duration) : "0:00"}/>
+                <Metric label="Source" value={displayDuration ? formatProducerTime(displayDuration) : "0:00"}/>
                 <Metric label="Edited" value={renderPlan ? formatProducerTime(renderPlan.outputDuration) : "0:00"}/>
                 <Metric label="Cuts" value={String(plan?.cuts.length ?? 0)}/>
-                <Metric label={mode === "reels" ? "Graphics" : "Overlays"} value={String(plan?.overlays.length ?? 0)}/>
+                <Metric label={activeMode === "reels" ? "Graphics" : "Overlays"} value={String(plan?.overlays.length ?? 0)}/>
               </div>
-              {mode === "reels" && plan && (
-                <div className="mt-3 space-y-2">
-                  <div className="flex items-center justify-between rounded-xl border border-white/8 bg-black/25 px-3 py-3 text-xs"><span className="text-white/45">Caption style</span><span className="font-bold text-white/80">{CAPTION_STYLES.find((style) => style.id === plan.captions.style)?.label ?? plan.captions.style}</span></div>
-                  <div className="flex items-center justify-between rounded-xl border border-white/8 bg-black/25 px-3 py-3 text-xs"><span className="text-white/45">Animation</span><span className="font-bold text-white/80">{CAPTION_ANIMATIONS.find((animation) => animation.id === plan.captions.animation)?.label ?? plan.captions.animation}</span></div>
-                </div>
-              )}
-              {plan?.overlays.length ? <div className="mt-4 space-y-2">{plan.overlays.slice(0, 6).map((overlay) => <div key={overlay.id} className="rounded-xl border border-white/8 bg-black/25 p-3"><div className="text-[10px] font-bold uppercase tracking-[.18em] text-[#4c8dff]">{overlay.kind} · {formatProducerTime(overlay.start)}{overlay.animation ? ` · ${overlay.animation}` : ""}</div><div className="mt-1 text-sm font-semibold">{overlay.title}</div></div>)}</div> : <div className="mt-4 rounded-xl border border-dashed border-white/10 p-5 text-center text-xs text-white/35">No decisions generated yet.</div>}
+              {plan?.overlays.length ? <div className="mt-4 max-h-72 space-y-2 overflow-y-auto">{plan.overlays.slice(0, 12).map((overlay) => <div key={overlay.id} className="rounded-xl border border-white/8 bg-black/25 p-3"><div className="text-[10px] font-bold uppercase tracking-[.18em] text-[#4c8dff]">{overlay.kind} · {formatProducerTime(overlay.start)}{overlay.animation ? ` · ${overlay.animation}` : ""}</div><div className="mt-1 text-sm font-semibold">{overlay.title}</div></div>)}</div> : <div className="mt-4 rounded-xl border border-dashed border-white/10 p-5 text-center text-xs text-white/35">No edit decisions yet.</div>}
+              {canApprove && <button disabled={Boolean(busy)} onClick={() => void approveEdit()} className="mt-4 w-full rounded-xl bg-[#e72c33] px-4 py-3 text-sm font-black text-white disabled:opacity-30">APPROVE EDIT</button>}
+              {canRender && <button disabled={Boolean(busy)} onClick={() => void renderMaster()} className="mt-4 w-full rounded-xl bg-[#e72c33] px-4 py-3 text-sm font-black text-white disabled:opacity-30">RENDER MASTER</button>}
             </div>
 
-            <div className="rounded-3xl border border-white/10 bg-white/[0.025] p-5">
-              <div className="text-sm font-bold">Render handoff</div>
-              <p className="mt-2 text-xs leading-5 text-white/45">The worker gets normalized cuts, remapped graphics, animated overlay direction, remapped music, numeric motion transforms, caption settings, media presets and exact output geometry. The model never edits video frames directly.</p>
-              <button disabled={!renderPlan} onClick={() => setApproved(true)} className="mt-4 w-full rounded-xl bg-[#e72c33] px-4 py-3 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-30">{approved ? "APPROVED FOR RENDER" : "APPROVE EDIT"}</button>
+            {latestRender && (
+              <div className="rounded-3xl border border-white/10 bg-white/[0.025] p-5">
+                <div className="flex items-center justify-between"><div className="text-sm font-bold">Render worker</div><div className="text-[10px] font-black uppercase tracking-[.15em] text-white/40">{latestRender.status}</div></div>
+                <div className="mt-3 flex items-center justify-between text-xs"><span className="text-white/50">{latestRender.progress?.stage || latestRender.status}</span><span className="font-bold">{latestRender.progress?.percent ?? (latestRender.status === "completed" ? 100 : 0)}%</span></div>
+                <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/8"><div className="h-full bg-white transition-all" style={{ width: `${latestRender.progress?.percent ?? (latestRender.status === "completed" ? 100 : 2)}%` }}/></div>
+                {latestRender.error && <div className="mt-3 text-xs leading-5 text-[#ff777d]">{latestRender.error}</div>}
+              </div>
+            )}
+
+            <div className="rounded-3xl border border-white/10 bg-white/[0.025] p-5 text-xs leading-5 text-white/45">
+              <div className="font-bold text-white/80">Production boundary</div>
+              <p className="mt-2">Sol returns editorial decisions. The server validates them. FFmpeg executes the approved immutable manifest. Raw source files and review masters stay private.</p>
             </div>
           </aside>
         </div>
@@ -243,14 +568,11 @@ export function VideoProducerStudio() {
 function ModeCard({ active, eyebrow, title, description, spec, icon, onClick }: { active: boolean; eyebrow: string; title: string; description: string; spec: string; icon: ReactNode; onClick: () => void }) {
   return (
     <button type="button" onClick={onClick} className={`group rounded-3xl border p-5 text-left transition ${active ? "border-[#4c8dff]/60 bg-[linear-gradient(135deg,rgba(76,141,255,.14),rgba(231,44,51,.06))] shadow-[0_0_40px_rgba(76,141,255,.08)]" : "border-white/10 bg-white/[0.025] hover:border-white/20"}`}>
-      <div className="flex items-start justify-between gap-4">
-        <div className={`rounded-2xl border p-3 ${active ? "border-[#4c8dff]/30 bg-[#4c8dff]/10 text-[#78aaff]" : "border-white/10 bg-black/20 text-white/55"}`}>{icon}</div>
-        <div className="rounded-full border border-white/10 bg-black/20 px-3 py-1 text-[10px] font-bold uppercase tracking-[.16em] text-white/45">{spec}</div>
-      </div>
+      <div className="flex items-start justify-between gap-4"><div className={`rounded-2xl border p-3 ${active ? "border-[#4c8dff]/30 bg-[#4c8dff]/10 text-[#78aaff]" : "border-white/10 bg-black/20 text-white/55"}`}>{icon}</div><div className="rounded-full border border-white/10 bg-black/20 px-3 py-1 text-[10px] font-bold uppercase tracking-[.16em] text-white/45">{spec}</div></div>
       <div className="mt-5 text-[10px] font-bold uppercase tracking-[.22em] text-[#ff5757]">{eyebrow}</div>
       <div className="mt-1 text-2xl font-black">{title}</div>
       <div className="mt-2 max-w-xl text-xs leading-5 text-white/50">{description}</div>
-      <div className="mt-4 flex items-center gap-2 text-xs font-bold text-white/70">{active ? <><Check size={14} className="text-emerald-400"/> ACTIVE LANE</> : "SELECT LANE"}</div>
+      <div className="mt-4 flex items-center gap-2 text-xs font-bold text-white/70">{active ? <><Check size={14} className="text-emerald-400"/> ACTIVE LANE</> : "START NEW"}</div>
     </button>
   );
 }
