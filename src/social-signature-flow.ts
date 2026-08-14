@@ -33,7 +33,9 @@ export function isOpenStudyReply(text: string) {
 }
 
 export function buildStudyCardImageUrl(title: string) {
-  const url = new URL("https://www.apostolicguide.com/api/social/study-card");
+  // Meta's media fetcher rejects the www -> apex redirect as an upload failure.
+  // Keep this URL on the canonical host so the response is the PNG itself.
+  const url = new URL("https://apostolicguide.com/api/social/study-card");
   url.searchParams.set("title", title);
   return url.toString();
 }
