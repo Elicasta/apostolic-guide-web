@@ -82,6 +82,12 @@ type ProjectDetail = {
   renderPreviewUrl: string | null;
 };
 
+type DirectorOptions = {
+  captionStyle?: VideoProducerCaptionStyle;
+  captionAnimation?: VideoProducerCaptionAnimation;
+  producerMode?: VideoProducerMode;
+};
+
 function safeSourceName(value: string) {
   return value.replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/-+/g, "-").slice(-140) || "source.mp4";
 }
@@ -125,16 +131,22 @@ export function VideoProducerStudio() {
 
   const project = detail?.project ?? null;
   const plan = project?.edit_plan ?? null;
+  const activeMode = project?.mode ?? mode;
   const renderPlan = useMemo(() => {
     if (!plan) return null;
     try { return compileVideoProducerRenderPlan(plan); }
     catch { return null; }
   }, [plan]);
-  const defaults = VIDEO_PRODUCER_MODE_DEFAULTS[project?.mode ?? mode];
+  const defaults = VIDEO_PRODUCER_MODE_DEFAULTS[activeMode];
   const latestRender = detail?.renders?.[0] ?? null;
   const transcriptionMetadata = readRecord(project?.director_metadata);
   const transcriptionProgress = readRecord(transcriptionMetadata.transcriptionProgress);
   const transcriptionError = typeof transcriptionMetadata.transcriptionError === "string" ? transcriptionMetadata.transcriptionError : "";
+  const captionSettingsStale = Boolean(
+    activeMode === "reels" &&
+    plan &&
+    (plan.captions.style !== captionStyle || plan.captions.animation !== captionAnimation)
+  );
 
   useEffect(() => { void loadProjects(); }, []);
 
@@ -148,6 +160,10 @@ export function VideoProducerStudio() {
     const timer = window.setInterval(() => { void refreshProject(selectedId); }, 3000);
     return () => window.clearInterval(timer);
   }, [selectedId, project?.status]);
+
+  useEffect(() => () => {
+    if (localPreviewUrl) URL.revokeObjectURL(localPreviewUrl);
+  }, [localPreviewUrl]);
 
   async function api<T>(url: string, init?: RequestInit): Promise<T> {
     const response = await fetch(url, { ...init, headers: { "content-type": "application/json", ...(init?.headers ?? {}) } });
@@ -174,6 +190,12 @@ export function VideoProducerStudio() {
       if (data.project.edit_plan?.captions) {
         setCaptionStyle(data.project.edit_plan.captions.style);
         setCaptionAnimation(data.project.edit_plan.captions.animation);
+      } else if (data.project.mode === "reels") {
+        setCaptionStyle("kinetic-clean");
+        setCaptionAnimation("highlight");
+      } else {
+        setCaptionStyle("minimal");
+        setCaptionAnimation("none");
       }
       setProjects((current) => {
         const next = [data.project, ...current.filter((item) => item.id !== data.project.id)];
@@ -187,7 +209,10 @@ export function VideoProducerStudio() {
         autoDirectorKeyRef.current !== data.project.id
       ) {
         autoDirectorKeyRef.current = data.project.id;
-        void runDirector(data.project.id);
+        const reelOptions = data.project.mode === "reels"
+          ? { captionStyle: "kinetic-clean" as const, captionAnimation: "highlight" as const, producerMode: "reels" as const }
+          : { producerMode: "podcast" as const };
+        void runDirector(data.project.id, reelOptions);
       }
       return data;
     } catch (error) {
@@ -196,9 +221,26 @@ export function VideoProducerStudio() {
     }
   }
 
-  function startNew(nextMode: VideoProducerMode) {
+  function clearLocalPreview() {
     if (localPreviewUrl) URL.revokeObjectURL(localPreviewUrl);
     setLocalPreviewUrl("");
+  }
+
+  function selectProject(id: string) {
+    clearLocalPreview();
+    autoProduceRef.current = false;
+    autoDirectorKeyRef.current = null;
+    setSelectedId(id);
+    setMessage("");
+    if (!id) {
+      setDetail(null);
+      setTitle("");
+      setUploadProgress(0);
+    }
+  }
+
+  function startNew(nextMode: VideoProducerMode) {
+    clearLocalPreview();
     setSelectedId("");
     setDetail(null);
     setMode(nextMode);
@@ -229,11 +271,12 @@ export function VideoProducerStudio() {
     setBusy("upload");
     setMessage("Creating project and uploading the raw source directly to private media storage…");
     setUploadProgress(0);
-    if (localPreviewUrl) URL.revokeObjectURL(localPreviewUrl);
+    clearLocalPreview();
     const preview = URL.createObjectURL(file);
     setLocalPreviewUrl(preview);
     try {
-      const active = project && !project.parent_project_id ? project : await createProject(mode, projectTitle);
+      const canReuseDraft = project && !project.parent_project_id && !project.source_locator && project.status === "draft";
+      const active = canReuseDraft ? project : await createProject(mode, projectTitle);
       const pathname = `video-producer/sources/${active.id}/${safeSourceName(file.name)}`;
       await upload(pathname, file, {
         access: "private",
@@ -273,16 +316,21 @@ export function VideoProducerStudio() {
     }
   }
 
-  async function runDirector(id = project?.id) {
+  async function runDirector(id = project?.id, options: DirectorOptions = {}) {
     if (!id) return;
+    const style = options.captionStyle ?? captionStyle;
+    const animation = options.captionAnimation ?? captionAnimation;
+    const directingMode = options.producerMode ?? project?.mode ?? mode;
     setBusy("direct");
-    setMessage(`${project?.mode === "reels" || mode === "reels" ? "Reels" : "Podcast"} Edit Director is reading the timestamped transcript and building the production plan…`);
+    setMessage(`${directingMode === "reels" ? "Reels" : "Podcast"} Edit Director is reading the timestamped transcript and building the production plan…`);
     try {
       const data = await api<{ project: ProducerProject; plan: VideoProducerEditPlan; summary: string }>("/api/admin/video-producer/direct", {
         method: "POST",
-        body: JSON.stringify({ projectId: id, captionStyle, captionAnimation })
+        body: JSON.stringify({ projectId: id, captionStyle: style, captionAnimation: animation })
       });
       autoProduceRef.current = false;
+      setCaptionStyle(data.plan.captions.style);
+      setCaptionAnimation(data.plan.captions.animation);
       setDetail((current) => current ? { ...current, project: data.project } : { project: data.project, renders: [], sourcePreviewUrl: null, renderPreviewUrl: null });
       setMessage(data.summary ? `Director pass ready: ${data.summary}` : "Director pass ready for review.");
       void loadProjects();
@@ -296,7 +344,7 @@ export function VideoProducerStudio() {
   }
 
   async function approveEdit() {
-    if (!project) return;
+    if (!project || captionSettingsStale) return;
     setBusy("approve");
     setMessage("Locking this exact edit plan for rendering…");
     try {
@@ -348,19 +396,19 @@ export function VideoProducerStudio() {
       });
       autoProduceRef.current = false;
       autoDirectorKeyRef.current = data.project.id;
+      clearLocalPreview();
       setSelectedId(data.project.id);
       setMode("reels");
       setCaptionStyle("kinetic-clean");
       setCaptionAnimation("highlight");
       await refreshProject(data.project.id);
-      await runDirector(data.project.id);
+      await runDirector(data.project.id, { captionStyle: "kinetic-clean", captionAnimation: "highlight", producerMode: "reels" });
       void loadProjects();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Reel project could not be created.");
     } finally { setBusy(null); }
   }
 
-  const activeMode = project?.mode ?? mode;
   const passItems = activeMode === "podcast"
     ? [
         { label: "Long-form tighten pass", icon: Scissors },
@@ -379,7 +427,7 @@ export function VideoProducerStudio() {
 
   const sourcePreview = localPreviewUrl || detail?.sourcePreviewUrl || "";
   const displayDuration = project?.transcript_local_duration || project?.source_duration || 0;
-  const canApprove = project?.status === "planned" && Boolean(plan);
+  const canApprove = project?.status === "planned" && Boolean(plan) && !captionSettingsStale;
   const canRender = project?.status === "approved" && Boolean(project.approval_fingerprint);
   const canExtract = project?.mode === "podcast" && ["approved", "rendering", "review", "completed"].includes(project.status);
 
@@ -395,7 +443,7 @@ export function VideoProducerStudio() {
           <div className="flex items-center gap-2">
             <select
               value={selectedId}
-              onChange={(event) => { autoProduceRef.current = false; setSelectedId(event.target.value); }}
+              onChange={(event) => selectProject(event.target.value)}
               className="max-w-64 rounded-xl border border-white/10 bg-black/50 px-3 py-2 text-xs text-white/70 outline-none"
             >
               <option value="">New project</option>
@@ -474,7 +522,7 @@ export function VideoProducerStudio() {
                 ) : (
                   <div className="rounded-2xl border border-dashed border-white/10 p-6 text-center text-xs text-white/35">No transcript yet.</div>
                 )}
-                {(project.status === "failed" || (!project.transcript_local_text && project.source_locator && project.status !== "transcribing")) && (
+                {!project.transcript_local_text && project.source_locator && project.status !== "transcribing" && (
                   <div className="mt-4">
                     {transcriptionError && <div className="mb-3 text-xs text-[#ff777d]">{transcriptionError}</div>}
                     <button disabled={Boolean(busy)} onClick={() => void startTranscription()} className="rounded-xl border border-white/12 bg-white/[0.05] px-4 py-2.5 text-xs font-black disabled:opacity-40"><RefreshCw size={14} className="mr-2 inline"/>RETRY TRANSCRIPTION</button>
@@ -485,7 +533,7 @@ export function VideoProducerStudio() {
 
             {activeMode === "reels" && (
               <div className="rounded-3xl border border-white/10 bg-white/[0.025] p-5">
-                <div className="mb-4"><div className="text-sm font-bold">Caption direction</div><div className="mt-1 text-xs text-white/45">These are render rules, not AI suggestions. Changing them requires a new director pass and approval.</div></div>
+                <div className="mb-4"><div className="text-sm font-bold">Caption direction</div><div className="mt-1 text-xs text-white/45">These are render rules, not AI suggestions. Changing them requires a fresh director pass before approval.</div></div>
                 <div className="grid gap-3 md:grid-cols-2">
                   {CAPTION_STYLES.map((style) => (
                     <button key={style.id} type="button" disabled={Boolean(project?.approval_fingerprint)} onClick={() => setCaptionStyle(style.id)} className={`rounded-2xl border p-4 text-left transition disabled:opacity-45 ${captionStyle === style.id ? "border-[#4c8dff]/60 bg-[#4c8dff]/10" : "border-white/8 bg-black/20 hover:border-white/20"}`}>
@@ -500,6 +548,9 @@ export function VideoProducerStudio() {
                     <button key={animation.id} type="button" disabled={Boolean(project?.approval_fingerprint)} onClick={() => setCaptionAnimation(animation.id)} className={`rounded-xl border px-3 py-3 text-xs font-bold transition disabled:opacity-45 ${captionAnimation === animation.id ? "border-[#ff5757]/50 bg-[#ff3b3b]/10 text-white" : "border-white/8 bg-black/20 text-white/45 hover:text-white/75"}`}>{animation.label}</button>
                   ))}
                 </div>
+                {captionSettingsStale && project && !project.approval_fingerprint && (
+                  <button disabled={Boolean(busy)} onClick={() => void runDirector(project.id, { captionStyle, captionAnimation, producerMode: "reels" })} className="mt-4 w-full rounded-xl border border-[#4c8dff]/35 bg-[#4c8dff]/10 px-4 py-3 text-xs font-black text-white disabled:opacity-40">APPLY CAPTION DIRECTION + RE-RUN DIRECTOR</button>
+                )}
               </div>
             )}
 
@@ -541,6 +592,7 @@ export function VideoProducerStudio() {
                 <Metric label={activeMode === "reels" ? "Graphics" : "Overlays"} value={String(plan?.overlays.length ?? 0)}/>
               </div>
               {plan?.overlays.length ? <div className="mt-4 max-h-72 space-y-2 overflow-y-auto">{plan.overlays.slice(0, 12).map((overlay) => <div key={overlay.id} className="rounded-xl border border-white/8 bg-black/25 p-3"><div className="text-[10px] font-bold uppercase tracking-[.18em] text-[#4c8dff]">{overlay.kind} · {formatProducerTime(overlay.start)}{overlay.animation ? ` · ${overlay.animation}` : ""}</div><div className="mt-1 text-sm font-semibold">{overlay.title}</div></div>)}</div> : <div className="mt-4 rounded-xl border border-dashed border-white/10 p-5 text-center text-xs text-white/35">No edit decisions yet.</div>}
+              {captionSettingsStale && <div className="mt-3 rounded-xl border border-[#ffb45a]/20 bg-[#ffb45a]/[0.06] px-3 py-2 text-[11px] leading-5 text-white/55">Caption direction changed after this plan was generated. Re-run the Reels Director before approval.</div>}
               {canApprove && <button disabled={Boolean(busy)} onClick={() => void approveEdit()} className="mt-4 w-full rounded-xl bg-[#e72c33] px-4 py-3 text-sm font-black text-white disabled:opacity-30">APPROVE EDIT</button>}
               {canRender && <button disabled={Boolean(busy)} onClick={() => void renderMaster()} className="mt-4 w-full rounded-xl bg-[#e72c33] px-4 py-3 text-sm font-black text-white disabled:opacity-30">RENDER MASTER</button>}
             </div>
