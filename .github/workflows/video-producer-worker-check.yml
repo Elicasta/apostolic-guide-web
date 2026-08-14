@@ -1,0 +1,50 @@
+name: Video Producer worker check
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/render_video_producer_worker.py'
+      - 'scripts/transcribe_video_producer_worker.py'
+      - 'scripts/check_video_producer_worker.py'
+      - 'public/brand/**'
+      - '.github/workflows/video-producer-worker-check.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  transcription-readiness:
+    name: transcription readiness
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Verify transcription secret
+        env:
+          VIDEO_PRODUCER_OPENAI_API_KEY: ${{ secrets.VIDEO_PRODUCER_OPENAI_API_KEY }}
+        run: |
+          if [ -z "$VIDEO_PRODUCER_OPENAI_API_KEY" ]; then
+            echo "VIDEO_PRODUCER_OPENAI_API_KEY repository secret is required for Video Producer transcription." >&2
+            exit 1
+          fi
+          echo "Dedicated Video Producer transcription secret is configured."
+
+  smoke:
+    name: media smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@v4
+
+      - name: Install FFmpeg and fonts
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends ffmpeg fonts-noto-core fontconfig
+
+      - name: Compile Python workers
+        run: |
+          python3 -m py_compile scripts/render_video_producer_worker.py scripts/transcribe_video_producer_worker.py scripts/check_video_producer_worker.py
+
+      - name: Render Podcast and Reels smoke files
+        run: |
+          python3 scripts/check_video_producer_worker.py

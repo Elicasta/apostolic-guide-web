@@ -1,0 +1,234 @@
+# Video Producer
+
+Video Producer is Apostolic Guide's transcript-driven post-production system.
+
+## Principle
+
+**AI decides. Code edits.**
+
+GPT-5.6 Sol proposes editorial decisions from timestamped transcript data. Server code validates the plan, a human approves the exact version, and FFmpeg executes the frozen manifest. Model output never edits frames directly and never publishes automatically.
+
+## Production lanes
+
+### Podcast Mode
+
+- 16:9, 1920x1080, 30 fps MP4
+- conservative long-form cuts
+- `ag-voice-clean` audio preset
+- `ag-studio` color preset
+- chapter, Scripture and statement overlays
+- restrained motion
+- branded code-generated intro/outro
+- captions off by default
+
+The server rejects Podcast Director plans that remove more than 35% of source time.
+
+### Reels Producer
+
+- 9:16, 1080x1920, 30 fps MP4
+- retention-focused cuts
+- `ag-voice-punch` audio preset
+- `ag-clean` color preset
+- animated captions and current-word emphasis
+- punch-in/reframe motion with numeric focal point and zoom
+- Scripture, statement and CTA overlays
+- no long-form bumper by default
+
+Caption styles are `kinetic-clean`, `word-pop`, `editorial`, and `minimal`. Caption animations are `highlight`, `pop`, `rise`, and `none`.
+
+Changing Reels caption direction after a plan was generated makes that plan stale and blocks approval until the Reels Director runs again.
+
+## Implemented flow
+
+```text
+private raw video
+      ↓
+word-level transcription worker
+      ↓
+normalized timestamped transcript
+      ↓
+Podcast Director or Reels Director
+      ↓
+validated edit plan
+      ↓
+human review
+      ↓
+approval fingerprint
+      ↓
+immutable private render manifest
+      ↓
+default-branch GitHub dispatcher
+      ↓
+branch-aware FFmpeg worker
+      ↓
+private review master
+```
+
+The browser does not need to stay open for transcription or rendering.
+
+## Storage and compute
+
+- **Supabase Postgres** stores project state, transcript, edit plan, approval fingerprint, reel candidates, render jobs, and progress.
+- **Private Vercel Blob** stores raw source media, immutable render manifests, and finished review masters.
+- **GitHub Actions** runs long-form transcription and FFmpeg rendering.
+
+Raw camera files do not use Supabase Storage. Browser source uploads use private multipart Blob upload and do not pass through a Vercel Function request body.
+
+Persistent records store the private provider pathname, never an expiring signed URL. Workers receive short-lived signed download/upload URLs. If render dispatch fails after a manifest was uploaded, the server deletes the orphan manifest and records the failed job.
+
+### Required runtime setup
+
+The Vercel project needs a connected Blob store so `BLOB_READ_WRITE_TOKEN` is available. Video Producer currently application-limits source files to 20 GB, while provider/account limits remain authoritative.
+
+Video Producer uses its own `VIDEO_PRODUCER_OPENAI_API_KEY` in Vercel for Sol direction and short-form selection. It intentionally does not fall back to the application's existing `OPENAI_API_KEY`, so the publishing/narration workload remains isolated. `OPENAI_VIDEO_PRODUCER_MODEL` or `OPENAI_VIDEO_DIRECTOR_MODEL` can override the default `gpt-5.6-sol` director model.
+
+The GitHub repository also needs an Actions secret named `VIDEO_PRODUCER_OPENAI_API_KEY` for the asynchronous transcription worker. The same secret name is passed only to the Video Producer worker process.
+
+The app also needs the existing Video Studio GitHub render token/repository configuration, either through environment variables or the encrypted integration-secret fallback.
+
+## Default-branch worker dispatcher
+
+GitHub `repository_dispatch` requires the receiving workflow to exist on the repository default branch. Video Producer therefore uses one inert default-branch dispatcher at:
+
+`/.github/workflows/video-producer-dispatch.yml`
+
+The dispatcher:
+
+- listens only for `video-producer-transcribe` and `video-producer-render`
+- uses read-only `contents: read` repository permission
+- accepts only trusted worker refs: `main` and `codex/video-producer`
+- checks out worker code with persisted Git credentials disabled
+- lets draft preview deployments run their exact branch worker code before the feature is merged
+- naturally falls back to `main` after production merge
+
+Preview app requests include the active Vercel Git ref as `worker_ref`; production resolves to `main` unless explicitly overridden.
+
+## System readiness panel
+
+The protected Video Producer admin route includes a server-rendered readiness panel. It checks without displaying secret values:
+
+1. Video Producer database access
+2. private Vercel Blob configuration
+3. dedicated Video Producer OpenAI/Sol configuration
+4. GitHub worker token/repository access
+5. presence of the default-branch Video Producer dispatcher
+6. visibility/presence of the GitHub Actions `VIDEO_PRODUCER_OPENAI_API_KEY` when token permissions allow inspection
+
+A secret-name inspection permission failure is shown as a warning rather than falsely reporting the secret as missing.
+
+## Upload recovery
+
+Source upload state is provisional until the private Blob completion callback arrives.
+
+If the browser is closed, Wi-Fi drops, or the response is lost while a project is left in `uploading`, a fresh Video Producer page performs one recovery pass:
+
+- if the expected private Blob exists, the project is finalized as `uploaded`
+- if the Blob does not exist, provisional source fields are cleared and the project returns to `draft` for retry
+- if Blob itself cannot be checked, state is preserved rather than guessed
+
+The recovery assistant runs once on page load, not continuously during an active multipart upload, so it does not race legitimate large transfers.
+
+## Transcription worker
+
+`video-producer-transcribe`:
+
+1. downloads the private source
+2. probes duration with `ffprobe`
+3. extracts mono 16 kHz dialogue audio
+4. splits long audio into 30-minute MP3 chunks
+5. transcribes each chunk with `whisper-1` word and segment timestamps
+6. offsets chunk timing back onto the original source timeline
+7. sends the compact transcript back through a one-time authenticated callback
+
+Completed transcripts must contain usable word timestamps before they are accepted.
+
+## Sol Edit Director
+
+Both directors use strict structured output and default to `gpt-5.6-sol`.
+
+Podcast rules prioritize doctrinal continuity, natural pacing, false-start/repeated-take cleanup, Scripture graphics, chapters, and restrained motion. Substantive teaching must not be removed merely to shorten runtime.
+
+Reels rules protect the actual spoken hook, tighten dead air/stumbles, propose vertical punch-ins/reframes, and add Scripture/statement/CTA graphics. The model may not manufacture a hook or fake B-roll.
+
+All model-proposed transforms are sanitized before render. `focusX` and `focusY` are clamped to `0..1`; zoom scale is clamped to `1..2.5`.
+
+## Approval safety
+
+Approval stores a SHA-256 fingerprint of the exact edit plan. The render route recomputes that fingerprint before dispatch. If the edit changed after approval, rendering is rejected and the project must be reviewed again.
+
+Timed overlays, motion, and music ranges are remapped around cuts. A point event that lands inside removed footage is not silently moved onto an unrelated sentence.
+
+## Callback and stale-job safety
+
+Worker callbacks use random tokens whose hashes are stored with the project/render snapshot. Terminal states burn the token by clearing the stored hash.
+
+Callback tokens are invalidated after:
+
+- successful transcription
+- failed transcription
+- transcription timeout recovery
+- successful render
+- failed render
+- render timeout recovery
+
+This prevents an old or delayed worker from overwriting the state of a newer retry.
+
+Workers report heartbeat timestamps through progress callbacks. Project refresh performs conservative stale-job reconciliation:
+
+- transcription can self-fail only after exceeding the 90-minute worker window with margin
+- rendering can self-fail only after exceeding the 180-minute worker window with margin
+- a stale render returns the project to `approved`, preserving the reviewed edit and allowing render retry
+
+## FFmpeg render worker
+
+`video-producer-render` executes:
+
+1. child-reel source-range extraction
+2. normalized cut/concat
+3. Podcast or Reels output geometry
+4. selected audio preset
+5. selected color preset
+6. cut-aware ASS captions
+7. current-word caption emphasis
+8. cut-aware branded overlays
+9. numeric punch-in/reframe motion
+10. AG wordmark intro/outro when enabled
+11. H.264/AAC encode
+12. private review-master upload
+13. progress/failure/completion callbacks
+
+The worker workflow has a separate smoke test that compiles the Python workers and actually renders synthetic Podcast and Reels masters on Linux FFmpeg.
+
+## Podcast to Reels
+
+An approved Podcast can ask Sol for 5–15 self-contained reel candidates. Candidates are validated to 12–150 seconds, scores are normalized to 0–100, and strongly overlapping selections are deduplicated.
+
+Accepting a candidate creates a child Reels project that references the same immutable raw source instead of copying the media. The inherited transcript is sliced to the selected source range and shifted to a local `0.00` timeline before the Reels Director runs.
+
+## Database
+
+Service-role-only tables:
+
+- `video_producer_projects`
+- `video_producer_renders`
+
+RLS is enabled and no direct client-write policies are created. Admin APIs require `manage_content` permission and mutate through the service client. Actor foreign keys have covering indexes.
+
+## Verification boundary
+
+The repository's Node suite covers timestamp normalization, transcript slicing, destructive-cut guards, strict director parsing, mode geometry, transform sanitization, and reel-candidate deduplication. Vercel performs the production Next.js/TypeScript build. GitHub Actions separately smoke-renders both media modes with FFmpeg.
+
+A real camera-file end-to-end run requires private Blob configuration plus `VIDEO_PRODUCER_OPENAI_API_KEY` in both Vercel and GitHub Actions. The app and worker intentionally use the dedicated Video Producer credential rather than the existing publishing key.
+
+## Next layers
+
+Not implemented yet:
+
+- first-party music library selection and deterministic ducking/mixing
+- automatic camera/log profile identification and camera-specific transforms
+- external B-roll asset insertion
+- cover/thumbnail generation
+- direct publishing handoff into the existing content-control queue
+- detailed manual timeline correction UI
+
+These should extend the current approved render-plan contract rather than creating a second editor stack.
