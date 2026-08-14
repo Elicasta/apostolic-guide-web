@@ -43,6 +43,10 @@ export function videoProducerWorkerRef() {
     || "main";
 }
 
+export function videoProducerOpenAIKey() {
+  return process.env.VIDEO_PRODUCER_OPENAI_API_KEY?.trim() || "";
+}
+
 export async function videoProducerRendererCredentials(service: ServiceClient) {
   let token = process.env.VIDEO_STUDIO_GITHUB_TOKEN?.trim() || "";
   let repository = process.env.VIDEO_STUDIO_GITHUB_REPOSITORY?.trim() || "Elicasta/apostolic-guide-web";
