@@ -240,6 +240,14 @@ Both have RLS enabled and intentionally expose no client-write policies. Admin A
 
 Foreign-key actor columns (`created_by`, `updated_by`, `requested_by`) have covering indexes so project history does not create avoidable FK maintenance scans as the table grows.
 
+## Verification
+
+The web branch is tested by the repository's Node test suite and Vercel production build/typecheck. Video Producer adds tests for timestamp normalization, transcript slicing, destructive-cut guards, strict structured-output parsing, mode geometry, transform sanitization and reel-candidate deduplication.
+
+A separate GitHub Actions smoke workflow compiles the Python workers and actually renders synthetic Podcast and Reels masters with Linux FFmpeg. This catches invalid filter graphs, codec assumptions, captions, motion and bumper packaging that a TypeScript build cannot detect.
+
+A real camera-file end-to-end run still requires the private Blob connection and the Actions `OPENAI_API_KEY` described above.
+
 ## Current boundary / next layer
 
 Not implemented yet:
