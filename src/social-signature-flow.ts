@@ -33,7 +33,9 @@ export function isOpenStudyReply(text: string) {
 }
 
 export function buildStudyCardImageUrl(title: string) {
-  const url = new URL("https://apostolicguide.com/api/social/study-card");
+  // Meta fetches this URL server-to-server. Use the canonical www host directly so
+  // the image request returns 200 instead of the apex-domain 308 redirect.
+  const url = new URL("https://www.apostolicguide.com/api/social/study-card");
   url.searchParams.set("title", title);
   return url.toString();
 }
