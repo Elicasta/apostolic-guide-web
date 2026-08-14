@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getStudioPermission } from "@/auth";
 import { createServiceClient } from "@/supabase";
+import { isVideoProducerWorkerStale, VIDEO_PRODUCER_UPLOAD_STALE_MS } from "@/video-producer-job-state";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -23,7 +24,7 @@ export async function POST(request: Request) {
   if (!service) return NextResponse.json({ error: "Supabase service access is not configured." }, { status: 503 });
 
   const projectResult = await service.from("video_producer_projects")
-    .select("id,status,parent_project_id,source_provider,source_locator,source_filename,source_mime_type,source_size_bytes,director_metadata")
+    .select("id,status,parent_project_id,source_provider,source_locator,source_filename,source_mime_type,source_size_bytes,director_metadata,updated_at")
     .eq("id", parsed.data.projectId)
     .maybeSingle();
   if (projectResult.error) return NextResponse.json({ error: projectResult.error.message }, { status: 500 });
@@ -79,6 +80,11 @@ export async function POST(request: Request) {
     if (!isBlobNotFound(error)) {
       return NextResponse.json({ error: error instanceof Error ? error.message : "Private media storage could not be checked." }, { status: 502 });
     }
+
+    if (!isVideoProducerWorkerStale(project.updated_at, VIDEO_PRODUCER_UPLOAD_STALE_MS)) {
+      return NextResponse.json({ state: "pending", status: "uploading" });
+    }
+
     const reset = await service.from("video_producer_projects").update({
       status: "draft",
       source_provider: null,
@@ -92,7 +98,7 @@ export async function POST(request: Request) {
       edit_plan: null,
       approval_fingerprint: null,
       approved_at: null,
-      director_metadata: { ...metadata, uploadRecovery: { state: "reset", recoveredAt, reason: "blob not found after interrupted upload" } },
+      director_metadata: { ...metadata, uploadRecovery: { state: "reset", recoveredAt, reason: "stale upload with no completed blob" } },
       updated_by: access.user.id
     }).eq("id", project.id).select("status").single();
     if (reset.error) return NextResponse.json({ error: reset.error.message }, { status: 500 });
