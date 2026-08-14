@@ -114,8 +114,11 @@ def build_ffmpeg_v2(manifest, source, ass_file, output_file):
             f"volume={gain_db}dB,afade=t=in:st=0:d=1.0,afade=t=out:st={fade_out:.3f}:d=1.2,atrim=0:{duration:.3f}[musicbed]"
         )
         if bool(selected_music.get("duckUnderVoice", True)):
-            graph.append("[musicbed][voice]sidechaincompress=threshold=0.035:ratio=8:attack=15:release=350:makeup=1[ducked]")
-            graph.append("[voice][ducked]amix=inputs=2:duration=first:dropout_transition=0,alimiter=limit=0.94[aout]")
+            # FFmpeg filter labels are consumed by a filter input. Split explicitly so
+            # the mastered voice can drive the sidechain and also remain the clean mix source.
+            graph.append("[voice]asplit=2[voice_sidechain][voice_mix]")
+            graph.append("[musicbed][voice_sidechain]sidechaincompress=threshold=0.035:ratio=8:attack=15:release=350:makeup=1[ducked]")
+            graph.append("[voice_mix][ducked]amix=inputs=2:duration=first:dropout_transition=0,alimiter=limit=0.94[aout]")
         else:
             graph.append("[voice][musicbed]amix=inputs=2:duration=first:dropout_transition=0,alimiter=limit=0.94[aout]")
         audio_output = "aout"
