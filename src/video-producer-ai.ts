@@ -46,20 +46,20 @@ const directorSchema = z.object({
     start: z.number(),
     duration: z.number(),
     title: z.string().min(1).max(120),
-    body: z.string().max(320).optional(),
-    reference: z.string().max(80).optional(),
-    animation: overlayAnimation.optional(),
-    placement: overlayPlacement.optional()
+    body: z.string().max(320).nullable().optional(),
+    reference: z.string().max(80).nullable().optional(),
+    animation: overlayAnimation.nullable().optional(),
+    placement: overlayPlacement.nullable().optional()
   })).max(80).default([]),
   motion: z.array(z.object({
     kind: motionKind,
     start: z.number(),
     duration: z.number(),
-    intensity: intensity.optional(),
-    focusX: z.number().optional(),
-    focusY: z.number().optional(),
-    scale: z.number().optional(),
-    note: z.string().max(240).optional()
+    intensity: intensity.nullable().optional(),
+    focusX: z.number().nullable().optional(),
+    focusY: z.number().nullable().optional(),
+    scale: z.number().nullable().optional(),
+    note: z.string().max(240).nullable().optional()
   })).max(160).default([])
 });
 
@@ -164,6 +164,30 @@ export function normalizeVideoProducerTranscript(value: unknown): VideoProducerT
   return { text, duration, words, segments };
 }
 
+export function sliceVideoProducerTranscript(transcript: VideoProducerTranscript, start: number, end: number): VideoProducerTranscript {
+  const safeStart = clamp(start, 0, transcript.duration);
+  const safeEnd = clamp(end, safeStart, transcript.duration);
+  if (safeEnd <= safeStart) return { text: "", duration: 0, words: [], segments: [] };
+  const words = transcript.words.flatMap((word) => {
+    if (word.end <= safeStart || word.start >= safeEnd) return [];
+    return [{ word: word.word, start: Math.max(0, word.start - safeStart), end: Math.min(safeEnd - safeStart, word.end - safeStart) }];
+  });
+  const segments = transcript.segments.flatMap((segment) => {
+    if (segment.end <= safeStart || segment.start >= safeEnd) return [];
+    return [{
+      text: segment.text,
+      start: Math.max(0, segment.start - safeStart),
+      end: Math.min(safeEnd - safeStart, segment.end - safeStart)
+    }];
+  });
+  return {
+    text: segments.length ? segments.map((segment) => segment.text).join(" ").trim() : words.map((word) => word.word).join(" ").trim(),
+    duration: safeEnd - safeStart,
+    words,
+    segments
+  };
+}
+
 export function normalizeVideoProducerDirectorOutput(input: unknown, mode: VideoProducerMode, duration: number): { plan: VideoProducerEditPlan; summary: string } {
   const parsed = directorSchema.parse(input);
   if (!Number.isFinite(duration) || duration <= 0) throw new Error("A valid source duration is required.");
@@ -193,7 +217,7 @@ export function normalizeVideoProducerDirectorOutput(input: unknown, mode: Video
     const hasTransform = cue.focusX != null || cue.focusY != null || cue.scale != null;
     return [{
       id: `ai-motion-${index + 1}`, kind: cue.kind, start, duration: Math.min(clamp(cue.duration, 0.25, 12), duration - start),
-      intensity: cue.intensity, note: nullableString(cue.note),
+      intensity: cue.intensity ?? undefined, note: nullableString(cue.note),
       transform: hasTransform ? sanitizeVideoProducerTransform({ focusX: cue.focusX ?? 0.5, focusY: cue.focusY ?? 0.5, scale: cue.scale ?? 1 }) : undefined
     }];
   });
