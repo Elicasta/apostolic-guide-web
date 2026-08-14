@@ -44,7 +44,7 @@ Default delivery:
 - Scripture, statement and CTA overlays
 - intro and outro disabled by default
 
-Caption style is an explicit project setting rather than an uncontrolled model decision. Initial styles are `kinetic-clean`, `word-pop`, `editorial` and `minimal`.
+Caption style and caption animation are explicit project settings rather than uncontrolled model decisions. Initial styles are `kinetic-clean`, `word-pop`, `editorial` and `minimal`. Initial animations are `highlight`, `pop`, `rise` and `none`.
 
 ## Workspace flow
 
@@ -52,7 +52,7 @@ Caption style is an explicit project setting rather than an uncontrolled model d
 2. Select Podcast Mode or Reels Producer.
 3. Load the raw video source.
 4. Review or paste the transcript.
-5. Configure mode-specific direction such as reel caption style.
+5. Configure mode-specific direction such as reel caption style and animation.
 6. Generate the edit plan.
 7. Review cuts, overlays, motion and production presets.
 8. Compile the edit plan into the worker-safe render plan.
@@ -67,7 +67,9 @@ The browser workspace intentionally does not pretend to render long media inside
 - production mode
 - cut ranges
 - graphic overlays
+- overlay animation and placement
 - motion cues
+- numeric focal point and scale for crop/reframe motion
 - music cues
 - caption settings
 - audio preset
@@ -80,7 +82,7 @@ Timed ranges are cut-aware. If a cut happens inside an overlay, motion cue or mu
 
 A point event whose start lands inside removed footage receives `outputStart: null`. A renderer must not silently move it to an unrelated sentence.
 
-Invalid timestamps and invalid source durations are rejected or normalized before they reach the worker. NaN must never become an FFmpeg timestamp.
+Model-proposed focal points are normalized to `0..1`, and zoom scale is clamped to the supported `1..2.5` range before the worker receives it. Invalid timestamps and invalid source durations are rejected or normalized. NaN must never become an FFmpeg timestamp or transform.
 
 ## Production presets
 
@@ -126,9 +128,9 @@ A production worker should:
 2. cut and concatenate `keepSegments`
 3. process voice audio using the selected preset
 4. apply the selected color preset
-5. reframe to the requested output geometry
-6. render branded overlays using the AG visual system
-7. render captions using word-level timestamps and the approved style
+5. reframe to the requested output geometry using sanitized focal and scale values
+6. render branded overlays using approved placement and animation values
+7. render captions using word-level timestamps and the approved style/animation
 8. execute motion cues such as punch-ins or emphasis
 9. mix library music using remapped cue ranges and explicit gains
 10. prepend/append approved bumper assets when enabled
@@ -162,7 +164,9 @@ Reels Producer can propose:
 - dead-air and repetition removal
 - caption grouping
 - punch-ins and reframes
+- focal point and zoom values
 - emphasis cards
+- overlay placement and animation
 - Scripture graphics
 - CTA placement
 - safe crop direction
@@ -182,6 +186,7 @@ After explicit review, create the cover/thumbnail package, title, description an
 - Never publish directly from model output.
 - Never let an invalid timestamp silently delete media.
 - Never let cuts silently drift overlays, motion or music.
+- Never execute unbounded model-proposed crop/zoom values.
 - Never overwrite Video Studio pathway projects.
 - Never make FFmpeg rendering depend on a browser staying open.
 - Keep source assets immutable. Render from edit decisions instead of destructively modifying uploads.
