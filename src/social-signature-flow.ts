@@ -58,7 +58,7 @@ export function buildStudyCardMessage(input: { title: string; destinationUrl: st
       type: "template",
       payload: {
         template_type: "button",
-        text: `${input.title}\nScripture first. Questions welcome.`,
+        text: `${input.title}\n\nStart with the Scripture, follow the key passages and connections, and see how the Bible reveals who Jesus is. If a verse raises a question, send it here — I’ll help you work through it from Scripture.`,
         buttons: [
           {
             type: "web_url",
