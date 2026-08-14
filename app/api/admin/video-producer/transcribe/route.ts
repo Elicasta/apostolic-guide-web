@@ -6,7 +6,8 @@ import {
   createPrivateBlobDownloadUrl,
   createWorkerCallbackToken,
   dispatchVideoProducerWorker,
-  videoProducerRendererCredentials
+  videoProducerRendererCredentials,
+  videoProducerWorkerRef
 } from "@/video-producer-server";
 
 export const runtime = "nodejs";
@@ -40,20 +41,24 @@ export async function POST(request: Request) {
   }
   if (!githubToken) return NextResponse.json({ error: "Video worker is not connected. Configure the existing Video Studio GitHub token first." }, { status: 503 });
 
+  const metadata = project.director_metadata && typeof project.director_metadata === "object"
+    ? project.director_metadata as Record<string, unknown>
+    : {};
+
   try {
     const sourceUrl = await createPrivateBlobDownloadUrl(project.source_locator, 4 * 60 * 60 * 1000);
     const callback = createWorkerCallbackToken();
     const now = new Date().toISOString();
-    const metadata = project.director_metadata && typeof project.director_metadata === "object"
-      ? project.director_metadata as Record<string, unknown>
-      : {};
+    const workerRef = videoProducerWorkerRef();
     const nextMetadata = {
       ...metadata,
+      transcriptionError: null,
       transcriptionBridge: {
         callbackTokenHash: callback.hash,
         dispatchedAt: now,
         model: "whisper-1",
-        sourceLocator: project.source_locator
+        sourceLocator: project.source_locator,
+        workerRef
       }
     };
     const update = await service.from("video_producer_projects").update({
@@ -74,6 +79,7 @@ export async function POST(request: Request) {
       eventType: "video-producer-transcribe",
       payload: {
         project_id: project.id,
+        worker_ref: workerRef,
         source_url: sourceUrl,
         source_filename: project.source_filename || "source.mp4",
         callback_url: `${new URL(request.url).origin}/api/admin/video-producer/transcribe-callback`,
@@ -81,10 +87,14 @@ export async function POST(request: Request) {
         transcription_model: "whisper-1"
       }
     });
-    return NextResponse.json({ ok: true, projectId: project.id, status: "transcribing" });
+    return NextResponse.json({ ok: true, projectId: project.id, status: "transcribing", workerRef });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Transcription worker could not be dispatched.";
-    await service.from("video_producer_projects").update({ status: "failed", director_metadata: { error: message } }).eq("id", project.id);
+    await service.from("video_producer_projects").update({
+      status: "failed",
+      director_metadata: { ...metadata, transcriptionError: message, transcriptionFailedAt: new Date().toISOString() },
+      updated_by: access.user.id
+    }).eq("id", project.id);
     return NextResponse.json({ error: message }, { status: 502 });
   }
 }
