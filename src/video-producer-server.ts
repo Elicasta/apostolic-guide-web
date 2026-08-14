@@ -116,7 +116,7 @@ export async function deletePrivateVideoProducerBlob(pathname: string) {
 export async function dispatchVideoProducerWorker(input: {
   token: string;
   repository: string;
-  eventType: "video-producer-transcribe" | "video-producer-render";
+  eventType: "video-producer-transcribe" | "video-producer-render" | "video-producer-thumbnail" | "video-producer-publisher-handoff";
   payload: Record<string, unknown>;
 }) {
   const response = await fetch(`https://api.github.com/repos/${input.repository}/dispatches`, {
