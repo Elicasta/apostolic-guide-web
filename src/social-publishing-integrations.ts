@@ -52,6 +52,7 @@ export type SocialPublishingCredentialInput = {
 
 type SecretRow = { name: string; secret: string; updated_at?: string | null };
 type ConnectionStatus = { username?: string | null; last_verified_at?: string | null } | null | undefined;
+type VerifiedInstagramCandidate = { userId: string; username: string | null; graphVersion: string };
 
 function allSecretNames() {
   return Object.values(SOCIAL_PUBLISHING_SECRET_NAMES).flatMap((group) => Object.values(group));
@@ -150,15 +151,79 @@ export async function getSocialPublishingCredentialValues(platform: SocialPublis
   return Object.fromEntries(entries.map(([field, name]) => [field, values.get(name)?.trim() || ""]));
 }
 
+async function validateInstagramCredentialCandidate(input: Record<string, string | undefined>): Promise<VerifiedInstagramCandidate | null> {
+  const changingToken = Boolean(input.accessToken?.trim());
+  const changingUser = Boolean(input.instagramUserId?.trim());
+  if (!changingToken && !changingUser) return null;
+
+  const service = createServiceClient();
+  if (!service) throw new Error("Supabase service access is not configured.");
+  const current = await getSocialPublishingCredentialValues("instagram") as Record<string, string>;
+  const accessToken = input.accessToken?.trim() || current.accessToken;
+  const graphVersion = input.graphVersion?.trim() || current.graphVersion || "v24.0";
+
+  if (!accessToken) {
+    throw new Error("Instagram Access Token is required. Existing credentials were left unchanged.");
+  }
+
+  const response = await fetch(`https://graph.instagram.com/${encodeURIComponent(graphVersion)}/me?fields=id,username`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    cache: "no-store"
+  });
+  const json = await response.json().catch(() => ({})) as { id?: unknown; username?: unknown; error?: { message?: unknown } };
+  if (!response.ok) {
+    const detail = typeof json.error?.message === "string" ? json.error.message : `Meta rejected the credential (${response.status}).`;
+    throw new Error(`Instagram credential check failed: ${detail} The existing stored token was not replaced.`);
+  }
+
+  const userId = typeof json.id === "string" ? json.id.trim() : String(json.id ?? "").trim();
+  const username = typeof json.username === "string" ? json.username.trim().replace(/^@/, "") : null;
+  if (!userId) throw new Error("Instagram credential check did not return an account ID. The existing stored token was not replaced.");
+
+  const { data: existingStatus } = await service.from("social_connection_status")
+    .select("username")
+    .eq("platform", "instagram")
+    .maybeSingle();
+  const expectedUsername = typeof existingStatus?.username === "string"
+    ? existingStatus.username.trim().replace(/^@/, "").toLowerCase()
+    : "";
+  if (expectedUsername && username && username.toLowerCase() !== expectedUsername) {
+    throw new Error(`Instagram credential belongs to @${username}, not @${expectedUsername}. The existing stored token was not replaced.`);
+  }
+
+  const subscribeResponse = await fetch(`https://graph.instagram.com/${encodeURIComponent(graphVersion)}/${encodeURIComponent(userId)}/subscribed_apps?subscribed_fields=messages,comments`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+    body: "{}",
+    cache: "no-store"
+  });
+  const subscribeJson = await subscribeResponse.json().catch(() => ({})) as { error?: { message?: unknown } };
+  if (!subscribeResponse.ok) {
+    const detail = typeof subscribeJson.error?.message === "string" ? subscribeJson.error.message : `Meta rejected webhook subscription (${subscribeResponse.status}).`;
+    throw new Error(`Instagram token is valid for @${username || "the selected account"}, but messaging/comment webhook access could not be verified: ${detail} The existing stored token was not replaced.`);
+  }
+
+  return { userId, username, graphVersion };
+}
+
 export async function saveSocialPublishingCredentials(
   platform: SocialPublishingPlatform,
   input: Record<string, string | undefined>
 ) {
   const service = createServiceClient();
   if (!service) throw new Error("Supabase service access is not configured.");
+
+  const verifiedInstagram = platform === "instagram"
+    ? await validateInstagramCredentialCandidate(input)
+    : null;
+
+  const normalizedInput = platform === "instagram" && verifiedInstagram
+    ? { ...input, instagramUserId: verifiedInstagram.userId, graphVersion: verifiedInstagram.graphVersion }
+    : input;
+
   const names = SOCIAL_PUBLISHING_SECRET_NAMES[platform] as Record<string, string>;
   const now = new Date().toISOString();
-  const rows = Object.entries(input).flatMap(([field, raw]) => {
+  const rows = Object.entries(normalizedInput).flatMap(([field, raw]) => {
     const name = names[field];
     const secret = raw?.trim();
     if (!name || !secret) return [];
@@ -168,5 +233,20 @@ export async function saveSocialPublishingCredentials(
   const { error } = await service.schema("analytics").from("integration_secrets")
     .upsert(rows, { onConflict: "name" });
   if (error) throw new Error(error.message);
+
+  if (platform === "instagram" && verifiedInstagram) {
+    const { error: statusError } = await service.from("social_connection_status").upsert({
+      platform: "instagram",
+      instagram_user_id: verifiedInstagram.userId,
+      username: verifiedInstagram.username,
+      graph_version: verifiedInstagram.graphVersion,
+      webhook_subscribed: true,
+      last_verified_at: now,
+      last_error: null,
+      updated_at: now
+    }, { onConflict: "platform" });
+    if (statusError) throw new Error(statusError.message);
+  }
+
   return getSocialPublishingCredentialStatus();
 }
