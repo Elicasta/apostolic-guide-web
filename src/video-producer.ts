@@ -3,12 +3,14 @@ export type VideoProducerMode = "podcast" | "reels";
 export type VideoProducerStatus =
   | "draft"
   | "uploading"
+  | "uploaded"
   | "transcribing"
-  | "analyzing"
+  | "directing"
   | "planned"
+  | "approved"
   | "rendering"
   | "review"
-  | "approved"
+  | "completed"
   | "failed";
 
 export type VideoProducerOverlayKind =
