@@ -1,0 +1,34 @@
+name: Video Producer worker check
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/render_video_producer_worker.py'
+      - 'scripts/transcribe_video_producer_worker.py'
+      - 'scripts/check_video_producer_worker.py'
+      - 'public/brand/**'
+      - '.github/workflows/video-producer-worker-check.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@v4
+
+      - name: Install FFmpeg and fonts
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends ffmpeg fonts-noto-core fontconfig
+
+      - name: Compile Python workers
+        run: |
+          python3 -m py_compile scripts/render_video_producer_worker.py scripts/transcribe_video_producer_worker.py scripts/check_video_producer_worker.py
+
+      - name: Render Podcast and Reels smoke files
+        run: |
+          python3 scripts/check_video_producer_worker.py
