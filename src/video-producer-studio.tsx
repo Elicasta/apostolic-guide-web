@@ -41,6 +41,17 @@ const CAPTION_ANIMATIONS: { id: VideoProducerCaptionAnimation; label: string }[]
   { id: "rise", label: "Rise" },
   { id: "none", label: "Static" }
 ];
+const MULTIPART_THRESHOLD_BYTES = 100 * 1024 * 1024;
+
+type UploadStats = {
+  loaded: number;
+  total: number;
+  bytesPerSecond: number;
+  etaSeconds: number | null;
+  multipart: boolean;
+};
+
+type WakeLockHandle = { release: () => Promise<void> };
 
 type ProducerProject = {
   id: string;
@@ -100,6 +111,25 @@ function readRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" ? value as Record<string, unknown> : {};
 }
 
+function formatBytes(value: number) {
+  if (!Number.isFinite(value) || value <= 0) return "0 MB";
+  const gigabytes = value / (1024 ** 3);
+  if (gigabytes >= 1) return `${gigabytes.toFixed(gigabytes >= 10 ? 1 : 2)} GB`;
+  const megabytes = value / (1024 ** 2);
+  return `${megabytes.toFixed(megabytes >= 100 ? 0 : 1)} MB`;
+}
+
+function formatUploadEta(seconds: number | null) {
+  if (seconds == null || !Number.isFinite(seconds) || seconds < 0) return "Estimating";
+  const rounded = Math.max(0, Math.round(seconds));
+  if (rounded < 60) return `${rounded}s`;
+  const minutes = Math.floor(rounded / 60);
+  const remainingSeconds = rounded % 60;
+  if (minutes < 60) return `${minutes}m ${remainingSeconds.toString().padStart(2, "0")}s`;
+  const hours = Math.floor(minutes / 60);
+  return `${hours}h ${(minutes % 60).toString().padStart(2, "0")}m`;
+}
+
 function statusLabel(project: ProducerProject | null) {
   if (!project) return "NEW PROJECT";
   if (project.status === "uploading") return "UPLOADING";
@@ -126,8 +156,12 @@ export function VideoProducerStudio() {
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadStats, setUploadStats] = useState<UploadStats>({ loaded: 0, total: 0, bytesPerSecond: 0, etaSeconds: null, multipart: false });
   const autoProduceRef = useRef(false);
   const autoDirectorKeyRef = useRef<string | null>(null);
+  const uploadAbortRef = useRef<AbortController | null>(null);
+  const uploadProjectIdRef = useRef("");
+  const wakeLockRef = useRef<WakeLockHandle | null>(null);
 
   const project = detail?.project ?? null;
   const plan = project?.edit_plan ?? null;
@@ -161,8 +195,20 @@ export function VideoProducerStudio() {
     return () => window.clearInterval(timer);
   }, [selectedId, project?.status]);
 
+  useEffect(() => {
+    if (busy !== "upload") return;
+    const warnBeforeLeaving = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warnBeforeLeaving);
+    return () => window.removeEventListener("beforeunload", warnBeforeLeaving);
+  }, [busy]);
+
   useEffect(() => () => {
     if (localPreviewUrl) URL.revokeObjectURL(localPreviewUrl);
+    uploadAbortRef.current?.abort();
+    void wakeLockRef.current?.release().catch(() => undefined);
   }, [localPreviewUrl]);
 
   async function api<T>(url: string, init?: RequestInit): Promise<T> {
@@ -226,6 +272,29 @@ export function VideoProducerStudio() {
     setLocalPreviewUrl("");
   }
 
+  function resetUploadStats(total = 0, multipart = false) {
+    setUploadProgress(0);
+    setUploadStats({ loaded: 0, total, bytesPerSecond: 0, etaSeconds: null, multipart });
+  }
+
+  async function holdUploadWakeLock() {
+    const wakeLock = (navigator as Navigator & { wakeLock?: { request: (kind: "screen") => Promise<WakeLockHandle> } }).wakeLock;
+    if (!wakeLock) return;
+    try {
+      wakeLockRef.current = await wakeLock.request("screen");
+    } catch {
+      wakeLockRef.current = null;
+    }
+  }
+
+  async function releaseUploadWakeLock() {
+    const lock = wakeLockRef.current;
+    wakeLockRef.current = null;
+    if (!lock) return;
+    try { await lock.release(); }
+    catch { /* Wake lock may already be released when the page is backgrounded. */ }
+  }
+
   function selectProject(id: string) {
     clearLocalPreview();
     autoProduceRef.current = false;
@@ -235,7 +304,7 @@ export function VideoProducerStudio() {
     if (!id) {
       setDetail(null);
       setTitle("");
-      setUploadProgress(0);
+      resetUploadStats();
     }
   }
 
@@ -249,7 +318,7 @@ export function VideoProducerStudio() {
     setCaptionAnimation(nextMode === "reels" ? "highlight" : "none");
     setBusy(null);
     setMessage("");
-    setUploadProgress(0);
+    resetUploadStats();
     autoProduceRef.current = false;
     autoDirectorKeyRef.current = null;
   }
@@ -264,37 +333,100 @@ export function VideoProducerStudio() {
     return data.project;
   }
 
+  async function cancelUpload() {
+    const projectId = uploadProjectIdRef.current;
+    uploadAbortRef.current?.abort();
+    setMessage("Cancelling the source upload…");
+    if (projectId) {
+      try {
+        await api("/api/admin/video-producer/upload-cancel", { method: "POST", body: JSON.stringify({ projectId }) });
+        await refreshProject(projectId);
+      } catch {
+        // The upload abort is still authoritative. Upload recovery can reconcile a delayed callback.
+      }
+    }
+    resetUploadStats();
+  }
+
   async function uploadSource(file?: File) {
     if (!file) return;
     const mime = file.type || (file.name.toLowerCase().endsWith(".mov") ? "video/quicktime" : "video/mp4");
     const projectTitle = title.trim() || titleFromFile(file.name);
+    const multipart = file.size >= MULTIPART_THRESHOLD_BYTES;
+    const abortController = new AbortController();
+    let activeProjectId = "";
     setBusy("upload");
-    setMessage("Creating project and uploading the raw source directly to private media storage…");
-    setUploadProgress(0);
+    setMessage("Preparing a direct private upload…");
+    resetUploadStats(file.size, multipart);
     clearLocalPreview();
     const preview = URL.createObjectURL(file);
     setLocalPreviewUrl(preview);
+    uploadAbortRef.current = abortController;
+    await holdUploadWakeLock();
     try {
       const canReuseDraft = project && !project.parent_project_id && !project.source_locator && project.status === "draft";
       const active = canReuseDraft ? project : await createProject(mode, projectTitle);
+      activeProjectId = active.id;
+      uploadProjectIdRef.current = active.id;
       const pathname = `video-producer/sources/${active.id}/${safeSourceName(file.name)}`;
+      const startedAt = performance.now();
+      let sampleAt = startedAt;
+      let sampleLoaded = 0;
+      let smoothedBytesPerSecond = 0;
+      setMessage(`${multipart ? "Parallel multipart" : "Direct single-part"} upload running. Keep this page open; Video Producer will start transcription automatically.`);
       await upload(pathname, file, {
         access: "private",
         handleUploadUrl: "/api/admin/video-producer/upload",
-        multipart: true,
+        multipart,
+        abortSignal: abortController.signal,
         contentType: mime,
         clientPayload: JSON.stringify({ projectId: active.id, filename: file.name, contentType: mime, size: file.size }),
-        onUploadProgress(event) { setUploadProgress(Math.round(event.percentage)); }
+        onUploadProgress(event) {
+          const now = performance.now();
+          const elapsedSeconds = Math.max(0.001, (now - startedAt) / 1000);
+          const overallBytesPerSecond = event.loaded / elapsedSeconds;
+          if (now - sampleAt >= 400 && event.loaded >= sampleLoaded) {
+            const sampleSeconds = Math.max(0.001, (now - sampleAt) / 1000);
+            const instantBytesPerSecond = (event.loaded - sampleLoaded) / sampleSeconds;
+            if (instantBytesPerSecond > 0) {
+              smoothedBytesPerSecond = smoothedBytesPerSecond
+                ? (smoothedBytesPerSecond * 0.7) + (instantBytesPerSecond * 0.3)
+                : instantBytesPerSecond;
+            }
+            sampleLoaded = event.loaded;
+            sampleAt = now;
+          }
+          const bytesPerSecond = smoothedBytesPerSecond || overallBytesPerSecond;
+          const remainingBytes = Math.max(0, event.total - event.loaded);
+          const etaSeconds = bytesPerSecond > 1024 ? remainingBytes / bytesPerSecond : null;
+          setUploadProgress(Math.round(event.percentage));
+          setUploadStats({ loaded: event.loaded, total: event.total, bytesPerSecond, etaSeconds, multipart });
+        }
       });
       setUploadProgress(100);
+      setUploadStats((current) => ({ ...current, loaded: file.size, total: file.size, etaSeconds: 0 }));
       autoProduceRef.current = true;
       setMessage("Source uploaded. Starting word-level transcription…");
       await startTranscription(active.id);
       await refreshProject(active.id);
       void loadProjects();
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Source upload failed.");
+      const aborted = abortController.signal.aborted || (error instanceof DOMException && error.name === "AbortError");
+      if (aborted) {
+        if (activeProjectId) {
+          try {
+            await api("/api/admin/video-producer/upload-cancel", { method: "POST", body: JSON.stringify({ projectId: activeProjectId }) });
+            await refreshProject(activeProjectId);
+          } catch { /* Recovery will handle any callback race. */ }
+        }
+        setMessage("Upload cancelled. The project is ready for another source.");
+      } else {
+        setMessage(error instanceof Error ? error.message : "Source upload failed.");
+      }
     } finally {
+      uploadAbortRef.current = null;
+      uploadProjectIdRef.current = "";
+      await releaseUploadWakeLock();
       setBusy(null);
     }
   }
@@ -490,7 +622,7 @@ export function VideoProducerStudio() {
                 ) : (
                   <label className="flex h-full min-h-72 cursor-pointer flex-col items-center justify-center gap-4 bg-[radial-gradient(circle_at_center,#182033_0%,#080b11_52%,#030405_100%)] text-white/45">
                     <div className="rounded-2xl border border-white/10 bg-white/[0.05] p-5"><Upload size={30}/></div>
-                    <div className="text-center"><div className="font-bold text-white/80">Drop in the raw {mode === "podcast" ? "episode" : "reel"}</div><div className="mt-1 text-xs">Private multipart upload · MP4, MOV, M4V, WebM, MPEG or AVI</div></div>
+                    <div className="text-center"><div className="font-bold text-white/80">Drop in the raw {mode === "podcast" ? "episode" : "reel"}</div><div className="mt-1 text-xs">Direct private upload · large files use parallel multipart · MP4, MOV, M4V, WebM, MPEG or AVI</div></div>
                     <input className="hidden" type="file" accept="video/*" onChange={(event) => void uploadSource(event.target.files?.[0])}/>
                   </label>
                 )}
@@ -498,11 +630,30 @@ export function VideoProducerStudio() {
               <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/10 px-5 py-3 text-xs text-white/50">
                 <span>{project?.source_filename || "No source selected"}</span>
                 <div className="flex items-center gap-3">
-                  {busy === "upload" && <span>{uploadProgress}% uploaded</span>}
+                  {busy === "upload" && <span>{uploadProgress}% · {formatBytes(uploadStats.loaded)} / {formatBytes(uploadStats.total)}</span>}
                   <span>{displayDuration ? formatProducerTime(displayDuration) : "0:00"}</span>
                 </div>
               </div>
             </div>
+
+            {busy === "upload" && (
+              <div className="rounded-2xl border border-[#4c8dff]/25 bg-[#4c8dff]/[0.07] p-4">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <div className="text-sm font-bold">Uploading source</div>
+                    <div className="mt-1 text-xs text-white/45">{uploadStats.multipart ? "Parallel multipart with automatic part retry" : "Direct single-part transfer"} · screen kept awake when supported</div>
+                  </div>
+                  <button type="button" onClick={() => void cancelUpload()} className="rounded-xl border border-[#ff5b63]/30 bg-[#ff3b3b]/10 px-3 py-2 text-[10px] font-black uppercase tracking-[.12em] text-[#ff8b90]">Cancel</button>
+                </div>
+                <div className="mt-4 flex items-center justify-between text-xs"><span className="text-white/55">{formatBytes(uploadStats.loaded)} of {formatBytes(uploadStats.total)}</span><span className="font-black">{uploadProgress}%</span></div>
+                <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/8"><div className="h-full bg-[#6f9dff] transition-all" style={{ width: `${Math.max(1, uploadProgress)}%` }}/></div>
+                <div className="mt-4 grid grid-cols-3 gap-2">
+                  <Metric label="Speed" value={uploadStats.bytesPerSecond > 0 ? `${formatBytes(uploadStats.bytesPerSecond)}/s` : "—"}/>
+                  <Metric label="ETA" value={formatUploadEta(uploadStats.etaSeconds)}/>
+                  <Metric label="Transfer" value={uploadStats.multipart ? "Parallel" : "Direct"}/>
+                </div>
+              </div>
+            )}
 
             {message && <div className="rounded-2xl border border-[#4c8dff]/20 bg-[#4c8dff]/[0.07] px-4 py-3 text-xs leading-5 text-white/70">{message}</div>}
 
