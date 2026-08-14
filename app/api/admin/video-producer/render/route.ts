@@ -9,6 +9,7 @@ import {
   createPrivateBlobDownloadUrl,
   createPrivateBlobUploadUrl,
   createWorkerCallbackToken,
+  deletePrivateVideoProducerBlob,
   dispatchVideoProducerWorker,
   storeVideoProducerManifest,
   videoProducerPlanFingerprint,
@@ -81,12 +82,17 @@ export async function POST(request: Request) {
     }
   };
 
+  let uploadedManifestPath: string | null = null;
   try {
-    const [sourceUrl, manifestBlob, outputUploadUrl] = await Promise.all([
-      createPrivateBlobDownloadUrl(project.source_locator, 8 * 60 * 60 * 1000),
-      storeVideoProducerManifest(manifestPath, manifest),
-      createPrivateBlobUploadUrl({ pathname: outputPath, contentType: "video/mp4", maxBytes: MAX_RENDER_BYTES, ttlMs: 8 * 60 * 60 * 1000 })
-    ]);
+    const sourceUrl = await createPrivateBlobDownloadUrl(project.source_locator, 8 * 60 * 60 * 1000);
+    const outputUploadUrl = await createPrivateBlobUploadUrl({
+      pathname: outputPath,
+      contentType: "video/mp4",
+      maxBytes: MAX_RENDER_BYTES,
+      ttlMs: 8 * 60 * 60 * 1000
+    });
+    const manifestBlob = await storeVideoProducerManifest(manifestPath, manifest);
+    uploadedManifestPath = manifestBlob.pathname;
     const manifestUrl = await createPrivateBlobDownloadUrl(manifestBlob.pathname, 8 * 60 * 60 * 1000);
     const snapshot = {
       version: 1,
@@ -121,11 +127,13 @@ export async function POST(request: Request) {
         callback_token: callback.token
       }
     });
+    uploadedManifestPath = null;
     const projectUpdate = await service.from("video_producer_projects").update({ status: "rendering", updated_by: access.user.id }).eq("id", project.id);
     if (projectUpdate.error) console.error("Video Producer project status update failed after render dispatch", projectUpdate.error.message);
     return NextResponse.json({ render: created.data });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Render could not be queued.";
+    if (uploadedManifestPath) await deletePrivateVideoProducerBlob(uploadedManifestPath);
     await service.from("video_producer_renders").update({ status: "failed", error: message, completed_at: new Date().toISOString() }).eq("id", renderId);
     return NextResponse.json({ error: message, code: message.toLowerCase().includes("blob") ? "blob_not_connected" : "render_dispatch_failed" }, { status: 502 });
   }
