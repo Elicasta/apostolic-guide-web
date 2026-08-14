@@ -103,6 +103,8 @@ Video Producer therefore separates storage responsibilities:
 
 Browser uploads use Vercel Blob client multipart upload so the raw file does not pass through a Vercel Function body. Workers receive short-lived private GET/PUT URLs. Persistent database records store the provider pathname, never an expiring signed URL.
 
+If render dispatch fails after a manifest was uploaded, the server removes that private manifest and records the failed job rather than leaking orphaned render instructions into storage.
+
 ### Required Vercel setup
 
 Connect a Vercel Blob store to the Apostolic Guide web project so `BLOB_READ_WRITE_TOKEN` is available to the deployment.
@@ -236,6 +238,8 @@ Service-role-only tables:
 
 Both have RLS enabled and intentionally expose no client-write policies. Admin APIs authenticate `manage_content` permission and perform mutations through the service client.
 
+Foreign-key actor columns (`created_by`, `updated_by`, `requested_by`) have covering indexes so project history does not create avoidable FK maintenance scans as the table grows.
+
 ## Current boundary / next layer
 
 Not implemented yet:
@@ -260,4 +264,5 @@ These should build on the current approved render-plan contract rather than crea
 - Never make FFmpeg or transcription depend on the browser staying open.
 - Keep raw source assets immutable.
 - Create child Reels projects by source range instead of duplicating podcast masters.
+- Clean up a private render manifest if dispatch fails before a worker owns it.
 - Any visual-direction change after planning must invalidate approval before render.
