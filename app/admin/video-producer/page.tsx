@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getStudioPermission } from "@/auth";
+import { VideoProducerProjectLibrary } from "@/video-producer-project-library";
 import { VideoProducerReadiness } from "@/video-producer-readiness";
 import { VideoProducerStudio } from "@/video-producer-studio";
 import { VideoProducerUploadRecovery } from "@/video-producer-upload-recovery";
@@ -11,6 +12,7 @@ export default async function AdminVideoProducerPage() {
     <>
       <span className="video-producer-page-marker" hidden />
       <VideoProducerUploadRecovery />
+      <VideoProducerProjectLibrary />
       <VideoProducerStudio />
       <VideoProducerReadiness />
     </>
