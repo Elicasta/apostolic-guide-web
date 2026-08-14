@@ -155,7 +155,11 @@ export function VideoProducerStudio() {
             <div className="overflow-hidden rounded-3xl border border-white/10 bg-black shadow-2xl">
               <div className="aspect-video bg-[radial-gradient(circle_at_center,#182033_0%,#080b11_52%,#030405_100%)]">
                 {sourceUrl ? (
-                  <video className="h-full w-full object-contain" controls src={sourceUrl} onLoadedMetadata={(event) => setDuration(event.currentTarget.duration || 0)} />
+                  <video className="h-full w-full object-contain" controls src={sourceUrl} onLoadedMetadata={(event) => {
+                    const nextDuration = event.currentTarget.duration;
+                    setDuration(Number.isFinite(nextDuration) && nextDuration > 0 ? nextDuration : 0);
+                    invalidatePlan();
+                  }} />
                 ) : (
                   <label className="flex h-full cursor-pointer flex-col items-center justify-center gap-4 text-white/45">
                     <div className="rounded-2xl border border-white/10 bg-white/[0.05] p-5"><Upload size={30}/></div>
@@ -175,7 +179,7 @@ export function VideoProducerStudio() {
                 <div><div className="text-sm font-bold">Transcript</div><div className="mt-1 text-xs text-white/45">The edit director will work from word-level timestamps. Manual transcript input stays available for correction.</div></div>
                 <Sparkles size={18} className="text-[#4c8dff]"/>
               </div>
-              <textarea value={transcript} onChange={(event) => setTranscript(event.target.value)} placeholder={mode === "podcast" ? "Paste the episode transcript here..." : "Paste the reel transcript or selected clip transcript here..."} className="min-h-72 w-full resize-y rounded-2xl border border-white/10 bg-black/40 p-4 text-sm leading-7 text-white outline-none placeholder:text-white/25 focus:border-[#4c8dff]/60"/>
+              <textarea value={transcript} onChange={(event) => { setTranscript(event.target.value); invalidatePlan(); }} placeholder={mode === "podcast" ? "Paste the episode transcript here..." : "Paste the reel transcript or selected clip transcript here..."} className="min-h-72 w-full resize-y rounded-2xl border border-white/10 bg-black/40 p-4 text-sm leading-7 text-white outline-none placeholder:text-white/25 focus:border-[#4c8dff]/60"/>
             </div>
 
             {mode === "reels" && (
