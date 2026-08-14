@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getStudioPermission } from "@/auth";
 import { createServiceClient } from "@/supabase";
 import { normalizeVideoProducerTranscript, sliceVideoProducerTranscript } from "@/video-producer-ai";
+import { reconcileVideoProducerWorkerState } from "@/video-producer-job-recovery";
 import { createPrivateBlobDownloadUrl } from "@/video-producer-server";
 
 export const runtime = "nodejs";
@@ -13,6 +14,9 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
   if (!/^[0-9a-f-]{36}$/i.test(id)) return NextResponse.json({ error: "Invalid project id." }, { status: 400 });
   const service = createServiceClient();
   if (!service) return NextResponse.json({ error: "Supabase service access is not configured." }, { status: 503 });
+
+  await reconcileVideoProducerWorkerState(service, id);
+
   const [projectResult, rendersResult] = await Promise.all([
     service.from("video_producer_projects").select("*").eq("id", id).maybeSingle(),
     service.from("video_producer_renders").select("id,status,progress,output_storage_path,error,requested_at,started_at,completed_at").eq("project_id", id).order("requested_at", { ascending: false }).limit(20)
