@@ -45,9 +45,9 @@ jobs:
 
       - name: Extract, chunk, transcribe, and report
         env:
-          OPENAI_API_KEY: ${{ secrets.VIDEO_PRODUCER_OPENAI_API_KEY }}
+          VIDEO_PRODUCER_OPENAI_API_KEY: ${{ secrets.VIDEO_PRODUCER_OPENAI_API_KEY }}
         run: |
-          if [ -z "$OPENAI_API_KEY" ]; then
+          if [ -z "$VIDEO_PRODUCER_OPENAI_API_KEY" ]; then
             echo "VIDEO_PRODUCER_OPENAI_API_KEY repository secret is required for Video Producer transcription." >&2
             exit 1
           fi
