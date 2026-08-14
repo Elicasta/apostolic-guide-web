@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import json
-import math
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -62,7 +62,7 @@ def map_word_to_output(word, keep_segments):
     for segment in keep_segments:
         seg_start = float(segment["start"])
         seg_end = float(segment["end"])
-        if seg_start <= midpoint <= seg_end:
+        if seg_start <= midpoint < seg_end or (midpoint == seg_end and segment is keep_segments[-1]):
             mapped_start = cursor + max(0.0, start - seg_start)
             mapped_end = cursor + min(seg_end - seg_start, max(0.02, end - seg_start))
             if mapped_end <= mapped_start:
@@ -213,6 +213,27 @@ def zoompan_filter(plan):
     return f"zoompan=z='{z}':x='(iw-iw/zoom)*({fx})':y='(ih-ih/zoom)*({fy})':d=1:s=1080x1920:fps=30"
 
 
+def color_filter(plan):
+    preset = plan.get("colorPreset") or "none"
+    if preset == "ag-studio":
+        return "eq=contrast=1.04:saturation=1.03:brightness=0.003"
+    if preset == "ag-warm":
+        return "eq=contrast=1.035:saturation=1.045:brightness=0.004:gamma_r=1.025:gamma_b=0.985"
+    if preset == "ag-clean":
+        return "eq=contrast=1.025:saturation=1.035:brightness=0.002"
+    return "null"
+
+
+def audio_filter(plan):
+    preset = plan.get("audioPreset") or "none"
+    tail = "aresample=48000,aformat=sample_fmts=fltp:sample_rates=48000:channel_layouts=stereo"
+    if preset == "ag-voice-punch":
+        return "highpass=f=80,equalizer=f=3000:t=q:w=1:g=1.2,acompressor=threshold=-22dB:ratio=3.2:attack=8:release=120,alimiter=limit=0.94,loudnorm=I=-14:TP=-1:LRA=7," + tail
+    if preset == "ag-voice-clean":
+        return "highpass=f=70,equalizer=f=250:t=q:w=1:g=-1.5,acompressor=threshold=-20dB:ratio=2.5:attack=15:release=180,alimiter=limit=0.95,loudnorm=I=-16:TP=-1.5:LRA=9," + tail
+    return tail
+
+
 def build_ffmpeg(manifest, source, ass_file, output_file):
     plan = manifest["renderPlan"]
     mode = plan["mode"]
@@ -242,25 +263,90 @@ def build_ffmpeg(manifest, source, ass_file, output_file):
     graph.append("".join(concat_inputs) + f"concat=n={len(concat_inputs)}:v=1:a=1[vcat][acat]")
 
     if mode == "reels":
-        video_chain = "fps=30,scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920:x='(iw-1080)*0.5':y='(ih-1920)*0.5',eq=contrast=1.03:saturation=1.04:brightness=0.003"
+        video_chain = "fps=30,scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920:x='(iw-1080)*0.5':y='(ih-1920)*0.5'"
         zoom = zoompan_filter(plan)
         if zoom:
             video_chain += "," + zoom
-        audio_chain = "highpass=f=80,equalizer=f=3000:t=q:w=1:g=1.2,acompressor=threshold=-22dB:ratio=3.2:attack=8:release=120,alimiter=limit=0.94,loudnorm=I=-14:TP=-1:LRA=7"
     else:
-        video_chain = "fps=30,scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2:black,eq=contrast=1.04:saturation=1.03:brightness=0.003"
-        audio_chain = "highpass=f=70,equalizer=f=250:t=q:w=1:g=-1.5,acompressor=threshold=-20dB:ratio=2.5:attack=15:release=180,alimiter=limit=0.95,loudnorm=I=-16:TP=-1.5:LRA=9"
+        video_chain = "fps=30,scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2:black"
+    video_chain += "," + color_filter(plan)
     graph.append(f"[vcat]{video_chain},ass='{ass_file}'[vout]")
-    graph.append(f"[acat]{audio_chain}[aout]")
+    graph.append(f"[acat]{audio_filter(plan)}[aout]")
 
     command += [
         "-filter_complex", ";".join(graph),
         "-map", "[vout]", "-map", "[aout]",
         "-c:v", "libx264", "-preset", "medium", "-crf", "19" if mode == "reels" else "18",
-        "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "192k",
+        "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-ac", "2",
         "-movflags", "+faststart", "-r", "30", output_file
     ]
     return command
+
+
+def make_bumper(manifest, output_file, duration, outro=False):
+    plan = manifest["renderPlan"]
+    output = plan["output"]
+    width, height = int(output["width"]), int(output["height"])
+    brand = manifest.get("brand") or {}
+    wordmark = brand.get("wordmark") or "public/brand/apostolic-guide-wordmark-reversed.png"
+    if not os.path.exists(wordmark):
+        raise RuntimeError(f"brand wordmark not found: {wordmark}")
+    logo_width = 760 if width > height else 720
+    subtitle = "APOSTOLICGUIDE.COM" if outro else "SCRIPTURE · DOCTRINE · STUDY"
+    fade_out_start = max(0.2, duration - 0.3)
+    graph = (
+        f"[1:v]scale={logo_width}:-1[logo];"
+        f"[0:v][logo]overlay=(W-w)/2:(H-h)/2-28,"
+        f"drawtext=font='Noto Sans':text='{subtitle}':fontcolor=white@0.62:fontsize={28 if width > height else 34}:"
+        f"x=(w-text_w)/2:y=(h/2)+120:tracking=5,"
+        f"fade=t=in:st=0:d=0.22,fade=t=out:st={fade_out_start:.2f}:d=0.28,format=yuv420p[v];"
+        f"[2:a]afade=t=in:st=0:d=0.12,afade=t=out:st={fade_out_start:.2f}:d=0.25,"
+        "aresample=48000,aformat=sample_fmts=fltp:sample_rates=48000:channel_layouts=stereo[a]"
+    )
+    subprocess.run([
+        "ffmpeg", "-hide_banner", "-loglevel", "warning", "-y",
+        "-f", "lavfi", "-i", f"color=c=0x05070b:s={width}x{height}:r=30:d={duration}",
+        "-loop", "1", "-i", wordmark,
+        "-f", "lavfi", "-i", "anullsrc=r=48000:cl=stereo",
+        "-filter_complex", graph,
+        "-map", "[v]", "-map", "[a]", "-t", str(duration),
+        "-c:v", "libx264", "-preset", "medium", "-crf", "18", "-pix_fmt", "yuv420p", "-r", "30",
+        "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-ac", "2", "-movflags", "+faststart", output_file
+    ], check=True)
+
+
+def package_with_bumpers(manifest, main_file, final_file, directory):
+    plan = manifest["renderPlan"]
+    parts = []
+    if plan.get("intro"):
+        intro_file = os.path.join(directory, "intro.mp4")
+        make_bumper(manifest, intro_file, 1.8, outro=False)
+        parts.append(intro_file)
+    parts.append(main_file)
+    if plan.get("outro"):
+        outro_file = os.path.join(directory, "outro.mp4")
+        make_bumper(manifest, outro_file, 1.6, outro=True)
+        parts.append(outro_file)
+    if len(parts) == 1:
+        shutil.copy2(main_file, final_file)
+        return
+
+    command = ["ffmpeg", "-hide_banner", "-loglevel", "warning", "-y"]
+    for part in parts:
+        command += ["-i", part]
+    graph = []
+    inputs = []
+    for index in range(len(parts)):
+        graph.append(f"[{index}:v]fps=30,setpts=PTS-STARTPTS[v{index}]")
+        graph.append(f"[{index}:a]aresample=48000,aformat=sample_fmts=fltp:sample_rates=48000:channel_layouts=stereo,asetpts=PTS-STARTPTS[a{index}]")
+        inputs.append(f"[v{index}][a{index}]")
+    graph.append("".join(inputs) + f"concat=n={len(parts)}:v=1:a=1[vout][aout]")
+    command += [
+        "-filter_complex", ";".join(graph), "-map", "[vout]", "-map", "[aout]",
+        "-c:v", "libx264", "-preset", "medium", "-crf", "18", "-pix_fmt", "yuv420p", "-r", "30",
+        "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-ac", "2", "-movflags", "+faststart", final_file
+    ]
+    subprocess.run(command, check=True)
 
 
 def upload_file(url, path):
@@ -282,6 +368,10 @@ def validate_manifest(manifest):
         raise RuntimeError("render geometry does not match producer mode")
     if float(plan.get("outputDuration") or 0) <= 0:
         raise RuntimeError("render output duration is empty")
+    if plan.get("audioPreset") not in ("ag-voice-clean", "ag-voice-punch", "none"):
+        raise RuntimeError("unsupported audio preset")
+    if plan.get("colorPreset") not in ("ag-studio", "ag-warm", "ag-clean", "none"):
+        raise RuntimeError("unsupported color preset")
 
 
 def main():
@@ -299,6 +389,7 @@ def main():
         manifest_path = os.path.join(directory, "manifest.json")
         source_path = os.path.join(directory, "source-video")
         ass_path = os.path.join(directory, "graphics.ass")
+        main_path = os.path.join(directory, "main.mp4")
         download(payload["manifest_url"], manifest_path)
         with open(manifest_path, "r", encoding="utf-8") as handle:
             manifest = json.load(handle)
@@ -307,12 +398,15 @@ def main():
         download(payload["source_url"], source_path)
         callback(payload, "rendering", 12, "Building captions and graphics")
         build_ass(manifest, ass_path)
-        callback(payload, "rendering", 18, "Rendering video")
-        command = build_ffmpeg(manifest, source_path, ass_path, sys.argv[2])
-        subprocess.run(command, check=True)
+        callback(payload, "rendering", 18, "Rendering approved edit")
+        subprocess.run(build_ffmpeg(manifest, source_path, ass_path, main_path), check=True)
+        if not os.path.exists(main_path) or os.path.getsize(main_path) < 1024:
+            raise RuntimeError("ffmpeg completed without a usable main render")
+        callback(payload, "rendering", 82, "Packaging branded intro and outro")
+        package_with_bumpers(manifest, main_path, sys.argv[2], directory)
         if not os.path.exists(sys.argv[2]) or os.path.getsize(sys.argv[2]) < 1024:
-            raise RuntimeError("ffmpeg completed without a usable output file")
-        callback(payload, "rendering", 92, "Uploading finished master")
+            raise RuntimeError("Video Producer package did not create a usable output file")
+        callback(payload, "rendering", 94, "Uploading finished master")
         upload_file(payload["output_upload_url"], sys.argv[2])
         callback(payload, "completed", 100, "Ready to review")
 
