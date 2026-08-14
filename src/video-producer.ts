@@ -20,6 +20,8 @@ export type VideoProducerOverlayKind =
   | "quote"
   | "cta";
 
+export type VideoProducerOverlayAnimation = "fade" | "rise" | "slide" | "pop" | "wipe" | "none";
+export type VideoProducerOverlayPlacement = "top" | "center" | "lower-third" | "full-frame";
 export type VideoProducerMotionKind = "punch-in" | "reframe" | "emphasis" | "b-roll";
 export type VideoProducerCaptionStyle = "kinetic-clean" | "word-pop" | "editorial" | "minimal";
 export type VideoProducerCaptionAnimation = "pop" | "rise" | "highlight" | "none";
@@ -39,6 +41,14 @@ export type VideoProducerOverlay = {
   title: string;
   body?: string;
   reference?: string;
+  animation?: VideoProducerOverlayAnimation;
+  placement?: VideoProducerOverlayPlacement;
+};
+
+export type VideoProducerMotionTransform = {
+  focusX: number;
+  focusY: number;
+  scale: number;
 };
 
 export type VideoProducerMotionCue = {
@@ -47,6 +57,7 @@ export type VideoProducerMotionCue = {
   start: number;
   duration: number;
   intensity?: "subtle" | "medium" | "strong";
+  transform?: VideoProducerMotionTransform;
   note?: string;
 };
 
@@ -237,6 +248,14 @@ export function mapSourceRangeToOutputRanges(start: number, end: number, cuts: V
   return ranges;
 }
 
+export function sanitizeVideoProducerTransform(transform: VideoProducerMotionTransform): VideoProducerMotionTransform {
+  return {
+    focusX: clamp(finiteNumber(transform.focusX, 0.5), 0, 1),
+    focusY: clamp(finiteNumber(transform.focusY, 0.5), 0, 1),
+    scale: clamp(finiteNumber(transform.scale, 1), 1, 2.5)
+  };
+}
+
 export function compileVideoProducerRenderPlan(plan: VideoProducerEditPlan): VideoProducerRenderPlan {
   const sourceDuration = Math.max(0, finiteNumber(plan.sourceDuration));
   const cuts = normalizeVideoProducerCuts(plan.cuts, sourceDuration);
@@ -257,6 +276,7 @@ export function compileVideoProducerRenderPlan(plan: VideoProducerEditPlan): Vid
     })),
     motion: plan.motion.map((cue) => ({
       ...cue,
+      transform: cue.transform ? sanitizeVideoProducerTransform(cue.transform) : undefined,
       outputStart: sourceTimeToOutputTime(cue.start, cuts, sourceDuration),
       outputRanges: mapSourceRangeToOutputRanges(cue.start, cue.start + Math.max(0, finiteNumber(cue.duration)), cuts, sourceDuration)
     })),
