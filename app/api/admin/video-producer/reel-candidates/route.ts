@@ -8,7 +8,7 @@ import {
   transcriptForModel,
   VIDEO_PRODUCER_CANDIDATES_JSON_SCHEMA
 } from "@/video-producer-ai";
-import { extractOpenAIResponseText } from "@/video-producer-server";
+import { extractOpenAIResponseText, videoProducerOpenAIKey } from "@/video-producer-server";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -20,8 +20,8 @@ export async function POST(request: Request) {
   if (!allowed || access.state !== "allowed" || !access.user) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const parsed = schema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Invalid reel candidate request." }, { status: 400 });
-  const apiKey = process.env.OPENAI_API_KEY?.trim();
-  if (!apiKey) return NextResponse.json({ error: "OPENAI_API_KEY is not configured." }, { status: 503 });
+  const apiKey = videoProducerOpenAIKey();
+  if (!apiKey) return NextResponse.json({ error: "VIDEO_PRODUCER_OPENAI_API_KEY is not configured." }, { status: 503 });
   const model = process.env.OPENAI_SOCIAL_CLIP_MODEL?.trim() || process.env.OPENAI_VIDEO_PRODUCER_MODEL?.trim() || "gpt-5.6-sol";
   const service = createServiceClient();
   if (!service) return NextResponse.json({ error: "Supabase service access is not configured." }, { status: 503 });
@@ -33,7 +33,7 @@ export async function POST(request: Request) {
   if (projectResult.error) return NextResponse.json({ error: projectResult.error.message }, { status: 500 });
   const project = projectResult.data;
   if (!project || project.mode !== "podcast") return NextResponse.json({ error: "Choose a Podcast Mode project." }, { status: 404 });
-  if (!['approved','rendering','review','completed'].includes(project.status)) return NextResponse.json({ error: "Approve the podcast edit before extracting reels." }, { status: 409 });
+  if (!["approved","rendering","review","completed"].includes(project.status)) return NextResponse.json({ error: "Approve the podcast edit before extracting reels." }, { status: 409 });
   const transcript = normalizeVideoProducerTranscript(project.transcript);
   if (!transcript.words.length || !transcript.text) return NextResponse.json({ error: "Podcast transcript is missing." }, { status: 409 });
 
