@@ -2,7 +2,7 @@ name: Video Producer dispatcher
 
 on:
   repository_dispatch:
-    types: [video-producer-transcribe, video-producer-render]
+    types: [video-producer-transcribe, video-producer-render, video-producer-thumbnail, video-producer-publisher-handoff]
 
 permissions:
   contents: read
@@ -22,13 +22,11 @@ jobs:
             main|codex/video-producer) ;;
             *) echo "Refusing untrusted Video Producer worker ref: $WORKER_REF" >&2; exit 1 ;;
           esac
-
       - name: Check out requested worker ref
         uses: actions/checkout@v4
         with:
           ref: ${{ env.WORKER_REF }}
           persist-credentials: false
-
       - name: Prepare ffmpeg
         shell: bash
         run: |
@@ -36,13 +34,10 @@ jobs:
             sudo apt-get update -qq
             sudo apt-get install -y --no-install-recommends ffmpeg
           fi
-
       - name: Write worker payload
         env:
           WORKER_PAYLOAD: ${{ toJson(github.event.client_payload) }}
-        run: |
-          printf '%s' "$WORKER_PAYLOAD" > /tmp/video-producer-transcribe.json
-
+        run: printf '%s' "$WORKER_PAYLOAD" > /tmp/video-producer-transcribe.json
       - name: Extract, chunk, transcribe, and report
         env:
           VIDEO_PRODUCER_OPENAI_API_KEY: ${{ secrets.VIDEO_PRODUCER_OPENAI_API_KEY }}
@@ -67,13 +62,11 @@ jobs:
             main|codex/video-producer) ;;
             *) echo "Refusing untrusted Video Producer worker ref: $WORKER_REF" >&2; exit 1 ;;
           esac
-
       - name: Check out requested worker ref
         uses: actions/checkout@v4
         with:
           ref: ${{ env.WORKER_REF }}
           persist-credentials: false
-
       - name: Prepare ffmpeg, AG fonts, and curl
         shell: bash
         run: |
@@ -85,17 +78,12 @@ jobs:
             fi
           done
           fc-cache -f >/dev/null 2>&1 || true
-
       - name: Write render payload
         env:
           RENDER_PAYLOAD: ${{ toJson(github.event.client_payload) }}
-        run: |
-          printf '%s' "$RENDER_PAYLOAD" > /tmp/video-producer-render.json
-
+        run: printf '%s' "$RENDER_PAYLOAD" > /tmp/video-producer-render.json
       - name: Render, upload, and report status
-        run: |
-          python3 scripts/render_video_producer_broadcast_worker.py /tmp/video-producer-render.json /tmp/video-producer.mp4
-
+        run: python3 scripts/render_video_producer_finishing_worker.py /tmp/video-producer-render.json /tmp/video-producer.mp4
       - name: Keep failed render for diagnostics
         if: failure()
         uses: actions/upload-artifact@v4
@@ -106,3 +94,73 @@ jobs:
             /tmp/video-producer.mp4
           if-no-files-found: ignore
           retention-days: 2
+
+  thumbnails:
+    if: github.event.action == 'video-producer-thumbnail'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      WORKER_REF: ${{ github.event.client_payload.worker_ref || github.event.repository.default_branch }}
+    steps:
+      - name: Validate worker ref
+        shell: bash
+        run: |
+          case "$WORKER_REF" in
+            main|codex/video-producer) ;;
+            *) echo "Refusing untrusted Video Producer worker ref: $WORKER_REF" >&2; exit 1 ;;
+          esac
+      - name: Check out requested worker ref
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.WORKER_REF }}
+          persist-credentials: false
+      - name: Prepare thumbnail renderer
+        shell: bash
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends ffmpeg curl fonts-noto-core fontconfig
+          for pkg in fonts-bebas-neue fonts-montserrat; do
+            if apt-cache show "$pkg" >/dev/null 2>&1; then
+              sudo apt-get install -y --no-install-recommends "$pkg"
+            fi
+          done
+          fc-cache -f >/dev/null 2>&1 || true
+      - name: Write thumbnail payload
+        env:
+          WORKER_PAYLOAD: ${{ toJson(github.event.client_payload) }}
+        run: printf '%s' "$WORKER_PAYLOAD" > /tmp/video-producer-thumbnail.json
+      - name: Render three YouTube candidates
+        run: python3 scripts/video_producer_thumbnail_worker.py /tmp/video-producer-thumbnail.json
+
+  publisher_handoff:
+    if: github.event.action == 'video-producer-publisher-handoff'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      WORKER_REF: ${{ github.event.client_payload.worker_ref || github.event.repository.default_branch }}
+    steps:
+      - name: Validate worker ref
+        shell: bash
+        run: |
+          case "$WORKER_REF" in
+            main|codex/video-producer) ;;
+            *) echo "Refusing untrusted Video Producer worker ref: $WORKER_REF" >&2; exit 1 ;;
+          esac
+      - name: Check out requested worker ref
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.WORKER_REF }}
+          persist-credentials: false
+      - name: Prepare transfer worker
+        shell: bash
+        run: |
+          if ! command -v curl >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo apt-get install -y --no-install-recommends curl
+          fi
+      - name: Write Publisher payload
+        env:
+          WORKER_PAYLOAD: ${{ toJson(github.event.client_payload) }}
+        run: printf '%s' "$WORKER_PAYLOAD" > /tmp/video-producer-publisher.json
+      - name: Copy reviewed master to Publisher
+        run: python3 scripts/video_producer_publisher_handoff_worker.py /tmp/video-producer-publisher.json
