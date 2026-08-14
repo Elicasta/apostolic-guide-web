@@ -9,6 +9,7 @@ export default async function AdminVideoProducerPage() {
   if (!allowed || access.state !== "allowed") redirect("/admin");
   return (
     <>
+      <span className="video-producer-page-marker" hidden />
       <VideoProducerUploadRecovery />
       <VideoProducerStudio />
       <VideoProducerReadiness />

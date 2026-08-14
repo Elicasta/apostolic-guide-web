@@ -1,5 +1,5 @@
 import "server-only";
-import { CheckCircle2, CircleAlert, CircleHelp, Database, Film, Github, HardDrive, Sparkles } from "lucide-react";
+import { CheckCircle2, ChevronDown, CircleAlert, CircleHelp, Database, Film, Github, HardDrive, Sparkles } from "lucide-react";
 import { createServiceClient } from "./supabase";
 import { videoProducerOpenAIKey, videoProducerRendererCredentials } from "./video-producer-server";
 
@@ -49,12 +49,26 @@ async function checkActionsTranscriptionSecret(repository: string, token: string
         : { state: "error" as const, detail: "Add VIDEO_PRODUCER_OPENAI_API_KEY to GitHub Actions repository secrets." };
     }
     if (response.status === 403 || response.status === 404) {
-      return { state: "warning" as const, detail: "Actions secret cannot be inspected with the render token. Verify VIDEO_PRODUCER_OPENAI_API_KEY once in GitHub Actions." };
+      return { state: "warning" as const, detail: "The render token cannot enumerate Actions secrets. The transcription readiness workflow verifies this credential without exposing its value." };
     }
-    return { state: "warning" as const, detail: `GitHub secret check returned ${response.status}; verify the Actions transcription secret manually.` };
+    return { state: "warning" as const, detail: `GitHub secret check returned ${response.status}; verify the Actions transcription secret.` };
   } catch {
-    return { state: "warning" as const, detail: "GitHub secret check was unavailable; verify the Actions transcription secret manually." };
+    return { state: "warning" as const, detail: "GitHub secret inspection was unavailable. The worker will still validate the credential when transcription runs." };
   }
+}
+
+function StatusRow({ item }: { item: ReadinessItem }) {
+  const Icon = item.icon;
+  const Status = item.state === "ready" ? CheckCircle2 : item.state === "warning" ? CircleHelp : CircleAlert;
+  return (
+    <div className={`vp-system-row vp-system-row--${item.state}`}>
+      <span className="vp-system-icon"><Icon size={16}/></span>
+      <div className="vp-system-copy">
+        <div className="vp-system-label"><Status size={15}/><strong>{item.label}</strong></div>
+        <p>{item.detail}</p>
+      </div>
+    </div>
+  );
 }
 
 export async function VideoProducerReadiness() {
@@ -73,7 +87,9 @@ export async function VideoProducerReadiness() {
   const blobReady = Boolean(process.env.BLOB_READ_WRITE_TOKEN?.trim());
   items.push({
     label: "Private media storage",
-    detail: blobReady ? "Vercel Blob write token is present for multipart source uploads and private masters." : "Connect a private Vercel Blob store so BLOB_READ_WRITE_TOKEN is available.",
+    detail: blobReady
+      ? "Private Vercel Blob storage is connected for source uploads and review masters."
+      : "Video upload is disabled until a private Vercel Blob store is connected to this project.",
     state: blobReady ? "ready" : "error",
     icon: HardDrive
   });
@@ -124,36 +140,51 @@ export async function VideoProducerReadiness() {
   const workerSecret = await checkActionsTranscriptionSecret(rendererRepository, rendererToken);
   items.push({ label: "Transcription worker", detail: workerSecret.detail, state: workerSecret.state, icon: Film });
 
-  const blocking = items.filter((item) => item.state === "error").length;
-  const warnings = items.filter((item) => item.state === "warning").length;
-  const ready = blocking === 0;
+  const blockers = items.filter((item) => item.state === "error");
+  const warnings = items.filter((item) => item.state === "warning");
+  const readyItems = items.filter((item) => item.state === "ready");
+  const ready = blockers.length === 0;
 
   return (
-    <section className="fixed bottom-4 right-4 z-[60] w-[min(390px,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-white/10 bg-[#090c12]/95 text-white shadow-2xl shadow-black/50 backdrop-blur-xl">
-      <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
-        <div>
-          <div className="text-[10px] font-black uppercase tracking-[.18em] text-white/35">Video Producer system</div>
-          <div className="mt-0.5 text-sm font-bold">{ready ? "Ready for a real source" : `${blocking} setup item${blocking === 1 ? "" : "s"} blocking production`}</div>
-        </div>
-        {ready ? <CheckCircle2 className="text-emerald-400" size={20}/> : <CircleAlert className="text-[#ff6269]" size={20}/>} 
-      </div>
-      <div className="max-h-[46vh] overflow-y-auto p-2">
-        {items.map((item) => {
-          const Icon = item.icon;
-          const Status = item.state === "ready" ? CheckCircle2 : item.state === "warning" ? CircleHelp : CircleAlert;
-          const statusClass = item.state === "ready" ? "text-emerald-400" : item.state === "warning" ? "text-amber-300" : "text-[#ff6269]";
-          return (
-            <div key={item.label} className="flex gap-3 rounded-xl px-3 py-2.5 hover:bg-white/[0.035]">
-              <div className="mt-0.5 rounded-lg border border-white/8 bg-white/[0.04] p-1.5 text-white/55"><Icon size={14}/></div>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2 text-xs font-bold"><Status size={13} className={statusClass}/>{item.label}</div>
-                <div className="mt-1 text-[11px] leading-4 text-white/42">{item.detail}</div>
-              </div>
+    <section className="video-producer-system" aria-label="Video Producer system status">
+      <details className="vp-system-details" open={!ready}>
+        <summary className="vp-system-summary">
+          <div>
+            <span className="vp-system-eyebrow">System status</span>
+            <strong>{ready ? "Ready for a real source" : `${blockers.length} setup item${blockers.length === 1 ? "" : "s"} blocking production`}</strong>
+            <small>{ready ? "Upload, transcription, Sol and render infrastructure are available." : blockers[0]?.detail}</small>
+          </div>
+          <span className={ready ? "vp-system-summary-icon is-ready" : "vp-system-summary-icon is-error"}>
+            {ready ? <CheckCircle2 size={22}/> : <CircleAlert size={22}/>}
+            <ChevronDown size={17}/>
+          </span>
+        </summary>
+
+        <div className="vp-system-body">
+          {blockers.length > 0 && (
+            <div className="vp-system-group">
+              <div className="vp-system-group-title">Needs attention</div>
+              {blockers.map((item) => <StatusRow key={item.label} item={item}/>) }
             </div>
-          );
-        })}
-      </div>
-      {(warnings > 0 || blocking > 0) && <div className="border-t border-white/8 px-4 py-2.5 text-[10px] leading-4 text-white/35">This panel never displays secret values. Reload after changing infrastructure settings.</div>}
+          )}
+
+          {warnings.length > 0 && (
+            <div className="vp-system-group">
+              <div className="vp-system-group-title">Informational</div>
+              {warnings.map((item) => <StatusRow key={item.label} item={item}/>) }
+            </div>
+          )}
+
+          <details className="vp-system-all-checks">
+            <summary>Show {readyItems.length} passing system checks</summary>
+            <div className="vp-system-passing-list">
+              {readyItems.map((item) => <StatusRow key={item.label} item={item}/>) }
+            </div>
+          </details>
+
+          <p className="vp-system-footnote">Secret values are never displayed here. Reload this page after changing infrastructure settings.</p>
+        </div>
+      </details>
     </section>
   );
 }

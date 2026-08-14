@@ -33,6 +33,7 @@ import "./video-studio-review.css";
 import "./channel-publishing.css";
 import "./ai-clips-v2.css";
 import "./video-producer.css";
+import "./video-producer-flow.css";
 
 export const dynamic = "force-dynamic";
 
