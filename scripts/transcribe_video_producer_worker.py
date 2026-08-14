@@ -123,9 +123,9 @@ def main():
         if not payload.get(key):
             raise RuntimeError(f"missing payload field: {key}")
 
-    api_key = os.environ.get("OPENAI_API_KEY", "").strip()
+    api_key = os.environ.get("VIDEO_PRODUCER_OPENAI_API_KEY", "").strip()
     if not api_key:
-        raise RuntimeError("OPENAI_API_KEY is not configured in GitHub Actions secrets")
+        raise RuntimeError("VIDEO_PRODUCER_OPENAI_API_KEY is not configured in GitHub Actions secrets")
     model = payload.get("transcription_model") or "whisper-1"
     if model != "whisper-1":
         raise RuntimeError("word-level Video Producer timing currently requires whisper-1")
