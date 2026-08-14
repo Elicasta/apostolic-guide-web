@@ -57,7 +57,9 @@ approval fingerprint
       ↓
 immutable private render manifest
       ↓
-GitHub Actions FFmpeg worker
+default-branch GitHub dispatcher
+      ↓
+branch-aware FFmpeg worker
       ↓
 private review master
 ```
@@ -78,7 +80,53 @@ Persistent records store the private provider pathname, never an expiring signed
 
 The Vercel project needs a connected Blob store so `BLOB_READ_WRITE_TOKEN` is available. Video Producer currently application-limits source files to 20 GB, while provider/account limits remain authoritative.
 
-The GitHub repository needs an Actions secret named `OPENAI_API_KEY` for the asynchronous transcription worker. The server-side Sol Director continues to use the application's existing OpenAI key.
+The app needs its existing `OPENAI_API_KEY` for Sol direction. `OPENAI_VIDEO_PRODUCER_MODEL` or `OPENAI_VIDEO_DIRECTOR_MODEL` can override the default `gpt-5.6-sol` director model.
+
+The GitHub repository needs an Actions secret named `OPENAI_API_KEY` for the asynchronous transcription worker. The server-side Sol Director continues to use the application's OpenAI key.
+
+The app also needs the existing Video Studio GitHub render token/repository configuration, either through environment variables or the encrypted integration-secret fallback.
+
+## Default-branch worker dispatcher
+
+GitHub `repository_dispatch` requires the receiving workflow to exist on the repository default branch. Video Producer therefore uses one inert default-branch dispatcher at:
+
+`/.github/workflows/video-producer-dispatch.yml`
+
+The dispatcher:
+
+- listens only for `video-producer-transcribe` and `video-producer-render`
+- uses read-only `contents: read` repository permission
+- accepts only trusted worker refs: `main` and `codex/video-producer`
+- checks out worker code with persisted Git credentials disabled
+- lets draft preview deployments run their exact branch worker code before the feature is merged
+- naturally falls back to `main` after production merge
+
+Preview app requests include the active Vercel Git ref as `worker_ref`; production resolves to `main` unless explicitly overridden.
+
+## System readiness panel
+
+The protected Video Producer admin route includes a server-rendered readiness panel. It checks without displaying secret values:
+
+1. Video Producer database access
+2. private Vercel Blob configuration
+3. app OpenAI/Sol configuration
+4. GitHub worker token/repository access
+5. presence of the default-branch Video Producer dispatcher
+6. visibility/presence of the GitHub Actions transcription secret when token permissions allow inspection
+
+A secret-name inspection permission failure is shown as a warning rather than falsely reporting the secret as missing.
+
+## Upload recovery
+
+Source upload state is provisional until the private Blob completion callback arrives.
+
+If the browser is closed, Wi-Fi drops, or the response is lost while a project is left in `uploading`, a fresh Video Producer page performs one recovery pass:
+
+- if the expected private Blob exists, the project is finalized as `uploaded`
+- if the Blob does not exist, provisional source fields are cleared and the project returns to `draft` for retry
+- if Blob itself cannot be checked, state is preserved rather than guessed
+
+The recovery assistant runs once on page load, not continuously during an active multipart upload, so it does not race legitimate large transfers.
 
 ## Transcription worker
 
@@ -109,6 +157,27 @@ All model-proposed transforms are sanitized before render. `focusX` and `focusY`
 Approval stores a SHA-256 fingerprint of the exact edit plan. The render route recomputes that fingerprint before dispatch. If the edit changed after approval, rendering is rejected and the project must be reviewed again.
 
 Timed overlays, motion, and music ranges are remapped around cuts. A point event that lands inside removed footage is not silently moved onto an unrelated sentence.
+
+## Callback and stale-job safety
+
+Worker callbacks use random tokens whose hashes are stored with the project/render snapshot. Terminal states burn the token by clearing the stored hash.
+
+Callback tokens are invalidated after:
+
+- successful transcription
+- failed transcription
+- transcription timeout recovery
+- successful render
+- failed render
+- render timeout recovery
+
+This prevents an old or delayed worker from overwriting the state of a newer retry.
+
+Workers report heartbeat timestamps through progress callbacks. Project refresh performs conservative stale-job reconciliation:
+
+- transcription can self-fail only after exceeding the 90-minute worker window with margin
+- rendering can self-fail only after exceeding the 180-minute worker window with margin
+- a stale render returns the project to `approved`, preserving the reviewed edit and allowing render retry
 
 ## FFmpeg render worker
 
@@ -149,7 +218,7 @@ RLS is enabled and no direct client-write policies are created. Admin APIs requi
 
 The repository's Node suite covers timestamp normalization, transcript slicing, destructive-cut guards, strict director parsing, mode geometry, transform sanitization, and reel-candidate deduplication. Vercel performs the production Next.js/TypeScript build. GitHub Actions separately smoke-renders both media modes with FFmpeg.
 
-A real camera-file end-to-end run still requires the private Blob connection and the Actions `OPENAI_API_KEY` described above.
+A real camera-file end-to-end run still requires the private Blob connection and the Actions `OPENAI_API_KEY` described above. PR #41 remains draft until one real source completes upload → transcription → Sol → approval → render → review.
 
 ## Next layers
 
