@@ -80,9 +80,9 @@ Persistent records store the private provider pathname, never an expiring signed
 
 The Vercel project needs a connected Blob store so `BLOB_READ_WRITE_TOKEN` is available. Video Producer currently application-limits source files to 20 GB, while provider/account limits remain authoritative.
 
-The app needs its existing `OPENAI_API_KEY` for Sol direction. `OPENAI_VIDEO_PRODUCER_MODEL` or `OPENAI_VIDEO_DIRECTOR_MODEL` can override the default `gpt-5.6-sol` director model.
+Video Producer uses its own `VIDEO_PRODUCER_OPENAI_API_KEY` in Vercel for Sol direction and short-form selection. It intentionally does not fall back to the application's existing `OPENAI_API_KEY`, so the publishing/narration workload remains isolated. `OPENAI_VIDEO_PRODUCER_MODEL` or `OPENAI_VIDEO_DIRECTOR_MODEL` can override the default `gpt-5.6-sol` director model.
 
-The GitHub repository needs an Actions secret named `OPENAI_API_KEY` for the asynchronous transcription worker. The server-side Sol Director continues to use the application's OpenAI key.
+The GitHub repository also needs an Actions secret named `VIDEO_PRODUCER_OPENAI_API_KEY` for the asynchronous transcription worker. The same secret name is passed only to the Video Producer worker process.
 
 The app also needs the existing Video Studio GitHub render token/repository configuration, either through environment variables or the encrypted integration-secret fallback.
 
@@ -109,10 +109,10 @@ The protected Video Producer admin route includes a server-rendered readiness pa
 
 1. Video Producer database access
 2. private Vercel Blob configuration
-3. app OpenAI/Sol configuration
+3. dedicated Video Producer OpenAI/Sol configuration
 4. GitHub worker token/repository access
 5. presence of the default-branch Video Producer dispatcher
-6. visibility/presence of the GitHub Actions transcription secret when token permissions allow inspection
+6. visibility/presence of the GitHub Actions `VIDEO_PRODUCER_OPENAI_API_KEY` when token permissions allow inspection
 
 A secret-name inspection permission failure is shown as a warning rather than falsely reporting the secret as missing.
 
@@ -218,7 +218,7 @@ RLS is enabled and no direct client-write policies are created. Admin APIs requi
 
 The repository's Node suite covers timestamp normalization, transcript slicing, destructive-cut guards, strict director parsing, mode geometry, transform sanitization, and reel-candidate deduplication. Vercel performs the production Next.js/TypeScript build. GitHub Actions separately smoke-renders both media modes with FFmpeg.
 
-A real camera-file end-to-end run still requires the private Blob connection and the Actions `OPENAI_API_KEY` described above. PR #41 remains draft until one real source completes upload → transcription → Sol → approval → render → review.
+A real camera-file end-to-end run requires private Blob configuration plus `VIDEO_PRODUCER_OPENAI_API_KEY` in both Vercel and GitHub Actions. The app and worker intentionally use the dedicated Video Producer credential rather than the existing publishing key.
 
 ## Next layers
 
