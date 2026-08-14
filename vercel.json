@@ -5,6 +5,10 @@
     {
       "path": "/api/cron/publishing",
       "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/threads-publishing",
+      "schedule": "*/5 * * * *"
     }
   ]
 }

@@ -32,8 +32,7 @@ export const SOCIAL_PUBLISHING_SECRET_NAMES = {
     appSecret: "meta_threads_app_secret",
     accessToken: "meta_threads_access_token",
     userId: "meta_threads_user_id",
-    username: "meta_threads_username",
-    expiresAt: "meta_threads_expires_at"
+    username: "meta_threads_username"
   },
   tiktok: {
     clientKey: "tiktok_client_key",
@@ -52,7 +51,7 @@ export type SocialPublishingCredentialInput = {
 };
 
 type SecretRow = { name: string; secret: string; updated_at?: string | null };
-type ConnectionStatus = { platform?: string | null; username?: string | null; last_verified_at?: string | null };
+type ConnectionStatus = { username?: string | null; last_verified_at?: string | null } | null | undefined;
 
 function allSecretNames() {
   return Object.values(SOCIAL_PUBLISHING_SECRET_NAMES).flatMap((group) => Object.values(group));
@@ -64,11 +63,11 @@ function boolFields<T extends Record<string, string>>(names: T, values: Map<stri
 
 export function summarizeSocialPublishingCredentials(
   rows: SecretRow[],
-  statuses: ConnectionStatus[] = []
+  instagramStatus?: ConnectionStatus,
+  threadsStatus?: ConnectionStatus
 ): SocialPublishingCredentialStatus[] {
   const values = new Map(rows.map((row) => [row.name, row.secret]));
   const updated = new Map(rows.map((row) => [row.name, row.updated_at ?? null]));
-  const statusByPlatform = new Map(statuses.map((status) => [status.platform, status]));
   const newest = (names: Record<string, string>) => Object.values(names)
     .map((name) => updated.get(name))
     .filter((value): value is string => Boolean(value))
@@ -79,8 +78,6 @@ export function summarizeSocialPublishingCredentials(
   const instagramFields = boolFields(SOCIAL_PUBLISHING_SECRET_NAMES.instagram, values);
   const threadsFields = boolFields(SOCIAL_PUBLISHING_SECRET_NAMES.threads, values);
   const tiktokFields = boolFields(SOCIAL_PUBLISHING_SECRET_NAMES.tiktok, values);
-  const instagramStatus = statusByPlatform.get("instagram");
-  const threadsStatus = statusByPlatform.get("threads");
 
   return [
     {
@@ -103,11 +100,7 @@ export function summarizeSocialPublishingCredentials(
       platform: "threads",
       appConfigured: threadsFields.appId && threadsFields.appSecret,
       accountAuthorized: threadsFields.accessToken && threadsFields.userId,
-      accountLabel: threadsStatus?.username
-        ? `@${threadsStatus.username.replace(/^@/, "")}`
-        : values.get(SOCIAL_PUBLISHING_SECRET_NAMES.threads.username)?.trim()
-          ? `@${values.get(SOCIAL_PUBLISHING_SECRET_NAMES.threads.username)?.trim()?.replace(/^@/, "")}`
-          : values.get(SOCIAL_PUBLISHING_SECRET_NAMES.threads.userId)?.trim() || null,
+      accountLabel: threadsStatus?.username ? `@${threadsStatus.username.replace(/^@/, "")}` : values.get(SOCIAL_PUBLISHING_SECRET_NAMES.threads.username)?.trim() ? `@${values.get(SOCIAL_PUBLISHING_SECRET_NAMES.threads.username)?.trim()?.replace(/^@/, "")}` : values.get(SOCIAL_PUBLISHING_SECRET_NAMES.threads.userId)?.trim() || null,
       fields: threadsFields,
       updatedAt: threadsStatus?.last_verified_at ?? newest(SOCIAL_PUBLISHING_SECRET_NAMES.threads)
     },
@@ -136,8 +129,12 @@ export async function getSocialPublishingCredentialStatus(): Promise<SocialPubli
   ]);
 
   if (secretsResult.error) throw new Error(secretsResult.error.message);
-  const statuses = statusResult.error ? [] : (statusResult.data ?? []) as ConnectionStatus[];
-  return summarizeSocialPublishingCredentials((secretsResult.data ?? []) as SecretRow[], statuses);
+  const statuses = new Map((statusResult.error ? [] : statusResult.data ?? []).map((row) => [String(row.platform), row]));
+  return summarizeSocialPublishingCredentials(
+    (secretsResult.data ?? []) as SecretRow[],
+    statuses.get("instagram") as ConnectionStatus,
+    statuses.get("threads") as ConnectionStatus
+  );
 }
 
 export async function getSocialPublishingCredentialValues(platform: SocialPublishingPlatform) {
