@@ -13,7 +13,8 @@ import {
   dispatchVideoProducerWorker,
   storeVideoProducerManifest,
   videoProducerPlanFingerprint,
-  videoProducerRendererCredentials
+  videoProducerRendererCredentials,
+  videoProducerWorkerRef
 } from "@/video-producer-server";
 
 export const runtime = "nodejs";
@@ -63,6 +64,7 @@ export async function POST(request: Request) {
   catch (error) { return NextResponse.json({ error: error instanceof Error ? error.message : "Worker credentials could not be loaded." }, { status: 500 }); }
   if (!githubToken) return NextResponse.json({ error: "Video worker is not connected." }, { status: 503 });
 
+  const workerRef = videoProducerWorkerRef();
   const renderId = randomUUID();
   const manifestPath = `video-producer/manifests/${project.id}/${renderId}.json`;
   const outputPath = `video-producer/renders/${project.id}/${renderId}.mp4`;
@@ -100,6 +102,7 @@ export async function POST(request: Request) {
       mode: project.mode,
       output: renderPlan.output,
       sourceRange,
+      workerRef,
       rendererBridge: { callbackTokenHash: callback.hash, manifestPath: manifestBlob.pathname, outputPath }
     };
     const created = await service.from("video_producer_renders").insert({
@@ -120,6 +123,7 @@ export async function POST(request: Request) {
       payload: {
         job_id: renderId,
         project_id: project.id,
+        worker_ref: workerRef,
         source_url: sourceUrl,
         manifest_url: manifestUrl,
         output_upload_url: outputUploadUrl,
@@ -130,7 +134,7 @@ export async function POST(request: Request) {
     uploadedManifestPath = null;
     const projectUpdate = await service.from("video_producer_projects").update({ status: "rendering", updated_by: access.user.id }).eq("id", project.id);
     if (projectUpdate.error) console.error("Video Producer project status update failed after render dispatch", projectUpdate.error.message);
-    return NextResponse.json({ render: created.data });
+    return NextResponse.json({ render: created.data, workerRef });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Render could not be queued.";
     if (uploadedManifestPath) await deletePrivateVideoProducerBlob(uploadedManifestPath);
