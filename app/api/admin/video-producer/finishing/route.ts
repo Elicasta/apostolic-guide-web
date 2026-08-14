@@ -31,7 +31,7 @@ export async function GET(request: Request) {
       .select("id,title,mode,status,parent_project_id,pathway_slug,selected_music_track_id,publisher_render_id,source_duration,edit_plan,approval_fingerprint")
       .eq("id", projectId).maybeSingle(),
     service.from("video_producer_music_tracks")
-      .select("id,title,source_provider,source_url,filename,content_type,size_bytes,duration_seconds,bpm,mood,tags,rights_note,active,updated_at")
+      .select("id,title,source_provider,source_url,storage_locator,filename,content_type,size_bytes,duration_seconds,bpm,mood,tags,rights_note,active,updated_at")
       .eq("active", true).order("updated_at", { ascending: false }).limit(100),
     service.from("video_producer_thumbnails")
       .select("id,project_id,variant,headline,timestamp_seconds,status,storage_locator,error,created_at,completed_at")
@@ -45,25 +45,39 @@ export async function GET(request: Request) {
   if (tracksResult.error) return NextResponse.json({ error: tracksResult.error.message }, { status: 500 });
   if (thumbsResult.error) return NextResponse.json({ error: thumbsResult.error.message }, { status: 500 });
   if (renderResult.error) return NextResponse.json({ error: renderResult.error.message }, { status: 500 });
-  if (!projectResult.data) return NextResponse.json({ error: "Project not found." }, { status: 404 });
+  const project = projectResult.data;
+  if (!project) return NextResponse.json({ error: "Project not found." }, { status: 404 });
 
-  const thumbnails = await Promise.all((thumbsResult.data ?? []).map(async (thumb) => ({
-    ...thumb,
-    previewUrl: thumb.status === "completed" && thumb.storage_locator
-      ? await createPrivateBlobDownloadUrl(thumb.storage_locator, 60 * 60 * 1000)
-      : null
-  })));
+  const [thumbnails, musicTracks, publisherResult] = await Promise.all([
+    Promise.all((thumbsResult.data ?? []).map(async (thumb) => ({
+      ...thumb,
+      previewUrl: thumb.status === "completed" && thumb.storage_locator
+        ? await createPrivateBlobDownloadUrl(thumb.storage_locator, 60 * 60 * 1000)
+        : null
+    }))),
+    Promise.all((tracksResult.data ?? []).map(async (track) => ({
+      ...track,
+      storage_locator: undefined,
+      previewUrl: track.storage_locator ? await createPrivateBlobDownloadUrl(track.storage_locator, 60 * 60 * 1000) : null
+    }))),
+    project.publisher_render_id
+      ? service.from("pathway_video_renders").select("id,status,output_url,error,asset_id,completed_at").eq("id", project.publisher_render_id).maybeSingle()
+      : Promise.resolve({ data: null, error: null })
+  ]);
+  if (publisherResult.error) return NextResponse.json({ error: publisherResult.error.message }, { status: 500 });
 
   return NextResponse.json({
-    project: projectResult.data,
+    project,
     latestCompletedRender: renderResult.data ?? null,
+    publisherRender: publisherResult.data ?? null,
+    publisherUrl: project.pathway_slug ? `/admin/publish?slug=${encodeURIComponent(project.pathway_slug)}` : "/admin/publish",
     pathways: allPathways.map((pathway) => ({
       slug: pathway.slug,
       title: pathway.title,
       summary: pathway.summary,
       steps: pathway.steps.map((step) => ({ title: step.title, reference: step.reference }))
     })),
-    musicTracks: tracksResult.data ?? [],
+    musicTracks,
     thumbnails
   });
 }
@@ -82,6 +96,9 @@ export async function PATCH(request: Request) {
   if (result.error) return NextResponse.json({ error: result.error.message }, { status: 500 });
   const project = result.data;
   if (!project) return NextResponse.json({ error: "Project not found." }, { status: 404 });
+  if (["uploading", "transcribing", "directing", "rendering"].includes(project.status)) {
+    return NextResponse.json({ error: "Wait for the current production job to finish before changing finishing settings." }, { status: 409 });
+  }
 
   const updates: Record<string, unknown> = { updated_by: access.user.id };
   let invalidateApproval = false;
