@@ -1,3 +1,5 @@
+export type VideoProducerMode = "podcast" | "reels";
+
 export type VideoProducerStatus =
   | "draft"
   | "uploading"
@@ -18,6 +20,10 @@ export type VideoProducerOverlayKind =
   | "quote"
   | "cta";
 
+export type VideoProducerMotionKind = "punch-in" | "reframe" | "emphasis" | "b-roll";
+export type VideoProducerCaptionStyle = "kinetic-clean" | "word-pop" | "editorial" | "minimal";
+export type VideoProducerCaptionAnimation = "pop" | "rise" | "highlight" | "none";
+
 export type VideoProducerCut = {
   id: string;
   start: number;
@@ -35,6 +41,15 @@ export type VideoProducerOverlay = {
   reference?: string;
 };
 
+export type VideoProducerMotionCue = {
+  id: string;
+  kind: VideoProducerMotionKind;
+  start: number;
+  duration: number;
+  intensity?: "subtle" | "medium" | "strong";
+  note?: string;
+};
+
 export type VideoProducerMusicCue = {
   id: string;
   trackId: string;
@@ -44,35 +59,99 @@ export type VideoProducerMusicCue = {
   duckUnderVoice: boolean;
 };
 
+export type VideoProducerCaptionConfig = {
+  enabled: boolean;
+  style: VideoProducerCaptionStyle;
+  animation: VideoProducerCaptionAnimation;
+  maxWordsPerCard: number;
+  position: "lower" | "center";
+  highlightCurrentWord: boolean;
+};
+
 export type VideoProducerEditPlan = {
-  version: 1;
+  version: 2;
+  mode: VideoProducerMode;
   sourceDuration: number;
   cuts: VideoProducerCut[];
   overlays: VideoProducerOverlay[];
+  motion: VideoProducerMotionCue[];
   music: VideoProducerMusicCue[];
-  audioPreset: "ag-voice-clean" | "none";
+  captions: VideoProducerCaptionConfig;
+  audioPreset: "ag-voice-clean" | "ag-voice-punch" | "none";
   colorPreset: "ag-studio" | "ag-warm" | "ag-clean" | "none";
   intro: boolean;
   outro: boolean;
 };
 
 export type VideoProducerKeepSegment = { start: number; end: number };
+export type VideoProducerOutputRange = { sourceStart: number; sourceEnd: number; outputStart: number; outputEnd: number };
 
 export type VideoProducerRenderPlan = {
-  version: 1;
+  version: 2;
+  mode: VideoProducerMode;
   sourceDuration: number;
   outputDuration: number;
   keepSegments: VideoProducerKeepSegment[];
-  overlays: (VideoProducerOverlay & { outputStart: number | null })[];
-  music: VideoProducerMusicCue[];
+  overlays: (VideoProducerOverlay & { outputStart: number | null; outputRanges: VideoProducerOutputRange[] })[];
+  motion: (VideoProducerMotionCue & { outputStart: number | null; outputRanges: VideoProducerOutputRange[] })[];
+  music: (VideoProducerMusicCue & { outputRanges: VideoProducerOutputRange[] })[];
+  captions: VideoProducerCaptionConfig;
   audioPreset: VideoProducerEditPlan["audioPreset"];
   colorPreset: VideoProducerEditPlan["colorPreset"];
   intro: boolean;
   outro: boolean;
-  output: { format: "mp4"; width: 1920; height: 1080; fps: 30 };
+  output: { format: "mp4"; width: 1920 | 1080; height: 1080 | 1920; fps: 30 };
 };
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+const finiteNumber = (value: number, fallback = 0) => Number.isFinite(value) ? value : fallback;
+
+export const VIDEO_PRODUCER_MODE_DEFAULTS: Record<VideoProducerMode, {
+  label: string;
+  description: string;
+  audioPreset: VideoProducerEditPlan["audioPreset"];
+  colorPreset: VideoProducerEditPlan["colorPreset"];
+  captions: VideoProducerCaptionConfig;
+  intro: boolean;
+  outro: boolean;
+}> = {
+  podcast: {
+    label: "Podcast Mode",
+    description: "Long-form editorial polish, structure, branded references, clean audio and a professional 16:9 master.",
+    audioPreset: "ag-voice-clean",
+    colorPreset: "ag-studio",
+    captions: { enabled: false, style: "minimal", animation: "none", maxWordsPerCard: 8, position: "lower", highlightCurrentWord: false },
+    intro: true,
+    outro: true
+  },
+  reels: {
+    label: "Reels Producer",
+    description: "Vertical retention editing with animated captions, reframing, punch-ins, overlays and a social-ready 9:16 master.",
+    audioPreset: "ag-voice-punch",
+    colorPreset: "ag-clean",
+    captions: { enabled: true, style: "kinetic-clean", animation: "highlight", maxWordsPerCard: 5, position: "lower", highlightCurrentWord: true },
+    intro: false,
+    outro: false
+  }
+};
+
+export function buildDefaultVideoProducerPlan(mode: VideoProducerMode, sourceDuration: number, overlays: VideoProducerOverlay[] = []): VideoProducerEditPlan {
+  const defaults = VIDEO_PRODUCER_MODE_DEFAULTS[mode];
+  return {
+    version: 2,
+    mode,
+    sourceDuration: Math.max(0, finiteNumber(sourceDuration)),
+    cuts: [],
+    overlays,
+    motion: [],
+    music: [],
+    captions: { ...defaults.captions },
+    audioPreset: defaults.audioPreset,
+    colorPreset: defaults.colorPreset,
+    intro: defaults.intro,
+    outro: defaults.outro
+  };
+}
 
 export function normalizeVideoProducerCuts(cuts: VideoProducerCut[], duration: number): VideoProducerCut[] {
   if (!Number.isFinite(duration) || duration <= 0) return [];
@@ -80,8 +159,8 @@ export function normalizeVideoProducerCuts(cuts: VideoProducerCut[], duration: n
     .map((cut, index) => ({
       ...cut,
       id: cut.id || `cut-${index + 1}`,
-      start: clamp(Number(cut.start) || 0, 0, duration),
-      end: clamp(Number(cut.end) || 0, 0, duration)
+      start: clamp(finiteNumber(Number(cut.start)), 0, duration),
+      end: clamp(finiteNumber(Number(cut.end)), 0, duration)
     }))
     .filter((cut) => cut.end > cut.start)
     .sort((a, b) => a.start - b.start || a.end - b.end);
@@ -100,6 +179,7 @@ export function normalizeVideoProducerCuts(cuts: VideoProducerCut[], duration: n
 }
 
 export function buildKeepSegments(cuts: VideoProducerCut[], duration: number): VideoProducerKeepSegment[] {
+  if (!Number.isFinite(duration) || duration <= 0) return [];
   const normalized = normalizeVideoProducerCuts(cuts, duration);
   const result: VideoProducerKeepSegment[] = [];
   let cursor = 0;
@@ -112,12 +192,14 @@ export function buildKeepSegments(cuts: VideoProducerCut[], duration: number): V
 }
 
 export function outputDurationForPlan(plan: Pick<VideoProducerEditPlan, "sourceDuration" | "cuts">): number {
+  if (!Number.isFinite(plan.sourceDuration) || plan.sourceDuration <= 0) return 0;
   const removed = normalizeVideoProducerCuts(plan.cuts, plan.sourceDuration)
     .reduce((sum, cut) => sum + cut.end - cut.start, 0);
   return Math.max(0, plan.sourceDuration - removed);
 }
 
 export function sourceTimeToOutputTime(sourceTime: number, cuts: VideoProducerCut[], duration: number): number | null {
+  if (!Number.isFinite(sourceTime) || !Number.isFinite(duration) || duration <= 0) return null;
   const time = clamp(sourceTime, 0, duration);
   const normalized = normalizeVideoProducerCuts(cuts, duration);
   let removed = 0;
@@ -128,28 +210,71 @@ export function sourceTimeToOutputTime(sourceTime: number, cuts: VideoProducerCu
   return time - removed;
 }
 
+export function mapSourceRangeToOutputRanges(start: number, end: number, cuts: VideoProducerCut[], duration: number): VideoProducerOutputRange[] {
+  if (!Number.isFinite(start) || !Number.isFinite(end) || !Number.isFinite(duration) || duration <= 0) return [];
+  const safeStart = clamp(start, 0, duration);
+  const safeEnd = clamp(end, 0, duration);
+  if (safeEnd <= safeStart) return [];
+
+  const keepSegments = buildKeepSegments(cuts, duration);
+  const ranges: VideoProducerOutputRange[] = [];
+  let outputCursor = 0;
+
+  for (const keep of keepSegments) {
+    const overlapStart = Math.max(safeStart, keep.start);
+    const overlapEnd = Math.min(safeEnd, keep.end);
+    if (overlapEnd > overlapStart) {
+      ranges.push({
+        sourceStart: overlapStart,
+        sourceEnd: overlapEnd,
+        outputStart: outputCursor + (overlapStart - keep.start),
+        outputEnd: outputCursor + (overlapEnd - keep.start)
+      });
+    }
+    outputCursor += keep.end - keep.start;
+  }
+
+  return ranges;
+}
+
 export function compileVideoProducerRenderPlan(plan: VideoProducerEditPlan): VideoProducerRenderPlan {
-  const cuts = normalizeVideoProducerCuts(plan.cuts, plan.sourceDuration);
+  const sourceDuration = Math.max(0, finiteNumber(plan.sourceDuration));
+  const cuts = normalizeVideoProducerCuts(plan.cuts, sourceDuration);
+  const output = plan.mode === "reels"
+    ? { format: "mp4" as const, width: 1080 as const, height: 1920 as const, fps: 30 as const }
+    : { format: "mp4" as const, width: 1920 as const, height: 1080 as const, fps: 30 as const };
+
   return {
-    version: 1,
-    sourceDuration: plan.sourceDuration,
-    outputDuration: outputDurationForPlan({ sourceDuration: plan.sourceDuration, cuts }),
-    keepSegments: buildKeepSegments(cuts, plan.sourceDuration),
+    version: 2,
+    mode: plan.mode,
+    sourceDuration,
+    outputDuration: outputDurationForPlan({ sourceDuration, cuts }),
+    keepSegments: buildKeepSegments(cuts, sourceDuration),
     overlays: plan.overlays.map((overlay) => ({
       ...overlay,
-      outputStart: sourceTimeToOutputTime(overlay.start, cuts, plan.sourceDuration)
+      outputStart: sourceTimeToOutputTime(overlay.start, cuts, sourceDuration),
+      outputRanges: mapSourceRangeToOutputRanges(overlay.start, overlay.start + Math.max(0, finiteNumber(overlay.duration)), cuts, sourceDuration)
     })),
-    music: plan.music,
+    motion: plan.motion.map((cue) => ({
+      ...cue,
+      outputStart: sourceTimeToOutputTime(cue.start, cuts, sourceDuration),
+      outputRanges: mapSourceRangeToOutputRanges(cue.start, cue.start + Math.max(0, finiteNumber(cue.duration)), cuts, sourceDuration)
+    })),
+    music: plan.music.map((cue) => ({
+      ...cue,
+      outputRanges: mapSourceRangeToOutputRanges(cue.start, cue.end, cuts, sourceDuration)
+    })),
+    captions: { ...plan.captions },
     audioPreset: plan.audioPreset,
     colorPreset: plan.colorPreset,
     intro: plan.intro,
     outro: plan.outro,
-    output: { format: "mp4", width: 1920, height: 1080, fps: 30 }
+    output
   };
 }
 
 export function formatProducerTime(seconds: number) {
-  const safe = Math.max(0, Math.floor(seconds));
+  const safe = Math.max(0, Math.floor(finiteNumber(seconds)));
   const h = Math.floor(safe / 3600);
   const m = Math.floor((safe % 3600) / 60);
   const s = safe % 60;
