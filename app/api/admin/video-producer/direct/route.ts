@@ -9,7 +9,7 @@ import {
   transcriptForModel,
   VIDEO_PRODUCER_DIRECTOR_JSON_SCHEMA
 } from "@/video-producer-ai";
-import { extractOpenAIResponseText } from "@/video-producer-server";
+import { extractOpenAIResponseText, videoProducerOpenAIKey } from "@/video-producer-server";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -53,8 +53,8 @@ export async function POST(request: Request) {
   if (!allowed || access.state !== "allowed" || !access.user) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const parsed = schema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Invalid director request." }, { status: 400 });
-  const apiKey = process.env.OPENAI_API_KEY?.trim();
-  if (!apiKey) return NextResponse.json({ error: "OPENAI_API_KEY is not configured." }, { status: 503 });
+  const apiKey = videoProducerOpenAIKey();
+  if (!apiKey) return NextResponse.json({ error: "VIDEO_PRODUCER_OPENAI_API_KEY is not configured." }, { status: 503 });
   const model = process.env.OPENAI_VIDEO_PRODUCER_MODEL?.trim() || process.env.OPENAI_VIDEO_DIRECTOR_MODEL?.trim() || "gpt-5.6-sol";
   const service = createServiceClient();
   if (!service) return NextResponse.json({ error: "Supabase service access is not configured." }, { status: 503 });
