@@ -1,6 +1,6 @@
 import "server-only";
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
-import { issueSignedToken, presignUrl, put } from "@vercel/blob";
+import { del, issueSignedToken, presignUrl, put } from "@vercel/blob";
 import type { createServiceClient } from "./supabase";
 
 export type ServiceClient = NonNullable<ReturnType<typeof createServiceClient>>;
@@ -93,6 +93,14 @@ export async function storeVideoProducerManifest(pathname: string, manifest: unk
     addRandomSuffix: false,
     contentType: "application/json"
   });
+}
+
+export async function deletePrivateVideoProducerBlob(pathname: string) {
+  try {
+    await del(pathname);
+  } catch (error) {
+    console.error("Video Producer blob cleanup failed", pathname, error);
+  }
 }
 
 export async function dispatchVideoProducerWorker(input: {
