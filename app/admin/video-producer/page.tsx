@@ -8,10 +8,11 @@ export default async function AdminVideoProducerPage() {
   const { access, allowed } = await getStudioPermission("manage_content");
   if (!allowed || access.state !== "allowed") redirect("/admin");
   return (
-    <div className="video-producer-page">
+    <>
+      <span className="video-producer-page-marker" hidden />
       <VideoProducerUploadRecovery />
       <VideoProducerStudio />
       <VideoProducerReadiness />
-    </div>
+    </>
   );
 }
