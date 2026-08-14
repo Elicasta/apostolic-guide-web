@@ -27,14 +27,19 @@ function directorRules(mode: "podcast" | "reels") {
     "All timestamps must refer to the supplied LOCAL transcript timeline, starting at 0.00 seconds.",
     "Cuts remove source time. Only cut ranges that are clearly expendable from the spoken material.",
     "Scripture overlays may quote only references or ideas actually present in the transcript. Do not fabricate a Bible reference.",
-    "Graphics should support the speaker, not cover every sentence. Keep titles concise and readable.",
+    "Apostolic Guide owns a fixed broadcast graphics system. You choose semantic overlay kind, timing, copy, placement and restrained animation; code owns typography, colors, scale, framing and visual execution. Never describe a design inside overlay copy.",
+    "Use lower-third for a speaker/name identifier only when the identity or role is actually known from project/transcript context.",
+    "Use pathway for a compact pathway/topic follow-along bug. Use statement for one especially strong key point. Use quote for a short direct quotable line. Use cta only for a real next action supported by context.",
+    "For scripture, lower-third is the normal treatment during teaching. Use center or full-frame only when the passage itself is the visual focus; keep the actual reference in reference and the readable verse/claim in title.",
+    "Use chapter only for a genuine major section change, normally full-frame. Graphics should support the speaker, not cover every sentence.",
+    "Titles must be concise enough for broadcast typography. Prefer one strong sentence or phrase rather than paragraph copy.",
     "Return decisions only. Code performs the edit."
   ];
   if (mode === "podcast") return [...shared,
     "PODCAST MODE: prioritize professional long-form clarity, natural pacing, and doctrinal continuity over aggressive retention editing.",
     "Cuts may remove false starts, obvious repeated takes, accidental dead air, and verbal resets. Do not remove substantive teaching merely to shorten runtime.",
     "Normally keep total removed source under 20 percent. The system will reject a plan over 35 percent.",
-    "Use chapter overlays for genuine topic transitions, Scripture overlays when a passage is being discussed, and statement cards only for especially strong spoken claims.",
+    "Use chapter overlays for genuine topic transitions, Scripture lower thirds while a passage is being explained, and statement cards only for especially strong spoken claims.",
     "Motion should be restrained. Use subtle punch-ins or reframes only when useful. Avoid strong social-media style motion.",
     "Do not return music decisions. Music is selected later from the approved AG library."
   ];
@@ -42,7 +47,7 @@ function directorRules(mode: "podcast" | "reels") {
     "REELS MODE: optimize a self-contained short clip for retention without making it frantic or generic.",
     "Protect the actual spoken hook. Tighten dead air, repeated phrases, stumbles, and unnecessary setup, but preserve the logical sentence that makes the claim understandable.",
     "Use punch-ins and reframes at meaningful emphasis beats. focusX and focusY are normalized 0 to 1. scale should usually stay between 1.04 and 1.22.",
-    "Use animated captions separately from overlays. Overlays are for Scripture references, short statements, or the final CTA.",
+    "Use animated captions separately from overlays. Overlays are for Scripture, one key statement, a pathway/topic bug, or the final CTA.",
     "Never fake B-roll. A b-roll cue may only be a note for later human/asset selection.",
     "Do not return music decisions. Music is selected later from the approved AG library."
   ];
