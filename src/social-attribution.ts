@@ -2,7 +2,7 @@ import { buildSocialReply, findMatchingAutomation, getInstagramConfig, listSocia
 import { createServiceClient } from "./supabase";
 import { recordPersonEvent, upsertInstagramPerson } from "./people-crm";
 import { recordInboxOutbound } from "./inbox";
-import { buildStudyCardImageMessage, buildStudyCardMessage, buildStudyHandshake, isOpenStudyReply, STUDY_FOLLOW_UP, studyTitleFromDestination } from "./social-signature-flow";
+import { buildStudyCardImageUrl, buildStudyCardMessage, buildStudyHandshake, isOpenStudyReply, STUDY_FOLLOW_UP, studyTitleFromDestination } from "./social-signature-flow";
 
 export function attributedDestination(destinationUrl: string | null | undefined, token: string | null | undefined) {
   const raw = destinationUrl?.trim();
@@ -29,10 +29,15 @@ async function graphFetch(path: string, accessToken: string, graphVersion: strin
   });
   const json = await response.json().catch(() => ({})) as Record<string, unknown>;
   if (!response.ok) {
-    const message = typeof json.error === "object" && json.error && "message" in json.error
-      ? String((json.error as { message?: unknown }).message ?? `Meta request failed (${response.status}).`)
+    const metaError = typeof json.error === "object" && json.error
+      ? json.error as Record<string, unknown>
+      : null;
+    const message = metaError && "message" in metaError
+      ? String(metaError.message ?? `Meta request failed (${response.status}).`)
       : `Meta request failed (${response.status}).`;
-    throw new Error(message);
+    const code = metaError?.code != null ? ` code=${String(metaError.code)}` : "";
+    const subcode = metaError?.error_subcode != null ? ` subcode=${String(metaError.error_subcode)}` : "";
+    throw new Error(`${message}${code}${subcode}`);
   }
   return json;
 }
@@ -42,6 +47,26 @@ async function sendInstagramMessage(config: NonNullable<Awaited<ReturnType<typeo
     method: "POST",
     body: JSON.stringify({ recipient: { id: recipientId }, messaging_type: "RESPONSE", message })
   });
+}
+
+async function uploadInstagramImageAttachment(config: NonNullable<Awaited<ReturnType<typeof getInstagramConfig>>>, imageUrl: string) {
+  const uploaded = await graphFetch(`${encodeURIComponent(config.instagramUserId)}/message_attachments`, config.accessToken, config.graphVersion, {
+    method: "POST",
+    body: JSON.stringify({
+      message: {
+        attachment: {
+          type: "image",
+          payload: {
+            url: imageUrl,
+            is_reusable: true
+          }
+        }
+      }
+    })
+  });
+  const attachmentId = typeof uploaded.attachment_id === "string" ? uploaded.attachment_id : null;
+  if (!attachmentId) throw new Error("Instagram attachment upload did not return an attachment_id.");
+  return attachmentId;
 }
 
 async function deliverPendingStudyCard(input: {
@@ -74,7 +99,13 @@ async function deliverPendingStudyCard(input: {
 
   let imageMessageId: string | null = null;
   try {
-    const image = await sendInstagramMessage(input.config, input.recipientId, buildStudyCardImageMessage(title));
+    const attachmentId = await uploadInstagramImageAttachment(input.config, buildStudyCardImageUrl(title));
+    const image = await sendInstagramMessage(input.config, input.recipientId, {
+      attachment: {
+        type: "image",
+        payload: { attachment_id: attachmentId }
+      }
+    });
     imageMessageId = typeof image.message_id === "string" ? image.message_id : null;
   } catch (error) {
     console.warn("Instagram branded study artwork could not be sent", error);
