@@ -7,6 +7,7 @@ import {
   mapSourceRangeToOutputRanges,
   normalizeVideoProducerCuts,
   outputDurationForPlan,
+  sanitizeVideoProducerTransform,
   sourceTimeToOutputTime,
   type VideoProducerEditPlan
 } from "../src/video-producer";
@@ -63,6 +64,11 @@ test("splits a timed range safely when a cut happens inside it", () => {
   ]);
 });
 
+test("sanitizes model-proposed focal points and zoom before render", () => {
+  assert.deepEqual(sanitizeVideoProducerTransform({ focusX: -1, focusY: 3, scale: 9 }), { focusX: 0, focusY: 1, scale: 2.5 });
+  assert.deepEqual(sanitizeVideoProducerTransform({ focusX: Number.NaN, focusY: Number.NaN, scale: Number.NaN }), { focusX: 0.5, focusY: 0.5, scale: 1 });
+});
+
 test("podcast defaults produce a professional 16:9 master", () => {
   const plan = buildDefaultVideoProducerPlan("podcast", 120);
   const render = compileVideoProducerRenderPlan(plan);
@@ -78,6 +84,7 @@ test("reels defaults produce a vertical captioned master", () => {
   const render = compileVideoProducerRenderPlan(plan);
   assert.equal(plan.captions.enabled, true);
   assert.equal(plan.captions.highlightCurrentWord, true);
+  assert.equal(plan.captions.animation, "highlight");
   assert.equal(plan.audioPreset, "ag-voice-punch");
   assert.equal(plan.intro, false);
   assert.deepEqual(render.output, { format: "mp4", width: 1080, height: 1920, fps: 30 });
@@ -89,8 +96,8 @@ test("compiles overlays, motion and music into cut-aware output ranges", () => {
     mode: "reels",
     sourceDuration: 60,
     cuts: [{ id: "cut", start: 10, end: 20 }],
-    overlays: [{ id: "verse", kind: "scripture", start: 8, duration: 14, title: "John 14:9" }],
-    motion: [{ id: "push", kind: "punch-in", start: 30, duration: 2, intensity: "subtle" }],
+    overlays: [{ id: "verse", kind: "scripture", start: 8, duration: 14, title: "John 14:9", animation: "rise", placement: "center" }],
+    motion: [{ id: "push", kind: "punch-in", start: 30, duration: 2, intensity: "subtle", transform: { focusX: 1.4, focusY: -0.2, scale: 1.18 } }],
     music: [{ id: "bed", trackId: "ag-bed", start: 5, end: 25, gainDb: -24, duckUnderVoice: true }],
     captions: { enabled: true, style: "kinetic-clean", animation: "highlight", maxWordsPerCard: 5, position: "lower", highlightCurrentWord: true },
     audioPreset: "ag-voice-punch",
@@ -101,11 +108,13 @@ test("compiles overlays, motion and music into cut-aware output ranges", () => {
   const render = compileVideoProducerRenderPlan(plan);
   assert.equal(render.outputDuration, 50);
   assert.equal(render.overlays[0]?.outputStart, 8);
+  assert.equal(render.overlays[0]?.animation, "rise");
   assert.deepEqual(render.overlays[0]?.outputRanges, [
     { sourceStart: 8, sourceEnd: 10, outputStart: 8, outputEnd: 10 },
     { sourceStart: 20, sourceEnd: 22, outputStart: 10, outputEnd: 12 }
   ]);
   assert.equal(render.motion[0]?.outputStart, 20);
+  assert.deepEqual(render.motion[0]?.transform, { focusX: 1, focusY: 0, scale: 1.18 });
   assert.deepEqual(render.music[0]?.outputRanges, [
     { sourceStart: 5, sourceEnd: 10, outputStart: 5, outputEnd: 10 },
     { sourceStart: 20, sourceEnd: 25, outputStart: 10, outputEnd: 15 }
