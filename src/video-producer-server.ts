@@ -37,6 +37,12 @@ export function videoProducerPlanFingerprint(value: unknown) {
   return createHash("sha256").update(JSON.stringify(value)).digest("hex");
 }
 
+export function videoProducerWorkerRef() {
+  return process.env.VIDEO_PRODUCER_WORKER_REF?.trim()
+    || process.env.VERCEL_GIT_COMMIT_REF?.trim()
+    || "main";
+}
+
 export async function videoProducerRendererCredentials(service: ServiceClient) {
   let token = process.env.VIDEO_STUDIO_GITHUB_TOKEN?.trim() || "";
   let repository = process.env.VIDEO_STUDIO_GITHUB_REPOSITORY?.trim() || "Elicasta/apostolic-guide-web";
