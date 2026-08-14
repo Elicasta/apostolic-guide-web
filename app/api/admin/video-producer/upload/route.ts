@@ -27,6 +27,12 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => null) as HandleUploadBody | null;
   if (!body) return NextResponse.json({ error: "Invalid upload request." }, { status: 400 });
 
+  if (!process.env.BLOB_READ_WRITE_TOKEN?.trim()) {
+    return NextResponse.json({
+      error: "Private media storage is not connected yet. Connect the Video Producer Vercel Blob store before uploading a source video."
+    }, { status: 503 });
+  }
+
   try {
     const jsonResponse = await handleUpload({
       body,
