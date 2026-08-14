@@ -12,16 +12,33 @@ type ReadinessItem = {
   icon: typeof Database;
 };
 
+const githubHeaders = (token: string) => ({
+  accept: "application/vnd.github+json",
+  authorization: `Bearer ${token}`,
+  "user-agent": "apostolic-guide-video-producer-readiness",
+  "x-github-api-version": "2022-11-28"
+});
+
+async function checkDispatcher(repository: string, token: string) {
+  if (!repository || !token) return { state: "error" as const, detail: "GitHub worker bridge is not connected." };
+  try {
+    const response = await fetch(`https://api.github.com/repos/${repository}/contents/.github/workflows/video-producer-dispatch.yml?ref=main`, {
+      headers: githubHeaders(token),
+      cache: "no-store"
+    });
+    if (response.ok) return { state: "ready" as const, detail: "Default-branch Video Producer dispatcher is installed." };
+    if (response.status === 404) return { state: "error" as const, detail: "Install video-producer-dispatch.yml on the repository default branch." };
+    return { state: "warning" as const, detail: `Dispatcher check returned ${response.status}; verify the default-branch workflow.` };
+  } catch {
+    return { state: "warning" as const, detail: "Dispatcher could not be checked; verify the default-branch workflow." };
+  }
+}
+
 async function checkActionsTranscriptionSecret(repository: string, token: string) {
   if (!repository || !token) return { state: "error" as const, detail: "Render bridge is not connected." };
   try {
     const response = await fetch(`https://api.github.com/repos/${repository}/actions/secrets?per_page=100`, {
-      headers: {
-        accept: "application/vnd.github+json",
-        authorization: `Bearer ${token}`,
-        "user-agent": "apostolic-guide-video-producer-readiness",
-        "x-github-api-version": "2022-11-28"
-      },
+      headers: githubHeaders(token),
       cache: "no-store"
     });
     if (response.ok) {
@@ -87,12 +104,7 @@ export async function VideoProducerReadiness() {
   if (rendererToken) {
     try {
       const probe = await fetch(`https://api.github.com/repos/${rendererRepository}`, {
-        headers: {
-          accept: "application/vnd.github+json",
-          authorization: `Bearer ${rendererToken}`,
-          "user-agent": "apostolic-guide-video-producer-readiness",
-          "x-github-api-version": "2022-11-28"
-        },
+        headers: githubHeaders(rendererToken),
         cache: "no-store"
       });
       if (!probe.ok) {
@@ -105,6 +117,9 @@ export async function VideoProducerReadiness() {
     }
   }
   items.push({ label: "FFmpeg worker bridge", detail: bridgeDetail, state: bridgeState, icon: Github });
+
+  const dispatcher = await checkDispatcher(rendererRepository, rendererToken);
+  items.push({ label: "Worker dispatcher", detail: dispatcher.detail, state: dispatcher.state, icon: Github });
 
   const workerSecret = await checkActionsTranscriptionSecret(rendererRepository, rendererToken);
   items.push({ label: "Transcription worker", detail: workerSecret.detail, state: workerSecret.state, icon: Film });
