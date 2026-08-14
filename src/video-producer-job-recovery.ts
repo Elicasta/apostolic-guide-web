@@ -1,22 +1,13 @@
 import "server-only";
+import {
+  isVideoProducerWorkerStale,
+  VIDEO_PRODUCER_RENDER_STALE_MS,
+  VIDEO_PRODUCER_TRANSCRIPTION_STALE_MS
+} from "./video-producer-job-state";
 import type { ServiceClient } from "./video-producer-server";
-
-const TRANSCRIPTION_STALE_MS = 2 * 60 * 60 * 1000;
-const RENDER_STALE_MS = 4 * 60 * 60 * 1000;
 
 function record(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" ? value as Record<string, unknown> : {};
-}
-
-function timestamp(value: unknown) {
-  if (typeof value !== "string" || !value) return null;
-  const parsed = Date.parse(value);
-  return Number.isFinite(parsed) ? parsed : null;
-}
-
-export function isVideoProducerWorkerStale(value: unknown, timeoutMs: number, now = Date.now()) {
-  const started = timestamp(value);
-  return started != null && now - started > timeoutMs;
 }
 
 export async function reconcileVideoProducerWorkerState(service: ServiceClient, projectId: string) {
@@ -32,7 +23,7 @@ export async function reconcileVideoProducerWorkerState(service: ServiceClient, 
     const progress = record(metadata.transcriptionProgress);
     const bridge = record(metadata.transcriptionBridge);
     const lastSignal = progress.heartbeatAt || bridge.dispatchedAt;
-    if (isVideoProducerWorkerStale(lastSignal, TRANSCRIPTION_STALE_MS)) {
+    if (isVideoProducerWorkerStale(lastSignal, VIDEO_PRODUCER_TRANSCRIPTION_STALE_MS)) {
       const now = new Date().toISOString();
       await service.from("video_producer_projects").update({
         status: "failed",
@@ -64,7 +55,7 @@ export async function reconcileVideoProducerWorkerState(service: ServiceClient, 
   const render = renderResult.data;
   const progress = record(render.progress);
   const lastSignal = progress.heartbeatAt || render.requested_at;
-  if (!isVideoProducerWorkerStale(lastSignal, RENDER_STALE_MS)) return;
+  if (!isVideoProducerWorkerStale(lastSignal, VIDEO_PRODUCER_RENDER_STALE_MS)) return;
 
   const now = new Date().toISOString();
   const error = "Render worker stopped reporting progress. The approved edit is preserved and can be rendered again.";
