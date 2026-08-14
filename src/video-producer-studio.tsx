@@ -5,6 +5,7 @@ import { Captions, Check, Film, Music2, Play, Scissors, Smartphone, Sparkles, Ty
 import {
   buildDefaultVideoProducerPlan,
   compileVideoProducerRenderPlan,
+  findVideoProducerScriptureReference,
   formatProducerTime,
   VIDEO_PRODUCER_MODE_DEFAULTS,
   type VideoProducerCaptionAnimation,
@@ -27,8 +28,6 @@ const CAPTION_ANIMATIONS: { id: VideoProducerCaptionAnimation; label: string }[]
   { id: "rise", label: "Rise" },
   { id: "none", label: "Static" }
 ];
-
-const SCRIPTURE_PATTERN = /\b(?:[1-3]\s+)?(?:Genesis|Exodus|Leviticus|Numbers|Deuteronomy|Joshua|Judges|Ruth|Samuel|Kings|Chronicles|Ezra|Nehemiah|Esther|Job|Psalms?|Proverbs|Ecclesiastes|Song(?: of (?:Solomon|Songs))?|Isaiah|Jeremiah|Lamentations|Ezekiel|Daniel|Hosea|Joel|Amos|Obadiah|Jonah|Micah|Nahum|Habakkuk|Zephaniah|Haggai|Zechariah|Malachi|Matthew|Mark|Luke|John|Acts|Romans|Corinthians|Galatians|Ephesians|Philippians|Colossians|Thessalonians|Timothy|Titus|Philemon|Hebrews|James|Peter|Jude|Revelation)\s+\d{1,3}:\d{1,3}(?:-\d{1,3})?/i;
 
 export function VideoProducerStudio() {
   const [mode, setMode] = useState<VideoProducerMode>("podcast");
@@ -71,15 +70,15 @@ export function VideoProducerStudio() {
     const lines = transcript.split(/\n+/).map((line) => line.trim()).filter(Boolean);
     const overlays = lines
       .map((line, index) => {
-        const scripture = line.match(SCRIPTURE_PATTERN);
+        const scripture = findVideoProducerScriptureReference(line);
         if (!scripture) return null;
         return {
           id: `overlay-${index + 1}`,
           kind: "scripture" as const,
           start: Math.min(Math.max(0, duration - 0.1), Math.max(0, (index / Math.max(1, lines.length)) * duration)),
           duration: mode === "reels" ? 4.5 : 7,
-          title: scripture[0],
-          reference: scripture[0],
+          title: scripture,
+          reference: scripture,
           body: line,
           animation: mode === "reels" ? "rise" as const : "fade" as const,
           placement: mode === "reels" ? "center" as const : "lower-third" as const
