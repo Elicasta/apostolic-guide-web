@@ -1,14 +1,27 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Loader2, RefreshCw } from "lucide-react";
 import { useRouter } from "next/navigation";
 import styles from "./video-producer-sequential.module.css";
 
 export function VideoProducerRegeneratePanel({ projectId }: { projectId: string }) {
   const router = useRouter();
+  const [ready, setReady] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    void fetch(`/api/admin/video-producer/projects/${projectId}`, { cache: "no-store" })
+      .then(async (response) => {
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) return;
+        if (!cancelled) setReady(Boolean(data.project?.edit_plan) && data.project?.status !== "directing");
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [projectId]);
 
   async function regenerate() {
     setBusy(true);
@@ -29,6 +42,8 @@ export function VideoProducerRegeneratePanel({ projectId }: { projectId: string 
       setBusy(false);
     }
   }
+
+  if (!ready) return null;
 
   return (
     <div className={styles.flow} style={{ paddingTop: 0 }}>
