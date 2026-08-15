@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { FolderOpen, Image as ImageIcon, Loader2, Pencil, RefreshCw, Sparkles, Star, Upload } from "lucide-react";
+import { Download, FolderOpen, Image as ImageIcon, Loader2, Pencil, RefreshCw, Share2, Sparkles, Star, Upload } from "lucide-react";
 
 type Studio = "carousel" | "video";
 type PathwayAsset = {
@@ -42,6 +42,12 @@ function assetGroup(type: string) {
   if (type.includes("image") || type.includes("slide") || type.includes("post") || type.includes("story") || type.includes("thumbnail")) return "visual";
   if (type.includes("render") || type.includes("project") || type.includes("deck") || type.includes("set")) return "output";
   return "other";
+}
+
+function filenameFromDisposition(value: string | null, fallback: string) {
+  const quoted = value?.match(/filename="([^"]+)"/i)?.[1];
+  const plain = value?.match(/filename=([^;]+)/i)?.[1]?.trim();
+  return quoted || plain || fallback;
 }
 
 export function PathwayAssetLibrary({
@@ -180,6 +186,65 @@ export function PathwayAssetLibrary({
     }
   }
 
+  async function loadAssetFile(asset: PathwayAsset) {
+    const response = await fetch(`/api/admin/pathway-assets/download?id=${encodeURIComponent(asset.id)}`, { cache: "no-store" });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.error || "Asset download failed.");
+    }
+    const blob = await response.blob();
+    const filename = filenameFromDisposition(response.headers.get("content-disposition"), `${asset.title.replace(/\s+/g, "-")}.bin`);
+    return { blob, filename };
+  }
+
+  async function downloadAsset(asset: PathwayAsset) {
+    setBusy(`download:${asset.id}`);
+    try {
+      const { blob, filename } = await loadAssetFile(asset);
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = filename;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1500);
+      setMessage(`${asset.title} downloaded.`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Asset download failed.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function shareAsset(asset: PathwayAsset) {
+    setBusy(`share:${asset.id}`);
+    try {
+      const { blob, filename } = await loadAssetFile(asset);
+      const file = new File([blob], filename, { type: blob.type || "application/octet-stream" });
+      const nav = navigator as Navigator & { canShare?: (data?: ShareData) => boolean };
+      if (navigator.share && (!nav.canShare || nav.canShare({ files: [file] }))) {
+        await navigator.share({ title: asset.title, files: [file] });
+        setMessage(`${asset.title} opened in the device share sheet.`);
+      } else {
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement("a");
+        anchor.href = url;
+        anchor.download = filename;
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        window.setTimeout(() => URL.revokeObjectURL(url), 1500);
+        setMessage("Device sharing is unavailable here, so the asset was downloaded instead.");
+      }
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") setMessage("Share cancelled.");
+      else setMessage(error instanceof Error ? error.message : "Asset could not be shared.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
   return <section className="admin-card pathway-asset-library">
     <div className="pathway-assets-head">
       <div className="pathway-folder-title"><FolderOpen size={22}/><div><span className="section-kicker">Pathway parent folder</span><h2>{pathwayTitle}</h2><p>/{pathwaySlug}/{studio}/ · {assets.length} assets · {parentCount} top-level projects</p></div></div>
@@ -213,6 +278,8 @@ export function PathwayAssetLibrary({
       <div className="pathway-asset-copy"><span>{asset.asset_type.replaceAll("-", " ")} · v{asset.version}</span><strong>{asset.title}</strong><small>{asset.source_type} · {new Date(asset.updated_at).toLocaleString()}</small></div>
       <div className="pathway-asset-actions">
         {asset.editable && onOpenAsset ? <button type="button" onClick={() => onOpenAsset(asset)}><Pencil size={14}/> Edit</button> : null}
+        {(asset.storage_path || asset.public_url) ? <button type="button" disabled={Boolean(busy)} onClick={() => void downloadAsset(asset)}>{busy === `download:${asset.id}` ? <Loader2 className="spin" size={14}/> : <Download size={14}/>} Download</button> : null}
+        {(asset.storage_path || asset.public_url) ? <button type="button" disabled={Boolean(busy)} onClick={() => void shareAsset(asset)}>{busy === `share:${asset.id}` ? <Loader2 className="spin" size={14}/> : <Share2 size={14}/>} Share</button> : null}
         {asset.preview_url ? <button type="button" disabled={busy === `style:${asset.id}`} onClick={() => void setStyleReference(asset)}>{busy === `style:${asset.id}` ? <Loader2 className="spin" size={14}/> : <Star size={14}/>} Remember style</button> : null}
       </div>
     </article>)}</div> : <div className="studio-empty-state compact"><FolderOpen size={26}/><strong>This Pathway folder is empty</strong><p>Generate, save, or upload the first asset. Future outputs will stay attached to this Pathway.</p></div>}
