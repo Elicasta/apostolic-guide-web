@@ -41,12 +41,14 @@ type InstagramConfig = {
   graphVersion: string;
 };
 
-type ParsedInstagramTrigger = {
+export type ParsedInstagramTrigger = {
   externalEventId: string;
   triggerType: SocialTriggerType;
   text: string;
   senderId: string | null;
+  senderUsername: string | null;
   commentId: string | null;
+  parentCommentId: string | null;
   mediaId: string | null;
   eventAt: string;
 };
@@ -281,14 +283,16 @@ export function parseInstagramWebhook(payload: unknown): ParsedInstagramTrigger[
         triggerType: "dm_keyword",
         text: item.message.text,
         senderId: item.sender?.id ?? null,
+        senderUsername: null,
         commentId: null,
+        parentCommentId: null,
         mediaId: null,
         eventAt: item.timestamp ? new Date(item.timestamp).toISOString() : new Date().toISOString()
       });
     }
     for (const changeRaw of Array.isArray(entry.changes) ? entry.changes : []) {
       if (!changeRaw || typeof changeRaw !== "object") continue;
-      const change = changeRaw as { field?: string; value?: { id?: string; text?: string; from?: { id?: string }; media?: { id?: string } } };
+      const change = changeRaw as { field?: string; value?: { id?: string; text?: string; parent_id?: string; from?: { id?: string; username?: string }; media?: { id?: string } } };
       if (change.field !== "comments" && change.field !== "live_comments") continue;
       const value = change.value;
       if (!value?.id || !value.text) continue;
@@ -297,7 +301,9 @@ export function parseInstagramWebhook(payload: unknown): ParsedInstagramTrigger[
         triggerType: "comment_keyword",
         text: value.text,
         senderId: value.from?.id ?? null,
+        senderUsername: value.from?.username ?? null,
         commentId: value.id,
+        parentCommentId: value.parent_id ?? null,
         mediaId: value.media?.id ?? null,
         eventAt: new Date().toISOString()
       });

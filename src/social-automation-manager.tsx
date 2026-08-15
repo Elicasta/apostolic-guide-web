@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { CheckCircle2, Copy, Instagram, MessageCircle, MessageSquareReply, Pencil, Plus, Power, Send, Trash2 } from "lucide-react";
 import type { InstagramConnection, SocialAutomation, SocialMatchType, SocialTriggerType } from "@/social-messaging";
 import { buildStudyHandshake, studyTitleFromDestination } from "@/social-signature-flow";
+import { buildPublicGuideAcknowledgement } from "@/comment-guide";
 
 export type SocialLinkSource = { label: string; url: string; kind: string };
 
@@ -22,7 +23,7 @@ const emptyDraft: Draft = {
   name: "",
   triggerType: "comment_keyword",
   keywords: "",
-  matchType: "contains",
+  matchType: "exact",
   replyText: "Thanks for reaching out. Here’s the study:",
   destinationUrl: "",
   enabled: false
@@ -135,7 +136,7 @@ export function SocialAutomationManager({
       name: item.name,
       triggerType: item.trigger_type,
       keywords: item.keywords.join(", "),
-      matchType: item.match_type,
+      matchType: item.trigger_type === "comment_keyword" ? "exact" : item.match_type,
       replyText: item.reply_text,
       destinationUrl: item.destination_url ?? "",
       enabled: item.enabled
@@ -169,15 +170,15 @@ export function SocialAutomationManager({
       </section>
 
       {canManageAutomations ? <section className="admin-card publishing-card" id="social-composer">
-        <div className="card-heading"><div><span className="section-kicker">Keyword automation</span><h2>{draft.id ? "Edit automation" : "Create automation"}</h2></div><p>Comment rules with a study link use the Apostolic Guide signature flow: private handshake → reply OPEN → branded study card. Direct-message rules keep the reply text you define.</p></div>
+        <div className="card-heading"><div><span className="section-kicker">Keyword automation</span><h2>{draft.id ? "Edit automation" : "Create automation"}</h2></div><p>Comment keywords are passed to Sol and must look like an explicit guide request. Direct-message rules keep the matching behavior and reply text you define.</p></div>
         <div className="social-composer-grid">
           <div className="social-fields">
             <label>Automation name<input value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} placeholder="Send Jesus Is God study" /></label>
             <div className="form-row">
-              <label>Trigger<select value={draft.triggerType} onChange={(e) => setDraft({ ...draft, triggerType: e.target.value as SocialTriggerType })}><option value="comment_keyword">Instagram comment keyword</option><option value="dm_keyword">Instagram DM keyword</option></select></label>
-              <label>Match<select value={draft.matchType} onChange={(e) => setDraft({ ...draft, matchType: e.target.value as SocialMatchType })}><option value="contains">Contains keyword</option><option value="exact">Exact message</option><option value="starts_with">Starts with keyword</option></select></label>
+              <label>Trigger<select value={draft.triggerType} onChange={(e) => { const triggerType = e.target.value as SocialTriggerType; setDraft({ ...draft, triggerType, matchType: triggerType === "comment_keyword" ? "exact" : draft.matchType }); }}><option value="comment_keyword">Instagram comment keyword</option><option value="dm_keyword">Instagram DM keyword</option></select></label>
+              <label>Match<select value={draft.matchType} onChange={(e) => setDraft({ ...draft, matchType: e.target.value as SocialMatchType })} disabled={draft.triggerType === "comment_keyword"}>{draft.triggerType === "comment_keyword" ? <option value="exact">Sol safe request gate</option> : <><option value="contains">Contains keyword</option><option value="exact">Exact message</option><option value="starts_with">Starts with keyword</option></>}</select></label>
             </div>
-            <label>Keywords<input value={draft.keywords} onChange={(e) => setDraft({ ...draft, keywords: e.target.value })} placeholder="JESUS, GOD, STUDY" /><small>Separate multiple keywords with commas. Matching is case-insensitive.</small></label>
+            <label>Keywords<input value={draft.keywords} onChange={(e) => setDraft({ ...draft, keywords: e.target.value })} placeholder="JESUS, GOD, STUDY" /><small>{draft.triggerType === "comment_keyword" ? "Separate with commas. Sol sees every comment, but delivery fires only for a short explicit request such as JESUS or “send me the Jesus guide.”" : "Separate multiple keywords with commas. Matching is case-insensitive."}</small></label>
             <label>{signatureFlow ? "Fallback reply message" : "Reply message"}<textarea value={draft.replyText} onChange={(e) => setDraft({ ...draft, replyText: e.target.value })} placeholder="Thanks for commenting. Here’s the study:" /><small>{signatureFlow ? "This study-link comment rule uses the AG signature handshake first. This text remains available as the rule’s fallback copy." : "This text is sent directly when the rule matches."}</small></label>
             <label>Link target<select value={sources.some((source) => source.url === draft.destinationUrl) ? draft.destinationUrl : "custom"} onChange={(e) => e.target.value !== "custom" && setDraft({ ...draft, destinationUrl: e.target.value })}><option value="custom">Custom / no link</option>{sources.map((source) => <option key={source.url} value={source.url}>{source.kind} · {source.label}</option>)}</select></label>
             <label>Destination URL<input type="url" value={draft.destinationUrl} onChange={(e) => setDraft({ ...draft, destinationUrl: e.target.value })} placeholder="https://apostolicguide.com/pathways/..." /><small>{signatureFlow ? "The URL stays hidden until the branded card, where it becomes the Open the Study button." : "A direct reply may include this URL."}</small></label>
@@ -189,13 +190,14 @@ export function SocialAutomationManager({
               <div className="ig-preview-account"><Instagram size={18} /><strong>Apostolic Guide</strong></div>
               <div className="ig-preview-trigger"><small>{draft.triggerType === "comment_keyword" ? "COMMENT" : "DM"}</small><p>{keywords[0] || "JESUS"}</p></div>
               {signatureFlow ? <>
+                <div className="ig-preview-reply"><p>{buildPublicGuideAcknowledgement(studyTitle)}</p></div>
                 <div className="ig-preview-reply"><p>{buildStudyHandshake(studyTitle)}</p></div>
                 <div className="ig-preview-trigger ig-preview-open"><small>REPLY</small><p>OPEN</p></div>
                 <div className="ig-study-card-preview"><span>APOSTOLIC GUIDE</span><strong>{studyTitle}</strong><p>Scripture first. Questions welcome.</p><button type="button">Open the Study</button></div>
                 <div className="ig-preview-reply"><p>If a verse raises a question, send it here. I’ll point you back to Scripture.</p></div>
               </> : <div className="ig-preview-reply"><p>{finalReply(draft) || "Your automated reply will appear here."}</p></div>}
             </div>
-            <div className="social-rule-summary"><MessageSquareReply size={17} /><div><strong>{signatureFlow ? "AG signature study flow" : draft.triggerType === "comment_keyword" ? "Private reply to comment" : "Direct message reply"}</strong><span>{signatureFlow ? "Handshake → OPEN → branded card" : keywords.length ? `${keywords.length} keyword${keywords.length === 1 ? "" : "s"}` : "Add at least one keyword"}</span></div></div>
+            <div className="social-rule-summary"><MessageSquareReply size={17} /><div><strong>{signatureFlow ? "Sol + AG signature study flow" : draft.triggerType === "comment_keyword" ? "Sol safe request gate" : "Direct message reply"}</strong><span>{signatureFlow ? "Public acknowledgement → private handshake → OPEN → branded card" : keywords.length ? `${keywords.length} keyword${keywords.length === 1 ? "" : "s"}` : "Add at least one keyword"}</span></div></div>
           </aside>
         </div>
         <div className="broadcast-actions"><button className="button button-outline" type="button" onClick={() => setDraft(emptyDraft)}>{draft.id ? "Cancel edit" : "Clear"}</button><button className="button button-crimson" type="button" onClick={saveAutomation} disabled={state === "working" || !draft.name.trim() || !keywords.length || !draft.replyText.trim()}><Plus size={16} /> {draft.id ? "Save automation" : "Create automation"}</button></div>

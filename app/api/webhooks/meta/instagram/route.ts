@@ -81,7 +81,7 @@ export async function POST(request: Request) {
       ingestInstagramInbox(payload),
       runDueJourneys(50)
     ]);
-    await logIngress({ method: "POST", signaturePresent: true, signatureValid: true, payloadObject, entryCount, parsedTriggerCount: result.processed, outcome: result.processed > 0 ? "processed" : "accepted_no_trigger", detail: `sent=${result.sent}; people_recorded=${peopleRecorded}; journeys_enrolled=${journeysEnrolled}; inbox=${inboxStored}; due_journeys=${dueJourneysRun}` });
+    await logIngress({ method: "POST", signaturePresent: true, signatureValid: true, payloadObject, entryCount, parsedTriggerCount: result.processed, outcome: result.processed > 0 ? "processed" : "accepted_no_trigger", detail: `sent=${result.sent}; comment_guide_queued=${result.queued}; people_recorded=${peopleRecorded}; journeys_enrolled=${journeysEnrolled}; inbox=${inboxStored}; due_journeys=${dueJourneysRun}` });
     return NextResponse.json({ ok: true, ...result, peopleRecorded, journeysEnrolled, inboxStored, dueJourneysRun });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Webhook processing failed.";

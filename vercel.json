@@ -9,6 +9,10 @@
     {
       "path": "/api/cron/threads-publishing",
       "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/comment-guide",
+      "schedule": "* * * * *"
     }
   ]
 }
