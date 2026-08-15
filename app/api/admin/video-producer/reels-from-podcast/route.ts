@@ -17,13 +17,13 @@ export async function POST(request: Request) {
   if (!service) return NextResponse.json({ error: "Supabase service access is not configured." }, { status: 503 });
 
   const parentResult = await service.from("video_producer_projects")
-    .select("id,title,mode,status,source_provider,source_locator,source_filename,source_mime_type,source_size_bytes,source_duration,transcript_text,transcript,reel_candidates")
+    .select("id,title,mode,status,pathway_slug,source_provider,source_locator,source_filename,source_mime_type,source_size_bytes,source_duration,transcript_text,transcript,reel_candidates")
     .eq("id", parsed.data.projectId)
     .maybeSingle();
   if (parentResult.error) return NextResponse.json({ error: parentResult.error.message }, { status: 500 });
   const parent = parentResult.data;
   if (!parent || parent.mode !== "podcast" || !parent.source_locator) return NextResponse.json({ error: "Podcast source not found." }, { status: 404 });
-  if (!['approved','rendering','review','completed'].includes(parent.status)) return NextResponse.json({ error: "Approve the podcast before creating reel projects." }, { status: 409 });
+  if (!["approved","rendering","review","completed"].includes(parent.status)) return NextResponse.json({ error: "Approve the podcast before creating reel projects." }, { status: 409 });
 
   const candidates = Array.isArray(parent.reel_candidates) ? parent.reel_candidates as unknown as VideoProducerReelCandidate[] : [];
   const candidate = candidates.find((item) => item && item.id === parsed.data.candidateId);
@@ -32,19 +32,26 @@ export async function POST(request: Request) {
   }
 
   const existing = await service.from("video_producer_projects")
-    .select("id,title,mode,status,source_range_start,source_range_end")
+    .select("id,title,mode,status,parent_project_id,pathway_slug,source_range_start,source_range_end")
     .eq("parent_project_id", parent.id)
     .eq("source_range_start", candidate.start)
     .eq("source_range_end", candidate.end)
     .maybeSingle();
   if (existing.error) return NextResponse.json({ error: existing.error.message }, { status: 500 });
-  if (existing.data) return NextResponse.json({ project: existing.data, created: false });
+  if (existing.data) {
+    if (!existing.data.pathway_slug && parent.pathway_slug) {
+      await service.from("video_producer_projects").update({ pathway_slug: parent.pathway_slug, updated_by: access.user.id }).eq("id", existing.data.id);
+      existing.data.pathway_slug = parent.pathway_slug;
+    }
+    return NextResponse.json({ project: existing.data, created: false });
+  }
 
   const created = await service.from("video_producer_projects").insert({
     title: candidate.title || `${parent.title} · Reel`,
     mode: "reels",
     status: "uploaded",
     parent_project_id: parent.id,
+    pathway_slug: parent.pathway_slug ?? null,
     source_provider: parent.source_provider,
     source_locator: parent.source_locator,
     source_filename: parent.source_filename,
