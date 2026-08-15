@@ -46,14 +46,8 @@ function statusLabel(project: Project) {
   if (render?.status === "rendering" || render?.status === "queued") return "Rendering";
   if (render?.status === "completed") return "Master ready";
   const labels: Record<string, string> = {
-    uploaded: "Ready for Sol",
-    directing: "Sol producing",
-    planned: "Finish setup",
-    approved: "Ready to render",
-    rendering: "Rendering",
-    review: "Master ready",
-    completed: "Complete",
-    failed: "Needs attention"
+    uploaded: "Ready for Sol", directing: "Sol producing", planned: "Finish setup", approved: "Ready to render",
+    rendering: "Rendering", review: "Master ready", completed: "Complete", failed: "Needs attention"
   };
   return labels[project.status] || project.status;
 }
@@ -80,14 +74,9 @@ export function VideoProducerReelsLibrary({ parentProjectId = null, embedded = f
 
   const load = useCallback(async () => {
     setLoading(true);
-    try {
-      setProjects(await loadLibrary());
-      setError("");
-    } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : "Reels library could not be loaded.");
-    } finally {
-      setLoading(false);
-    }
+    try { setProjects(await loadLibrary()); setError(""); }
+    catch (loadError) { setError(loadError instanceof Error ? loadError.message : "Reels library could not be loaded."); }
+    finally { setLoading(false); }
   }, []);
 
   useEffect(() => { void load(); }, [load]);
@@ -113,37 +102,28 @@ export function VideoProducerReelsLibrary({ parentProjectId = null, embedded = f
           <strong>{project.title}</strong>
           <small>{duration(project)} · {statusLabel(project)}{parent ? ` · from ${parent.title}` : " · standalone"}</small>
           {render && ["queued", "rendering"].includes(render.status) ? <span className={styles.miniProgress}><i style={{ width: `${Math.max(percent, 3)}%` }}/></span> : null}
-          {render?.error ? <small className={styles.inlineError}>{render.error}</small> : null}
+          {render?.error ? <small style={{ color: "#a63340", whiteSpace: "normal", marginTop: 3 }}>{render.error}</small> : null}
         </span>
-        <span className={styles.rowActions}>
-          {render?.status === "completed" ? <a className={styles.smallAction} href={`/api/admin/video-producer/projects/${project.id}/download`} target="_blank" rel="noopener noreferrer" onClick={(event) => event.stopPropagation()} aria-label={`Download ${project.title}`}><Download size={13}/></a> : null}
-          <button type="button" className={styles.smallAction} onClick={() => router.push(`/admin/video-producer/${project.id}/${projectStep(project)}`)}>Open</button>
+        <span style={{ display: "flex", alignItems: "center", gap: 7 }}>
+          {render?.status === "completed" ? <a className={styles.buttonSecondary} style={{ minHeight: 36, paddingInline: 10 }} href={`/api/admin/video-producer/projects/${project.id}/download`} target="_blank" rel="noopener noreferrer" aria-label={`Download ${project.title}`}><Download size={13}/></a> : null}
+          <button type="button" className={styles.buttonSecondary} style={{ minHeight: 36, paddingInline: 11 }} onClick={() => router.push(`/admin/video-producer/${project.id}/${projectStep(project)}`)}>Open</button>
         </span>
       </div>
     );
   }
 
-  const body = (
-    <>
-      {error ? <div className={styles.error}>{error}</div> : null}
-      {loading && !reels.length ? <div className={styles.empty}>Loading reels…</div> : reels.length ? (
-        <div className={styles.projectList}>{reels.map(row)}</div>
-      ) : <div className={styles.empty}>{parentProjectId ? "No Reels have been created from this podcast yet." : "No Reels projects yet."}</div>}
-    </>
+  const body = <>{error ? <div className={styles.error}>{error}</div> : null}{loading && !reels.length ? <div className={styles.empty}>Loading reels…</div> : reels.length ? <div className={styles.projectList}>{reels.map(row)}</div> : <div className={styles.empty}>{parentProjectId ? "No Reels have been created from this podcast yet." : "No Reels projects yet."}</div>}</>;
+
+  if (embedded) return (
+    <div className={styles.panel}>
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 14 }}>
+        <div><h3 className={styles.panelTitle}><Smartphone size={17}/> Reels package</h3><p className={styles.panelText}>Every child Reel stays attached to this podcast after you leave its editor.</p></div>
+        <button type="button" className={styles.buttonSecondary} style={{ minHeight: 36, paddingInline: 10 }} onClick={() => void load()} disabled={loading} aria-label="Refresh reels">{loading ? <Loader2 size={13} className={styles.spin}/> : <RefreshCw size={13}/>}</button>
+      </div>
+      <div style={{ marginTop: 12 }}>{body}</div>
+      <Link className={styles.backLink} style={{ marginTop: 12 }} href="/admin/video-producer/reels">Open full Reels Library</Link>
+    </div>
   );
-
-  if (embedded) {
-    return (
-      <div className={styles.panel}>
-        <div className={styles.panelHeadingRow}>
-          <div><h3 className={styles.panelTitle}><Smartphone size={17}/> Reels package</h3><p className={styles.panelText}>Every child Reel stays attached to this podcast after you leave its editor.</p></div>
-          <button type="button" className={styles.smallAction} onClick={() => void load()} disabled={loading} aria-label="Refresh reels">{loading ? <Loader2 size={13} className={styles.spin}/> : <RefreshCw size={13}/>}</button>
-        </div>
-        <div style={{ marginTop: 12 }}>{body}</div>
-        <Link className={styles.textAction} href="/admin/video-producer/reels">Open full Reels Library</Link>
-      </div>
-    );
-  }
 
   return (
     <main className={styles.dashboard}>
@@ -152,7 +132,7 @@ export function VideoProducerReelsLibrary({ parentProjectId = null, embedded = f
           <div><div className={styles.eyebrow}>Apostolic Guide Media</div><h1>Reels Library</h1><p>One home for standalone shorts and every Reel inherited from a Podcast master.</p></div>
           <button type="button" className={styles.iconAction} onClick={() => void load()} disabled={loading} aria-label="Refresh reels">{loading ? <Loader2 size={18} className={styles.spin}/> : <RefreshCw size={18}/>}</button>
         </header>
-        <div className={styles.libraryBackRow}><Link className={styles.backLink} href="/admin/video-producer"><Film size={14}/> Video Producer</Link><Link className={styles.buttonSecondary} href="/admin/video-producer/new?mode=reels">New standalone Reel</Link></div>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}><Link className={styles.backLink} href="/admin/video-producer"><Film size={14}/> Video Producer</Link><Link className={styles.buttonSecondary} href="/admin/video-producer/new?mode=reels">New standalone Reel</Link></div>
         <section className={styles.projectSection}><div className={styles.sectionHeading}><h2>From podcasts</h2><span>{inherited.length}</span></div>{loading && !projects.length ? <div className={styles.empty}>Loading reels…</div> : inherited.length ? <div className={styles.projectList}>{inherited.map(row)}</div> : <div className={styles.empty}>No podcast Reels yet.</div>}</section>
         <section className={styles.projectSection}><div className={styles.sectionHeading}><h2>Standalone</h2><span>{standalone.length}</span></div>{standalone.length ? <div className={styles.projectList}>{standalone.map(row)}</div> : <div className={styles.empty}>No standalone Reels yet.</div>}</section>
       </div>
