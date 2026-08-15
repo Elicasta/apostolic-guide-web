@@ -1,4 +1,5 @@
 import { createServiceClient } from "./supabase";
+import { isSelfAuthoredInstagramComment, type InstagramCommentAuthor } from "./social-messaging";
 
 export type PersonStatus = "lead" | "subscriber" | "app_user" | "inactive" | "archived";
 
@@ -151,7 +152,7 @@ export async function ingestInstagramPeople(payload: unknown) {
   let recorded = 0;
   for (const entryRaw of root.entry) {
     if (!entryRaw || typeof entryRaw !== "object") continue;
-    const entry = entryRaw as { messaging?: unknown[]; changes?: unknown[] };
+    const entry = entryRaw as { id?: string; messaging?: unknown[]; changes?: unknown[] };
     for (const itemRaw of Array.isArray(entry.messaging) ? entry.messaging : []) {
       if (!itemRaw || typeof itemRaw !== "object") continue;
       const item = itemRaw as { sender?: { id?: string }; timestamp?: number; message?: { mid?: string; text?: string; is_echo?: boolean } };
@@ -164,8 +165,9 @@ export async function ingestInstagramPeople(payload: unknown) {
     }
     for (const changeRaw of Array.isArray(entry.changes) ? entry.changes : []) {
       if (!changeRaw || typeof changeRaw !== "object") continue;
-      const change = changeRaw as { field?: string; value?: { id?: string; text?: string; from?: { id?: string; username?: string }; media?: { id?: string } } };
+      const change = changeRaw as { field?: string; value?: { id?: string; text?: string; from?: InstagramCommentAuthor; media?: { id?: string } } };
       if ((change.field !== "comments" && change.field !== "live_comments") || !change.value?.id || !change.value.text || !change.value.from?.id) continue;
+      if (isSelfAuthoredInstagramComment({ entryId: entry.id, from: change.value.from })) continue;
       const person = await upsertInstagramPerson({ instagramUserId: change.value.from.id, username: change.value.from.username ?? null, sourceDetail: "instagram_comment" });
       if (!person) continue;
       await recordPersonEvent({
