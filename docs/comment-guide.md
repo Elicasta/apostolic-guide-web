@@ -14,6 +14,8 @@ The Comment Guide routes every new Instagram comment through GPT-5.6 Sol before 
 8. An approved reply is scheduled with a lane-specific human delay.
 9. Keyword requests receive a public acknowledgement and the existing private `OPEN` handshake. Other matched Pathways use the same private handoff.
 
+Self-authored comments are rejected before classification. The guard checks Meta's self-comment marker, account and entry IDs, the connected username, and provider IDs previously returned for Sol's own replies. Classification and delivery repeat the check as defense in depth. Sol's replies never become new Comment Guide conversations, CRM people, or Journey enrollments.
+
 Every non-abusive doctrinal comment receives one answer or redirect and one Pathway, including hard questions, forceful Trinitarian objections, heresy accusations, and gotcha wording. Direct personal abuse, threats, slurs, sensitive crises, spam, and ambiguous comments receive no automatic fallback. Repeated contention from one person on one post receives no second doctrinal reply because the first answer already supplied the Pathway.
 
 The objection taxonomy, research sources, combination logic, and repetition controls are documented in [comment-guide-argument-library.md](./comment-guide-argument-library.md).
@@ -30,3 +32,8 @@ The objection taxonomy, research sources, combination logic, and repetition cont
 ## Safe keyword behavior
 
 Comment automations are request terms, not substring triggers. `JESUS`, `Jesus! 🙏`, and `please send me the Jesus guide` may deliver the configured guide. `Jesus is not God`, `I love Jesus`, and prompt-injection text do not pass the keyword gate.
+
+## Manual decision-log controls
+
+- **Reply now** appears only for a doctrine-approved `scheduled` reply or `delivery_retry` while Comment Guide is Live. It atomically claims the job, keeps the daily ceiling and self-author checks, and skips only the remaining human delay.
+- **Delete** removes the Comment Guide dashboard record after confirmation. Pending records are cancelled by deletion. Sent Instagram replies remain published. Active `classifying` and `sending` jobs cannot be deleted, preventing a dashboard action from racing the worker.
