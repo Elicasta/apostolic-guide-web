@@ -135,6 +135,7 @@ export async function enqueueInstagramCommentGuide(input: {
   personId?: string | null;
 }) {
   if (input.trigger.triggerType !== "comment_keyword" || !input.trigger.commentId) return { queued: false, status: "ignored" as const };
+  if (input.trigger.selfAuthored) return { queued: false, status: "ignored" as const };
   const service = createServiceClient();
   if (!service) throw new Error("Supabase service access is not configured.");
   const settings = await loadSettings(service);
@@ -241,8 +242,53 @@ async function alreadyAnsweredContention(service: ServiceClient, job: CommentGui
   return (result.count ?? 0) > 0;
 }
 
+async function jobIsSelfAuthored(service: ServiceClient, job: CommentGuideJob) {
+  const [providerReply, connection, person] = await Promise.all([
+    service.from("social_comment_guide_jobs")
+      .select("id")
+      .eq("public_reply_provider_id", job.comment_id)
+      .neq("id", job.id)
+      .limit(1)
+      .maybeSingle(),
+    service.from("social_connection_status")
+      .select("instagram_user_id,username")
+      .eq("platform", "instagram")
+      .maybeSingle(),
+    job.person_id
+      ? service.from("people").select("instagram_user_id,instagram_username").eq("id", job.person_id).maybeSingle()
+      : Promise.resolve({ data: null, error: null })
+  ]);
+  const queryError = providerReply.error || connection.error || person.error;
+  if (queryError) throw new Error(queryError.message);
+  if (providerReply.data) return true;
+  const connectedId = typeof connection.data?.instagram_user_id === "string" ? connection.data.instagram_user_id : "";
+  const senderId = job.sender_id?.trim() ?? "";
+  const personId = typeof person.data?.instagram_user_id === "string" ? person.data.instagram_user_id.trim() : "";
+  if (connectedId && (senderId === connectedId || personId === connectedId)) return true;
+  const connectedUsername = typeof connection.data?.username === "string" ? connection.data.username.replace(/^@/, "").trim().toLocaleLowerCase() : "";
+  const personUsername = typeof person.data?.instagram_username === "string" ? person.data.instagram_username.replace(/^@/, "").trim().toLocaleLowerCase() : "";
+  return Boolean(connectedUsername && personUsername && connectedUsername === personUsername);
+}
+
+async function ignoreSelfAuthoredJob(service: ServiceClient, job: CommentGuideJob, expectedStatus: "classifying" | "sending") {
+  const now = new Date().toISOString();
+  const reason = "Ignored the connected Instagram account's own comment.";
+  const update = await service.from("social_comment_guide_jobs").update({
+    status: "ignored",
+    action: "ignore",
+    locked_at: null,
+    completed_at: now,
+    last_error: reason,
+    updated_at: now
+  }).eq("id", job.id).eq("status", expectedStatus);
+  if (update.error) throw new Error(update.error.message);
+  await updateSocialEvent(service, job, { delivery_status: "ignored", error_code: reason });
+  return "ignored" as const;
+}
+
 async function classifyJob(service: ServiceClient, job: CommentGuideJob, settings: CommentGuideSettings) {
   try {
+    if (await jobIsSelfAuthored(service, job)) return ignoreSelfAuthoredJob(service, job, "classifying");
     const [automations, replies] = await Promise.all([listSocialAutomations(), recentReplies(service)]);
     const explicitAutomation = findExplicitCommentAutomation(job.inbound_text, automations);
     const result = await prepareInstagramCommentDecision({
@@ -395,6 +441,7 @@ async function recordDelivery(service: ServiceClient, job: CommentGuideJob) {
 async function deliverJob(service: ServiceClient, claimedJob: CommentGuideJob) {
   let job = claimedJob;
   try {
+    if (await jobIsSelfAuthored(service, job)) return ignoreSelfAuthoredJob(service, job, "sending");
     const settings = await loadSettings(service);
     if (settings.mode !== "live") {
       const status = settings.mode === "shadow" ? "shadowed" : "ignored";
@@ -594,6 +641,57 @@ export async function retryCommentGuideJob(jobId: number) {
   if (result.error) throw new Error(result.error.message);
   await updateSocialEvent(service, job, { delivery_status: job.public_reply_text || job.private_reply_text ? "matched" : "received", error_code: null });
   return { id: jobId, status: nextStatus };
+}
+
+export function canSendCommentGuideJobNow(status: string) {
+  return status === "scheduled" || status === "delivery_retry";
+}
+
+export function canDeleteCommentGuideJob(status: string) {
+  return status !== "classifying" && status !== "sending";
+}
+
+export async function sendCommentGuideJobNow(jobId: number) {
+  const service = createServiceClient();
+  if (!service) throw new Error("Supabase service access is not configured.");
+  const settings = await loadSettings(service);
+  if (settings.mode !== "live") throw new Error("Comment Guide must be Live before a reply can be sent now.");
+  const existing = await service.from("social_comment_guide_jobs").select(JOB_SELECT).eq("id", jobId).maybeSingle();
+  if (existing.error) throw new Error(existing.error.message);
+  if (!existing.data) throw new Error("Comment Guide job not found.");
+  const job = existing.data as unknown as CommentGuideJob;
+  if (!canSendCommentGuideJobNow(job.status)) throw new Error("Only scheduled replies or delivery retries can be sent now.");
+  if (!job.public_reply_text && !job.private_reply_text) throw new Error("This job has no approved reply to send.");
+  const now = new Date().toISOString();
+  const claimed = await service.from("social_comment_guide_jobs").update({
+    status: "sending",
+    available_at: now,
+    locked_at: now,
+    delivery_attempts: Number(job.delivery_attempts ?? 0) + 1,
+    updated_at: now
+  }).eq("id", jobId).in("status", ["scheduled", "delivery_retry"]).select(JOB_SELECT).maybeSingle();
+  if (claimed.error) throw new Error(claimed.error.message);
+  if (!claimed.data) throw new Error("That reply is already being processed. Refresh the log before trying again.");
+  const status = await deliverJob(service, claimed.data as unknown as CommentGuideJob);
+  return { id: jobId, status };
+}
+
+export async function deleteCommentGuideJob(jobId: number) {
+  const service = createServiceClient();
+  if (!service) throw new Error("Supabase service access is not configured.");
+  const existing = await service.from("social_comment_guide_jobs").select("id,status,external_event_id").eq("id", jobId).maybeSingle();
+  if (existing.error) throw new Error(existing.error.message);
+  if (!existing.data) throw new Error("Comment Guide job not found.");
+  if (!canDeleteCommentGuideJob(String(existing.data.status))) throw new Error("This comment is being processed right now. Wait a moment, then delete it.");
+  const removed = await service.from("social_comment_guide_jobs")
+    .delete()
+    .eq("id", jobId)
+    .eq("status", existing.data.status)
+    .select("id")
+    .maybeSingle();
+  if (removed.error) throw new Error(removed.error.message);
+  if (!removed.data) throw new Error("The comment changed while it was being deleted. Refresh the log and try again.");
+  return { id: jobId, status: String(existing.data.status) };
 }
 
 export const commentGuideRuntimeMetadata = {
