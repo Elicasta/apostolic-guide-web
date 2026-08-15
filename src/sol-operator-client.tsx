@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { Activity, ArrowRight, Check, ChevronDown, CircleAlert, Gauge, Loader2, MessageSquareText, Pause, Play, RefreshCw, Send, Settings2, ShieldCheck, Sparkles, X } from "lucide-react";
 import type { SolOperatorSnapshot, SolProposal, SolRun } from "./sol-operator";
@@ -212,7 +211,6 @@ function OperatorPanel({ initialSnapshot, canOperate, embedded = false, onClose 
 }
 
 export function SolOperatorFloating({ canOperate }: { canOperate: boolean }) {
-  const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [snapshot, setSnapshot] = useState<SolOperatorSnapshot | undefined>();
   useEffect(() => { void request().then(setSnapshot).catch(() => undefined); }, []);
@@ -222,7 +220,6 @@ export function SolOperatorFloating({ canOperate }: { canOperate: boolean }) {
     if (window.innerWidth <= 640) document.body.style.overflow = "hidden";
     return () => { document.body.style.overflow = previous; };
   }, [open]);
-  if (pathname === "/admin/sol") return null;
   const state = !snapshot?.settings.enabled ? "idle" : snapshot.runs.some((run) => run.status === "running" || run.status === "queued") ? "running" : snapshot.proposals.some((proposal) => proposal.status === "pending") ? "attention" : "idle";
   return <div className={`sol-floating${open ? " is-open" : ""}`}>
     {open ? <><button type="button" className="sol-backdrop" onClick={() => setOpen(false)} aria-label="Close Sol"/><OperatorPanel initialSnapshot={snapshot} canOperate={canOperate} onClose={() => setOpen(false)}/></> : null}
