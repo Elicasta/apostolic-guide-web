@@ -32,17 +32,17 @@ export async function POST(request: Request) {
     }
     if (parsed.data.action === "retry_job") {
       const retry = await retryCommentGuideJob(parsed.data.jobId);
-      await recordStudioAudit({ actorUserId: access.user.id, action: "comment_guide.retried", resourceType: "social_comment_guide_job", resourceId: String(parsed.data.jobId), metadata: { status: retry.status } });
+      await recordStudioAudit({ actorUserId: access.user.id, action: "comment_guide.retried", resourceType: "social_comment_guide_job", resourceId: retry.externalEventId, metadata: { job_id: parsed.data.jobId, status: retry.status } });
       return NextResponse.json({ ok: true, retry });
     }
     if (parsed.data.action === "send_now") {
       const delivery = await sendCommentGuideJobNow(parsed.data.jobId);
-      await recordStudioAudit({ actorUserId: access.user.id, action: "comment_guide.sent_now", resourceType: "social_comment_guide_job", resourceId: String(parsed.data.jobId), metadata: { status: delivery.status } });
+      await recordStudioAudit({ actorUserId: access.user.id, action: "comment_guide.sent_now", resourceType: "social_comment_guide_job", resourceId: delivery.externalEventId, metadata: { job_id: parsed.data.jobId, status: delivery.status } });
       return NextResponse.json({ ok: true, delivery });
     }
     if (parsed.data.action === "delete_job") {
       const deleted = await deleteCommentGuideJob(parsed.data.jobId);
-      await recordStudioAudit({ actorUserId: access.user.id, action: "comment_guide.job_deleted", resourceType: "social_comment_guide_job", resourceId: String(parsed.data.jobId), metadata: { prior_status: deleted.status } });
+      await recordStudioAudit({ actorUserId: access.user.id, action: "comment_guide.job_deleted", resourceType: "social_comment_guide_job", resourceId: deleted.externalEventId, metadata: { job_id: parsed.data.jobId, prior_status: deleted.status, already_deleted: deleted.alreadyDeleted } });
       return NextResponse.json({ ok: true, deleted });
     }
     const settings = await updateCommentGuideSettings({

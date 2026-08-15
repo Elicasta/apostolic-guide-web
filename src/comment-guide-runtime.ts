@@ -646,7 +646,7 @@ export async function retryCommentGuideJob(jobId: number) {
   const result = await service.from("social_comment_guide_jobs").update({ status: nextStatus, available_at: new Date().toISOString(), completed_at: null, locked_at: null, last_error: null, updated_at: new Date().toISOString() }).eq("id", jobId).eq("status", "failed");
   if (result.error) throw new Error(result.error.message);
   await updateSocialEvent(service, job, { delivery_status: job.public_reply_text || job.private_reply_text ? "matched" : "received", error_code: null });
-  return { id: jobId, status: nextStatus };
+  return { id: jobId, status: nextStatus, externalEventId: job.external_event_id };
 }
 
 export function canSendCommentGuideJobNow(status: string) {
@@ -679,7 +679,7 @@ export async function sendCommentGuideJobNow(jobId: number) {
   if (claimed.error) throw new Error(claimed.error.message);
   if (!claimed.data) throw new Error("That reply is already being processed. Refresh the log before trying again.");
   const status = await deliverJob(service, claimed.data as unknown as CommentGuideJob);
-  return { id: jobId, status };
+  return { id: jobId, status, externalEventId: job.external_event_id };
 }
 
 export async function deleteCommentGuideJob(jobId: number) {
@@ -687,7 +687,7 @@ export async function deleteCommentGuideJob(jobId: number) {
   if (!service) throw new Error("Supabase service access is not configured.");
   const existing = await service.from("social_comment_guide_jobs").select("id,status,external_event_id").eq("id", jobId).maybeSingle();
   if (existing.error) throw new Error(existing.error.message);
-  if (!existing.data) throw new Error("Comment Guide job not found.");
+  if (!existing.data) return { id: jobId, status: null, externalEventId: null, alreadyDeleted: true };
   if (!canDeleteCommentGuideJob(String(existing.data.status))) throw new Error("This comment is being processed right now. Wait a moment, then delete it.");
   const removed = await service.from("social_comment_guide_jobs")
     .delete()
@@ -697,7 +697,12 @@ export async function deleteCommentGuideJob(jobId: number) {
     .maybeSingle();
   if (removed.error) throw new Error(removed.error.message);
   if (!removed.data) throw new Error("The comment changed while it was being deleted. Refresh the log and try again.");
-  return { id: jobId, status: String(existing.data.status) };
+  return {
+    id: jobId,
+    status: String(existing.data.status),
+    externalEventId: typeof existing.data.external_event_id === "string" ? existing.data.external_event_id : null,
+    alreadyDeleted: false
+  };
 }
 
 export const commentGuideRuntimeMetadata = {
