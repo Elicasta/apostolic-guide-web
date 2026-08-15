@@ -13,13 +13,13 @@ export async function GET() {
 
   const [projectsResult, rendersResult] = await Promise.all([
     service.from("video_producer_projects")
-      .select("id,title,mode,status,parent_project_id,source_filename,source_duration,source_range_start,source_range_end,approval_fingerprint,created_at,updated_at")
+      .select("id,title,mode,status,parent_project_id,pathway_slug,source_filename,source_duration,source_range_start,source_range_end,approval_fingerprint,created_at,updated_at")
       .order("updated_at", { ascending: false })
-      .limit(100),
+      .limit(200),
     service.from("video_producer_renders")
-      .select("id,project_id,status,progress,error,requested_at,started_at,completed_at")
+      .select("id,project_id,status,progress,error,output_storage_path,requested_at,started_at,completed_at")
       .order("requested_at", { ascending: false })
-      .limit(300)
+      .limit(500)
   ]);
 
   if (projectsResult.error) return NextResponse.json({ error: projectsResult.error.message }, { status: 500 });
