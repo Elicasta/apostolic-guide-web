@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getStudioPermission } from "@/auth";
+import { pathwayBySlug } from "@/pathway-catalog";
 import { createServiceClient } from "@/supabase";
 
 export const runtime = "nodejs";
@@ -8,6 +9,7 @@ export const runtime = "nodejs";
 const createSchema = z.object({
   title: z.string().trim().min(1).max(180),
   mode: z.enum(["podcast", "reels"]),
+  pathwaySlug: z.string().trim().min(1).max(100).optional(),
   parentProjectId: z.string().uuid().optional(),
   sourceRangeStart: z.number().min(0).optional(),
   sourceRangeEnd: z.number().positive().optional()
@@ -36,16 +38,20 @@ export async function POST(request: Request) {
   const service = createServiceClient();
   if (!service) return NextResponse.json({ error: "Supabase service access is not configured." }, { status: 503 });
 
+  const requestedPathway = parsed.data.pathwaySlug ? pathwayBySlug(parsed.data.pathwaySlug) : null;
+  if (parsed.data.pathwaySlug && !requestedPathway) return NextResponse.json({ error: "Unknown pathway." }, { status: 400 });
+
   let inherited: Record<string, unknown> = {};
   if (parsed.data.parentProjectId) {
     if (parsed.data.mode !== "reels") return NextResponse.json({ error: "Only Reels projects can inherit a parent source." }, { status: 400 });
     const parent = await service.from("video_producer_projects")
-      .select("id,mode,source_provider,source_locator,source_filename,source_mime_type,source_size_bytes,source_duration,transcript_text,transcript")
+      .select("id,mode,pathway_slug,source_provider,source_locator,source_filename,source_mime_type,source_size_bytes,source_duration,transcript_text,transcript")
       .eq("id", parsed.data.parentProjectId)
       .maybeSingle();
     if (parent.error) return NextResponse.json({ error: parent.error.message }, { status: 500 });
     if (!parent.data || parent.data.mode !== "podcast" || !parent.data.source_locator) return NextResponse.json({ error: "Approved podcast source was not found." }, { status: 404 });
     inherited = {
+      pathway_slug: parent.data.pathway_slug,
       source_provider: parent.data.source_provider,
       source_locator: parent.data.source_locator,
       source_filename: parent.data.source_filename,
@@ -61,6 +67,7 @@ export async function POST(request: Request) {
   const created = await service.from("video_producer_projects").insert({
     title: parsed.data.title,
     mode: parsed.data.mode,
+    pathway_slug: requestedPathway?.slug ?? null,
     parent_project_id: parsed.data.parentProjectId ?? null,
     source_range_start: parsed.data.sourceRangeStart ?? null,
     source_range_end: parsed.data.sourceRangeEnd ?? null,
