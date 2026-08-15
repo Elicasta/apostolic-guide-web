@@ -5,6 +5,7 @@ import { PathwayCarouselStudio } from "@/pathway-carousel-studio";
 import { CarouselTextureDirector } from "@/carousel-texture-director";
 import { CarouselPublishingBridge } from "@/carousel-publishing-bridge";
 import { CarouselStudioEnhancements } from "@/carousel-studio-enhancements";
+import { CarouselStudioWorkflow } from "@/carousel-studio-workflow";
 
 export default async function AdminCarouselStudioPage() {
   const { access, allowed } = await getStudioPermission("manage_content");
@@ -30,6 +31,7 @@ export default async function AdminCarouselStudioPage() {
       <CarouselTextureDirector aiReady={aiReady}/>
       <CarouselStudioEnhancements aiReady={aiReady}/>
       <CarouselPublishingBridge/>
+      <CarouselStudioWorkflow aiReady={aiReady}/>
     </>
   );
 }
