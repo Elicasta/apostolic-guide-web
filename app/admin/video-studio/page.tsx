@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getStudioPermission } from "@/auth";
 import { allPathways } from "@/pathway-catalog";
 import { PathwayVideoStudio } from "@/pathway-video-studio";
+import { VideoStudioWorkflow } from "@/video-studio-workflow";
 import type { PathwayVideoCue, PathwayVideoCueKind, PathwayVideoFormat } from "@/pathway-video";
 import { createServiceClient } from "@/supabase";
 
@@ -155,5 +156,10 @@ export default async function AdminVideoStudioPage() {
     };
   });
 
-  return <PathwayVideoStudio pathways={pathways} databaseReady={databaseReady} rendererReady={rendererReady}/>;
+  const aiReady = Boolean(process.env.OPENAI_API_KEY?.trim());
+
+  return <>
+    <PathwayVideoStudio pathways={pathways} databaseReady={databaseReady} rendererReady={rendererReady}/>
+    <VideoStudioWorkflow aiReady={aiReady}/>
+  </>;
 }
