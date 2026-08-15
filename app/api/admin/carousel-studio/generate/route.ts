@@ -7,6 +7,8 @@ import { CAROUSEL_GENERATOR_RULES, MODE_STYLE_DEFAULTS } from "@/carousel-design
 export const runtime = "nodejs";
 export const maxDuration = 120;
 
+type CreationType = "carousel" | "single-post" | "story" | "thumbnail";
+
 const requestSchema = z.object({
   slug: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).optional(),
   mode: z.enum(["pathway", "informational", "word-study", "verse-connection", "app-guide"]),
@@ -77,6 +79,15 @@ function extractResponseText(value: unknown) {
   return "";
 }
 
+function creationFromPrompt(prompt: string): CreationType | null {
+  const match = prompt.match(/^\[AG_CREATION_TYPE:(carousel|single-post|story|thumbnail)\]/i);
+  return match ? match[1].toLowerCase() as CreationType : null;
+}
+
+function cleanPrompt(prompt: string) {
+  return prompt.replace(/^\[AG_CREATION_TYPE:[^\]]+\]\s*/i, "").replace(/^\[AG_TARGET_FRAMES:\d+\]\s*/i, "").trim();
+}
+
 export async function POST(request: Request) {
   const { access, allowed } = await getStudioPermission("manage_content");
   if (!allowed || access.state !== "allowed" || !access.user) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -94,6 +105,10 @@ export async function POST(request: Request) {
     ...pathway.steps.map((step, index) => `${index + 1}. ${step.reference} — ${step.title}: ${step.explanation}`)
   ].join("\n") : "No Pathway source was selected.";
 
+  const markerCreation = creationFromPrompt(parsed.data.prompt);
+  const creationType: CreationType = markerCreation ?? parsed.data.creationType;
+  const targetSlides = creationType === "single-post" || creationType === "thumbnail" ? 1 : creationType === "story" ? 4 : parsed.data.targetSlides;
+  const creativePrompt = cleanPrompt(parsed.data.prompt);
   const preferredStyle = MODE_STYLE_DEFAULTS[parsed.data.mode];
   const modeDirection = {
     pathway: "Write for Street Theology: direct, Scripture-forward, declarative, and easy to scan. Evidence still needs clear explanatory body copy.",
@@ -103,11 +118,11 @@ export async function POST(request: Request) {
     "app-guide": "Write for Brand White Editorial: task-oriented, simple, sequential steps with one action per frame."
   }[parsed.data.mode];
   const creationDirection = {
-    carousel: `Create a swipe sequence of about ${parsed.data.targetSlides} slides. Slide 1 hooks/promises, middle slides progress one idea at a time, final slide closes with one next action.`,
+    carousel: `Create a swipe sequence of about ${targetSlides} slides. Slide 1 hooks/promises, middle slides progress one idea at a time, final slide closes with one next action.`,
     "single-post": "Create exactly one strong 4:5 feed graphic. It must communicate one complete idea on its own. Use body copy only when it materially improves clarity.",
-    story: `Create about ${parsed.data.targetSlides} sequential 9:16 Story frames. Each frame must be extremely easy to scan, conversational, and complete enough to understand without a caption. End with a clear next action.`,
+    story: `Create exactly ${targetSlides} sequential 9:16 Story frames. Each frame must be extremely easy to scan, conversational, and complete enough to understand without a caption. End with a clear next action.`,
     thumbnail: "Create exactly one thumbnail concept. The headline must be extremely short, high-contrast in meaning, non-clickbait, and readable at small size. Body copy should usually be empty or one very short support line."
-  }[parsed.data.creationType];
+  }[creationType];
 
   const response = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
@@ -119,7 +134,7 @@ export async function POST(request: Request) {
       input: [
         { role: "developer", content: [{ type: "input_text", text: [
           "You are Sol, the content director for Apostolic Guide, a Scripture-first Apostolic Bible study platform.",
-          `The requested asset is: ${parsed.data.creationType}.`,
+          `The requested asset is: ${creationType}.`,
           creationDirection,
           `The content mode defaults to the ${preferredStyle} visual system. Shape the copy for that visual language.`,
           modeDirection,
@@ -138,9 +153,9 @@ export async function POST(request: Request) {
           "Never turn every frame into a giant slogan."
         ].join("\n") }] },
         { role: "user", content: [{ type: "input_text", text: [
-          `CREATION TYPE: ${parsed.data.creationType}`,
+          `CREATION TYPE: ${creationType}`,
           `CONTENT MODE: ${parsed.data.mode}`,
-          `CREATIVE REQUEST: ${parsed.data.prompt}`,
+          `CREATIVE REQUEST: ${creativePrompt}`,
           pathwayContext
         ].join("\n\n") }] }
       ]
@@ -152,7 +167,9 @@ export async function POST(request: Request) {
   if (!outputText) return NextResponse.json({ error: "Sol returned no structured output." }, { status: 502 });
   try {
     const output = outputSchema.parse(JSON.parse(outputText));
-    return NextResponse.json({ plan: output, model, preferredStyle });
+    if ((creationType === "single-post" || creationType === "thumbnail") && output.slides.length !== 1) output.slides = output.slides.slice(0, 1);
+    if (creationType === "story" && output.slides.length > targetSlides) output.slides = output.slides.slice(0, targetSlides);
+    return NextResponse.json({ plan: output, model, preferredStyle, creationType });
   } catch {
     return NextResponse.json({ error: "Sol returned invalid structured output." }, { status: 502 });
   }
