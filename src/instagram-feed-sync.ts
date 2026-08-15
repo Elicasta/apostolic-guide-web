@@ -5,6 +5,7 @@ type InstagramMedia = {
   id: string;
   caption?: string;
   media_type?: string;
+  media_product_type?: string;
   media_url?: string;
   thumbnail_url?: string;
   permalink?: string;
@@ -39,14 +40,23 @@ async function instagramGet(path: string, token: string, graphVersion: string) {
   return json;
 }
 
+async function firstSuccessful<T>(attempts: Array<() => Promise<T>>) {
+  let lastError: unknown;
+  for (const attempt of attempts) {
+    try { return await attempt(); }
+    catch (error) { lastError = error; }
+  }
+  throw lastError instanceof Error ? lastError : new Error("Instagram request failed.");
+}
+
 function titleFromCaption(caption: string | undefined, mediaType: string | undefined) {
   const first = (caption || "").split(/\n+/).map((line) => line.trim()).find(Boolean);
   if (first) return first.slice(0, 160);
   return mediaType === "VIDEO" || mediaType === "REELS" ? "Instagram Reel" : mediaType === "CAROUSEL_ALBUM" ? "Instagram Carousel" : "Instagram Post";
 }
 
-function contentType(mediaType: string | undefined) {
-  if (mediaType === "VIDEO" || mediaType === "REELS") return "reel";
+function contentType(mediaType: string | undefined, productType?: string | undefined) {
+  if (productType === "REELS" || mediaType === "VIDEO" || mediaType === "REELS") return "reel";
   if (mediaType === "CAROUSEL_ALBUM") return "carousel";
   return "post";
 }
@@ -58,15 +68,21 @@ export async function fetchInstagramFeed(limit = 36) {
   const graphVersion = values.graphVersion || "v24.0";
   if (!token || !userId) throw new Error("Instagram is not connected.");
 
-  const account = await instagramGet(`${encodeURIComponent(userId)}?fields=id,username,followers_count,media_count`, token, graphVersion) as InstagramAccount;
-  const richFields = "id,caption,media_type,media_url,thumbnail_url,permalink,timestamp,like_count,comments_count,children{id,media_type,media_url,thumbnail_url}";
-  const baseFields = "id,caption,media_type,media_url,thumbnail_url,permalink,timestamp,children{id,media_type,media_url,thumbnail_url}";
-  let feed: { data?: InstagramMedia[] };
-  try {
-    feed = await instagramGet(`${encodeURIComponent(userId)}/media?fields=${encodeURIComponent(richFields)}&limit=${Math.max(1, Math.min(100, limit))}`, token, graphVersion) as { data?: InstagramMedia[] };
-  } catch {
-    feed = await instagramGet(`${encodeURIComponent(userId)}/media?fields=${encodeURIComponent(baseFields)}&limit=${Math.max(1, Math.min(100, limit))}`, token, graphVersion) as { data?: InstagramMedia[] };
-  }
+  const account = await firstSuccessful<InstagramAccount>([
+    () => instagramGet(`${encodeURIComponent(userId)}?fields=id,username,followers_count,media_count`, token, graphVersion) as Promise<InstagramAccount>,
+    () => instagramGet(`${encodeURIComponent(userId)}?fields=id,username,followers_count`, token, graphVersion) as Promise<InstagramAccount>,
+    () => instagramGet(`${encodeURIComponent(userId)}?fields=id,username`, token, graphVersion) as Promise<InstagramAccount>,
+    () => instagramGet(`me?fields=id,username`, token, graphVersion) as Promise<InstagramAccount>
+  ]);
+
+  const max = Math.max(1, Math.min(100, limit));
+  const feed = await firstSuccessful<{ data?: InstagramMedia[] }>([
+    () => instagramGet(`${encodeURIComponent(userId)}/media?fields=${encodeURIComponent("id,caption,media_type,media_product_type,media_url,thumbnail_url,permalink,timestamp,like_count,comments_count,children{id,media_type,media_url,thumbnail_url}")}&limit=${max}`, token, graphVersion) as Promise<{ data?: InstagramMedia[] }>,
+    () => instagramGet(`${encodeURIComponent(userId)}/media?fields=${encodeURIComponent("id,caption,media_type,media_product_type,media_url,thumbnail_url,permalink,timestamp,children{id,media_type,media_url,thumbnail_url}")}&limit=${max}`, token, graphVersion) as Promise<{ data?: InstagramMedia[] }>,
+    () => instagramGet(`${encodeURIComponent(userId)}/media?fields=${encodeURIComponent("id,caption,media_type,media_url,thumbnail_url,permalink,timestamp")}&limit=${max}`, token, graphVersion) as Promise<{ data?: InstagramMedia[] }>,
+    () => instagramGet(`me/media?fields=${encodeURIComponent("id,caption,media_type,media_url,thumbnail_url,permalink,timestamp")}&limit=${max}`, token, graphVersion) as Promise<{ data?: InstagramMedia[] }>
+  ]);
+
   return { account, media: feed.data ?? [], graphVersion };
 }
 
@@ -78,7 +94,7 @@ export async function syncInstagramFeedToCalendar(limit = 36) {
   const rows = media.map((item) => ({
     pathway_slug: null,
     title: titleFromCaption(item.caption, item.media_type),
-    content_type: contentType(item.media_type),
+    content_type: contentType(item.media_type, item.media_product_type),
     platform: "instagram",
     status: "published",
     scheduled_for: null,
@@ -89,6 +105,7 @@ export async function syncInstagramFeedToCalendar(limit = 36) {
       instagram_media_id: item.id,
       caption: item.caption || "",
       media_type: item.media_type || "IMAGE",
+      media_product_type: item.media_product_type || null,
       media_url: item.media_url || null,
       thumbnail_url: item.thumbnail_url || null,
       permalink: item.permalink || null,
