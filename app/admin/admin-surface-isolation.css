@@ -1,0 +1,12 @@
+/* Studio has its own application shell. Do not stack public-site navigation or
+   conversion/footer surfaces around internal production tools. */
+body:has(.admin-layout) > .site-header,
+body:has(.admin-layout) > .global-back-nav,
+body:has(.admin-layout) > .footer-connect,
+body:has(.admin-layout) > .site-footer {
+  display: none !important;
+}
+
+body:has(.admin-layout) > #main-content {
+  min-height: 100dvh;
+}

@@ -6,6 +6,7 @@ import { StudioMobileNav, StudioNav } from "@/studio-nav";
 import { StudioCommandPalette } from "@/studio-command-palette";
 import { STUDIO_ROLE_LABELS, type StudioRole } from "@/studio-permissions";
 import { getNotificationUnreadCount } from "@/studio-notifications";
+import "./admin-surface-isolation.css";
 import "./publishing.css";
 import "./campaign-intelligence.css";
 import "./social-messaging.css";

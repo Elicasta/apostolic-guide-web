@@ -11,7 +11,9 @@ export const runtime = "nodejs";
 const patchSchema = z.object({
   projectId: z.string().uuid(),
   pathwaySlug: z.string().nullable().optional(),
-  musicTrackId: z.string().uuid().nullable().optional()
+  musicTrackId: z.string().uuid().nullable().optional(),
+  audioPreset: z.enum(["ag-voice-clean", "ag-voice-punch", "none"]).optional(),
+  colorPreset: z.enum(["ag-studio", "ag-warm", "ag-clean", "none"]).optional()
 });
 
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -91,7 +93,7 @@ export async function PATCH(request: Request) {
   if (!service) return NextResponse.json({ error: "Supabase service access is not configured." }, { status: 503 });
 
   const result = await service.from("video_producer_projects")
-    .select("id,mode,status,parent_project_id,source_duration,edit_plan,pathway_slug,selected_music_track_id")
+    .select("id,mode,status,parent_project_id,source_duration,transcript_text,edit_plan,pathway_slug,selected_music_track_id")
     .eq("id", parsed.data.projectId).maybeSingle();
   if (result.error) return NextResponse.json({ error: result.error.message }, { status: 500 });
   const project = result.data;
@@ -102,12 +104,24 @@ export async function PATCH(request: Request) {
 
   const updates: Record<string, unknown> = { updated_by: access.user.id };
   let invalidateApproval = false;
+  let pathwayChanged = false;
+  let nextPlan = isObject(project.edit_plan) ? { ...(project.edit_plan as VideoProducerEditPlan) } : null;
+  let planChanged = false;
 
   if (parsed.data.pathwaySlug !== undefined) {
     const pathway = parsed.data.pathwaySlug ? pathwayBySlug(parsed.data.pathwaySlug) : null;
     if (parsed.data.pathwaySlug && !pathway) return NextResponse.json({ error: "Unknown pathway." }, { status: 400 });
-    updates.pathway_slug = pathway?.slug ?? null;
-    invalidateApproval = (project.pathway_slug ?? null) !== (pathway?.slug ?? null);
+    const nextPathway = pathway?.slug ?? null;
+    updates.pathway_slug = nextPathway;
+    pathwayChanged = (project.pathway_slug ?? null) !== nextPathway;
+    invalidateApproval = pathwayChanged;
+    if (pathwayChanged && project.edit_plan) {
+      // The Director uses pathway context for pathway-stop structure and references.
+      // A different pathway therefore invalidates the semantic plan, not just approval.
+      updates.edit_plan = null;
+      updates.status = project.transcript_text ? "uploaded" : project.status;
+      nextPlan = null;
+    }
   }
 
   if (parsed.data.musicTrackId !== undefined) {
@@ -119,25 +133,38 @@ export async function PATCH(request: Request) {
     updates.selected_music_track_id = parsed.data.musicTrackId ?? null;
     if ((project.selected_music_track_id ?? null) !== (parsed.data.musicTrackId ?? null)) {
       invalidateApproval = true;
-      if (isObject(project.edit_plan)) {
-        const plan = { ...(project.edit_plan as VideoProducerEditPlan) };
-        plan.music = parsed.data.musicTrackId ? [{
+      if (nextPlan) {
+        nextPlan.music = parsed.data.musicTrackId ? [{
           id: "ag-music-bed",
           trackId: parsed.data.musicTrackId,
           start: 0,
-          end: Number(project.source_duration || plan.sourceDuration || 0),
+          end: Number(project.source_duration || nextPlan.sourceDuration || 0),
           gainDb: project.mode === "reels" ? -24 : -28,
           duckUnderVoice: true
         }] : [];
-        updates.edit_plan = plan;
+        planChanged = true;
       }
     }
   }
 
+  if (parsed.data.audioPreset !== undefined && nextPlan && nextPlan.audioPreset !== parsed.data.audioPreset) {
+    nextPlan.audioPreset = parsed.data.audioPreset;
+    planChanged = true;
+    invalidateApproval = true;
+  }
+
+  if (parsed.data.colorPreset !== undefined && nextPlan && nextPlan.colorPreset !== parsed.data.colorPreset) {
+    nextPlan.colorPreset = parsed.data.colorPreset;
+    planChanged = true;
+    invalidateApproval = true;
+  }
+
+  if (planChanged && nextPlan) updates.edit_plan = nextPlan;
+
   if (invalidateApproval) {
     updates.approval_fingerprint = null;
     updates.approved_at = null;
-    if (project.edit_plan) updates.status = "planned";
+    if (project.edit_plan && !pathwayChanged) updates.status = "planned";
   }
 
   const saved = await service.from("video_producer_projects").update(updates).eq("id", project.id).select("*").single();

@@ -53,11 +53,12 @@ def safe_progress_callback(payload, percent, stage):
 def optimized_render_command(manifest, source, ass_file, output_file):
     command = base.build_ffmpeg(manifest, source, ass_file, output_file)
 
-    # CRF still governs visual quality. Moving from medium to fast trades some file-size
-    # efficiency for materially less CPU time on the hosted media worker.
+    # CRF continues to own visual quality. The hosted worker is CPU-bound, and the
+    # veryfast x264 preset materially improves turnaround while trading encode
+    # efficiency/file size rather than lowering the requested CRF quality target.
     for index, value in enumerate(command[:-1]):
-        if value == "-preset" and index + 1 < len(command) - 1 and command[index + 1] == "medium":
-            command[index + 1] = "fast"
+        if value == "-preset" and index + 1 < len(command) - 1 and command[index + 1] in {"medium", "fast", "faster"}:
+            command[index + 1] = "veryfast"
 
     # FFmpeg's progress protocol gives machine-readable output timestamps without noisy
     # frame logs. Keep the final output path last.
