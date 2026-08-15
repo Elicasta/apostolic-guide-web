@@ -4,7 +4,8 @@ import { Bell, ExternalLink, Home, LogOut, Plus } from "lucide-react";
 import { getAdminAccess } from "@/auth";
 import { StudioMobileNav, StudioNav } from "@/studio-nav";
 import { StudioCommandPalette } from "@/studio-command-palette";
-import { STUDIO_ROLE_LABELS, type StudioRole } from "@/studio-permissions";
+import { SolOperatorFloating } from "@/sol-operator-client";
+import { hasStudioPermission, STUDIO_ROLE_LABELS, type StudioRole } from "@/studio-permissions";
 import { getNotificationUnreadCount } from "@/studio-notifications";
 import "./admin-surface-isolation.css";
 import "./publishing.css";
@@ -36,6 +37,7 @@ import "./channel-publishing.css";
 import "./ai-clips-v2.css";
 import "./video-producer.css";
 import "./video-producer-flow.css";
+import "./sol-operator.css";
 
 export const dynamic = "force-dynamic";
 
@@ -75,6 +77,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           {children}
         </div>
       </div>
+      <SolOperatorFloating canOperate={hasStudioPermission(role, "manage_content")}/>
     </div>
   );
 }

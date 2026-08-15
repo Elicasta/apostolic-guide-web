@@ -9,6 +9,7 @@ import { hasStudioPermission, type StudioPermission, type StudioRole } from "@/s
 export const studioNavSections: Array<{ label: string; items: Array<{ href: string; label: string; icon: typeof BarChart3; permission: StudioPermission; exact?: boolean }> }> = [
   { label: "Workspace", items: [
     { href: "/admin", label: "Overview", icon: BarChart3, permission: "view_workspace", exact: true },
+    { href: "/admin/sol", label: "Sol Operator", icon: Bot, permission: "view_workspace" },
     { href: "/admin/growth", label: "Growth Hub", icon: Sparkles, permission: "view_workspace" },
     { href: "/admin/notifications", label: "Notifications", icon: Bell, permission: "view_notifications" }
   ]},
