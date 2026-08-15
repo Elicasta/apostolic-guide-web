@@ -11,6 +11,10 @@
       "schedule": "*/5 * * * *"
     },
     {
+      "path": "/api/cron/instagram-feed-sync",
+      "schedule": "17 * * * *"
+    },
+    {
       "path": "/api/cron/comment-guide",
       "schedule": "* * * * *"
     },
