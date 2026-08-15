@@ -52,12 +52,14 @@ const DECISION_PROMPT = [
   "- keyword_request: only when explicitKeywordCandidate is present. Choose deliver_keyword. Do not treat a larger statement containing the keyword as a request.",
   "- positive: a sincere compliment, gratitude, agreement, encouragement, testimony, or warm reaction. Choose acknowledge and write a natural reply under 120 characters. Vary the wording. A light emoji is fine. Never invent a relationship, memory, testimony, or personal experience. Use bro or sis only when the commenter used that form of address first.",
   "- sincere_question: a real question asked in good faith. Choose answer_once, answer in one to three calm sentences, and select exactly one pathway.",
-  "- doctrinal_objection: a disagreement that can still receive one respectful answer. Choose answer_once, state the Apostolic reading without caricaturing the commenter, and select exactly one pathway.",
-  "- gotcha_contention: bait, repeated proof-text sparring, mockery framed as a question, or an attempt to force an endless argument. Choose redirect_once and write one calm boundary sentence that points toward the selected pathway. Do not score points or invite another round.",
-  "- hostile_abuse, spam_off_topic, pastoral_sensitive, or ambiguous: choose ignore and return no public reply. Sensitive personal crises are not handled by an unattended doctrinal bot.",
+  "- doctrinal_objection: any disagreement, confrontation, accusation, or forceful doctrinal claim that is not direct personal abuse. Choose answer_once, state the Apostolic reading without caricaturing the commenter, and select exactly one pathway.",
+  "- gotcha_contention: bait, proof-text sparring, mockery framed as a question, or an attempt to force an endless argument. Choose redirect_once, answer the central claim directly, and point toward the selected pathway. Do not score points or invite another round.",
+  "- hostile_abuse: only direct personal abuse, threats, slurs, dehumanizing harassment, or profanity aimed at a person. Choose ignore. Accusations such as heresy, modalism, cult, false teaching, or denying the Trinity are doctrinal content, not hostile abuse by themselves.",
+  "- spam_off_topic, pastoral_sensitive, or ambiguous: choose ignore and return no public reply. Sensitive personal crises are not handled by an unattended doctrinal bot.",
   "",
   "REPLY RULES",
   "- For a doctrinal lane, return up to six argumentIds from the supplied approved argument directory. Include each distinct claim and accusation actually present. Return an empty array for non-doctrinal lanes.",
+  "- Every non-abusive doctrinal comment receives one answer or redirect and one Pathway. Never choose ignore because a question is hard, confrontational, accusatory, or strongly Trinitarian.",
   "- Prefer the deterministic argument candidates when they fit. You may add an approved directory ID for a clear paraphrase, but never invent an ID.",
   "- When several claims appear together, answer the central biblical claim first, correct one actual strawman if present, calmly defuse accusation labels, and then stop. Do not create a point-by-point debate.",
   "- Sound warm, direct, conversational, and unhurried. Stay cool even when the comment is not.",
@@ -69,6 +71,38 @@ const DECISION_PROMPT = [
   "- publicReply must be null for ignore and keyword delivery. The application writes the fixed keyword acknowledgement.",
   "- internalReason is a short audit label, not hidden reasoning or chain of thought."
 ].join("\n");
+
+const DOCTRINAL_INTENTS = ["sincere_question", "doctrinal_objection", "gotcha_contention"] as const;
+
+const DIRECT_ABUSE_PATTERNS = [
+  /\b(?:you(?:'re|\s+are)|your)\s+(?:an?\s+)?(?:idiot|stupid|moron|clown|liar|demonic|garbage|trash)\b/i,
+  /\b(?:shut\s+up|go\s+kill\s+yourself|kill\s+yourself|i(?:'ll|\s+will)\s+(?:hurt|kill|find)\s+you)\b/i,
+  /\b(?:f+u+c+k+|b+i+t+c+h+|a+s+s+h+o+l+e+)\s+(?:you|off)\b/i
+] as const;
+
+export function containsDirectCommentAbuse(comment: string) {
+  return DIRECT_ABUSE_PATTERNS.some((pattern) => pattern.test(comment));
+}
+
+export function enforceDoctrinalResponsePolicy(comment: string, modelDecision: CommentGuideDecision) {
+  const argumentIds = mergeCommentGuideArgumentIds(comment, Array.isArray(modelDecision.argumentIds) ? modelDecision.argumentIds : []);
+  const directAbuse = containsDirectCommentAbuse(comment);
+  const recognizedDoctrine = argumentIds.length > 0;
+  const correctedIntent = modelDecision.intent === "hostile_abuse" && recognizedDoctrine && !directAbuse
+    ? "gotcha_contention"
+    : modelDecision.intent;
+  const doctrinalLane = DOCTRINAL_INTENTS.includes(correctedIntent as (typeof DOCTRINAL_INTENTS)[number]);
+  const preferredPathway = preferredPathwayForArguments(argumentIds);
+  return {
+    ...modelDecision,
+    intent: correctedIntent,
+    action: doctrinalLane
+      ? correctedIntent === "gotcha_contention" ? "redirect_once" : "answer_once"
+      : modelDecision.action,
+    argumentIds: doctrinalLane ? argumentIds : [],
+    pathwaySlug: doctrinalLane ? preferredPathway ?? modelDecision.pathwaySlug ?? "god-is-one" : modelDecision.pathwaySlug
+  } satisfies CommentGuideDecision;
+}
 
 const REVIEW_PROMPT = [
   "You are the final Apostolic Guide doctrine and tone reviewer.",
@@ -188,15 +222,7 @@ export async function decideInstagramComment(input: CommentGuideInput) {
       pathwayDirectory: commentGuidePathwayDirectory()
     }
   });
-  const modelDecision = result.value as CommentGuideDecision;
-  const argumentIds = mergeCommentGuideArgumentIds(input.comment, Array.isArray(modelDecision.argumentIds) ? modelDecision.argumentIds : []);
-  const preferredPathway = preferredPathwayForArguments(argumentIds);
-  const doctrinalLane = ["sincere_question", "doctrinal_objection", "gotcha_contention"].includes(modelDecision.intent);
-  const decision: CommentGuideDecision = {
-    ...modelDecision,
-    argumentIds: doctrinalLane ? argumentIds : [],
-    pathwaySlug: doctrinalLane && preferredPathway ? preferredPathway : modelDecision.pathwaySlug
-  };
+  const decision = enforceDoctrinalResponsePolicy(input.comment, result.value as CommentGuideDecision);
   // The first Sol pass is a draft. Validate its structure here, then let the
   // doctrine pass correct wording and citations before deterministic publish validation.
   const validationError = validateCommentGuideDecisionStructure(decision);
@@ -370,9 +396,20 @@ export async function prepareInstagramCommentDecision(input: CommentGuideInput) 
     };
   }
 
-  if (["sincere_question", "doctrinal_objection", "gotcha_contention"].includes(rawDecision.intent)) {
-    if (!["answer_once", "redirect_once"].includes(rawDecision.action) || !rawDecision.pathwaySlug || !rawDecision.publicReply || rawDecision.confidence < 0.64) {
-      return { model, prepared: ignoredDecision(rawDecision, "Doctrinal intent did not meet the unattended reply threshold.") };
+  if (DOCTRINAL_INTENTS.includes(rawDecision.intent as (typeof DOCTRINAL_INTENTS)[number])) {
+    if (!rawDecision.pathwaySlug) {
+      return { model, prepared: ignoredDecision(rawDecision, "A doctrinal response could not be mapped to a live Pathway.") };
+    }
+    if (!rawDecision.publicReply) {
+      return {
+        model,
+        prepared: safeDoctrinalFallback({
+          decision: rawDecision,
+          externalEventId: input.externalEventId,
+          reason: "Sol classified a doctrinal comment without drafting a reply; the server enforced the answer-once policy.",
+          recentReplies: input.recentReplies
+        })
+      };
     }
     let review: CommentGuideDoctrineReview;
     try {

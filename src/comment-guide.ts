@@ -240,7 +240,7 @@ const COMBATIVE_PATTERNS: Array<[RegExp, string]> = [
 
 const OUT_OF_DOCTRINE_PATTERNS: Array<[RegExp, string]> = [
   [/\bgod\s+(?:is|exists as)\s+(?:one god in\s+)?three\s+(?:distinct\s+)?persons\b/i, "asserts three divine persons"],
-  [/\bthree\s+(?:distinct\s+)?divine\s+(?:persons|centers)\b/i, "asserts three divine centers"],
+  [/\b(?:the\s+)?father,?\s+(?:the\s+)?son,?\s+(?:and\s+)?(?:the\s+)?holy\s+(?:ghost|spirit)\s+are\s+three\s+(?:distinct\s+)?divine\s+(?:persons|centers)\b/i, "asserts three divine centers"],
   [/\beternal\s+son\s+(?:is|was|as)\s+(?:a\s+)?separate\b/i, "asserts a separate eternal Son-person"],
   [/\bgod\s+(?:changes|switches|wears)\s+(?:between\s+)?(?:masks|modes|roles)\b/i, "describes God as changing masks or modes"],
   [/\bjesus\s+(?:is|was)\s+(?:merely|only|just)\s+(?:a\s+)?man\b/i, "denies Christ's full deity"],
@@ -321,10 +321,10 @@ export function validateCommentGuideDecision(decision: CommentGuideDecision) {
 export function buildDoctrinalFallbackReply(intent: CommentGuideIntent, pathwayTitle: string) {
   const title = pathwayTitle.trim() || "Apostolic Guide";
   if (intent === "gotcha_contention") {
-    return `We understand the concern. Apostolic teaching confesses the one indivisible God fully revealed in Jesus Christ. The ${title} guide lays out the Scriptures behind that belief.`;
+    return `Apostolic teaching confesses the one indivisible God fully revealed in Jesus Christ. The ${title} guide lays out the Scriptures behind that belief.`;
   }
   if (intent === "doctrinal_objection") {
-    return `Thank you for raising the concern. Our reading is that the one God has fully revealed Himself in Jesus Christ. The ${title} guide walks through the passages behind that conclusion.`;
+    return `Our reading is that the one God has fully revealed Himself in Jesus Christ. The ${title} guide walks through the passages behind that conclusion.`;
   }
   return `That is a fair question. The ${title} guide walks through the passages that shape our Apostolic reading and gives the clearest next step.`;
 }

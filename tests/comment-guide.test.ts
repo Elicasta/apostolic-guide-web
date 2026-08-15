@@ -76,6 +76,19 @@ test("reply validator rejects combative and out-of-doctrine language", () => {
   assert.match(validatePublicCommentReply({ reply: "Here is the answer: https://example.com", intent: "sincere_question", pathwaySlug: "god-is-one" }) ?? "", /links/i);
 });
 
+test("reply validator allows an Apostolic answer to name the three-person claim without affirming it", () => {
+  assert.equal(validatePublicCommentReply({
+    reply: "We do not find Scripture defining the one God as three divine persons.",
+    intent: "doctrinal_objection",
+    pathwaySlug: "god-is-one"
+  }), null);
+  assert.match(validatePublicCommentReply({
+    reply: "God is three distinct persons.",
+    intent: "doctrinal_objection",
+    pathwaySlug: "god-is-one"
+  }) ?? "", /three divine/i);
+});
+
 test("reply validator permits only Scripture from the selected pathway", () => {
   assert.equal(validatePublicCommentReply({
     reply: "Deuteronomy 6:4 gives us the controlling confession: the LORD is one.",
@@ -136,6 +149,7 @@ test("server-owned fallbacks answer modalism and heresy accusations cordially", 
     scriptureReferences: []
   }), null);
   assert.match(reply, /one indivisible God fully revealed in Jesus Christ/i);
+  assert.doesNotMatch(reply, /thank you for raising|we understand the concern/i);
   assert.doesNotMatch(reply, /modalism|heresy|heretic|trinitarian/i);
 });
 
