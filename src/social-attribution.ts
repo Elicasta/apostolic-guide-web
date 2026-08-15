@@ -1,4 +1,4 @@
-import { buildSocialReply, findMatchingAutomation, getInstagramConfig, listSocialAutomations, parseInstagramWebhook } from "./social-messaging";
+import { buildSocialReply, findMatchingAutomation, getInstagramConfig, isConnectedInstagramAuthor, listSocialAutomations, parseInstagramWebhook } from "./social-messaging";
 import { createServiceClient } from "./supabase";
 import { recordPersonEvent, upsertInstagramPerson } from "./people-crm";
 import { recordInboxOutbound } from "./inbox";
@@ -34,6 +34,17 @@ async function sendInstagramMessage(config: NonNullable<Awaited<ReturnType<typeo
     method: "POST",
     body: JSON.stringify({ recipient: { id: recipientId }, messaging_type: "RESPONSE", message })
   });
+}
+
+async function commentWasSentByCommentGuide(service: NonNullable<ReturnType<typeof createServiceClient>>, commentId: string | null) {
+  if (!commentId) return false;
+  const result = await service.from("social_comment_guide_jobs")
+    .select("id")
+    .eq("public_reply_provider_id", commentId)
+    .limit(1)
+    .maybeSingle();
+  if (result.error) throw new Error(result.error.message);
+  return Boolean(result.data);
 }
 
 async function deliverPendingStudyCard(input: {
@@ -125,7 +136,11 @@ export async function processInstagramWebhookAttributed(payload: unknown) {
   if (!triggers.length) return { processed: 0, sent: 0, queued: 0 };
 
   await service.from("social_connection_status").upsert({ platform: "instagram", last_webhook_at: new Date().toISOString(), updated_at: new Date().toISOString() }, { onConflict: "platform" });
-  const automations = await listSocialAutomations();
+  const [automations, connection] = await Promise.all([
+    listSocialAutomations(),
+    service.from("social_connection_status").select("username").eq("platform", "instagram").maybeSingle()
+  ]);
+  const connectedUsername = typeof connection.data?.username === "string" ? connection.data.username : null;
   let sent = 0;
   let queued = 0;
 
@@ -134,7 +149,9 @@ export async function processInstagramWebhookAttributed(payload: unknown) {
     if (existing.data) continue;
 
     if (trigger.triggerType === "comment_keyword") {
-      if (trigger.senderId === config.instagramUserId) {
+      const selfAuthored = isConnectedInstagramAuthor(trigger, config.instagramUserId, connectedUsername)
+        || await commentWasSentByCommentGuide(service, trigger.commentId);
+      if (selfAuthored) {
         await service.from("social_events").insert({ external_event_id: trigger.externalEventId, trigger_type: "comment_keyword", source_media_id: trigger.mediaId, delivery_status: "ignored", error_code: "Ignored the connected account's own comment", event_at: trigger.eventAt });
         continue;
       }

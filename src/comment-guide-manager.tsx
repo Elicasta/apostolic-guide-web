@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Bot, Check, Clock3, FlaskConical, Loader2, MessageCircleReply, RotateCcw, Save, ShieldCheck, TriangleAlert } from "lucide-react";
+import { Bot, Check, Clock3, FlaskConical, Loader2, MessageCircleReply, RotateCcw, Save, Send, ShieldCheck, Trash2, TriangleAlert } from "lucide-react";
 import type { CommentGuideDashboard, CommentGuideJob, CommentGuideSettings } from "./comment-guide-runtime";
 
 type SimulationResult = {
@@ -51,6 +51,7 @@ export function CommentGuideManager(props: {
   const [error, setError] = useState<string | null>(props.dashboard.error);
   const [comment, setComment] = useState("This is modalism. Why did Jesus pray?");
   const [simulating, setSimulating] = useState(false);
+  const [activeJobId, setActiveJobId] = useState<number | null>(null);
   const [simulation, setSimulation] = useState<SimulationResult | null>(null);
   const [simulationError, setSimulationError] = useState<string | null>(null);
   const ready = props.dashboard.dbReady && props.openAIConfigured && props.instagramConfigured;
@@ -115,6 +116,42 @@ export function CommentGuideManager(props: {
     }
   }
 
+  async function sendNow(jobId: number) {
+    setActiveJobId(jobId);
+    setError(null);
+    setMessage(null);
+    try {
+      const json = await post({ action: "send_now", jobId });
+      const delivery = json.delivery as { status?: string } | undefined;
+      const status = delivery?.status ?? "sent";
+      setJobs((current) => current.map((job) => job.id === jobId ? { ...job, status, last_error: status === "sent" ? null : job.last_error } : job));
+      setMessage(status === "sent" ? `Reply ${jobId} was sent immediately.` : `Reply ${jobId} finished as ${status.replaceAll("_", " ")}.`);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Could not send the reply now.");
+    } finally {
+      setActiveJobId(null);
+    }
+  }
+
+  async function deleteJob(job: CommentGuideJob) {
+    const detail = job.status === "sent"
+      ? "This removes the dashboard record only. The Instagram reply will stay published."
+      : "This removes the dashboard record and cancels it if it has not been sent.";
+    if (!window.confirm(`Delete this Comment Guide record?\n\n${detail}`)) return;
+    setActiveJobId(job.id);
+    setError(null);
+    setMessage(null);
+    try {
+      await post({ action: "delete_job", jobId: job.id });
+      setJobs((current) => current.filter((item) => item.id !== job.id));
+      setMessage(`Comment ${job.id} was removed from the decision log.`);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Could not delete the comment record.");
+    } finally {
+      setActiveJobId(null);
+    }
+  }
+
   return <div className="comment-guide-stack">
     {!ready ? <div className="admin-card comment-guide-readiness">
       <ShieldCheck size={20}/>
@@ -164,7 +201,12 @@ export function CommentGuideManager(props: {
       <div className="card-heading"><div><span className="section-kicker">Decision log</span><h2>Recent comments</h2></div><p>The log shows what Sol saw, the lane it chose, its Pathway, and whether anything was sent.</p></div>
       {jobs.length ? <div className="comment-guide-job-list">{jobs.map((job) => <div className="comment-guide-job" key={job.id}>
         <div className="comment-guide-job-copy"><div><span className="content-kind">{job.intent?.replaceAll("_", " ") ?? "waiting for Sol"}</span><small>{new Date(job.event_at).toLocaleString()}</small></div><strong>“{job.inbound_text}”</strong>{job.public_reply_text ? <p>Reply: {job.public_reply_text}</p> : null}<small>{job.pathway_slug ? `Pathway: ${job.pathway_slug} · ` : ""}{job.last_error ?? job.action?.replaceAll("_", " ") ?? "Queued"}</small></div>
-        <div className="comment-guide-job-end"><span className={statusClass(job.status)}>{job.status.replaceAll("_", " ")}</span>{job.status === "failed" && props.canManage ? <button type="button" onClick={() => retry(job.id)} title="Retry safely"><RotateCcw size={15}/></button> : null}</div>
+        <div className="comment-guide-job-end">
+          <span className={statusClass(job.status)}>{job.status.replaceAll("_", " ")}</span>
+          {props.canManage && settings.mode === "live" && ["scheduled", "delivery_retry"].includes(job.status) && (job.public_reply_text || job.private_reply_text) ? <button className="comment-guide-send-now" type="button" onClick={() => void sendNow(job.id)} disabled={activeJobId === job.id} title="Skip the remaining delay and send the approved reply now">{activeJobId === job.id ? <Loader2 className="spin" size={14}/> : <Send size={14}/>} Reply now</button> : null}
+          {job.status === "failed" && props.canManage ? <button type="button" onClick={() => void retry(job.id)} disabled={activeJobId === job.id} title="Retry safely" aria-label={`Retry comment ${job.id}`}><RotateCcw size={15}/></button> : null}
+          {props.canManage && !["classifying", "sending"].includes(job.status) ? <button className="comment-guide-delete" type="button" onClick={() => void deleteJob(job)} disabled={activeJobId === job.id} title="Delete this dashboard record" aria-label={`Delete comment ${job.id}`}><Trash2 size={15}/></button> : null}
+        </div>
       </div>)}</div> : <div className="empty-state"><Bot size={24}/><strong>No comments have reached Sol yet.</strong><p>Webhook comments will appear here after the migration and deployment are live.</p></div>}
     </section>
   </div>;
