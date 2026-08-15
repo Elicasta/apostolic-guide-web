@@ -24,7 +24,11 @@ export function studyTitleFromDestination(destinationUrl: string | null | undefi
 }
 
 export function buildStudyHandshake(title: string) {
-  return `You found the study.\n\nI have the ${title} study ready for you. Reply OPEN and I’ll bring it into the chat.`;
+  const cleanTitle = title.trim() || "Apostolic Guide";
+  const titledStudy = /^the\s+/i.test(cleanTitle)
+    ? cleanTitle.replace(/^The\b/, "the")
+    : `the ${cleanTitle}`;
+  return `You found the study.\n\nI have ${titledStudy} study ready for you. Reply OPEN and I’ll bring it into the chat.`;
 }
 
 export function isOpenStudyReply(text: string) {
