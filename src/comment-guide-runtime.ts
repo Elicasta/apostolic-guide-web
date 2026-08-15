@@ -243,11 +243,17 @@ async function alreadyAnsweredContention(service: ServiceClient, job: CommentGui
 }
 
 async function jobIsSelfAuthored(service: ServiceClient, job: CommentGuideJob) {
-  const [providerReply, connection, person] = await Promise.all([
+  const [providerReply, providerEvent, connection, person] = await Promise.all([
     service.from("social_comment_guide_jobs")
       .select("id")
       .eq("public_reply_provider_id", job.comment_id)
       .neq("id", job.id)
+      .limit(1)
+      .maybeSingle(),
+    service.from("social_events")
+      .select("id")
+      .eq("provider_message_id", job.comment_id)
+      .eq("delivery_status", "sent")
       .limit(1)
       .maybeSingle(),
     service.from("social_connection_status")
@@ -258,9 +264,9 @@ async function jobIsSelfAuthored(service: ServiceClient, job: CommentGuideJob) {
       ? service.from("people").select("instagram_user_id,instagram_username").eq("id", job.person_id).maybeSingle()
       : Promise.resolve({ data: null, error: null })
   ]);
-  const queryError = providerReply.error || connection.error || person.error;
+  const queryError = providerReply.error || providerEvent.error || connection.error || person.error;
   if (queryError) throw new Error(queryError.message);
-  if (providerReply.data) return true;
+  if (providerReply.data || providerEvent.data) return true;
   const connectedId = typeof connection.data?.instagram_user_id === "string" ? connection.data.instagram_user_id : "";
   const senderId = job.sender_id?.trim() ?? "";
   const personId = typeof person.data?.instagram_user_id === "string" ? person.data.instagram_user_id.trim() : "";
