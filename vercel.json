@@ -12,7 +12,7 @@
     },
     {
       "path": "/api/cron/instagram-feed-sync",
-      "schedule": "17 * * * *"
+      "schedule": "*/15 * * * *"
     },
     {
       "path": "/api/cron/comment-guide",
