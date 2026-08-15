@@ -117,17 +117,34 @@ def reel_motion_intervals(plan):
     return intervals
 
 
+def motion_crop(scale, fx, fy):
+    crop_w = min(1080, _even(1080 / scale))
+    crop_h = min(1920, _even(1920 / scale))
+    max_x = max(0, 1080 - crop_w)
+    max_y = max(0, 1920 - crop_h)
+    x = _even(max_x * fx, 0) if max_x else 0
+    y = _even(max_y * fy, 0) if max_y else 0
+    x = min(max_x, max(0, x))
+    y = min(max_y, max(0, y))
+    return crop_w, crop_h, x, y
+
+
 def append_reel_motion_graph(graph, plan):
     graph.append(
         "[vcat]fps=30,crop=w='min(iw,ih*9/16)':h=ih:"
         "x='(iw-min(iw,ih*9/16))*0.5':y=0,"
-        "scale=1080:1920:flags=fast_bilinear[vbase]"
+        "scale=1080:1920:flags=fast_bilinear,setsar=1[vbase]"
     )
     intervals = reel_motion_intervals(plan)
     if not intervals:
         return "vbase"
-    if len(intervals) == 1 and intervals[0][2] <= 1.001:
-        return "vbase"
+    if len(intervals) == 1:
+        _start, _end, scale, fx, fy = intervals[0]
+        if scale <= 1.001:
+            return "vbase"
+        crop_w, crop_h, x, y = motion_crop(scale, fx, fy)
+        graph.append(f"[vbase]crop={crop_w}:{crop_h}:{x}:{y},scale=1080:1920:flags=fast_bilinear,setsar=1[vmotion]")
+        return "vmotion"
 
     split_labels = "".join(f"[vm{i}]" for i in range(len(intervals)))
     graph.append(f"[vbase]split={len(intervals)}{split_labels}")
@@ -135,15 +152,9 @@ def append_reel_motion_graph(graph, plan):
     for index, (start, end, scale, fx, fy) in enumerate(intervals):
         chain = f"trim=start={start:.4f}:end={end:.4f},setpts=PTS-STARTPTS"
         if scale > 1.001:
-            crop_w = min(1080, _even(1080 / scale))
-            crop_h = min(1920, _even(1920 / scale))
-            max_x = max(0, 1080 - crop_w)
-            max_y = max(0, 1920 - crop_h)
-            x = _even(max_x * fx, 0) if max_x else 0
-            y = _even(max_y * fy, 0) if max_y else 0
-            x = min(max_x, max(0, x))
-            y = min(max_y, max(0, y))
+            crop_w, crop_h, x, y = motion_crop(scale, fx, fy)
             chain += f",crop={crop_w}:{crop_h}:{x}:{y},scale=1080:1920:flags=fast_bilinear"
+        chain += ",setsar=1"
         label = f"vms{index}"
         graph.append(f"[vm{index}]{chain}[{label}]")
         segment_labels.append(f"[{label}]")
