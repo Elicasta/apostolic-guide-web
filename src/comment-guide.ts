@@ -1,7 +1,8 @@
 import { allPathways, pathwayBySlug } from "./pathway-catalog";
+import { commentGuideArgumentById } from "./comment-guide-argument-library";
 import type { SocialAutomation } from "./social-messaging";
 
-export const COMMENT_GUIDE_PROMPT_VERSION = "apostolic-comment-guide-v2";
+export const COMMENT_GUIDE_PROMPT_VERSION = "apostolic-comment-guide-v3";
 export const COMMENT_GUIDE_MODEL = "gpt-5.6-sol";
 
 export const COMMENT_GUIDE_INTENTS = [
@@ -41,6 +42,7 @@ export type CommentGuideDecision = {
   pathwaySlug: string | null;
   publicReply: string | null;
   scriptureReferences: string[];
+  argumentIds: string[];
   internalReason: string;
 };
 
@@ -89,6 +91,7 @@ export const COMMENT_GUIDE_DECISION_SCHEMA = {
     pathwaySlug: { anyOf: [{ type: "string" }, { type: "null" }] },
     publicReply: { anyOf: [{ type: "string" }, { type: "null" }] },
     scriptureReferences: { type: "array", maxItems: 8, items: { type: "string" } },
+    argumentIds: { type: "array", maxItems: 6, items: { type: "string" } },
     internalReason: { type: "string", maxLength: 240 }
   },
   required: [
@@ -101,6 +104,7 @@ export const COMMENT_GUIDE_DECISION_SCHEMA = {
     "pathwaySlug",
     "publicReply",
     "scriptureReferences",
+    "argumentIds",
     "internalReason"
   ]
 } as const;
@@ -289,6 +293,7 @@ export function validateCommentGuideDecisionStructure(decision: CommentGuideDeci
   if (decision.pathwaySlug !== null && typeof decision.pathwaySlug !== "string") return "pathway slug must be a string or null";
   if (decision.publicReply !== null && typeof decision.publicReply !== "string") return "public reply must be a string or null";
   if (!Array.isArray(decision.scriptureReferences) || decision.scriptureReferences.some((reference) => typeof reference !== "string")) return "Scripture references must be strings";
+  if (!Array.isArray(decision.argumentIds) || decision.argumentIds.length > 6 || decision.argumentIds.some((id) => typeof id !== "string" || !commentGuideArgumentById(id))) return "argument IDs must name up to six approved library entries";
   if (typeof decision.internalReason !== "string" || !decision.internalReason.trim()) return "internal reason is required";
   if (decision.pathwaySlug && !pathwayBySlug(decision.pathwaySlug)) return "selected pathway does not exist";
   if (["hostile_abuse", "pastoral_sensitive", "spam_off_topic", "ambiguous"].includes(decision.intent) && decision.action !== "ignore") return "unsafe or ambiguous comments must be ignored";

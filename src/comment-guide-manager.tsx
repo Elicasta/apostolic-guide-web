@@ -16,6 +16,7 @@ type SimulationResult = {
     pathwaySlug: string | null;
     publicReply: string | null;
     privateReply: string | null;
+    argumentIds: string[];
     delaySeconds: number;
     internalReason: string;
     doctrineReview: { approved?: boolean; correctionReason?: string | null } | null;
@@ -153,7 +154,7 @@ export function CommentGuideManager(props: {
             {simulation.explicitKeywordGate ? <div className="comment-guide-gate"><ShieldCheck size={16}/><span>Exact keyword gate: <strong>{simulation.explicitKeywordGate.keyword}</strong></span></div> : null}
             {simulation.decision.publicReply ? <blockquote>{simulation.decision.publicReply}</blockquote> : <div className="comment-guide-no-reply">No public reply</div>}
             {simulation.decision.privateReply ? <div className="comment-guide-private"><MessageCircleReply size={16}/><span><strong>Private handoff</strong>{simulation.decision.privateReply}</span></div> : null}
-            <div className="comment-guide-sim-meta"><span><Clock3 size={14}/> {delayLabel(simulation.decision.delaySeconds)} delay</span><span>Pathway: {simulation.decision.pathwaySlug ?? "none"}</span><span>Review: {simulation.decision.internalReason.startsWith("Server-written safe fallback:") ? "safe fallback" : simulation.decision.doctrineReview?.approved ? "approved" : simulation.decision.doctrineReview ? "stopped" : "not needed"}</span></div>
+            <div className="comment-guide-sim-meta"><span><Clock3 size={14}/> {delayLabel(simulation.decision.delaySeconds)} delay</span><span>Pathway: {simulation.decision.pathwaySlug ?? "none"}</span><span>Library: {simulation.decision.argumentIds?.length ? simulation.decision.argumentIds.join(", ") : "no match"}</span><span>Review: {simulation.decision.internalReason.startsWith("Server-written safe fallback:") ? "safe fallback" : simulation.decision.doctrineReview?.approved ? "approved" : simulation.decision.doctrineReview ? "stopped" : "not needed"}</span></div>
           </> : <div className="comment-guide-placeholder"><Bot size={30}/><strong>Sol’s decision will appear here.</strong><p>Try a compliment, JESUS, a sincere question, or a gotcha comment.</p></div>}
         </div>
       </div>

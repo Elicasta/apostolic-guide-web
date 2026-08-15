@@ -102,6 +102,7 @@ test("the first Sol doctrine draft can reach review while unsafe text remains bl
     pathwaySlug: "god-is-one",
     publicReply: "God changes masks or modes.",
     scriptureReferences: [],
+    argumentIds: ["modalism-masks-or-modes"],
     internalReason: "Draft requires doctrine review."
   };
   assert.equal(validateCommentGuideDecisionStructure(draft), null);
@@ -119,6 +120,7 @@ test("the first Sol doctrine draft can reach review with a citation that the sel
     pathwaySlug: "god-is-one",
     publicReply: "John 14:9–10 gives the answer.",
     scriptureReferences: ["John 14:9–10"],
+    argumentIds: ["jesus-not-the-father"],
     internalReason: "Draft requires doctrine review."
   };
   assert.equal(validateCommentGuideDecisionStructure(draft), null);
