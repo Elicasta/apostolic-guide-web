@@ -15,10 +15,14 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
   const service = createServiceClient();
   if (!service) return NextResponse.json({ error: "Supabase service access is not configured." }, { status: 503 });
 
+  const activeResult = await service.from("video_producer_projects").select("id").eq("id", id).is("deleted_at", null).maybeSingle();
+  if (activeResult.error) return NextResponse.json({ error: activeResult.error.message }, { status: 500 });
+  if (!activeResult.data) return NextResponse.json({ error: "Video Producer project is in the Recovery Bucket or no longer exists." }, { status: 404 });
+
   await reconcileVideoProducerWorkerState(service, id);
 
   const [projectResult, rendersResult] = await Promise.all([
-    service.from("video_producer_projects").select("*").eq("id", id).maybeSingle(),
+    service.from("video_producer_projects").select("*").eq("id", id).is("deleted_at", null).maybeSingle(),
     service.from("video_producer_renders").select("id,status,progress,output_storage_path,error,requested_at,started_at,completed_at").eq("project_id", id).order("requested_at", { ascending: false }).limit(20)
   ]);
   if (projectResult.error) return NextResponse.json({ error: projectResult.error.message }, { status: 500 });

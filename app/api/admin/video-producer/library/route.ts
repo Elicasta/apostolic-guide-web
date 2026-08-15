@@ -14,6 +14,7 @@ export async function GET() {
   const [projectsResult, rendersResult] = await Promise.all([
     service.from("video_producer_projects")
       .select("id,title,mode,status,parent_project_id,pathway_slug,source_filename,source_duration,source_range_start,source_range_end,approval_fingerprint,created_at,updated_at")
+      .is("deleted_at", null)
       .order("updated_at", { ascending: false })
       .limit(200),
     service.from("video_producer_renders")

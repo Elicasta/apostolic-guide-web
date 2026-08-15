@@ -80,6 +80,33 @@ def manifest(music_path):
     }
 
 
+def reel_manifest():
+    return {
+        "version": 1,
+        "project": {"id": "reel-motion-smoke", "title": "Opening Hook Smoke", "mode": "reels", "pathway": None},
+        "source": {"filename": "source.mp4", "duration": 6, "range": None},
+        "brand": {"wordmark": "public/brand/apostolic-guide-wordmark-reversed.png"},
+        "transcript": {"text": "", "duration": 6, "segments": [], "words": []},
+        "musicTracks": [],
+        "renderPlan": {
+            "version": 2, "mode": "reels", "sourceDuration": 6, "outputDuration": 6,
+            "keepSegments": [{"start": 0, "end": 6}],
+            "overlays": [
+                {"id":"opening-hook","kind":"statement","start":.2,"duration":2.2,"title":"DID JESUS PRESERVE ISRAEL'S CONFESSION?","body":None,"reference":None,"animation":"rise","placement":"center","outputStart":.2,"outputRanges":visible(.2,2.4)}
+            ],
+            "motion": [
+                {"id":"m1","kind":"punch-in","start":0,"duration":1.2,"intensity":"subtle","transform":{"scale":1.08,"focusX":.5,"focusY":.42},"outputRanges":visible(0,1.2)},
+                {"id":"m2","kind":"punch-in","start":2.4,"duration":1.0,"intensity":"medium","transform":{"scale":1.13,"focusX":.55,"focusY":.4},"outputRanges":visible(2.4,3.4)},
+                {"id":"m3","kind":"punch-in","start":4.4,"duration":1.2,"intensity":"subtle","transform":{"scale":1.1,"focusX":.48,"focusY":.45},"outputRanges":visible(4.4,5.6)}
+            ],
+            "music": [],
+            "captions": {"enabled":False,"style":"kinetic-clean","animation":"highlight","maxWordsPerCard":5,"position":"lower","highlightCurrentWord":True},
+            "audioPreset":"ag-voice-punch", "colorPreset":"ag-clean", "intro":False, "outro":False,
+            "output":{"format":"mp4","width":1080,"height":1920,"fps":30}
+        }
+    }
+
+
 def main():
     os.chdir(ROOT)
     finishing = load("finishing_smoke", FINISH_PATH)
@@ -89,8 +116,11 @@ def main():
         bed = os.path.join(d, "music.wav")
         ass = os.path.join(d, "graphics.ass")
         out = os.path.join(d, "master.mp4")
+        reel_ass = os.path.join(d, "reel-graphics.ass")
+        reel_out = os.path.join(d, "reel.mp4")
         thumb = os.path.join(d, "thumb.jpg")
         source(src); music(bed)
+
         m = manifest(bed)
         finishing.bw.base.validate_manifest(m)
         finishing.build_broadcast_ass_v2(m, ass)
@@ -102,10 +132,25 @@ def main():
         for expected in ["PATHWAY STOP 1", "GOD IS ONE", "STOP 1", "THE CONTROLLING CONFESSION"]:
             if expected not in text:
                 raise RuntimeError(f"Graphics V2 ASS missing {expected}")
+
+        reel = reel_manifest()
+        finishing.bw.base.validate_manifest(reel)
+        finishing.build_broadcast_ass_v2(reel, reel_ass)
+        reel_command = finishing.build_ffmpeg_v2(reel, src, reel_ass, reel_out)
+        if "zoompan" in " ".join(reel_command):
+            raise RuntimeError("Reel finishing smoke still contains the expensive zoompan filter")
+        subprocess.run(reel_command, check=True)
+        reel_probe = probe(reel_out)
+        if "width=1080" not in reel_probe or "height=1920" not in reel_probe:
+            raise RuntimeError(f"Reel finishing smoke has wrong geometry: {reel_probe}")
+        if not os.path.exists(reel_out) or os.path.getsize(reel_out) < 1024:
+            raise RuntimeError("Reel segmented-motion smoke output missing")
+
         thumbnail.render_variant(src, "face-hook", "ONE GOD", "God Is One", 2.0, thumb, d)
         if not os.path.exists(thumb) or os.path.getsize(thumb) < 1024:
             raise RuntimeError("thumbnail smoke output missing")
         print(probe(out))
+        print(reel_probe)
         print("Video Producer finishing smoke passed")
 
 

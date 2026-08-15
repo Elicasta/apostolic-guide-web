@@ -3,12 +3,14 @@ import { z } from "zod";
 import { getStudioPermission } from "@/auth";
 import { pathwayBySlug } from "@/pathway-catalog";
 import { createServiceClient } from "@/supabase";
+import type { VideoProducerEditPlan } from "@/video-producer";
 import {
   normalizeVideoProducerDirectorOutput,
   normalizeVideoProducerTranscript,
   sliceVideoProducerTranscript,
   transcriptForModel,
-  VIDEO_PRODUCER_DIRECTOR_JSON_SCHEMA
+  VIDEO_PRODUCER_DIRECTOR_JSON_SCHEMA,
+  type VideoProducerTranscript
 } from "@/video-producer-ai";
 import { extractOpenAIResponseText, videoProducerOpenAIKey } from "@/video-producer-server";
 
@@ -29,6 +31,7 @@ function directorRules(mode: "podcast" | "reels", hasPathway: boolean) {
     "Cuts remove source time. Only cut ranges that are clearly expendable from the spoken material.",
     "Scripture overlays may quote only references or ideas actually present in the transcript. Do not fabricate a Bible reference.",
     "Apostolic Guide owns a fixed Broadcast Graphics System V2. You choose semantic overlay kind, timing, copy, placement and restrained animation; code owns typography, colors, scale, framing and visual execution. Never describe a design inside overlay copy.",
+    "The opening must never fall visually empty after the title/brand card. Return one concise opening statement or pathway overlay in roughly the first 0.25-1.25 seconds of source footage, lasting about 3-5 seconds. It must express the actual spoken hook, central question, or episode promise without inventing a claim.",
     "Use lower-third for a speaker/name identifier only when the identity or role is actually known from project/transcript context.",
     "Use pathway for one compact pathway introduction near the beginning when pathway context is supplied. Do not repeatedly emit pathway bugs; the renderer owns the persistent left-side pathway follower.",
     "SCRIPTURE V2: a short, readable Scripture claim should use lower-third and normally stay under about 70 characters. A longer passage, anchor verse, or verse that would need tiny text must use full-frame or center. Never solve a long verse by shrinking it.",
@@ -43,6 +46,7 @@ function directorRules(mode: "podcast" | "reels", hasPathway: boolean) {
     "PODCAST MODE: prioritize professional long-form clarity, natural pacing, and doctrinal continuity over aggressive retention editing.",
     "Cuts may remove false starts, obvious repeated takes, accidental dead air, and verbal resets. Do not remove substantive teaching merely to shorten runtime.",
     "Normally keep total removed source under 20 percent. The system will reject a plan over 35 percent.",
+    "Use the opening overlay as an editorial promise immediately after the title bumper, then let the teaching breathe.",
     "Use full-frame pathway-stop cards only at meaningful transitions. Between stops, the renderer will maintain a compact left-side follower automatically.",
     "Use Scripture lower-thirds for short lines while teaching; promote anchor/long Scripture to a full-frame card.",
     "Motion should be restrained. Use subtle punch-ins or reframes only when useful. Avoid strong social-media style motion.",
@@ -51,11 +55,55 @@ function directorRules(mode: "podcast" | "reels", hasPathway: boolean) {
   return [...shared,
     "REELS MODE: optimize a self-contained short clip for retention without making it frantic or generic.",
     "Protect the actual spoken hook. Tighten dead air, repeated phrases, stumbles, and unnecessary setup, but preserve the logical sentence that makes the claim understandable.",
+    "The opening statement is mandatory: make the viewer understand the question/promise before the first visual beat goes quiet.",
     "Use punch-ins and reframes at meaningful emphasis beats. focusX and focusY are normalized 0 to 1. scale should usually stay between 1.04 and 1.22.",
     "Use animated captions separately from overlays. Overlays are for Scripture, one key statement, a pathway/topic marker, or the final CTA.",
     "Never fake B-roll. A b-roll cue may only be a note for later human/asset selection.",
     "Do not return music decisions. Music is selected separately from the approved AG library."
   ];
+}
+
+function cleanHook(value: unknown) {
+  if (typeof value !== "string") return "";
+  const text = value.replace(/\s+/g, " ").trim();
+  if (!text) return "";
+  return text.length <= 120 ? text : `${text.slice(0, 117).trim()}…`;
+}
+
+function fallbackOpeningHook(metadata: Record<string, unknown>, projectTitle: string, transcript: VideoProducerTranscript) {
+  const candidate = metadata.candidate && typeof metadata.candidate === "object" ? metadata.candidate as Record<string, unknown> : null;
+  const candidateHook = cleanHook(candidate?.hook);
+  if (candidateHook) return candidateHook;
+
+  const firstSegment = transcript.segments.find((segment) => segment.text.trim())?.text;
+  const spoken = cleanHook(firstSegment);
+  const genericTitle = /^(img|dsc|mov|video|untitled)[\s_-]*\d*/i.test(projectTitle.trim());
+  if (!genericTitle) {
+    const title = cleanHook(projectTitle);
+    if (title) return title;
+  }
+  return spoken || "Apostolic Guide";
+}
+
+function firstVisibleSourceTime(plan: VideoProducerEditPlan) {
+  const firstCut = [...plan.cuts].sort((a, b) => a.start - b.start)[0];
+  if (firstCut && firstCut.start <= 0.3) return Math.min(plan.sourceDuration - 0.5, Math.max(0.1, firstCut.end + 0.12));
+  return Math.min(plan.sourceDuration - 0.5, 0.2);
+}
+
+function ensureOpeningHook(plan: VideoProducerEditPlan, hook: string) {
+  const hasOpeningGraphic = plan.overlays.some((overlay) => overlay.start <= 1.5 && ["statement", "quote", "pathway", "chapter"].includes(overlay.kind));
+  if (hasOpeningGraphic || plan.sourceDuration <= 1) return;
+  const start = Math.max(0, firstVisibleSourceTime(plan));
+  plan.overlays.unshift({
+    id: "opening-hook",
+    kind: "statement",
+    start,
+    duration: Math.min(4.2, Math.max(0.8, plan.sourceDuration - start)),
+    title: hook,
+    animation: plan.mode === "reels" ? "rise" : "fade",
+    placement: "center"
+  });
 }
 
 export async function POST(request: Request) {
@@ -72,6 +120,7 @@ export async function POST(request: Request) {
   const projectResult = await service.from("video_producer_projects")
     .select("id,title,mode,status,pathway_slug,selected_music_track_id,source_duration,source_range_start,source_range_end,transcript,director_metadata")
     .eq("id", parsed.data.projectId)
+    .is("deleted_at", null)
     .maybeSingle();
   if (projectResult.error) return NextResponse.json({ error: projectResult.error.message }, { status: 500 });
   const project = projectResult.data;
@@ -128,6 +177,7 @@ export async function POST(request: Request) {
     const output = extractOpenAIResponseText(result);
     if (!output) throw new Error("Edit Director returned no structured output.");
     const directed = normalizeVideoProducerDirectorOutput(JSON.parse(output), project.mode, localTranscript.duration);
+    ensureOpeningHook(directed.plan, fallbackOpeningHook(metadata, project.title, localTranscript));
     if (project.mode === "reels") {
       if (parsed.data.captionStyle) directed.plan.captions.style = parsed.data.captionStyle;
       if (parsed.data.captionAnimation) directed.plan.captions.animation = parsed.data.captionAnimation;
