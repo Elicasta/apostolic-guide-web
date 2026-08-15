@@ -6,8 +6,9 @@ import { SocialAutomationManager, type SocialLinkSource } from "@/social-automat
 import { SocialEventRetryButton } from "@/social-event-retry-button";
 import { listSocialEventHistory } from "@/social-event-history";
 import { getInstagramConnection, listSocialAutomations, socialMetrics } from "@/social-messaging";
-import { articles, answers, pathways, topics } from "@/data";
+import { articles, answers, topics } from "@/data";
 import { listAdminContent } from "@/database-content";
+import { allPathways } from "@/pathway-catalog";
 
 function siteUrl(path: string) { return `https://apostolicguide.com${path}`; }
 
@@ -32,7 +33,7 @@ export default async function SocialMessagingPage() {
     ...articles.map((item) => ({ kind: "Article", label: item.title, url: siteUrl(`/articles/${item.slug}`) })),
     ...topics.map((item) => ({ kind: "Topic", label: item.title, url: siteUrl(`/topics/${item.slug}`) })),
     ...answers.map((item) => ({ kind: "Answer", label: item.question, url: siteUrl(`/answers/${item.slug}`) })),
-    ...pathways.map((item) => ({ kind: "Pathway", label: item.title, url: siteUrl(`/pathways/${item.slug}`) }))
+    ...allPathways.map((item) => ({ kind: "Pathway", label: item.title, url: siteUrl(`/pathways/${item.slug}`) }))
   ];
 
   const seen = new Set<string>();
@@ -48,7 +49,7 @@ export default async function SocialMessagingPage() {
     <>
       <span className="eyebrow">Social messaging</span>
       <h1>Instagram automations</h1>
-      <p className="admin-lede">Turn comments and DMs into useful next steps. Match a keyword, send a private reply, and point people directly to the right Apostolic Guide study, pathway, article, or external link.</p>
+      <p className="admin-lede">Configure Instagram and the guide keywords Sol may recognize. Comment Guide reads every public comment first; direct-message rules continue to run here.</p>
 
       <div className="publishing-metrics social-metrics">
         <div><Instagram size={18} /><strong>{connection.webhookSubscribed ? "Live" : "Off"}</strong><span>Instagram</span></div>

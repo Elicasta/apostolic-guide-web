@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { BarChart3, Bell, BookOpen, FileClock, FileText, Film, Headphones, HeartPulse, Inbox, Instagram, Layers3, ListFilter, Mail, Menu, Route, Send, Settings, Sparkles, UserCog, Users, X } from "lucide-react";
+import { BarChart3, Bell, Bot, BookOpen, FileClock, FileText, Film, Headphones, HeartPulse, Inbox, Instagram, Layers3, ListFilter, Mail, Menu, Route, Send, Settings, Sparkles, UserCog, Users, X } from "lucide-react";
 import { hasStudioPermission, type StudioPermission, type StudioRole } from "@/studio-permissions";
 
 export const studioNavSections: Array<{ label: string; items: Array<{ href: string; label: string; icon: typeof BarChart3; permission: StudioPermission; exact?: boolean }> }> = [
@@ -31,6 +31,7 @@ export const studioNavSections: Array<{ label: string; items: Array<{ href: stri
     { href: "/admin/publish", label: "Channel Publishing", icon: Send, permission: "view_distribution" },
     { href: "/admin/broadcasts", label: "Broadcasts", icon: Mail, permission: "view_distribution" },
     { href: "/admin/social", label: "Social automations", icon: Instagram, permission: "view_distribution" },
+    { href: "/admin/comment-guide", label: "Comment Guide", icon: Bot, permission: "view_distribution" },
     { href: "/admin/analytics", label: "Analytics", icon: BarChart3, permission: "view_analytics" }
   ]},
   { label: "System", items: [
@@ -71,9 +72,7 @@ export function StudioNav({ role }: { role: StudioRole }) {
 }
 
 export function StudioMobileNav({ role }: { role: StudioRole }) {
-  const pathname = usePathname();
   const [open, setOpen] = useState(false);
-  useEffect(() => setOpen(false), [pathname]);
   useEffect(() => {
     if (!open) return;
     const previous = document.body.style.overflow;

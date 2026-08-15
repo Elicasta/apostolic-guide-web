@@ -3,23 +3,10 @@ import { createServiceClient } from "./supabase";
 import { recordPersonEvent, upsertInstagramPerson } from "./people-crm";
 import { recordInboxOutbound } from "./inbox";
 import { buildStudyCardMessage, buildStudyHandshake, buildStudyIntroText, isOpenStudyReply, studyTitleFromDestination } from "./social-signature-flow";
+import { attributedDestination } from "./social-attribution-url";
+import { enqueueInstagramCommentGuide } from "./comment-guide-runtime";
 
-export function attributedDestination(destinationUrl: string | null | undefined, token: string | null | undefined) {
-  const raw = destinationUrl?.trim();
-  if (!raw) return null;
-  if (!token) return raw;
-  try {
-    const url = new URL(raw);
-    const host = url.hostname.toLowerCase();
-    if (host === "apostolicguide.com" || host.endsWith(".apostolicguide.com")) {
-      url.searchParams.set("agp", token);
-      if (!url.searchParams.has("utm_source")) url.searchParams.set("utm_source", "instagram");
-      if (!url.searchParams.has("utm_medium")) url.searchParams.set("utm_medium", "social_automation");
-      return url.toString();
-    }
-  } catch {}
-  return raw;
-}
+export { attributedDestination } from "./social-attribution-url";
 
 async function graphFetch(path: string, accessToken: string, graphVersion: string, init?: RequestInit) {
   const response = await fetch(`https://graph.instagram.com/${graphVersion}/${path}`, {
@@ -133,19 +120,31 @@ async function deliverPendingStudyCard(input: {
 export async function processInstagramWebhookAttributed(payload: unknown) {
   const config = await getInstagramConfig();
   const service = createServiceClient();
-  if (!config || !service) return { processed: 0, sent: 0 };
+  if (!config || !service) return { processed: 0, sent: 0, queued: 0 };
   const triggers = parseInstagramWebhook(payload);
-  if (!triggers.length) return { processed: 0, sent: 0 };
+  if (!triggers.length) return { processed: 0, sent: 0, queued: 0 };
 
   await service.from("social_connection_status").upsert({ platform: "instagram", last_webhook_at: new Date().toISOString(), updated_at: new Date().toISOString() }, { onConflict: "platform" });
   const automations = await listSocialAutomations();
   let sent = 0;
+  let queued = 0;
 
   for (const trigger of triggers) {
     const existing = await service.from("social_events").select("id").eq("external_event_id", trigger.externalEventId).maybeSingle();
     if (existing.data) continue;
 
-    const person = trigger.senderId ? await upsertInstagramPerson({ instagramUserId: trigger.senderId, sourceDetail: trigger.triggerType === "comment_keyword" ? "instagram_comment" : "instagram_dm", seenAt: trigger.eventAt }) : null;
+    if (trigger.triggerType === "comment_keyword") {
+      if (trigger.senderId === config.instagramUserId) {
+        await service.from("social_events").insert({ external_event_id: trigger.externalEventId, trigger_type: "comment_keyword", source_media_id: trigger.mediaId, delivery_status: "ignored", error_code: "Ignored the connected account's own comment", event_at: trigger.eventAt });
+        continue;
+      }
+      const person = trigger.senderId ? await upsertInstagramPerson({ instagramUserId: trigger.senderId, username: trigger.senderUsername, sourceDetail: "instagram_comment", seenAt: trigger.eventAt }) : null;
+      const enqueued = await enqueueInstagramCommentGuide({ trigger, personId: person?.id ?? null });
+      if (enqueued.queued) queued += 1;
+      continue;
+    }
+
+    const person = trigger.senderId ? await upsertInstagramPerson({ instagramUserId: trigger.senderId, sourceDetail: "instagram_dm", seenAt: trigger.eventAt }) : null;
     const personWithToken = person as (typeof person & { attribution_token?: string | null });
 
     if (trigger.triggerType === "dm_keyword" && trigger.senderId && person && isOpenStudyReply(trigger.text)) {
@@ -177,12 +176,9 @@ export async function processInstagramWebhookAttributed(payload: unknown) {
 
     const destinationUrl = attributedDestination(match.automation.destination_url, personWithToken?.attribution_token ?? null);
     try {
-      const recipient = trigger.triggerType === "comment_keyword" ? { comment_id: trigger.commentId } : { id: trigger.senderId };
-      if ((trigger.triggerType === "comment_keyword" && !trigger.commentId) || (trigger.triggerType === "dm_keyword" && !trigger.senderId)) throw new Error("Instagram webhook did not include a usable recipient.");
-      const title = studyTitleFromDestination(destinationUrl, match.automation.name.replace(/[!]+$/g, ""));
-      const reply = trigger.triggerType === "comment_keyword" && destinationUrl
-        ? buildStudyHandshake(title)
-        : buildSocialReply(match.automation.reply_text, destinationUrl);
+      const recipient = { id: trigger.senderId };
+      if (!trigger.senderId) throw new Error("Instagram webhook did not include a usable recipient.");
+      const reply = buildSocialReply(match.automation.reply_text, destinationUrl);
       const result = await graphFetch(`${encodeURIComponent(config.instagramUserId)}/messages`, config.accessToken, config.graphVersion, { method: "POST", body: JSON.stringify({ recipient, message: { text: reply } }) });
       const providerMessageId = typeof result.message_id === "string" ? result.message_id : null;
 
@@ -190,8 +186,8 @@ export async function processInstagramWebhookAttributed(payload: unknown) {
 
       if (person) {
         await Promise.all([
-          recordPersonEvent({ personId: person.id, eventType: "automation_reply_sent", channel: "instagram", eventName: trigger.triggerType === "comment_keyword" && destinationUrl ? "Instagram study handshake sent" : "Instagram automation reply sent", automationId: match.automation.id, externalEventId: `crm:reply:${trigger.externalEventId}`, metadata: { matched_keyword: match.keyword, destination_url: destinationUrl, source_media_id: trigger.mediaId, signature_flow: trigger.triggerType === "comment_keyword" && destinationUrl ? "you-found-the-study" : null }, occurredAt: trigger.eventAt }),
-          recordInboxOutbound({ personId: person.id, body: reply, providerMessageId, externalEventId: `automation:${trigger.externalEventId}`, kind: "automation", at: trigger.eventAt, metadata: { automation_id: match.automation.id, matched_keyword: match.keyword, signature_flow: trigger.triggerType === "comment_keyword" && destinationUrl ? "you-found-the-study" : null } })
+          recordPersonEvent({ personId: person.id, eventType: "automation_reply_sent", channel: "instagram", eventName: "Instagram automation reply sent", automationId: match.automation.id, externalEventId: `crm:reply:${trigger.externalEventId}`, metadata: { matched_keyword: match.keyword, destination_url: destinationUrl, source_media_id: trigger.mediaId, signature_flow: null }, occurredAt: trigger.eventAt }),
+          recordInboxOutbound({ personId: person.id, body: reply, providerMessageId, externalEventId: `automation:${trigger.externalEventId}`, kind: "automation", at: trigger.eventAt, metadata: { automation_id: match.automation.id, matched_keyword: match.keyword, signature_flow: null } })
         ]);
       }
       sent += 1;
@@ -199,7 +195,7 @@ export async function processInstagramWebhookAttributed(payload: unknown) {
       await service.from("social_events").insert({ external_event_id: trigger.externalEventId, automation_id: match.automation.id, trigger_type: trigger.triggerType, matched_keyword: match.keyword, source_media_id: trigger.mediaId, person_id: person?.id ?? null, destination_url: destinationUrl, delivery_status: "failed", error_code: (error instanceof Error ? error.message : "Instagram send failed").slice(0, 500), event_at: trigger.eventAt });
     }
   }
-  return { processed: triggers.length, sent };
+  return { processed: triggers.length, sent, queued };
 }
 
 export async function retryInstagramAutomationEvent(eventId: number) {
