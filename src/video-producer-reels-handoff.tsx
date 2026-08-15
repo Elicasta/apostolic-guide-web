@@ -76,37 +76,41 @@ export function VideoProducerReelsHandoff({ projectId }: { projectId: string }) 
   }
 
   return (
-    <section className={styles.workspace} style={{ marginTop: 18 }} aria-label="Create reels from podcast">
-      <header className={styles.workspaceHeader}>
-        <div className={styles.workspaceHeaderRow}>
-          <div>
-            <div className={styles.eyebrow}>Optional short-form package</div>
-            <h2>Reels from this podcast</h2>
-            <p>Sol finds self-contained moments in the same raw recording. Choosing one creates a child Reels project and drops you directly into its Produce step.</p>
-          </div>
-          <span className={styles.statusPill}><Smartphone size={12}/> {candidates.length ? `${candidates.length} found` : "Optional"}</span>
-        </div>
-      </header>
-      <div className={styles.workspaceBody}>
-        {error ? <div className={`${styles.notice} ${styles.warning}`} style={{ marginBottom: 12 }}>{error}</div> : null}
-        <button className={styles.buttonSecondary} disabled={Boolean(busy)} onClick={() => void findReels()}>
-          {busy === "find" ? <Loader2 size={14} className={styles.spin}/> : <Sparkles size={14}/>} {candidates.length ? "Refresh candidates" : "Find reels"}
-        </button>
-        {candidates.length ? <div className={styles.decisionList} style={{ marginTop: 14 }}>{candidates.map((candidate) => (
-          <div className={styles.panel} key={candidate.id} style={{ padding: 14 }}>
-            <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div className={styles.eyebrow}>{formatProducerTime(candidate.start)}–{formatProducerTime(candidate.end)} · {candidate.score}/100</div>
-                <h3 style={{ margin: "6px 0 0", fontSize: 14 }}>{candidate.title}</h3>
-                <p className={styles.panelText} style={{ marginTop: 5 }}>{candidate.hook}</p>
+    <div className={styles.flow} style={{ paddingTop: 0 }}>
+      <div className={styles.flowShell}>
+        <section className={styles.workspace} aria-label="Create reels from podcast">
+          <header className={styles.workspaceHeader}>
+            <div className={styles.workspaceHeaderRow}>
+              <div>
+                <div className={styles.eyebrow}>Optional short-form package</div>
+                <h2>Reels from this podcast</h2>
+                <p>Sol finds self-contained moments in the same raw recording. Choosing one creates a child Reels project and drops you directly into its Produce step.</p>
               </div>
-              <button className={styles.buttonSecondary} disabled={Boolean(busy)} onClick={() => void createReel(candidate)}>
-                {busy === candidate.id ? <Loader2 size={14} className={styles.spin}/> : <Scissors size={14}/>} Create reel
-              </button>
+              <span className={styles.statusPill}><Smartphone size={12}/> {candidates.length ? `${candidates.length} found` : "Optional"}</span>
             </div>
+          </header>
+          <div className={styles.workspaceBody}>
+            {error ? <div className={`${styles.notice} ${styles.warning}`} style={{ marginBottom: 12 }}>{error}</div> : null}
+            <button className={styles.buttonSecondary} disabled={Boolean(busy)} onClick={() => void findReels()}>
+              {busy === "find" ? <Loader2 size={14} className={styles.spin}/> : <Sparkles size={14}/>} {candidates.length ? "Refresh candidates" : "Find reels"}
+            </button>
+            {candidates.length ? <div className={styles.decisionList} style={{ marginTop: 14 }}>{candidates.map((candidate) => (
+              <div className={styles.panel} key={candidate.id} style={{ padding: 14 }}>
+                <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div className={styles.eyebrow}>{formatProducerTime(candidate.start)}–{formatProducerTime(candidate.end)} · {candidate.score}/100</div>
+                    <h3 style={{ margin: "6px 0 0", fontSize: 14 }}>{candidate.title}</h3>
+                    <p className={styles.panelText} style={{ marginTop: 5 }}>{candidate.hook}</p>
+                  </div>
+                  <button className={styles.buttonSecondary} disabled={Boolean(busy)} onClick={() => void createReel(candidate)}>
+                    {busy === candidate.id ? <Loader2 size={14} className={styles.spin}/> : <Scissors size={14}/>} Create reel
+                  </button>
+                </div>
+              </div>
+            ))}</div> : null}
           </div>
-        ))}</div> : null}
+        </section>
       </div>
-    </section>
+    </div>
   );
 }
