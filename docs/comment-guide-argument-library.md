@@ -30,6 +30,8 @@ The current categories are Godhead, Christology, Holy Spirit, baptism, salvation
 9. If review fails, write a safe server-owned reply from the same argument records. Never publish the rejected draft.
 10. Add the human-style delay and use the existing Pathway handoff.
 
+The application enforces the final response boundary after Sol classifies the comment. A non-abusive doctrinal lane cannot remain `ignore`: sincere questions and objections become `answer_once`, while gotcha comments become `redirect_once`. If Sol supplies no draft, the server writes from the approved argument records. Accusations such as heresy, modalism, cult, false teaching, or denying the Trinity count as doctrinal content unless the comment also contains direct personal abuse, threats, slurs, or targeted profanity.
+
 For a combined comment such as `Jesus is not the Father. This is modalism and heresy.`, the system preserves three separate records:
 
 - claim: `jesus-not-the-father`

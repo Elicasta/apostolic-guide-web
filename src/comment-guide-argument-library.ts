@@ -48,8 +48,8 @@ export const COMMENT_GUIDE_ARGUMENT_LIBRARY: CommentGuideArgument[] = [
     claim: "The Trinity defines the one God as three distinct coequal persons, and denying that definition denies Father, Son, and Holy Spirit.",
     calmCorrection: "Apostolic teaching confesses the Father, Son, and Holy Ghost while asking whether Scripture itself defines the one God as three divine persons; it finds the one God fully revealed in Jesus Christ.",
     replyVariants: [
-      "We are not denying the Father, Son, or Holy Spirit. The question is whether Scripture defines the one God as three divine persons.",
-      "Father, Son, and Holy Spirit are all biblical. Our disagreement is with defining the one God as three divine persons."
+      "We are not denying the Father, Son, or Holy Spirit. The question is whether Scripture uses a three-person definition of the one God.",
+      "Father, Son, and Holy Spirit are all biblical. Our disagreement is with dividing the one God into three personal distinctions."
     ],
     pathwaySlugs: ["god-is-one", "father-dwells-in-son"],
     patterns: [/one\s+god\s+in\s+three\s+(?:distinct\s+)?persons\b/i, /\b(?:god|trinity)\s+(?:is|means)\s+three\s+(?:distinct\s+)?persons\b/i, /\b(?:deny|denying)\s+(?:the\s+)?trinity\b/i]

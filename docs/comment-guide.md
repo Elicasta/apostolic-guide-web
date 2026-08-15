@@ -14,7 +14,7 @@ The Comment Guide routes every new Instagram comment through GPT-5.6 Sol before 
 8. An approved reply is scheduled with a lane-specific human delay.
 9. Keyword requests receive a public acknowledgement and the existing private `OPEN` handshake. Other matched Pathways use the same private handoff.
 
-Repeated contention from one person on one post receives no second doctrinal reply. Hostile, sensitive, spam, and ambiguous comments receive no automatic fallback. The server-owned fallback is limited to sincere questions, doctrinal objections, and one-time gotcha redirects that Sol confidently matched to an approved Pathway.
+Every non-abusive doctrinal comment receives one answer or redirect and one Pathway, including hard questions, forceful Trinitarian objections, heresy accusations, and gotcha wording. Direct personal abuse, threats, slurs, sensitive crises, spam, and ambiguous comments receive no automatic fallback. Repeated contention from one person on one post receives no second doctrinal reply because the first answer already supplied the Pathway.
 
 The objection taxonomy, research sources, combination logic, and repetition controls are documented in [comment-guide-argument-library.md](./comment-guide-argument-library.md).
 
