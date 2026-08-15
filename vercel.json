@@ -13,6 +13,10 @@
     {
       "path": "/api/cron/comment-guide",
       "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/cron/sol",
+      "schedule": "*/30 * * * *"
     }
   ]
 }
