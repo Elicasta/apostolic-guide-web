@@ -10,10 +10,11 @@ The Comment Guide routes every new Instagram comment through GPT-5.6 Sol before 
 4. Positive comments receive one short, varied acknowledgement.
 5. Sincere questions, objections, and one-time redirects receive a second Sol doctrine review against one of the 20 current Pathways.
 6. Deterministic checks reject combative language, unsupported Scripture, model-created links, and out-of-doctrine claims.
-7. An approved reply is scheduled with a lane-specific human delay.
-8. Keyword requests receive a public acknowledgement and the existing private `OPEN` handshake. Other matched Pathways use the same private handoff.
+7. If the reviewed wording fails those checks, a server-owned cordial reply redirects the person to Sol's selected approved Pathway. No rejected model wording is published.
+8. An approved reply is scheduled with a lane-specific human delay.
+9. Keyword requests receive a public acknowledgement and the existing private `OPEN` handshake. Other matched Pathways use the same private handoff.
 
-Repeated contention from one person on one post receives no second doctrinal reply. Hostile, sensitive, spam, ambiguous, and failed comments receive no automatic fallback.
+Repeated contention from one person on one post receives no second doctrinal reply. Hostile, sensitive, spam, and ambiguous comments receive no automatic fallback. The server-owned fallback is limited to sincere questions, doctrinal objections, and one-time gotcha redirects that Sol confidently matched to an approved Pathway.
 
 ## Deploy
 

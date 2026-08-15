@@ -1,7 +1,7 @@
 import { allPathways, pathwayBySlug } from "./pathway-catalog";
 import type { SocialAutomation } from "./social-messaging";
 
-export const COMMENT_GUIDE_PROMPT_VERSION = "apostolic-comment-guide-v1";
+export const COMMENT_GUIDE_PROMPT_VERSION = "apostolic-comment-guide-v2";
 export const COMMENT_GUIDE_MODEL = "gpt-5.6-sol";
 
 export const COMMENT_GUIDE_INTENTS = [
@@ -278,7 +278,7 @@ export function validatePublicCommentReply(input: {
   return null;
 }
 
-export function validateCommentGuideDecision(decision: CommentGuideDecision) {
+export function validateCommentGuideDecisionStructure(decision: CommentGuideDecision) {
   if (!decision || typeof decision !== "object") return "decision is not an object";
   if (!COMMENT_GUIDE_INTENTS.includes(decision.intent)) return "unknown intent";
   if (!COMMENT_GUIDE_ACTIONS.includes(decision.action)) return "unknown action";
@@ -295,6 +295,12 @@ export function validateCommentGuideDecision(decision: CommentGuideDecision) {
   if (decision.action === "ignore" && decision.publicReply) return "ignored comments cannot have a public reply";
   if (decision.action === "acknowledge" && decision.intent !== "positive") return "acknowledgements are reserved for positive comments";
   if (["answer_once", "redirect_once"].includes(decision.action) && !decision.pathwaySlug) return "doctrinal replies require a pathway";
+  return null;
+}
+
+export function validateCommentGuideDecision(decision: CommentGuideDecision) {
+  const structureError = validateCommentGuideDecisionStructure(decision);
+  if (structureError) return structureError;
   if (decision.publicReply) {
     const replyError = validatePublicCommentReply({
       reply: decision.publicReply,
@@ -305,6 +311,17 @@ export function validateCommentGuideDecision(decision: CommentGuideDecision) {
     if (replyError) return replyError;
   }
   return null;
+}
+
+export function buildDoctrinalFallbackReply(intent: CommentGuideIntent, pathwayTitle: string) {
+  const title = pathwayTitle.trim() || "Apostolic Guide";
+  if (intent === "gotcha_contention") {
+    return `We understand the concern. Apostolic teaching confesses the one indivisible God fully revealed in Jesus Christ. The ${title} guide lays out the Scriptures behind that belief.`;
+  }
+  if (intent === "doctrinal_objection") {
+    return `Thank you for raising the concern. Our reading is that the one God has fully revealed Himself in Jesus Christ. The ${title} guide walks through the passages behind that conclusion.`;
+  }
+  return `That is a fair question. The ${title} guide walks through the passages that shape our Apostolic reading and gives the clearest next step.`;
 }
 
 export function validateCommentGuideDoctrineReview(review: CommentGuideDoctrineReview) {
