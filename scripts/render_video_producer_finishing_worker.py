@@ -23,7 +23,6 @@ bw.base.build_ass = build_broadcast_ass_v2
 def color_filter_v2(plan):
     preset = plan.get("colorPreset") or "none"
     if preset == "ag-studio":
-        # Mild S-curve feel, less yellow/green bias, slightly cleaner separation.
         return "eq=contrast=1.065:saturation=1.02:brightness=-0.004:gamma=0.995,colorbalance=rm=-0.012:gm=-0.004:bm=0.012"
     if preset == "ag-warm":
         return "eq=contrast=1.055:saturation=1.035:brightness=-0.002:gamma=0.998,colorbalance=rm=0.010:gm=-0.004:bm=-0.010"
@@ -94,12 +93,16 @@ def build_ffmpeg_v2(manifest, source, ass_file, output_file):
     graph.append("".join(concat_inputs) + f"concat=n={len(concat_inputs)}:v=1:a=1[vcat][acat]")
 
     if mode == "reels":
-        video_chain = "fps=30,scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920:x='(iw-1080)*0.5':y='(ih-1920)*0.5'"
+        # Crop to the 9:16 slice before scaling. The old order resized a full 16:9 4K
+        # frame to ~3413x1920 and then threw most of those pixels away. Cropping first
+        # reduces scaler work dramatically while preserving the exact same centered
+        # composition the previous chain produced.
+        video_chain = "fps=30,crop=w='min(iw,ih*9/16)':h=ih:x='(iw-min(iw,ih*9/16))*0.5':y=0,scale=1080:1920:flags=fast_bilinear"
         zoom = bw.base.zoompan_filter(plan)
         if zoom:
             video_chain += "," + zoom
     else:
-        video_chain = "fps=30,scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2:black"
+        video_chain = "fps=30,scale=1920:1080:force_original_aspect_ratio=decrease:flags=fast_bilinear,pad=1920:1080:(ow-iw)/2:(oh-ih)/2:black"
     video_chain += "," + color_filter_v2(plan)
     graph.append(f"[vcat]{video_chain},ass='{ass_file}'[vout]")
 
@@ -114,8 +117,6 @@ def build_ffmpeg_v2(manifest, source, ass_file, output_file):
             f"volume={gain_db}dB,afade=t=in:st=0:d=1.0,afade=t=out:st={fade_out:.3f}:d=1.2,atrim=0:{duration:.3f}[musicbed]"
         )
         if bool(selected_music.get("duckUnderVoice", True)):
-            # FFmpeg filter labels are consumed by a filter input. Split explicitly so
-            # the mastered voice can drive the sidechain and also remain the clean mix source.
             graph.append("[voice]asplit=2[voice_sidechain][voice_mix]")
             graph.append("[musicbed][voice_sidechain]sidechaincompress=threshold=0.035:ratio=8:attack=15:release=350:makeup=1[ducked]")
             graph.append("[voice_mix][ducked]amix=inputs=2:duration=first:dropout_transition=0,alimiter=limit=0.94[aout]")
@@ -179,7 +180,7 @@ def main():
         if not os.path.exists(main_path) or os.path.getsize(main_path) < 1024:
             raise RuntimeError("FFmpeg completed without a usable main render")
 
-        bw.base.callback(payload, "rendering", 89, "Building branded intro and outro")
+        bw.base.callback(payload, "rendering", 89, "Building timestamp-safe package")
         bw.package_with_bumpers(manifest, main_path, sys.argv[2], directory)
         if not os.path.exists(sys.argv[2]) or os.path.getsize(sys.argv[2]) < 1024:
             raise RuntimeError("Video Producer package did not create a usable output file")

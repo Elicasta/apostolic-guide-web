@@ -76,6 +76,8 @@ export async function POST(request: Request) {
   const plan = project.edit_plan as VideoProducerEditPlan;
   const pathway = project.pathway_slug ? pathwayBySlug(project.pathway_slug) : null;
   const model = process.env.OPENAI_VIDEO_PRODUCER_MODEL?.trim() || process.env.OPENAI_VIDEO_DIRECTOR_MODEL?.trim() || "gpt-5.6-sol";
+  const queuedRowIds: string[] = [];
+  let batchId = "";
 
   try {
     const response = await fetch("https://api.openai.com/v1/responses", {
@@ -121,7 +123,7 @@ export async function POST(request: Request) {
     }
     if (byVariant.size !== 3) throw new Error("Thumbnail director did not return all three required variants.");
 
-    const batchId = randomUUID();
+    batchId = randomUUID();
     const callback = createWorkerCallbackToken();
     const sourceUrl = await createPrivateBlobDownloadUrl(project.source_locator, 3 * 60 * 60 * 1000);
     const workerVariants = [] as Array<{ id: string; variant: ThumbnailVariant; headline: string; sourceTimestamp: number; outputTimestamp: number; outputUploadUrl: string }>;
@@ -147,12 +149,11 @@ export async function POST(request: Request) {
         completed_at: null
       }, { onConflict: "project_id,variant" }).select("id").single();
       if (upsert.error) throw new Error(upsert.error.message);
+      queuedRowIds.push(upsert.data.id);
       workerVariants.push({ id: upsert.data.id, variant, headline: candidate.headline, sourceTimestamp: candidate.sourceTimestamp, outputTimestamp, outputUploadUrl });
     }
 
-    let token = "";
-    let repository = "";
-    ({ token, repository } = await videoProducerRendererCredentials(service));
+    const { token, repository } = await videoProducerRendererCredentials(service);
     if (!token) throw new Error("Video worker is not connected.");
     const workerRef = videoProducerWorkerRef();
     await dispatchVideoProducerWorker({
@@ -173,9 +174,21 @@ export async function POST(request: Request) {
         callback_token: callback.token
       }
     });
-    await service.from("video_producer_thumbnails").update({ status: "rendering" }).eq("project_id", project.id);
+    const started = await service.from("video_producer_thumbnails").update({ status: "rendering", error: null }).in("id", queuedRowIds);
+    if (started.error) console.error("Video Producer thumbnail status update failed", { projectId: project.id, batchId, message: started.error.message });
     return NextResponse.json({ ok: true, variants: workerVariants.map(({ outputUploadUrl: _url, ...item }) => item) });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Thumbnail generation failed." }, { status: 502 });
+    const message = error instanceof Error ? error.message : "Thumbnail generation failed.";
+    console.error("Video Producer thumbnail generation failed", { projectId: project.id, batchId: batchId || null, queued: queuedRowIds.length, message });
+    if (queuedRowIds.length) {
+      const failed = await service.from("video_producer_thumbnails").update({
+        status: "failed",
+        error: message,
+        callback_token_hash: null,
+        completed_at: new Date().toISOString()
+      }).in("id", queuedRowIds);
+      if (failed.error) console.error("Video Producer thumbnail failure-state update failed", { projectId: project.id, message: failed.error.message });
+    }
+    return NextResponse.json({ error: message }, { status: 502 });
   }
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Film, Loader2, Plus, RefreshCw, Smartphone } from "lucide-react";
+import { Film, Images, Library, Loader2, Plus, RefreshCw, Smartphone } from "lucide-react";
 import { useRouter } from "next/navigation";
 import styles from "./video-producer-sequential.module.css";
 
@@ -19,13 +19,18 @@ type LibraryProject = {
   parent_project_id: string | null;
   source_filename?: string | null;
   source_duration?: number | null;
+  source_range_start?: number | null;
+  source_range_end?: number | null;
   approval_fingerprint?: string | null;
   updated_at?: string | null;
   latest_render?: LibraryRender | null;
 };
 
-function duration(seconds?: number | null) {
-  const total = Math.max(0, Math.round(Number(seconds || 0)));
+function duration(project: LibraryProject) {
+  const seconds = project.source_range_start != null && project.source_range_end != null
+    ? Math.max(0, project.source_range_end - project.source_range_start)
+    : Math.max(0, Number(project.source_duration || 0));
+  const total = Math.round(seconds);
   const minutes = Math.floor(total / 60);
   const secs = total % 60;
   return total ? `${minutes}:${String(secs).padStart(2, "0")}` : "—";
@@ -93,6 +98,7 @@ export function VideoProducerDashboard() {
   const roots = useMemo(() => projects.filter((project) => !project.parent_project_id), [projects]);
   const active = roots.filter((project) => !["completed"].includes(project.status));
   const done = roots.filter((project) => project.status === "completed");
+  const reelCount = projects.filter((project) => project.mode === "reels").length;
 
   function open(project: LibraryProject) {
     router.push(`/admin/video-producer/${project.id}/${projectStep(project)}`);
@@ -112,12 +118,18 @@ export function VideoProducerDashboard() {
           </button>
         </header>
 
-        <section className={styles.newProjectRow} aria-label="Start a project">
+        <section className={styles.newProjectRow} aria-label="Start or browse projects">
           <button type="button" onClick={() => router.push("/admin/video-producer/new?mode=podcast")}>
             <Film size={20}/><span><strong>New podcast</strong><small>Long-form · 16:9</small></span><Plus size={17}/>
           </button>
           <button type="button" onClick={() => router.push("/admin/video-producer/new?mode=reels")}>
-            <Smartphone size={20}/><span><strong>New reel</strong><small>Short-form · 9:16</small></span><Plus size={17}/>
+            <Smartphone size={20}/><span><strong>New reel</strong><small>Standalone · 9:16</small></span><Plus size={17}/>
+          </button>
+          <button type="button" onClick={() => router.push("/admin/video-producer/reels")}>
+            <Library size={20}/><span><strong>Reels library</strong><small>{reelCount} total · parent + standalone</small></span><Smartphone size={17}/>
+          </button>
+          <button type="button" onClick={() => router.push("/admin/video-producer/graphics")}>
+            <Images size={20}/><span><strong>Graphics library</strong><small>Reusable PNG + WebP designs</small></span><Library size={17}/>
           </button>
         </section>
 
@@ -134,7 +146,7 @@ export function VideoProducerDashboard() {
                   <span className={styles.projectIcon}>{project.mode === "podcast" ? <Film size={18}/> : <Smartphone size={18}/>}</span>
                   <span className={styles.projectCopy}>
                     <strong>{project.title}</strong>
-                    <small>{project.mode === "podcast" ? "Podcast" : "Reel"} · {duration(project.source_duration)} · {statusLabel(project.status)}</small>
+                    <small>{project.mode === "podcast" ? "Podcast" : "Reel"} · {duration(project)} · {statusLabel(project.status)}</small>
                     {render && render.status !== "completed" ? <span className={styles.miniProgress}><i style={{ width: `${Math.max(percent, 3)}%` }}/></span> : null}
                   </span>
                   <span className={styles.continueLabel}>Continue</span>
@@ -149,8 +161,8 @@ export function VideoProducerDashboard() {
             <div className={styles.sectionHeading}><h2>Completed</h2><span>{done.length}</span></div>
             <div className={styles.projectList}>{done.slice(0, 12).map((project) => (
               <button type="button" className={styles.projectRow} key={project.id} onClick={() => open(project)}>
-                <span className={styles.projectIcon}><Film size={18}/></span>
-                <span className={styles.projectCopy}><strong>{project.title}</strong><small>{duration(project.source_duration)} · Complete</small></span>
+                <span className={styles.projectIcon}>{project.mode === "podcast" ? <Film size={18}/> : <Smartphone size={18}/>}</span>
+                <span className={styles.projectCopy}><strong>{project.title}</strong><small>{duration(project)} · Complete</small></span>
                 <span className={styles.continueLabel}>Open</span>
               </button>
             ))}</div>
