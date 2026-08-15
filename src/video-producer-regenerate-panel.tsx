@@ -31,11 +31,11 @@ export function VideoProducerRegeneratePanel({ projectId }: { projectId: string 
   }
 
   return (
-    <div className={styles.flowAddon}>
+    <div className={styles.flow} style={{ paddingTop: 0 }}>
       <div className={styles.flowShell}>
         <div className={styles.panel}>
-          <div className={styles.panelHeadingRow}>
-            <div>
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 14, flexWrap: "wrap" }}>
+            <div style={{ flex: "1 1 420px" }}>
               <h3 className={styles.panelTitle}><RefreshCw size={17}/> Want a different edit?</h3>
               <p className={styles.panelText}>Regenerate asks Sol for a fresh editorial pass from the same timestamped source. It replaces the current plan and clears approval, but never touches the raw recording or transcript.</p>
             </div>
