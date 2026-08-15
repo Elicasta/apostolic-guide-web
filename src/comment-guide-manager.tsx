@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Bot, Check, Clock3, FlaskConical, Loader2, MessageCircleReply, RotateCcw, Save, ShieldCheck } from "lucide-react";
+import { Bot, Check, Clock3, FlaskConical, Loader2, MessageCircleReply, RotateCcw, Save, ShieldCheck, TriangleAlert } from "lucide-react";
 import type { CommentGuideDashboard, CommentGuideJob, CommentGuideSettings } from "./comment-guide-runtime";
 
 type SimulationResult = {
@@ -51,6 +51,7 @@ export function CommentGuideManager(props: {
   const [comment, setComment] = useState("This is modalism. Why did Jesus pray?");
   const [simulating, setSimulating] = useState(false);
   const [simulation, setSimulation] = useState<SimulationResult | null>(null);
+  const [simulationError, setSimulationError] = useState<string | null>(null);
   const ready = props.dashboard.dbReady && props.openAIConfigured && props.instagramConfigured;
   const modeDescription = useMemo(() => ({
     paused: "No new comments are classified or answered.",
@@ -89,13 +90,13 @@ export function CommentGuideManager(props: {
   async function simulate() {
     if (!comment.trim()) return;
     setSimulating(true);
-    setError(null);
     setSimulation(null);
+    setSimulationError(null);
     try {
       const json = await post({ action: "simulate", comment: comment.trim() });
       setSimulation(json.simulation as SimulationResult);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Could not run the Sol simulation.");
+      setSimulationError(caught instanceof Error ? caught.message : "Could not run the Sol simulation.");
     } finally {
       setSimulating(false);
     }
@@ -147,12 +148,12 @@ export function CommentGuideManager(props: {
       <div className="comment-guide-sim-grid">
         <div className="comment-guide-sim-input"><label htmlFor="comment-guide-test">Instagram comment</label><textarea id="comment-guide-test" value={comment} onChange={(event) => setComment(event.target.value)} maxLength={5000}/><button className="button button-outline" type="button" onClick={simulate} disabled={!props.canManage || !props.dashboard.dbReady || !props.openAIConfigured || simulating}>{simulating ? <Loader2 className="spin" size={16}/> : <FlaskConical size={16}/>} Run through Sol</button></div>
         <div className="comment-guide-sim-output">
-          {simulation ? <>
+          {simulationError ? <div className="comment-guide-simulation-error" role="alert"><TriangleAlert size={24}/><strong>Sol stopped this draft safely.</strong><p>{simulationError}</p></div> : simulation ? <>
             <div className="comment-guide-decision-head"><span className="status-pill">{simulation.decision.intent.replaceAll("_", " ")}</span><strong>{simulation.decision.action.replaceAll("_", " ")}</strong><small>{Math.round(simulation.decision.confidence * 100)}% confidence</small></div>
             {simulation.explicitKeywordGate ? <div className="comment-guide-gate"><ShieldCheck size={16}/><span>Exact keyword gate: <strong>{simulation.explicitKeywordGate.keyword}</strong></span></div> : null}
             {simulation.decision.publicReply ? <blockquote>{simulation.decision.publicReply}</blockquote> : <div className="comment-guide-no-reply">No public reply</div>}
             {simulation.decision.privateReply ? <div className="comment-guide-private"><MessageCircleReply size={16}/><span><strong>Private handoff</strong>{simulation.decision.privateReply}</span></div> : null}
-            <div className="comment-guide-sim-meta"><span><Clock3 size={14}/> {delayLabel(simulation.decision.delaySeconds)} delay</span><span>Pathway: {simulation.decision.pathwaySlug ?? "none"}</span><span>Review: {simulation.decision.doctrineReview?.approved ? "approved" : simulation.decision.doctrineReview ? "stopped" : "not needed"}</span></div>
+            <div className="comment-guide-sim-meta"><span><Clock3 size={14}/> {delayLabel(simulation.decision.delaySeconds)} delay</span><span>Pathway: {simulation.decision.pathwaySlug ?? "none"}</span><span>Review: {simulation.decision.internalReason.startsWith("Server-written safe fallback:") ? "safe fallback" : simulation.decision.doctrineReview?.approved ? "approved" : simulation.decision.doctrineReview ? "stopped" : "not needed"}</span></div>
           </> : <div className="comment-guide-placeholder"><Bot size={30}/><strong>Sol’s decision will appear here.</strong><p>Try a compliment, JESUS, a sincere question, or a gotcha comment.</p></div>}
         </div>
       </div>

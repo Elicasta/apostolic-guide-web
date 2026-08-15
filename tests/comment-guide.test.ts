@@ -1,13 +1,17 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  buildDoctrinalFallbackReply,
   buildPublicGuideAcknowledgement,
   commentGuideDelaySeconds,
   commentGuidePathwayDirectory,
   findExplicitCommentAutomation,
   pathwaySlugFromDestination,
+  validateCommentGuideDecision,
+  validateCommentGuideDecisionStructure,
   validatePublicCommentReply
 } from "../src/comment-guide";
+import type { CommentGuideDecision } from "../src/comment-guide";
 import type { SocialAutomation } from "../src/social-messaging";
 
 function automation(overrides: Partial<SocialAutomation> = {}): SocialAutomation {
@@ -85,6 +89,52 @@ test("reply validator permits only Scripture from the selected pathway", () => {
     pathwaySlug: "god-is-one",
     scriptureReferences: ["John 14:10"]
   }) ?? "", /outside the selected pathway/i);
+});
+
+test("the first Sol doctrine draft can reach review while unsafe text remains blocked from publishing", () => {
+  const draft: CommentGuideDecision = {
+    intent: "gotcha_contention",
+    action: "redirect_once",
+    confidence: 0.94,
+    contentionLevel: "gotcha",
+    automationId: null,
+    matchedKeyword: null,
+    pathwaySlug: "god-is-one",
+    publicReply: "God changes masks or modes.",
+    scriptureReferences: [],
+    internalReason: "Draft requires doctrine review."
+  };
+  assert.equal(validateCommentGuideDecisionStructure(draft), null);
+  assert.match(validateCommentGuideDecision(draft) ?? "", /changing masks or modes/i);
+});
+
+test("the first Sol doctrine draft can reach review with a citation that the selected pathway does not support", () => {
+  const draft: CommentGuideDecision = {
+    intent: "doctrinal_objection",
+    action: "answer_once",
+    confidence: 0.91,
+    contentionLevel: "skeptical",
+    automationId: null,
+    matchedKeyword: null,
+    pathwaySlug: "god-is-one",
+    publicReply: "John 14:9–10 gives the answer.",
+    scriptureReferences: ["John 14:9–10"],
+    internalReason: "Draft requires doctrine review."
+  };
+  assert.equal(validateCommentGuideDecisionStructure(draft), null);
+  assert.match(validateCommentGuideDecision(draft) ?? "", /outside the selected pathway/i);
+});
+
+test("server-owned fallbacks answer modalism and heresy accusations cordially", () => {
+  const reply = buildDoctrinalFallbackReply("gotcha_contention", "God Is One");
+  assert.equal(validatePublicCommentReply({
+    reply,
+    intent: "gotcha_contention",
+    pathwaySlug: "god-is-one",
+    scriptureReferences: []
+  }), null);
+  assert.match(reply, /one indivisible God fully revealed in Jesus Christ/i);
+  assert.doesNotMatch(reply, /modalism|heresy|heretic|trinitarian/i);
 });
 
 test("positive replies stay short and do not repeat a recent response", () => {

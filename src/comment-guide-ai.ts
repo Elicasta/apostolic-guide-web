@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import {
   APOSTOLIC_DOCTRINE_LOCK,
+  buildDoctrinalFallbackReply,
   buildPublicGuideAcknowledgement,
   COMMENT_GUIDE_DECISION_SCHEMA,
   COMMENT_GUIDE_MODEL,
@@ -11,7 +12,7 @@ import {
   commentGuidePathwayDirectory,
   pathwayDestination,
   pathwaySlugFromDestination,
-  validateCommentGuideDecision,
+  validateCommentGuideDecisionStructure,
   validateCommentGuideDoctrineReview,
   validatePublicCommentReply,
   type CommentGuideDecision,
@@ -162,7 +163,9 @@ export async function decideInstagramComment(input: CommentGuideInput) {
     }
   });
   const decision = result.value as CommentGuideDecision;
-  const validationError = validateCommentGuideDecision(decision);
+  // The first Sol pass is a draft. Validate its structure here, then let the
+  // doctrine pass correct wording and citations before deterministic publish validation.
+  const validationError = validateCommentGuideDecisionStructure(decision);
   if (validationError) throw new Error(`Sol decision failed validation: ${validationError}.`);
   return { model: result.model, decision };
 }
@@ -207,6 +210,43 @@ function ignoredDecision(decision: CommentGuideDecision, reason: string): Prepar
     doctrineReview: null,
     delaySeconds: 0
   };
+}
+
+function safeDoctrinalFallback(input: {
+  decision: CommentGuideDecision;
+  externalEventId: string;
+  reason: string;
+}) {
+  const pathway = input.decision.pathwaySlug ? pathwayBySlug(input.decision.pathwaySlug) : null;
+  if (!pathway) return ignoredDecision(input.decision, "A safe doctrinal fallback had no approved pathway.");
+  const publicReply = buildDoctrinalFallbackReply(input.decision.intent, pathway.title);
+  const replyError = validatePublicCommentReply({
+    reply: publicReply,
+    intent: input.decision.intent,
+    pathwaySlug: pathway.slug,
+    scriptureReferences: []
+  });
+  if (replyError) return ignoredDecision(input.decision, `Server fallback failed validation: ${replyError}.`);
+  const correctionReason = input.reason.slice(0, 220);
+  return {
+    ...input.decision,
+    action: input.decision.intent === "gotcha_contention" ? "redirect_once" : "answer_once",
+    automationId: null,
+    matchedKeyword: null,
+    pathwaySlug: pathway.slug,
+    publicReply,
+    privateReply: buildStudyHandshake(pathway.title),
+    destinationUrl: pathwayDestination(pathway.slug),
+    scriptureReferences: [],
+    internalReason: `Server-written safe fallback: ${correctionReason}`.slice(0, 240),
+    doctrineReview: {
+      approved: false,
+      finalReply: null,
+      scriptureReferences: [],
+      correctionReason
+    },
+    delaySeconds: commentGuideDelaySeconds(input.decision.intent, input.externalEventId)
+  } satisfies PreparedCommentGuideDecision;
 }
 
 export async function prepareInstagramCommentDecision(input: CommentGuideInput) {
@@ -280,8 +320,23 @@ export async function prepareInstagramCommentDecision(input: CommentGuideInput) 
     if (!["answer_once", "redirect_once"].includes(rawDecision.action) || !rawDecision.pathwaySlug || !rawDecision.publicReply || rawDecision.confidence < 0.64) {
       return { model, prepared: ignoredDecision(rawDecision, "Doctrinal intent did not meet the unattended reply threshold.") };
     }
-    const { review } = await reviewInstagramDoctrineReply({ comment: input.comment, decision: rawDecision, senderId: input.senderId });
-    if (!review.approved || !review.finalReply) return { model, prepared: ignoredDecision(rawDecision, review.correctionReason || "Doctrine review did not approve a public reply.") };
+    let review: CommentGuideDoctrineReview;
+    try {
+      ({ review } = await reviewInstagramDoctrineReply({ comment: input.comment, decision: rawDecision, senderId: input.senderId }));
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : "Doctrine review was unavailable.";
+      return { model, prepared: safeDoctrinalFallback({ decision: rawDecision, externalEventId: input.externalEventId, reason }) };
+    }
+    if (!review.approved || !review.finalReply) {
+      return {
+        model,
+        prepared: safeDoctrinalFallback({
+          decision: rawDecision,
+          externalEventId: input.externalEventId,
+          reason: review.correctionReason || "Doctrine review did not approve the draft."
+        })
+      };
+    }
     const replyError = validatePublicCommentReply({
       reply: review.finalReply,
       intent: rawDecision.intent,
@@ -289,7 +344,16 @@ export async function prepareInstagramCommentDecision(input: CommentGuideInput) 
       scriptureReferences: review.scriptureReferences,
       recentReplies: input.recentReplies
     });
-    if (replyError) throw new Error(`Final doctrine review failed validation: ${replyError}.`);
+    if (replyError) {
+      return {
+        model,
+        prepared: safeDoctrinalFallback({
+          decision: rawDecision,
+          externalEventId: input.externalEventId,
+          reason: `Final doctrine review failed validation: ${replyError}.`
+        })
+      };
+    }
     const pathway = pathwayBySlug(rawDecision.pathwaySlug);
     if (!pathway) throw new Error("The selected pathway no longer exists.");
     return {
