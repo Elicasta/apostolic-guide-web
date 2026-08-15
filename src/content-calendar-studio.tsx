@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { CalendarDays, ExternalLink, Instagram, Loader2, RefreshCw } from "lucide-react";
+import { CalendarDays, Clock3, ExternalLink, Instagram, Loader2, RefreshCw, Send } from "lucide-react";
 
 type CalendarItem = {
   id: string;
@@ -28,7 +28,7 @@ function dateKey(value: string | null) {
 }
 
 function itemDate(item: CalendarItem) {
-  return item.published_at || item.scheduled_for || item.updated_at;
+  return item.published_at || item.scheduled_for;
 }
 
 function metadataString(item: CalendarItem, key: string) {
@@ -41,15 +41,29 @@ function metadataNumber(item: CalendarItem, key: string) {
   return Number.isFinite(value) ? value : 0;
 }
 
+function localInputValue(value: string | null) {
+  const date = value ? new Date(value) : null;
+  if (!date || Number.isNaN(date.getTime())) return "";
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+  return local.toISOString().slice(0, 16);
+}
+
+function defaultScheduleValue() {
+  const date = new Date();
+  date.setDate(date.getDate() + 1);
+  date.setHours(12, 0, 0, 0);
+  return localInputValue(date.toISOString());
+}
+
 export function ContentCalendarStudio() {
   const [items, setItems] = useState<CalendarItem[]>([]);
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState<string | null>("load");
   const [message, setMessage] = useState("Loading calendar…");
   const [cursor, setCursor] = useState(() => new Date());
+  const [scheduleDrafts, setScheduleDrafts] = useState<Record<string, string>>({});
 
   const load = useCallback(async (syncInstagram = false) => {
-    if (busy) return;
-    setBusy(true);
+    setBusy(syncInstagram ? "instagram" : "load");
     try {
       if (syncInstagram) {
         const sync = await fetch("/api/admin/content-calendar/instagram", { method: "POST" });
@@ -64,11 +78,37 @@ export function ContentCalendarStudio() {
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Calendar refresh failed.");
     } finally {
-      setBusy(false);
+      setBusy(null);
     }
-  }, [busy]);
+  }, []);
 
-  useEffect(() => { void load(false); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { void load(false); }, [load]);
+
+  async function updateItem(id: string, values: Record<string, unknown>, successMessage: string) {
+    setBusy(`item:${id}`);
+    try {
+      const response = await fetch("/api/admin/content-calendar", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ id, ...values })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "Calendar item could not be updated.");
+      setItems((current) => current.map((item) => item.id === id ? data.item as CalendarItem : item));
+      setMessage(successMessage);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Calendar item could not be updated.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function scheduleItem(item: CalendarItem) {
+    const value = scheduleDrafts[item.id] || localInputValue(item.scheduled_for) || defaultScheduleValue();
+    const when = new Date(value);
+    if (Number.isNaN(when.getTime())) return setMessage("Choose a valid schedule time.");
+    await updateItem(item.id, { scheduledFor: when.toISOString(), status: "scheduled" }, `${item.title} scheduled for ${when.toLocaleString()}.`);
+  }
 
   const year = cursor.getFullYear();
   const month = cursor.getMonth();
@@ -85,28 +125,38 @@ export function ContentCalendarStudio() {
       if (!key) continue;
       const list = map.get(key) ?? [];
       list.push(item);
+      list.sort((a, b) => new Date(itemDate(a) || 0).getTime() - new Date(itemDate(b) || 0).getTime());
       map.set(key, list);
     }
     return map;
   }, [items]);
 
   const instagramFeed = items.filter((item) => item.source === "instagram-feed").sort((a, b) => new Date(b.published_at || 0).getTime() - new Date(a.published_at || 0).getTime());
-  const scheduled = items.filter((item) => item.status === "scheduled");
-  const drafts = items.filter((item) => item.status === "draft" || item.status === "ready");
+  const scheduled = items.filter((item) => item.status === "scheduled" && item.scheduled_for);
+  const unscheduled = items.filter((item) => (item.status === "draft" || item.status === "ready" || item.status === "idea") && !item.scheduled_for && item.source !== "instagram-feed");
+  const pathwayLinked = items.filter((item) => item.pathway_slug).length;
   const monthName = cursor.toLocaleString(undefined, { month: "long", year: "numeric" });
 
   return <div className="content-calendar-page">
     <div className="studio-page-heading content-calendar-heading">
-      <div><span className="eyebrow">Distribution · Calendar</span><h1>Content Calendar</h1><p className="admin-lede">Planned Studio content and the real Instagram feed share one timeline. Published Instagram media is synced back into the calendar instead of living in a separate world.</p></div>
-      <button className="button primary" type="button" disabled={busy} onClick={() => void load(true)}>{busy ? <Loader2 className="spin" size={16}/> : <RefreshCw size={16}/>} Sync Instagram</button>
+      <div><span className="eyebrow">Distribution · Calendar</span><h1>Content Calendar</h1><p className="admin-lede">Planned Studio content and the real Instagram feed share one timeline. Unscheduled work stays in a production queue until you assign a real day.</p></div>
+      <button className="button primary" type="button" disabled={Boolean(busy)} onClick={() => void load(true)}>{busy === "instagram" ? <Loader2 className="spin" size={16}/> : <RefreshCw size={16}/>} Sync Instagram</button>
     </div>
 
     <div className="content-calendar-kpis">
       <article><strong>{instagramFeed.length}</strong><span>Instagram posts synced</span></article>
       <article><strong>{scheduled.length}</strong><span>Scheduled</span></article>
-      <article><strong>{drafts.length}</strong><span>Draft / ready</span></article>
-      <article><strong>{items.filter((item) => item.pathway_slug).length}</strong><span>Pathway-linked</span></article>
+      <article><strong>{unscheduled.length}</strong><span>Ready to schedule</span></article>
+      <article><strong>{pathwayLinked}</strong><span>Pathway-linked</span></article>
     </div>
+
+    <section className="admin-card calendar-ready-queue">
+      <div className="calendar-section-head"><div><span className="section-kicker">Production queue</span><h2>Ready to Schedule</h2><p>Assets handed off from Carousel Studio, Video Studio, Threads Studio, and other publishing lanes wait here until you give them a real date.</p></div><Clock3 size={25}/></div>
+      {unscheduled.length ? <div className="calendar-ready-list">{unscheduled.slice(0, 30).map((item) => {
+        const value = scheduleDrafts[item.id] ?? localInputValue(item.scheduled_for) ?? defaultScheduleValue();
+        return <article key={item.id}><div className="calendar-ready-type"><i>{item.platform === "instagram" ? "IG" : item.platform === "threads" ? "TH" : item.platform === "youtube" ? "YT" : item.content_type.slice(0,2).toUpperCase()}</i><div><span>{item.content_type} · {item.status}</span><strong>{item.title}</strong><small>{item.pathway_slug ? `Pathway: ${item.pathway_slug.replaceAll("-", " ")}` : item.source || "Studio"}</small></div></div><div className="calendar-ready-scheduler"><input type="datetime-local" value={value} onChange={(event) => setScheduleDrafts((current) => ({ ...current, [item.id]: event.target.value }))}/><button type="button" className="button primary" disabled={Boolean(busy)} onClick={() => void scheduleItem(item)}>{busy === `item:${item.id}` ? <Loader2 className="spin" size={14}/> : <Send size={14}/>} Schedule</button></div></article>;
+      })}</div> : <div className="calendar-empty compact"><CalendarDays size={24}/><strong>Queue is clear.</strong><span>New Studio assets appear here when you add them to the calendar.</span></div>}
+    </section>
 
     <section className="admin-card calendar-month-card">
       <div className="calendar-month-head"><button type="button" onClick={() => setCursor(new Date(year, month - 1, 1))}>Previous</button><div><span className="section-kicker">Master calendar</span><h2>{monthName}</h2></div><button type="button" onClick={() => setCursor(new Date(year, month + 1, 1))}>Next</button></div>
@@ -115,12 +165,12 @@ export function ContentCalendarStudio() {
         if (!day) return <div className="calendar-day is-empty" key={`empty-${index}`}/>;
         const key = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
         const dayItems = byDay.get(key) ?? [];
-        return <div className="calendar-day" key={key}><strong>{day}</strong><div>{dayItems.slice(0, 4).map((item) => <span className={`calendar-chip is-${item.status}`} key={item.id}><i>{item.platform === "instagram" ? "IG" : item.platform === "threads" ? "TH" : item.content_type.slice(0, 2).toUpperCase()}</i>{item.title}</span>)}{dayItems.length > 4 ? <small>+{dayItems.length - 4} more</small> : null}</div></div>;
+        return <div className="calendar-day" key={key}><strong>{day}</strong><div>{dayItems.slice(0, 4).map((item) => <span className={`calendar-chip is-${item.status}`} key={item.id}><i>{item.platform === "instagram" ? "IG" : item.platform === "threads" ? "TH" : item.platform === "youtube" ? "YT" : item.content_type.slice(0, 2).toUpperCase()}</i>{item.title}</span>)}{dayItems.length > 4 ? <small>+{dayItems.length - 4} more</small> : null}</div></div>;
       })}</div>
     </section>
 
     <section className="admin-card instagram-feed-calendar">
-      <div className="calendar-section-head"><div><span className="section-kicker">Instagram feed</span><h2>Published on @apostolicguide</h2><p>These are imported from Instagram and linked to the same calendar used by Studio drafts and scheduled posts.</p></div><Instagram size={25}/></div>
+      <div className="calendar-section-head"><div><span className="section-kicker">Instagram feed</span><h2>Published on @apostolicguide</h2><p>Published media is imported from Instagram and displayed on the same dates it actually went live.</p></div><Instagram size={25}/></div>
       {instagramFeed.length ? <div className="instagram-feed-grid">{instagramFeed.slice(0, 18).map((item) => {
         const preview = metadataString(item, "thumbnail_url") || metadataString(item, "media_url");
         const permalink = metadataString(item, "permalink");
