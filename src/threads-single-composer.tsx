@@ -4,7 +4,7 @@ import { CalendarDays, ExternalLink, Loader2, PenLine, Send, ShieldCheck, Sparkl
 
 type Category="oneness"|"scripture"|"witty"|"question"|"app"|"response";
 
-export function ThreadsSingleComposer(){
+export function ThreadsSingleComposer({ connected }: { connected: boolean }){
   const [mode,setMode]=useState<"generate"|"manual">("generate");
   const [prompt,setPrompt]=useState("");
   const [body,setBody]=useState("");
@@ -14,7 +14,7 @@ export function ThreadsSingleComposer(){
   const [scheduledFor,setScheduledFor]=useState("");
   const [busy,setBusy]=useState<string>();
   const [publishedUrl,setPublishedUrl]=useState<string>();
-  const [message,setMessage]=useState("Generate one post or write it manually, review it, then publish now or schedule it.");
+  const [message,setMessage]=useState(connected?"Generate one post or write it manually, review it, then publish now or schedule it.":"Create and review now. Publishing stays disabled until the Threads account is authorized; scheduling can still build the calendar.");
 
   async function generate(){
     if(!prompt.trim()) return setMessage("Add a direction for the post first.");
@@ -47,6 +47,7 @@ export function ThreadsSingleComposer(){
   }
 
   async function publish(){
+    if(!connected){setMessage("Connect the Threads account in Setup before publishing directly.");return;}
     if(!ready()) return;
     setBusy("publish");setPublishedUrl(undefined);
     try{
@@ -66,7 +67,7 @@ export function ThreadsSingleComposer(){
       const r=await fetch("/api/admin/threads-studio/queue",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({allowWarnings:status==="warning",items:[{body:body.trim(),category,scheduledFor:when.toISOString(),doctrineStatus:status,mirrorToX:false}]})});
       const d=await r.json();
       if(!r.ok) throw new Error(d.error||"Schedule failed.");
-      setMessage("Post added to the publishing calendar. It will publish automatically when due once Threads is connected.");
+      setMessage(connected?"Post added to the publishing calendar.":"Post added to the calendar. It will remain queued until Threads is connected.");
     }catch(e){setMessage(e instanceof Error?e.message:"Schedule failed.");}finally{setBusy(undefined);}
   }
 
@@ -78,7 +79,7 @@ export function ThreadsSingleComposer(){
     <label><span>Post</span><textarea rows={7} maxLength={500} placeholder="Write the post exactly how you want it to publish…" value={body} onChange={e=>{setBody(e.target.value);setStatus(undefined);setNotes("");setPublishedUrl(undefined);}}/><small className="threads-char-count">{body.length} / 500</small></label>
     <div className="threads-review-actions"><button className="button" type="button" disabled={Boolean(busy)||!body.trim()} onClick={()=>void review()}>{busy==="review"?<Loader2 className="spin" size={15}/>:<ShieldCheck size={15}/>} Theology check</button>{status?<span className={`threads-doctrine-badge is-${status}`}>{status}</span>:null}</div>
     {notes?<p className="threads-doctrine-note">{notes}</p>:null}
-    <div className="threads-single-actions"><button className="button button-primary" type="button" disabled={Boolean(busy)||!body.trim()} onClick={()=>void publish()}>{busy==="publish"?<Loader2 className="spin" size={15}/>:<Send size={15}/>} Publish now</button>{publishedUrl?<a className="button" href={publishedUrl} target="_blank" rel="noreferrer">Open post <ExternalLink size={14}/></a>:null}</div>
+    <div className="threads-single-actions"><button className="button button-primary" type="button" disabled={!connected||Boolean(busy)||!body.trim()} title={connected?"Publish now":"Connect Threads in Setup first"} onClick={()=>void publish()}>{busy==="publish"?<Loader2 className="spin" size={15}/>:<Send size={15}/>} {connected?"Publish now":"Connect to publish"}</button>{publishedUrl?<a className="button" href={publishedUrl} target="_blank" rel="noreferrer">Open post <ExternalLink size={14}/></a>:null}</div>
     <div className="threads-schedule-box"><label><span>Or schedule</span><input type="datetime-local" value={scheduledFor} onChange={e=>setScheduledFor(e.target.value)}/></label><button className="button" type="button" disabled={Boolean(busy)||!body.trim()} onClick={()=>void queue()}>{busy==="queue"?<Loader2 className="spin" size={15}/>:<CalendarDays size={15}/>} Add to calendar</button></div>
     <p className="threads-status">{message}</p>
   </div>;
