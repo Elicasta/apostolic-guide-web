@@ -59,6 +59,98 @@ bw.base.color_filter = color_filter_v2
 bw.base.audio_filter = audio_filter_v2
 
 
+def _clamp(value, low, high):
+    return min(high, max(low, value))
+
+
+def _even(value, minimum=2):
+    return max(minimum, int(round(float(value) / 2.0) * 2))
+
+
+def reel_motion_intervals(plan):
+    """Turn model motion ranges into cheap static punch-in segments.
+
+    The former full-frame zoompan filter was the dominant Reel cost and repeatedly caused
+    the hosted runner to disappear around the second punch-in. The edit decisions are still
+    honored, but each motion beat is now a fixed crop/scale segment with a clean cut at the
+    requested boundary. That is deterministic, bounded-memory, and much faster to encode.
+    """
+    duration = max(0.0, float(plan.get("outputDuration") or 0))
+    if duration <= 0:
+        return []
+    cues = []
+    for cue in plan.get("motion") or []:
+        if cue.get("kind") not in ("punch-in", "reframe", "emphasis"):
+            continue
+        transform = cue.get("transform") or {}
+        scale = _clamp(float(transform.get("scale") or (1.08 if cue.get("kind") == "punch-in" else 1.0)), 1.0, 1.35)
+        fx = _clamp(float(transform.get("focusX") or 0.5), 0.0, 1.0)
+        fy = _clamp(float(transform.get("focusY") or 0.5), 0.0, 1.0)
+        if scale <= 1.001:
+            continue
+        for visible in cue.get("outputRanges") or []:
+            start = _clamp(float(visible.get("outputStart", 0)), 0.0, duration)
+            end = _clamp(float(visible.get("outputEnd", start)), start, duration)
+            if end - start >= 0.08:
+                cues.append((start, end, scale, fx, fy))
+    cues = sorted(cues, key=lambda item: (item[0], item[1]))[:24]
+    if not cues:
+        return [(0.0, duration, 1.0, 0.5, 0.5)]
+
+    boundaries = {0.0, duration}
+    for start, end, _scale, _fx, _fy in cues:
+        boundaries.add(start)
+        boundaries.add(end)
+    points = sorted(boundaries)
+    intervals = []
+    for index in range(len(points) - 1):
+        start, end = points[index], points[index + 1]
+        if end - start < 0.001:
+            continue
+        midpoint = (start + end) / 2
+        active = [cue for cue in cues if cue[0] <= midpoint < cue[1]]
+        if active:
+            chosen = max(active, key=lambda item: item[2])
+            intervals.append((start, end, chosen[2], chosen[3], chosen[4]))
+        else:
+            intervals.append((start, end, 1.0, 0.5, 0.5))
+    return intervals
+
+
+def append_reel_motion_graph(graph, plan):
+    graph.append(
+        "[vcat]fps=30,crop=w='min(iw,ih*9/16)':h=ih:"
+        "x='(iw-min(iw,ih*9/16))*0.5':y=0,"
+        "scale=1080:1920:flags=fast_bilinear[vbase]"
+    )
+    intervals = reel_motion_intervals(plan)
+    if not intervals:
+        return "vbase"
+    if len(intervals) == 1 and intervals[0][2] <= 1.001:
+        return "vbase"
+
+    split_labels = "".join(f"[vm{i}]" for i in range(len(intervals)))
+    graph.append(f"[vbase]split={len(intervals)}{split_labels}")
+    segment_labels = []
+    for index, (start, end, scale, fx, fy) in enumerate(intervals):
+        chain = f"trim=start={start:.4f}:end={end:.4f},setpts=PTS-STARTPTS"
+        if scale > 1.001:
+            crop_w = min(1080, _even(1080 / scale))
+            crop_h = min(1920, _even(1920 / scale))
+            max_x = max(0, 1080 - crop_w)
+            max_y = max(0, 1920 - crop_h)
+            x = _even(max_x * fx, 0) if max_x else 0
+            y = _even(max_y * fy, 0) if max_y else 0
+            x = min(max_x, max(0, x))
+            y = min(max_y, max(0, y))
+            chain += f",crop={crop_w}:{crop_h}:{x}:{y},scale=1080:1920:flags=fast_bilinear"
+        label = f"vms{index}"
+        graph.append(f"[vm{index}]{chain}[{label}]")
+        segment_labels.append(f"[{label}]")
+    graph.append("".join(segment_labels) + f"concat=n={len(segment_labels)}:v=1:a=0[vmotion]")
+    return "vmotion"
+
+
 def build_ffmpeg_v2(manifest, source, ass_file, output_file):
     plan = manifest["renderPlan"]
     mode = plan["mode"]
@@ -93,18 +185,11 @@ def build_ffmpeg_v2(manifest, source, ass_file, output_file):
     graph.append("".join(concat_inputs) + f"concat=n={len(concat_inputs)}:v=1:a=1[vcat][acat]")
 
     if mode == "reels":
-        # Crop to the 9:16 slice before scaling. The old order resized a full 16:9 4K
-        # frame to ~3413x1920 and then threw most of those pixels away. Cropping first
-        # reduces scaler work dramatically while preserving the exact same centered
-        # composition the previous chain produced.
-        video_chain = "fps=30,crop=w='min(iw,ih*9/16)':h=ih:x='(iw-min(iw,ih*9/16))*0.5':y=0,scale=1080:1920:flags=fast_bilinear"
-        zoom = bw.base.zoompan_filter(plan)
-        if zoom:
-            video_chain += "," + zoom
+        video_input = append_reel_motion_graph(graph, plan)
+        graph.append(f"[{video_input}]{color_filter_v2(plan)},ass='{ass_file}'[vout]")
     else:
         video_chain = "fps=30,scale=1920:1080:force_original_aspect_ratio=decrease:flags=fast_bilinear,pad=1920:1080:(ow-iw)/2:(oh-ih)/2:black"
-    video_chain += "," + color_filter_v2(plan)
-    graph.append(f"[vcat]{video_chain},ass='{ass_file}'[vout]")
+        graph.append(f"[vcat]{video_chain},{color_filter_v2(plan)},ass='{ass_file}'[vout]")
 
     graph.append(f"[acat]{audio_filter_v2(plan)}[voice]")
     audio_output = "voice"
