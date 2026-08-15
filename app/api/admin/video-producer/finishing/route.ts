@@ -93,7 +93,7 @@ export async function PATCH(request: Request) {
   if (!service) return NextResponse.json({ error: "Supabase service access is not configured." }, { status: 503 });
 
   const result = await service.from("video_producer_projects")
-    .select("id,mode,status,parent_project_id,source_duration,edit_plan,pathway_slug,selected_music_track_id")
+    .select("id,mode,status,parent_project_id,source_duration,transcript_text,edit_plan,pathway_slug,selected_music_track_id")
     .eq("id", parsed.data.projectId).maybeSingle();
   if (result.error) return NextResponse.json({ error: result.error.message }, { status: 500 });
   const project = result.data;
@@ -104,14 +104,24 @@ export async function PATCH(request: Request) {
 
   const updates: Record<string, unknown> = { updated_by: access.user.id };
   let invalidateApproval = false;
+  let pathwayChanged = false;
   let nextPlan = isObject(project.edit_plan) ? { ...(project.edit_plan as VideoProducerEditPlan) } : null;
   let planChanged = false;
 
   if (parsed.data.pathwaySlug !== undefined) {
     const pathway = parsed.data.pathwaySlug ? pathwayBySlug(parsed.data.pathwaySlug) : null;
     if (parsed.data.pathwaySlug && !pathway) return NextResponse.json({ error: "Unknown pathway." }, { status: 400 });
-    updates.pathway_slug = pathway?.slug ?? null;
-    invalidateApproval = (project.pathway_slug ?? null) !== (pathway?.slug ?? null);
+    const nextPathway = pathway?.slug ?? null;
+    updates.pathway_slug = nextPathway;
+    pathwayChanged = (project.pathway_slug ?? null) !== nextPathway;
+    invalidateApproval = pathwayChanged;
+    if (pathwayChanged && project.edit_plan) {
+      // The Director uses pathway context for pathway-stop structure and references.
+      // A different pathway therefore invalidates the semantic plan, not just approval.
+      updates.edit_plan = null;
+      updates.status = project.transcript_text ? "uploaded" : project.status;
+      nextPlan = null;
+    }
   }
 
   if (parsed.data.musicTrackId !== undefined) {
@@ -154,7 +164,7 @@ export async function PATCH(request: Request) {
   if (invalidateApproval) {
     updates.approval_fingerprint = null;
     updates.approved_at = null;
-    if (project.edit_plan) updates.status = "planned";
+    if (project.edit_plan && !pathwayChanged) updates.status = "planned";
   }
 
   const saved = await service.from("video_producer_projects").update(updates).eq("id", project.id).select("*").single();
