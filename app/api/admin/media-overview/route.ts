@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getStudioPermission } from "@/auth";
 import { createServiceClient } from "@/supabase";
 import { getSocialPublishingCredentialStatus } from "@/social-publishing-integrations";
+import { fetchInstagramFeed } from "@/instagram-feed-sync";
 
 const CORE_PLATFORMS = ["youtube", "instagram", "tiktok", "threads"] as const;
 
@@ -26,8 +27,11 @@ export async function GET() {
   const { access, allowed } = await getStudioPermission("view_distribution");
   if (!allowed || access.state !== "allowed") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const service = createServiceClient();
-  const credentials = await getSocialPublishingCredentialStatus().catch(() => []);
-  if (!service) return NextResponse.json({ platforms: [], calendarItems: [], credentials });
+  const [credentials, instagramLive] = await Promise.all([
+    getSocialPublishingCredentialStatus().catch(() => []),
+    fetchInstagramFeed(24).catch(() => null)
+  ]);
+  if (!service) return NextResponse.json({ platforms: [], calendarItems: [], credentials, instagramLive: null });
 
   const [metricsResult, calendarResult] = await Promise.all([
     service.from("publication_latest_metrics")
@@ -38,23 +42,52 @@ export async function GET() {
       .select("id,pathway_slug,title,content_type,platform,status,scheduled_for,published_at,source,source_ref,metadata,created_at,updated_at")
       .neq("status", "cancelled")
       .order("updated_at", { ascending: false })
-      .limit(200)
+      .limit(300)
   ]);
 
   const rows = (metricsResult.data ?? []) as MetricRow[];
+  const recentInstagram = instagramLive?.media ?? [];
+  const instagramFallback = {
+    followers: n(instagramLive?.account?.followers_count),
+    mediaCount: n(instagramLive?.account?.media_count),
+    recentPosts: recentInstagram.length,
+    likes: recentInstagram.reduce((sum, item) => sum + n(item.like_count), 0),
+    comments: recentInstagram.reduce((sum, item) => sum + n(item.comments_count), 0),
+    capturedAt: recentInstagram[0]?.timestamp ?? null
+  };
+
   const platforms = CORE_PLATFORMS.map((platform) => {
     const platformRows = rows.filter((row) => row.platform === platform);
-    return {
-      platform,
+    const normalized = {
       views: platformRows.reduce((sum, row) => sum + n(row.views), 0),
       impressions: platformRows.reduce((sum, row) => sum + n(row.impressions), 0),
       reach: platformRows.reduce((sum, row) => sum + n(row.reach), 0),
       likes: platformRows.reduce((sum, row) => sum + n(row.likes), 0),
       comments: platformRows.reduce((sum, row) => sum + n(row.comments), 0),
       shares: platformRows.reduce((sum, row) => sum + n(row.shares), 0),
-      saves: platformRows.reduce((sum, row) => sum + n(row.saves), 0),
+      saves: platformRows.reduce((sum, row) => sum + n(row.saves), 0)
+    };
+    if (platform === "instagram" && platformRows.length === 0 && instagramLive) {
+      return {
+        platform,
+        ...normalized,
+        likes: instagramFallback.likes,
+        comments: instagramFallback.comments,
+        capturedAt: instagramFallback.capturedAt,
+        records: instagramFallback.recentPosts,
+        followers: instagramFallback.followers,
+        mediaCount: instagramFallback.mediaCount,
+        source: "live-feed"
+      };
+    }
+    return {
+      platform,
+      ...normalized,
       capturedAt: platformRows[0]?.captured_at ?? null,
-      records: platformRows.length
+      records: platformRows.length,
+      followers: 0,
+      mediaCount: 0,
+      source: platformRows.length ? "insights" : "none"
     };
   });
 
@@ -62,6 +95,7 @@ export async function GET() {
     platforms,
     calendarItems: calendarResult.data ?? [],
     credentials,
+    instagramLive: instagramLive ? { username: instagramLive.account?.username ?? null, ...instagramFallback } : null,
     syncedAt: new Date().toISOString(),
     warnings: [metricsResult.error?.message, calendarResult.error?.message].filter(Boolean)
   });
