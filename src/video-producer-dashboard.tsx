@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Film, Library, Loader2, Plus, RefreshCw, Smartphone } from "lucide-react";
+import { Film, Images, Library, Loader2, Plus, RefreshCw, Smartphone } from "lucide-react";
 import { useRouter } from "next/navigation";
 import styles from "./video-producer-sequential.module.css";
 
@@ -127,6 +127,9 @@ export function VideoProducerDashboard() {
           </button>
           <button type="button" onClick={() => router.push("/admin/video-producer/reels")}>
             <Library size={20}/><span><strong>Reels library</strong><small>{reelCount} total · parent + standalone</small></span><Smartphone size={17}/>
+          </button>
+          <button type="button" onClick={() => router.push("/admin/video-producer/graphics")}>
+            <Images size={20}/><span><strong>Graphics library</strong><small>Reusable PNG + WebP designs</small></span><Library size={17}/>
           </button>
         </section>
 
