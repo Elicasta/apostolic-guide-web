@@ -1,7 +1,6 @@
 import { createHash } from "node:crypto";
 import {
   APOSTOLIC_DOCTRINE_LOCK,
-  buildDoctrinalFallbackReply,
   buildPublicGuideAcknowledgement,
   COMMENT_GUIDE_DECISION_SCHEMA,
   COMMENT_GUIDE_MODEL,
@@ -21,6 +20,14 @@ import {
   type PreparedCommentGuideDecision
 } from "./comment-guide";
 import { pathwayBySlug } from "./pathway-catalog";
+import {
+  buildArgumentGuidedFallbackReply,
+  commentGuideArgumentDirectory,
+  commentGuideArgumentsForIds,
+  matchCommentGuideArguments,
+  mergeCommentGuideArgumentIds,
+  preferredPathwayForArguments
+} from "./comment-guide-argument-library";
 import { buildStudyHandshake, studyTitleFromDestination } from "./social-signature-flow";
 
 type CommentGuideInput = {
@@ -50,7 +57,11 @@ const DECISION_PROMPT = [
   "- hostile_abuse, spam_off_topic, pastoral_sensitive, or ambiguous: choose ignore and return no public reply. Sensitive personal crises are not handled by an unattended doctrinal bot.",
   "",
   "REPLY RULES",
+  "- For a doctrinal lane, return up to six argumentIds from the supplied approved argument directory. Include each distinct claim and accusation actually present. Return an empty array for non-doctrinal lanes.",
+  "- Prefer the deterministic argument candidates when they fit. You may add an approved directory ID for a clear paraphrase, but never invent an ID.",
+  "- When several claims appear together, answer the central biblical claim first, correct one actual strawman if present, calmly defuse accusation labels, and then stop. Do not create a point-by-point debate.",
   "- Sound warm, direct, conversational, and unhurried. Stay cool even when the comment is not.",
+  "- Lead with the substance. Do not use generic customer-service filler such as 'thank you for raising the concern,' 'I understand the concern,' or 'I appreciate you stating the concern.'",
   "- Never call anyone a heretic, modalist, liar, blind, stupid, demonic, or unsaved. Never mock Trinitarians or generalize about them.",
   "- Do not say 'we can debate,' 'prove me wrong,' 'read your Bible,' or anything that keeps contention going.",
   "- Do not include links, hashtags, markdown, or a promise that a DM was sent. The application handles guide delivery.",
@@ -67,6 +78,9 @@ const REVIEW_PROMPT = [
   ...APOSTOLIC_DOCTRINE_LOCK.map((rule) => `- ${rule}`),
   "",
   "Approve only a final reply that is fully aligned, cordial, non-combative, and supported by the supplied pathway.",
+  "Lead with the answer itself. Remove generic customer-service filler, including 'thank you for raising the concern' and 'I understand the concern.'",
+  "Use the supplied approved argument records as retrieval context. Address the central claim, correct a supplied strawman only when the original comment contains it, and defuse accusation labels without returning an accusation.",
+  "When multiple records are supplied, compose one coherent answer rather than listing rebuttals. End by pointing toward the supplied pathway.",
   "You may quietly correct the draft. Keep the final reply to one to three short sentences and no more than 500 characters.",
   "Do not add links, hashtags, markdown, a DM promise, labels for the commenter, or Scripture outside the supplied pathway.",
   "If a safe aligned correction is not possible, set approved false and finalReply null.",
@@ -144,6 +158,7 @@ async function callSolStructured(input: {
 
 export async function decideInstagramComment(input: CommentGuideInput) {
   const explicit = input.explicitAutomation;
+  const deterministicArguments = matchCommentGuideArguments(input.comment);
   const result = await callSolStructured({
     developerPrompt: DECISION_PROMPT,
     senderId: input.senderId,
@@ -159,10 +174,29 @@ export async function decideInstagramComment(input: CommentGuideInput) {
         destinationPathwaySlug: pathwaySlugFromDestination(explicit.automation.destination_url)
       } : null,
       recentBotRepliesToAvoidRepeating: (input.recentReplies ?? []).slice(0, 12),
+      deterministicArgumentCandidates: deterministicArguments.map(({ id, category, kind, title, claim, calmCorrection, replyVariants, pathwaySlugs }) => ({
+        id,
+        category,
+        kind,
+        title,
+        claim,
+        approvedCorrection: calmCorrection,
+        approvedReplyVariants: replyVariants ?? [calmCorrection],
+        pathwaySlugs
+      })),
+      approvedArgumentDirectory: commentGuideArgumentDirectory(),
       pathwayDirectory: commentGuidePathwayDirectory()
     }
   });
-  const decision = result.value as CommentGuideDecision;
+  const modelDecision = result.value as CommentGuideDecision;
+  const argumentIds = mergeCommentGuideArgumentIds(input.comment, Array.isArray(modelDecision.argumentIds) ? modelDecision.argumentIds : []);
+  const preferredPathway = preferredPathwayForArguments(argumentIds);
+  const doctrinalLane = ["sincere_question", "doctrinal_objection", "gotcha_contention"].includes(modelDecision.intent);
+  const decision: CommentGuideDecision = {
+    ...modelDecision,
+    argumentIds: doctrinalLane ? argumentIds : [],
+    pathwaySlug: doctrinalLane && preferredPathway ? preferredPathway : modelDecision.pathwaySlug
+  };
   // The first Sol pass is a draft. Validate its structure here, then let the
   // doctrine pass correct wording and citations before deterministic publish validation.
   const validationError = validateCommentGuideDecisionStructure(decision);
@@ -174,6 +208,7 @@ export async function reviewInstagramDoctrineReply(input: {
   comment: string;
   decision: CommentGuideDecision;
   senderId?: string | null;
+  recentReplies?: string[];
 }) {
   if (!input.decision.pathwaySlug || !input.decision.publicReply) throw new Error("A doctrinal review requires a pathway and draft reply.");
   const pathway = commentGuidePathwayContext(input.decision.pathwaySlug);
@@ -189,6 +224,17 @@ export async function reviewInstagramDoctrineReply(input: {
       classifiedIntent: input.decision.intent,
       plannedAction: input.decision.action,
       draftReply: input.decision.publicReply,
+      recentBotRepliesToAvoidRepeating: (input.recentReplies ?? []).slice(0, 12),
+      matchedArguments: commentGuideArgumentsForIds(input.decision.argumentIds).map(({ id, category, kind, title, claim, calmCorrection, replyVariants, pathwaySlugs }) => ({
+        id,
+        category,
+        kind,
+        title,
+        claim,
+        approvedCorrection: calmCorrection,
+        approvedReplyVariants: replyVariants ?? [calmCorrection],
+        pathwaySlugs
+      })),
       selectedPathway: pathway
     }
   });
@@ -216,15 +262,23 @@ function safeDoctrinalFallback(input: {
   decision: CommentGuideDecision;
   externalEventId: string;
   reason: string;
+  recentReplies?: string[];
 }) {
   const pathway = input.decision.pathwaySlug ? pathwayBySlug(input.decision.pathwaySlug) : null;
   if (!pathway) return ignoredDecision(input.decision, "A safe doctrinal fallback had no approved pathway.");
-  const publicReply = buildDoctrinalFallbackReply(input.decision.intent, pathway.title);
+  const publicReply = buildArgumentGuidedFallbackReply({
+    argumentIds: input.decision.argumentIds,
+    pathwayTitle: pathway.title,
+    intent: input.decision.intent as "sincere_question" | "doctrinal_objection" | "gotcha_contention",
+    seed: input.externalEventId,
+    recentReplies: input.recentReplies
+  });
   const replyError = validatePublicCommentReply({
     reply: publicReply,
     intent: input.decision.intent,
     pathwaySlug: pathway.slug,
-    scriptureReferences: []
+    scriptureReferences: [],
+    recentReplies: input.recentReplies
   });
   if (replyError) return ignoredDecision(input.decision, `Server fallback failed validation: ${replyError}.`);
   const correctionReason = input.reason.slice(0, 220);
@@ -322,10 +376,10 @@ export async function prepareInstagramCommentDecision(input: CommentGuideInput) 
     }
     let review: CommentGuideDoctrineReview;
     try {
-      ({ review } = await reviewInstagramDoctrineReply({ comment: input.comment, decision: rawDecision, senderId: input.senderId }));
+      ({ review } = await reviewInstagramDoctrineReply({ comment: input.comment, decision: rawDecision, senderId: input.senderId, recentReplies: input.recentReplies }));
     } catch (error) {
       const reason = error instanceof Error ? error.message : "Doctrine review was unavailable.";
-      return { model, prepared: safeDoctrinalFallback({ decision: rawDecision, externalEventId: input.externalEventId, reason }) };
+      return { model, prepared: safeDoctrinalFallback({ decision: rawDecision, externalEventId: input.externalEventId, reason, recentReplies: input.recentReplies }) };
     }
     if (!review.approved || !review.finalReply) {
       return {
@@ -333,7 +387,8 @@ export async function prepareInstagramCommentDecision(input: CommentGuideInput) 
         prepared: safeDoctrinalFallback({
           decision: rawDecision,
           externalEventId: input.externalEventId,
-          reason: review.correctionReason || "Doctrine review did not approve the draft."
+          reason: review.correctionReason || "Doctrine review did not approve the draft.",
+          recentReplies: input.recentReplies
         })
       };
     }
@@ -350,7 +405,8 @@ export async function prepareInstagramCommentDecision(input: CommentGuideInput) 
         prepared: safeDoctrinalFallback({
           decision: rawDecision,
           externalEventId: input.externalEventId,
-          reason: `Final doctrine review failed validation: ${replyError}.`
+          reason: `Final doctrine review failed validation: ${replyError}.`,
+          recentReplies: input.recentReplies
         })
       };
     }
