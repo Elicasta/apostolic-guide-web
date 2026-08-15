@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { Film, FolderOpen, Layers3 } from "lucide-react";
 import { PathwayAssetLibrary } from "@/pathway-asset-library";
@@ -9,6 +10,7 @@ type PathwayOption = { slug: string; title: string; summary: string; collection:
 type Studio = "carousel" | "video";
 
 export function PathwayAssetHub({ pathways, aiReady }: { pathways: PathwayOption[]; aiReady: boolean }) {
+  const router = useRouter();
   const initialSlug = pathways.find((pathway) => pathway.slug === "jesus-is-god")?.slug ?? pathways[0]?.slug ?? "";
   const [selectedSlug, setSelectedSlug] = useState(initialSlug);
   const [destinationStudio, setDestinationStudio] = useState<Studio>("carousel");
@@ -46,6 +48,6 @@ export function PathwayAssetHub({ pathways, aiReady }: { pathways: PathwayOption
       </div>
     </section>
 
-    <PathwayAssetLibrary pathwaySlug={pathway.slug} pathwayTitle={pathway.title} studio={destinationStudio} aiReady={aiReady}/>
+    <PathwayAssetLibrary pathwaySlug={pathway.slug} pathwayTitle={pathway.title} studio={destinationStudio} aiReady={aiReady} onOpenAsset={(asset) => router.push(`/admin/pathway-assets/${asset.id}`)}/>
   </main>;
 }
