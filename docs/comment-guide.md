@@ -36,4 +36,4 @@ Comment automations are request terms, not substring triggers. `JESUS`, `Jesus! 
 ## Manual decision-log controls
 
 - **Reply now** appears only for a doctrine-approved `scheduled` reply or `delivery_retry` while Comment Guide is Live. It atomically claims the job, keeps the daily ceiling and self-author checks, and skips only the remaining human delay.
-- **Delete** removes the Comment Guide dashboard record after confirmation. Pending records are cancelled by deletion. Sent Instagram replies remain published. Active `classifying` and `sending` jobs cannot be deleted, preventing a dashboard action from racing the worker.
+- **Delete** removes the Comment Guide dashboard record after confirmation. Pending records are cancelled by deletion. Sent Instagram replies remain published, and their provider IDs stay in the event ledger so deleting a row cannot weaken self-reply detection. Active `classifying` and `sending` jobs cannot be deleted, preventing a dashboard action from racing the worker.

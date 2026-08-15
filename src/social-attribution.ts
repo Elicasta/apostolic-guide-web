@@ -38,13 +38,22 @@ async function sendInstagramMessage(config: NonNullable<Awaited<ReturnType<typeo
 
 async function commentWasSentByCommentGuide(service: NonNullable<ReturnType<typeof createServiceClient>>, commentId: string | null) {
   if (!commentId) return false;
-  const result = await service.from("social_comment_guide_jobs")
-    .select("id")
-    .eq("public_reply_provider_id", commentId)
-    .limit(1)
-    .maybeSingle();
-  if (result.error) throw new Error(result.error.message);
-  return Boolean(result.data);
+  const [jobReply, eventReply] = await Promise.all([
+    service.from("social_comment_guide_jobs")
+      .select("id")
+      .eq("public_reply_provider_id", commentId)
+      .limit(1)
+      .maybeSingle(),
+    service.from("social_events")
+      .select("id")
+      .eq("provider_message_id", commentId)
+      .eq("delivery_status", "sent")
+      .limit(1)
+      .maybeSingle()
+  ]);
+  const queryError = jobReply.error || eventReply.error;
+  if (queryError) throw new Error(queryError.message);
+  return Boolean(jobReply.data || eventReply.data);
 }
 
 async function deliverPendingStudyCard(input: {
