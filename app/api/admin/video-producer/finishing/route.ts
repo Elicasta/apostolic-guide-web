@@ -11,7 +11,9 @@ export const runtime = "nodejs";
 const patchSchema = z.object({
   projectId: z.string().uuid(),
   pathwaySlug: z.string().nullable().optional(),
-  musicTrackId: z.string().uuid().nullable().optional()
+  musicTrackId: z.string().uuid().nullable().optional(),
+  audioPreset: z.enum(["ag-voice-clean", "ag-voice-punch", "none"]).optional(),
+  colorPreset: z.enum(["ag-studio", "ag-warm", "ag-clean", "none"]).optional()
 });
 
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -102,6 +104,8 @@ export async function PATCH(request: Request) {
 
   const updates: Record<string, unknown> = { updated_by: access.user.id };
   let invalidateApproval = false;
+  let nextPlan = isObject(project.edit_plan) ? { ...(project.edit_plan as VideoProducerEditPlan) } : null;
+  let planChanged = false;
 
   if (parsed.data.pathwaySlug !== undefined) {
     const pathway = parsed.data.pathwaySlug ? pathwayBySlug(parsed.data.pathwaySlug) : null;
@@ -119,20 +123,33 @@ export async function PATCH(request: Request) {
     updates.selected_music_track_id = parsed.data.musicTrackId ?? null;
     if ((project.selected_music_track_id ?? null) !== (parsed.data.musicTrackId ?? null)) {
       invalidateApproval = true;
-      if (isObject(project.edit_plan)) {
-        const plan = { ...(project.edit_plan as VideoProducerEditPlan) };
-        plan.music = parsed.data.musicTrackId ? [{
+      if (nextPlan) {
+        nextPlan.music = parsed.data.musicTrackId ? [{
           id: "ag-music-bed",
           trackId: parsed.data.musicTrackId,
           start: 0,
-          end: Number(project.source_duration || plan.sourceDuration || 0),
+          end: Number(project.source_duration || nextPlan.sourceDuration || 0),
           gainDb: project.mode === "reels" ? -24 : -28,
           duckUnderVoice: true
         }] : [];
-        updates.edit_plan = plan;
+        planChanged = true;
       }
     }
   }
+
+  if (parsed.data.audioPreset !== undefined && nextPlan && nextPlan.audioPreset !== parsed.data.audioPreset) {
+    nextPlan.audioPreset = parsed.data.audioPreset;
+    planChanged = true;
+    invalidateApproval = true;
+  }
+
+  if (parsed.data.colorPreset !== undefined && nextPlan && nextPlan.colorPreset !== parsed.data.colorPreset) {
+    nextPlan.colorPreset = parsed.data.colorPreset;
+    planChanged = true;
+    invalidateApproval = true;
+  }
+
+  if (planChanged && nextPlan) updates.edit_plan = nextPlan;
 
   if (invalidateApproval) {
     updates.approval_fingerprint = null;
