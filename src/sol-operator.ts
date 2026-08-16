@@ -1,6 +1,7 @@
 import { allPathways } from "./pathway-catalog";
 import { recordStudioAudit } from "./studio-audit";
 import { createServiceClient } from "./supabase";
+import { solRunIdempotencyKey } from "./sol-core/runtime/idempotency";
 import {
   buildSolOperatorAnalysis,
   SOL_RECIPE_STEPS,
@@ -164,7 +165,7 @@ async function observe(service: Service, weeklyTargets: Record<string, number>) 
     service.from("pathway_audio_scripts").select("pathway_slug,script_hash,status,checker_status,checked_script_hash"),
     service.from("pathway_video_projects").select("pathway_slug,audio_content_hash,timeline"),
     service.from("pathway_video_renders").select("pathway_slug,format,status,requested_at").order("requested_at", { ascending: false }),
-    service.from("sol_operator_runs").select("recipe_key,pathway_slug,status").in("status", ["queued", "running"]),
+    service.from("sol_operator_runs").select("recipe_key,pathway_slug,status").in("status", ["queued", "running", "retrying", "waiting_review"]),
     service.from("studio_content_calendar_items").select("content_type,status,published_at").eq("status", "published").gte("published_at", since)
   ]);
   const failure = [profiles, assets, publications, audio, scripts, projects, renders, runs, calendar].find((item) => item.error);
@@ -326,6 +327,17 @@ function runInputs(proposal: SolProposal, slug: string | null, constraints: stri
   return { ...base, slug };
 }
 
+function runIdentity(proposal: SolProposal, slug: string | null, inputs: Record<string, unknown>) {
+  const identityInputs = { ...inputs };
+  delete identityInputs.proposalTitle;
+  return solRunIdempotencyKey({
+    workflowKey: `apostolic.${proposal.recipeKey}`,
+    workflowVersion: 1,
+    environment: "production",
+    identity: { slug, inputs: identityInputs }
+  });
+}
+
 export async function approveSolProposal(proposalId: string, constraints: string[], actorUserId: string) {
   const service = createServiceClient();
   if (!service) throw new Error("Supabase service access is not configured.");
@@ -336,27 +348,79 @@ export async function approveSolProposal(proposalId: string, constraints: string
   if (result.error) throw result.error;
   if (!result.data) throw new Error("Proposal not found.");
   const proposal = proposalFromRow(result.data as Record<string, unknown>);
-  if (!['pending', 'failed'].includes(proposal.status)) throw new Error("This proposal is no longer waiting for approval.");
+  if (!["pending", "failed"].includes(proposal.status)) throw new Error("This proposal is no longer waiting for approval.");
   const now = new Date().toISOString();
   const approved = await service.from("sol_operator_proposals").update({ status: "approved", approved_by: actorUserId, approved_at: now, approval_constraints: constraints }).eq("id", proposal.id).in("status", ["pending", "failed"]);
   if (approved.error) throw approved.error;
+
   const slugs = proposal.recipeKey === "carousel_topic_pack" ? [proposal.pathwaySlugs[0] ?? null] : proposal.pathwaySlugs.length ? proposal.pathwaySlugs : [null];
-  const rows = slugs.map((slug) => ({
-    proposal_id: proposal.id,
-    recipe_key: proposal.recipeKey,
-    pathway_slug: slug,
-    status: "queued",
-    progress: 0,
-    current_step: SOL_RECIPE_STEPS[proposal.recipeKey][0]?.key ?? null,
-    inputs: runInputs(proposal, slug, constraints),
-    steps: SOL_RECIPE_STEPS[proposal.recipeKey].map((step) => ({ ...step, status: "pending" })),
-    requested_by: actorUserId
-  }));
-  const created = await service.from("sol_operator_runs").insert(rows).select("id");
-  if (created.error) throw created.error;
-  await service.from("sol_operator_proposals").update({ status: "running" }).eq("id", proposal.id);
-  await recordStudioAudit({ actorUserId, action: "sol.proposal_approved", resourceType: "sol_proposal", resourceId: proposal.id, metadata: { recipe_key: proposal.recipeKey, pathway_slugs: proposal.pathwaySlugs, constraints, run_count: created.data?.length ?? 0 } });
-  return { proposal, runIds: (created.data ?? []).map((item) => String(item.id)) };
+  const runIds: string[] = [];
+  const reusedStatuses: string[] = [];
+  let createdCount = 0;
+
+  for (const slug of slugs) {
+    const inputs = runInputs(proposal, slug, constraints);
+    const idempotencyKey = runIdentity(proposal, slug, inputs);
+    const existing = await service.from("sol_operator_runs")
+      .select("id,status")
+      .eq("idempotency_key", idempotencyKey)
+      .eq("execution_generation", 1)
+      .in("status", ["queued", "running", "retrying", "waiting_review", "completed"])
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (existing.error) throw existing.error;
+    if (existing.data) {
+      runIds.push(String(existing.data.id));
+      reusedStatuses.push(String(existing.data.status));
+      continue;
+    }
+
+    const created = await service.from("sol_operator_runs").insert({
+      proposal_id: proposal.id,
+      recipe_key: proposal.recipeKey,
+      pathway_slug: slug,
+      status: "queued",
+      progress: 0,
+      current_step: SOL_RECIPE_STEPS[proposal.recipeKey][0]?.key ?? null,
+      inputs,
+      steps: SOL_RECIPE_STEPS[proposal.recipeKey].map((step) => ({ ...step, status: "pending" })),
+      requested_by: actorUserId,
+      idempotency_key: idempotencyKey,
+      execution_generation: 1
+    }).select("id").single();
+    if (created.error) {
+      if (created.error.code === "23505") {
+        const raced = await service.from("sol_operator_runs").select("id,status").eq("idempotency_key", idempotencyKey).eq("execution_generation", 1).maybeSingle();
+        if (raced.error || !raced.data) throw created.error;
+        runIds.push(String(raced.data.id));
+        reusedStatuses.push(String(raced.data.status));
+        continue;
+      }
+      throw created.error;
+    }
+    runIds.push(String(created.data.id));
+    createdCount += 1;
+  }
+
+  const allReusedCompleted = runIds.length > 0 && createdCount === 0 && reusedStatuses.length === runIds.length && reusedStatuses.every((status) => status === "completed");
+  await service.from("sol_operator_proposals").update({ status: allReusedCompleted ? "completed" : "running" }).eq("id", proposal.id);
+  await recordStudioAudit({
+    actorUserId,
+    action: "sol.proposal_approved",
+    resourceType: "sol_proposal",
+    resourceId: proposal.id,
+    metadata: {
+      recipe_key: proposal.recipeKey,
+      pathway_slugs: proposal.pathwaySlugs,
+      constraints,
+      run_count: runIds.length,
+      created_count: createdCount,
+      reused_count: runIds.length - createdCount,
+      duplicate_executions_prevented: runIds.length - createdCount
+    }
+  });
+  return { proposal, runIds };
 }
 
 export async function dismissSolProposal(proposalId: string, actorUserId: string) {
@@ -370,7 +434,7 @@ export async function dismissSolProposal(proposalId: string, actorUserId: string
 export async function cancelSolRun(runId: string, actorUserId: string) {
   const service = createServiceClient();
   if (!service) throw new Error("Supabase service access is not configured.");
-  const result = await service.from("sol_operator_runs").update({ status: "cancelled", current_step: null, completed_at: new Date().toISOString() }).eq("id", runId).in("status", ["queued", "running"]);
+  const result = await service.from("sol_operator_runs").update({ status: "cancelled", current_step: null, completed_at: new Date().toISOString() }).eq("id", runId).in("status", ["queued", "running", "retrying", "waiting_review"]);
   if (result.error) throw result.error;
   await recordStudioAudit({ actorUserId, action: "sol.run_cancelled", resourceType: "sol_run", resourceId: runId });
 }
@@ -380,7 +444,7 @@ export async function completeProposalFromRuns(proposalId: string) {
   if (!service) return;
   const runs = await service.from("sol_operator_runs").select("status").eq("proposal_id", proposalId);
   if (runs.error || !runs.data?.length) return;
-  if (runs.data.some((item) => item.status === "queued" || item.status === "running")) return;
-  const status = runs.data.every((item) => item.status === "failed" || item.status === "cancelled") ? "failed" : "completed";
+  if (runs.data.some((item) => ["queued", "running", "retrying", "waiting_review"].includes(String(item.status)))) return;
+  const status = runs.data.every((item) => ["failed", "cancelled", "stalled"].includes(String(item.status))) ? "failed" : "completed";
   await service.from("sol_operator_proposals").update({ status }).eq("id", proposalId);
 }
