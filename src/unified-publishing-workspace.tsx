@@ -2,16 +2,17 @@
 
 import Link from "next/link";
 import type { ComponentProps } from "react";
-import { CalendarDays, Film, Image as ImageIcon, Send, Settings } from "lucide-react";
+import { CalendarDays, Film, Image as ImageIcon, MessageCircle, Send, Settings } from "lucide-react";
 import { useState } from "react";
 import { ChannelPublishing } from "@/channel-publishing";
 import { ContentCalendarStudio } from "@/content-calendar-studio";
 import { CreativePublishingClient } from "@/creative-publishing-client";
+import { ThreadsPublishingClient } from "@/threads-publishing-client";
 
 type ChannelProps = ComponentProps<typeof ChannelPublishing>;
-type LegacyView = "creative" | "video" | "calendar";
+type LegacyView = "creative" | "video" | "threads" | "calendar";
 type Stage = "publish" | "calendar";
-type Source = "creative" | "video";
+type Source = "creative" | "video" | "threads";
 
 export function UnifiedPublishingWorkspace({
   initialProjectId,
@@ -23,7 +24,14 @@ export function UnifiedPublishingWorkspace({
   channel: ChannelProps;
 }) {
   const [stage, setStage] = useState<Stage>(initialView === "calendar" ? "calendar" : "publish");
-  const [source, setSource] = useState<Source>(initialView === "video" ? "video" : "creative");
+  const [source, setSource] = useState<Source>(initialView === "video" ? "video" : initialView === "threads" ? "threads" : "creative");
+  const threadsCredential = channel.credentials.find((credential) => credential.platform === "threads");
+
+  const sourceCopy = source === "creative"
+    ? { title: "Creative Project", detail: "Single · Carousel · Story" }
+    : source === "video"
+      ? { title: "Video or Clip", detail: "YouTube · Reel · TikTok-ready clip" }
+      : { title: "Thread", detail: "Single · Weekly batch · Prayer response" };
 
   return <section className="master-publishing-shell">
     <div className="master-publishing-head">
@@ -50,16 +58,17 @@ export function UnifiedPublishingWorkspace({
     {stage === "publish" ? <div className="master-publishing-source-bar">
       <div>
         <span className="master-source-kicker">What are you sending?</span>
-        <strong>{source === "creative" ? "Creative Project" : "Video or Clip"}</strong>
-        <small>{source === "creative" ? "Single · Carousel · Story" : "YouTube · Reel · TikTok-ready clip"}</small>
+        <strong>{sourceCopy.title}</strong>
+        <small>{sourceCopy.detail}</small>
       </div>
       <label>
         <span>Content source</span>
         <div className="master-source-select">
-          {source === "creative" ? <ImageIcon size={16}/> : <Film size={16}/>} 
+          {source === "creative" ? <ImageIcon size={16}/> : source === "video" ? <Film size={16}/> : <MessageCircle size={16}/>} 
           <select value={source} onChange={(event) => setSource(event.target.value as Source)}>
             <option value="creative">Creative Projects</option>
             <option value="video">Video + Clips</option>
+            <option value="threads">Threads</option>
           </select>
         </div>
       </label>
@@ -68,6 +77,7 @@ export function UnifiedPublishingWorkspace({
     <div className={`master-publishing-panel is-${stage} source-${source}`}>
       {stage === "publish" && source === "creative" ? <CreativePublishingClient initialProjectId={initialProjectId}/> : null}
       {stage === "publish" && source === "video" ? <ChannelPublishing {...channel}/> : null}
+      {stage === "publish" && source === "threads" ? <ThreadsPublishingClient connected={Boolean(threadsCredential?.accountAuthorized)} canPublish={channel.canPublish}/> : null}
       {stage === "calendar" ? <ContentCalendarStudio/> : null}
     </div>
   </section>;
