@@ -1,11 +1,10 @@
 import "server-only";
 import type { SolAdminSurface } from "./sol-admin-context";
 import { createSolAgentApproval, type SolAgentApproval } from "./sol-agent-memory";
-import { retrySolRun } from "./sol-run-recovery";
+import { cancelSolRunV3, retrySolRun } from "./sol-run-recovery";
 import { isTrustedAutoRunnableProposal } from "./sol-trusted-policy";
 import {
   approveSolProposal,
-  cancelSolRun,
   dismissSolProposal,
   getSolOperatorSnapshot,
   scanSolOperator,
@@ -297,7 +296,7 @@ export async function executeSolAgentTool(name: SolAgentToolName, rawArgs: unkno
     if (!hasExplicitSolIntent(context.userMessage, "cancel")) {
       return requestApproval(context, { toolName: name, toolArguments: { run_id: run.id }, summary: `Cancel the ${run.recipeKey.replaceAll("_", " ")} run${run.pathwaySlug ? ` for ${run.pathwaySlug}` : ""}.`, risk: "review_required" });
     }
-    await cancelSolRun(run.id, context.actorUserId);
+    await cancelSolRunV3(run.id, context.actorUserId);
     return { ok: true, message: "Run cancelled." };
   }
   if (name === "retry_run") {
@@ -334,7 +333,7 @@ export async function executeApprovedSolAgentTool(input: {
     return { ok: true, message: "Proposal dismissed." };
   }
   if (name === "cancel_run") {
-    await cancelSolRun(String(args.run_id || ""), input.actorUserId);
+    await cancelSolRunV3(String(args.run_id || ""), input.actorUserId);
     return { ok: true, message: "Run cancelled." };
   }
   if (name === "retry_run") {
