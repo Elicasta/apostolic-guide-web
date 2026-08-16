@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { Film, FolderOpen, Layers3 } from "lucide-react";
+import { Film, FolderOpen, Layers3, UploadCloud } from "lucide-react";
 import { PathwayAssetLibrary } from "@/pathway-asset-library";
 
 type PathwayOption = { slug: string; title: string; summary: string; collection: string };
@@ -43,6 +43,7 @@ export function PathwayAssetHub({ pathways, aiReady }: { pathways: PathwayOption
         </div>
       </div>
       <div className="pathway-assets-jump">
+        <Link className="button primary" href={`/admin/assets/ingest?pathway=${encodeURIComponent(pathway.slug)}&studio=${destinationStudio}`}><UploadCloud size={15}/> Ingest Masters</Link>
         <Link className="button" href="/admin/carousel-studio"><Layers3 size={15}/> Open Carousel Studio</Link>
         <Link className="button" href="/admin/video-studio"><Film size={15}/> Open Video Studio</Link>
       </div>

@@ -1,6 +1,8 @@
 import { notFound, redirect } from "next/navigation";
 import { getStudioPermission } from "@/auth";
 import { PathwayAssetEditor } from "@/pathway-asset-editor";
+import { PATHWAY_ASSET_STORAGE_PROVIDER } from "@/pathway-asset-ingest";
+import { PathwaySourceAssetViewer } from "@/pathway-source-asset-viewer";
 import { createServiceClient } from "@/supabase";
 
 export default async function AdminPathwayAssetPage({ params }: { params: Promise<{ id: string }> }) {
@@ -16,8 +18,18 @@ export default async function AdminPathwayAssetPage({ params }: { params: Promis
   ]);
   if (assetResult.error) throw new Error(assetResult.error.message);
   if (!assetResult.data) notFound();
-  if (!assetResult.data.editable) redirect(assetResult.data.studio === "video" ? "/admin/video-studio" : "/admin/carousel-studio");
   if (versionsResult.error) console.error("asset version history load failed", versionsResult.error.message);
+
+  if (!assetResult.data.editable) {
+    let signedUrl = assetResult.data.public_url || null;
+    if (!signedUrl && assetResult.data.storage_bucket === PATHWAY_ASSET_STORAGE_PROVIDER && assetResult.data.storage_path) {
+      signedUrl = `/api/admin/pathway-assets/file?id=${encodeURIComponent(assetResult.data.id)}`;
+    } else if (!signedUrl && assetResult.data.storage_bucket && assetResult.data.storage_path) {
+      const signed = await service.storage.from(assetResult.data.storage_bucket).createSignedUrl(assetResult.data.storage_path, 60 * 60);
+      if (!signed.error) signedUrl = signed.data.signedUrl;
+    }
+    return <PathwaySourceAssetViewer asset={assetResult.data as Parameters<typeof PathwaySourceAssetViewer>[0]["asset"]} signedUrl={signedUrl}/>;
+  }
 
   return <PathwayAssetEditor initialAsset={assetResult.data as Parameters<typeof PathwayAssetEditor>[0]["initialAsset"]} versions={(versionsResult.data ?? []) as Parameters<typeof PathwayAssetEditor>[0]["versions"]}/>;
 }
