@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { executeScheduledPublication } from "@/scheduled-publishing";
+import { executePublication } from "@/creative-publication-executor";
 import { createServiceClient } from "@/supabase";
 
 export const runtime = "nodejs";
@@ -29,7 +29,7 @@ export async function GET(request: Request) {
   const results: Array<{ id: string; ok: boolean; error?: string }> = [];
   for (const publication of due.data ?? []) {
     try {
-      await executeScheduledPublication(publication.id);
+      await executePublication(publication.id);
       results.push({ id: publication.id, ok: true });
     } catch (error) {
       results.push({ id: publication.id, ok: false, error: error instanceof Error ? error.message : "Publishing failed." });
