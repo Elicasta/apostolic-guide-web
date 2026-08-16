@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { z } from "zod";
 import { SolRuntimeExecutor } from "../src/sol-core/runtime/executor";
-import type { SolRuntimeAttemptRecord, SolRuntimeRunRecord, SolRuntimeStore, SolRuntimeTaskRecord } from "../src/sol-core/runtime/store";
+import type { SolRuntimeArtifactInput, SolRuntimeAttemptRecord, SolRuntimeRunRecord, SolRuntimeStore, SolRuntimeTaskRecord } from "../src/sol-core/runtime/store";
 import { solRuntimeRetryDelayMs } from "../src/sol-core/runtime/retry";
 import { SolToolRegistry } from "../src/sol-core/tools/registry";
 import type { SolTool } from "../src/sol-core/tools/types";
@@ -14,6 +14,8 @@ class MemoryStore implements SolRuntimeStore {
   events: Array<{ eventType: string; message: string }> = [];
   approvals: string[] = [];
   retries: string[] = [];
+  artifacts: SolRuntimeArtifactInput[] = [];
+  observations: Array<{ source: string; kind: string; payload: Record<string, unknown> }> = [];
   attempts = new Map<string, { status: string }>();
 
   constructor(run: SolRuntimeRunRecord, tasks: SolRuntimeTaskRecord[]) {
@@ -41,6 +43,14 @@ class MemoryStore implements SolRuntimeStore {
     task.workerId = null;
     return true;
   }
+  async skipTask(taskId: string, _workerId: string, reason: string) {
+    const task = this.tasks.find((item) => item.id === taskId);
+    if (!task) return false;
+    task.status = "skipped";
+    task.output = { skipped: true, reason };
+    task.workerId = null;
+    return true;
+  }
   async scheduleRetry(taskId: string, _workerId: string, input: { nextRetryAt: string }) {
     const task = this.tasks.find((item) => item.id === taskId);
     if (!task) return false;
@@ -62,6 +72,14 @@ class MemoryStore implements SolRuntimeStore {
     task.workerId = null;
     this.approvals.push(id);
     return id;
+  }
+  async recordArtifact(input: SolRuntimeArtifactInput) {
+    this.artifacts.push(input);
+    return `artifact_${this.artifacts.length}`;
+  }
+  async recordObservation(input: { source: string; kind: string; payload: Record<string, unknown> }) {
+    this.observations.push(input);
+    return `observation_${this.observations.length}`;
   }
   async unblockTasks() { return 0; }
   async updateRunStatus(_runId: string, status: SolRuntimeRunRecord["status"]) { this.run.status = status; }
@@ -95,6 +113,8 @@ function task(overrides: Partial<SolRuntimeTaskRecord> = {}): SolRuntimeTaskReco
     input: { value: "hello" },
     output: {},
     dependsOn: [],
+    condition: null,
+    foreach: null,
     permission: "read",
     environment: "development",
     idempotencyKey: null,
@@ -140,6 +160,7 @@ test("runtime executor acts, verifies, persists, and completes the run", async (
   assert.equal(store.run.status, "completed");
   assert.equal(store.attempts.get("attempt_1")?.status, "completed");
   assert.ok(store.events.some((event) => event.eventType === "verification.passed"));
+  assert.equal(store.observations[0]?.kind, "verification_passed");
 });
 
 test("approval gate stops execution before the tool side effect", async () => {
@@ -169,12 +190,7 @@ test("an approved gated tool executes without asking for approval twice", async 
 });
 
 test("an approved pure review gate completes without a fake tool", async () => {
-  const currentTask = task({
-    toolName: null,
-    workflowName: "runtime.review",
-    approvalType: "review",
-    output: { approvalGranted: true, approvalId: "approval_1" }
-  });
+  const currentTask = task({ toolName: null, workflowName: "runtime.review", approvalType: "review", output: { approvalGranted: true, approvalId: "approval_1" } });
   const store = new MemoryStore(run({ mode: "trusted" }), [currentTask]);
   const executor = new SolRuntimeExecutor(store, new SolToolRegistry(), new SolVerifierRegistry(), { workerId: "worker_1" });
   await executor.executeClaimedTask(currentTask);
