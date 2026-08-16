@@ -43,6 +43,7 @@ import "./sol-operator.css";
 import "./sol-jarvis.css";
 import "./sol-control.css";
 import "./creative-studio.css";
+import "./creative-studio-controls.css";
 
 export const dynamic = "force-dynamic";
 

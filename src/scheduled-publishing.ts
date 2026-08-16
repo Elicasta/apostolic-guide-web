@@ -1,4 +1,5 @@
 import { setTimeout as wait } from "node:timers/promises";
+import { instagramGraphBase } from "./instagram-api";
 import { normalizePathwayVideoPublishingMetadata } from "./pathway-video-publishing";
 import { getSocialPublishingCredentialValues } from "./social-publishing-integrations";
 import { createServiceClient } from "./supabase";
@@ -125,8 +126,7 @@ async function publishInstagram(publicationId: string, slug: string, metadata: P
   const baseCaption = metadata.caption?.trim() || source.clipCaption?.trim() || kit.reelCaption.trim();
   if (!baseCaption) throw new Error("Instagram Reel caption is required.");
   if (!credentials.accessToken || !credentials.instagramUserId) throw new Error("Instagram publishing credentials are missing. Open Setup and reconnect Instagram.");
-  const version = /^v\d+\.\d+$/.test(credentials.graphVersion || "") ? credentials.graphVersion : "v24.0";
-  const base = `https://graph.facebook.com/${version}`;
+  const base = instagramGraphBase(credentials.graphVersion);
   const tagSource = Array.isArray(metadata.hashtags) && metadata.hashtags.length ? metadata.hashtags : kit.socialHashtags;
   const tags = tagSource.map((tag) => tag.startsWith("#") ? tag : `#${tag.replace(/^#+/, "")}`).join(" ");
   const caption = tags ? `${baseCaption}\n\n${tags}`.slice(0, 2200) : baseCaption.slice(0, 2200);

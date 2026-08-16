@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getStudioPermission } from "@/auth";
 import { appPayloadSchemas, type AppEntityType } from "@/app-content-contracts";
-import { createSupabaseServerClient } from "@/supabase";
+import { createServiceClient } from "@/supabase";
 import { recordStudioAudit } from "@/studio-audit";
 
 const basePayload = z.record(z.string(), z.unknown());
@@ -33,16 +33,20 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "The payload id must match the stable app entity ID." }, { status: 400 });
   }
 
-  const supabase = await createSupabaseServerClient();
-  if (!supabase) return NextResponse.json({ error: "Supabase is not configured." }, { status: 503 });
+  // Studio already performed the authorization gate above. Use service access for
+  // the database mutation so App Content follows the same permission model as
+  // the rest of Admin instead of depending on a second, stale database-role system.
+  const service = createServiceClient();
+  if (!service) return NextResponse.json({ error: "Supabase service access is not configured." }, { status: 503 });
 
-  const { data, error } = await supabase.schema("app_content").rpc("publish_record", {
+  const { data, error } = await service.schema("app_content").rpc("publish_record_admin", {
     p_source_content_item_id: parsed.data.sourceContentItemId,
     p_entity_type: entityType,
     p_entity_id: parsed.data.entityId,
     p_schema_version: parsed.data.schemaVersion,
     p_status: parsed.data.status,
-    p_payload: payload.data
+    p_payload: payload.data,
+    p_actor_user_id: access.user.id
   });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });

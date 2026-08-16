@@ -1,3 +1,4 @@
+import { instagramGraphBase, instagramGraphVersion } from "./instagram-api";
 import { createServiceClient } from "./supabase";
 import { getSocialPublishingCredentialValues } from "./social-publishing-integrations";
 
@@ -31,7 +32,7 @@ function graphError(json: unknown, fallback: string) {
 }
 
 async function instagramGet(path: string, token: string, graphVersion: string) {
-  const response = await fetch(`https://graph.instagram.com/${encodeURIComponent(graphVersion)}/${path}`, {
+  const response = await fetch(`${instagramGraphBase(graphVersion)}/${path}`, {
     headers: { Authorization: `Bearer ${token}` },
     cache: "no-store"
   });
@@ -65,7 +66,7 @@ export async function fetchInstagramFeed(limit = 36) {
   const values = await getSocialPublishingCredentialValues("instagram") as Record<string, string>;
   const token = values.accessToken;
   const userId = values.instagramUserId;
-  const graphVersion = values.graphVersion || "v24.0";
+  const graphVersion = instagramGraphVersion(values.graphVersion);
   if (!token || !userId) throw new Error("Instagram is not connected.");
 
   const account = await firstSuccessful<InstagramAccount>([
