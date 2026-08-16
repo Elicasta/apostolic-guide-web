@@ -25,6 +25,7 @@ import {
   WandSparkles,
   X
 } from "lucide-react";
+import { collectPathwayAssetDeleteIds } from "@/pathway-asset-delete";
 import {
   assetAltText,
   assetDescription,
@@ -213,6 +214,7 @@ export function PathwayAssetLibrary({
   const [detailStatus, setDetailStatus] = useState<AssetStatus>("draft");
   const [enrichment, setEnrichment] = useState<AssetEnrichment | null>(null);
   const uploadRef = useRef<HTMLInputElement | null>(null);
+  const deleteInFlightRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     setImageType(studio === "video" ? "thumbnail" : "single-post");
@@ -344,6 +346,53 @@ export function PathwayAssetLibrary({
       setMessage(error instanceof Error ? error.message : "Asset could not be updated.");
       return false;
     } finally {
+      setBusy(null);
+    }
+  }
+
+  async function deleteAsset(asset: PathwayAsset) {
+    const deleteIds = collectPathwayAssetDeleteIds(asset.id, assets);
+    const deleteIdSet = new Set(deleteIds);
+    const deletingAssets = assets.filter((item) => deleteIdSet.has(item.id));
+    const published = deletingAssets.find((item) => item.status === "published");
+    if (published) {
+      setMessage(`${published.title} is published. Archive published assets instead of deleting them.`);
+      return;
+    }
+    const inUse = deletingAssets.find((item) => Number(item.usage_count || 0) > 0);
+    if (inUse) {
+      setMessage(`${inUse.title} is still referenced by the Content Calendar. Remove that reference or archive it instead.`);
+      return;
+    }
+
+    const linkedCount = Math.max(0, deleteIds.length - 1);
+    const linkedCopy = linkedCount ? ` This also deletes ${linkedCount} linked asset${linkedCount === 1 ? "" : "s"}.` : "";
+    if (!window.confirm(`Delete “${asset.title}” permanently?${linkedCopy} Stored files and version history will be removed. This cannot be undone.`)) return;
+    if (deleteInFlightRef.current.has(asset.id)) return;
+
+    deleteInFlightRef.current.add(asset.id);
+    setBusy(`delete:${asset.id}`);
+    try {
+      const response = await fetch("/api/admin/pathway-assets/delete", {
+        method: "DELETE",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ id: asset.id })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "Asset could not be deleted.");
+      const deletedIds = new Set<string>(
+        Array.isArray(data.deletedIds)
+          ? data.deletedIds.filter((id: unknown): id is string => typeof id === "string")
+          : [asset.id]
+      );
+      setAssets((current) => current.filter((item) => !deletedIds.has(item.id)));
+      setSelectedIds((current) => new Set(Array.from(current).filter((id) => !deletedIds.has(id))));
+      if (inspectId && deletedIds.has(inspectId)) setInspectId(null);
+      setMessage(`Deleted ${asset.title} permanently${deletedIds.size > 1 ? ` with ${deletedIds.size - 1} linked asset${deletedIds.size === 2 ? "" : "s"}` : ""}.`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Asset could not be deleted.");
+    } finally {
+      deleteInFlightRef.current.delete(asset.id);
       setBusy(null);
     }
   }
@@ -808,6 +857,7 @@ export function PathwayAssetLibrary({
           <button type="button" className="button" disabled={Boolean(busy)} onClick={() => void patchAsset(selectedAsset, { favorite: !assetIsFavorite(selectedAsset.metadata) }, assetIsFavorite(selectedAsset.metadata) ? "Removed from favorites." : "Added to favorites.")}><Star size={15} fill={assetIsFavorite(selectedAsset.metadata) ? "currentColor" : "none"}/> {assetIsFavorite(selectedAsset.metadata) ? "Favorited" : "Favorite"}</button>
           {selectedAsset.preview_url ? <button type="button" className={`button ${selectedAsset.is_style_reference ? "is-active" : ""}`} disabled={Boolean(busy)} onClick={() => void setStyleReference(selectedAsset)}><Sparkles size={15}/> {selectedAsset.is_style_reference ? "Style reference" : "Teach Sol style"}</button> : null}
           <button type="button" className="button danger" disabled={Boolean(busy)} onClick={() => void patchAsset(selectedAsset, { archive: true }, "Asset archived. Its file and history remain preserved.")}><Archive size={15}/> Archive</button>
+          <button type="button" className="button danger" disabled={Boolean(busy)} onClick={() => void deleteAsset(selectedAsset)}>{busy === `delete:${selectedAsset.id}` ? <Loader2 className="spin" size={15}/> : <Trash2 size={15}/>} Delete</button>
         </div>
       </div>
     </div> : null}
