@@ -21,22 +21,22 @@ export function PathwayAssetHub({ pathways, aiReady }: { pathways: PathwayOption
   return <main className="admin-page pathway-assets-page">
     <header className="admin-page-header pathway-assets-page-head">
       <div>
-        <span className="section-kicker">Creative system</span>
+        <span className="section-kicker">Digital asset system</span>
         <h1>Pathway Assets</h1>
-        <p>Every Pathway owns its media. Carousels, posts, Stories, thumbnails, video outputs, uploaded references, generated images, and copy stay together here.</p>
+        <p>One source of truth for every Pathway. Find, tag, review, reuse, publish, and trace the media that belongs to each study without scattering files across the Studio.</p>
       </div>
       <FolderOpen size={30}/>
     </header>
 
     <section className="admin-card pathway-assets-control">
       <label>
-        <span>Pathway folder</span>
+        <span>Pathway library</span>
         <select value={selectedSlug} onChange={(event) => setSelectedSlug(event.target.value)}>
           {pathways.map((item) => <option value={item.slug} key={item.slug}>{item.title}</option>)}
         </select>
       </label>
       <div className="pathway-assets-destination">
-        <span>New uploads + Sol images go to</span>
+        <span>New media is filed under</span>
         <div>
           <button type="button" className={destinationStudio === "carousel" ? "is-active" : ""} onClick={() => setDestinationStudio("carousel")}><Layers3 size={16}/> Carousel + Social</button>
           <button type="button" className={destinationStudio === "video" ? "is-active" : ""} onClick={() => setDestinationStudio("video")}><Film size={16}/> Video</button>

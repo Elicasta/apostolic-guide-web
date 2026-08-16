@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getStudioPermission } from "@/auth";
 import { pathwayBySlug } from "@/pathway-catalog";
+import { normalizeAssetTags } from "@/pathway-asset-metadata";
 import { createServiceClient } from "@/supabase";
 
 const assetTypes = [
@@ -31,6 +32,17 @@ const saveSchema = z.object({
   metadata: z.record(z.string(), z.unknown()).optional().default({})
 });
 
+const patchSchema = z.object({
+  id: z.string().uuid(),
+  title: z.string().trim().min(1).max(180).optional(),
+  status: z.enum(statuses).optional(),
+  favorite: z.boolean().optional(),
+  description: z.string().trim().max(1200).optional(),
+  altText: z.string().trim().max(500).optional(),
+  tags: z.array(z.string().trim().min(1).max(40)).max(24).optional(),
+  archive: z.boolean().optional()
+}).refine((value) => Object.keys(value).some((key) => key !== "id"), { message: "No asset changes supplied." });
+
 async function signedPreview(service: NonNullable<ReturnType<typeof createServiceClient>>, row: Record<string, unknown>) {
   const bucket = typeof row.storage_bucket === "string" ? row.storage_bucket : null;
   const path = typeof row.storage_path === "string" ? row.storage_path : null;
@@ -38,6 +50,23 @@ async function signedPreview(service: NonNullable<ReturnType<typeof createServic
   if (typeof row.public_url === "string" && row.public_url) return { ...row, preview_url: row.public_url };
   const signed = await service.storage.from(bucket).createSignedUrl(path, 60 * 60);
   return { ...row, preview_url: signed.error ? null : signed.data.signedUrl };
+}
+
+async function recordAudit(
+  service: NonNullable<ReturnType<typeof createServiceClient>>,
+  userId: string,
+  action: string,
+  assetId: string,
+  metadata: Record<string, unknown>
+) {
+  const audit = await service.rpc("record_studio_audit", {
+    p_actor_user_id: userId,
+    p_action: action,
+    p_resource_type: "pathway_asset",
+    p_resource_id: assetId,
+    p_metadata: metadata
+  });
+  if (audit.error) console.error("pathway asset audit failed", audit.error.message);
 }
 
 export async function GET(request: Request) {
@@ -52,17 +81,96 @@ export async function GET(request: Request) {
   if (!pathwaySlug || !pathwayBySlug(pathwaySlug)) return NextResponse.json({ error: "Pathway not found." }, { status: 404 });
   if (!studios.includes(studio as typeof studios[number])) return NextResponse.json({ error: "Invalid studio." }, { status: 400 });
 
-  const result = await service.from("studio_pathway_assets")
-    .select("id,pathway_slug,studio,asset_type,parent_asset_id,title,status,source_type,editable,version,content,storage_bucket,storage_path,public_url,prompt,model,metadata,created_at,updated_at")
-    .eq("pathway_slug", pathwaySlug)
-    .eq("studio", studio)
-    .neq("status", "archived")
-    .order("updated_at", { ascending: false })
-    .limit(250);
+  const [result, profile] = await Promise.all([
+    service.from("studio_pathway_assets")
+      .select("id,pathway_slug,studio,asset_type,parent_asset_id,title,status,source_type,editable,version,content,storage_bucket,storage_path,public_url,prompt,model,metadata,created_at,updated_at")
+      .eq("pathway_slug", pathwaySlug)
+      .eq("studio", studio)
+      .neq("status", "archived")
+      .order("updated_at", { ascending: false })
+      .limit(250),
+    service.from("studio_visual_style_profile").select("reference_asset_ids").eq("id", "apostolic-guide").maybeSingle()
+  ]);
   if (result.error) return NextResponse.json({ error: result.error.message }, { status: 500 });
+  if (profile.error) console.error("style profile load failed", profile.error.message);
 
-  const assets = await Promise.all((result.data ?? []).map((row) => signedPreview(service, row as Record<string, unknown>)));
+  const ids = (result.data ?? []).map((row) => row.id);
+  const usageResult = ids.length
+    ? await service.from("studio_content_calendar_items")
+      .select("id,asset_id,title,status,platform,scheduled_for,published_at,updated_at")
+      .in("asset_id", ids)
+      .neq("status", "cancelled")
+      .order("updated_at", { ascending: false })
+      .limit(500)
+    : { data: [], error: null };
+  if (usageResult.error) console.error("pathway asset usage lookup failed", usageResult.error.message);
+
+  const usage = new Map<string, { count: number; latest: Record<string, unknown> | null }>();
+  for (const item of usageResult.data ?? []) {
+    if (typeof item.asset_id !== "string") continue;
+    const current = usage.get(item.asset_id) ?? { count: 0, latest: null };
+    current.count += 1;
+    if (!current.latest) current.latest = item as Record<string, unknown>;
+    usage.set(item.asset_id, current);
+  }
+
+  const referenceIds = new Set(
+    Array.isArray(profile.data?.reference_asset_ids)
+      ? profile.data.reference_asset_ids.filter((id): id is string => typeof id === "string")
+      : []
+  );
+  const assets = await Promise.all((result.data ?? []).map(async (row) => {
+    const trace = usage.get(row.id) ?? { count: 0, latest: null };
+    return {
+      ...(await signedPreview(service, row as Record<string, unknown>)),
+      is_style_reference: referenceIds.has(row.id),
+      usage_count: trace.count,
+      latest_usage: trace.latest
+    };
+  }));
   return NextResponse.json({ assets });
+}
+
+export async function PATCH(request: Request) {
+  const { access, allowed } = await getStudioPermission("manage_content");
+  if (!allowed || access.state !== "allowed" || !access.user) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const parsed = patchSchema.safeParse(await request.json().catch(() => null));
+  if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message || "Invalid asset update." }, { status: 400 });
+  const service = createServiceClient();
+  if (!service) return NextResponse.json({ error: "Supabase is not configured." }, { status: 503 });
+
+  const current = await service.from("studio_pathway_assets")
+    .select("*")
+    .eq("id", parsed.data.id)
+    .maybeSingle();
+  if (current.error) return NextResponse.json({ error: current.error.message }, { status: 500 });
+  if (!current.data) return NextResponse.json({ error: "Asset not found." }, { status: 404 });
+
+  const currentMetadata = current.data.metadata && typeof current.data.metadata === "object" && !Array.isArray(current.data.metadata)
+    ? current.data.metadata as Record<string, unknown>
+    : {};
+  const metadata: Record<string, unknown> = { ...currentMetadata };
+  if (parsed.data.favorite !== undefined) metadata.favorite = parsed.data.favorite;
+  if (parsed.data.description !== undefined) metadata.description = parsed.data.description;
+  if (parsed.data.altText !== undefined) metadata.altText = parsed.data.altText;
+  if (parsed.data.tags !== undefined) metadata.tags = normalizeAssetTags(parsed.data.tags);
+
+  const update: Record<string, unknown> = {
+    metadata,
+    updated_by: access.user.id,
+    updated_at: new Date().toISOString()
+  };
+  if (parsed.data.title !== undefined) update.title = parsed.data.title;
+  if (parsed.data.status !== undefined) update.status = parsed.data.status;
+  if (parsed.data.archive === true) update.status = "archived";
+
+  const saved = await service.from("studio_pathway_assets").update(update).eq("id", parsed.data.id).select("*").single();
+  if (saved.error) return NextResponse.json({ error: saved.error.message }, { status: 500 });
+  await recordAudit(service, access.user.id, parsed.data.archive === true ? "pathway_asset.archive" : "pathway_asset.metadata_update", parsed.data.id, {
+    pathwaySlug: current.data.pathway_slug,
+    changed: Object.keys(parsed.data).filter((key) => key !== "id")
+  });
+  return NextResponse.json({ asset: await signedPreview(service, saved.data as Record<string, unknown>) });
 }
 
 export async function POST(request: Request) {
@@ -120,6 +228,7 @@ export async function POST(request: Request) {
       updated_at: now
     }).eq("id", data.id).select("*").single();
     if (updated.error) return NextResponse.json({ error: updated.error.message }, { status: 500 });
+    await recordAudit(service, access.user.id, "pathway_asset.version_save", data.id, { pathwaySlug: pathway.slug, version: nextVersion, previousVersion: Number(current.data.version || 1) });
     return NextResponse.json({ asset: await signedPreview(service, updated.data as Record<string, unknown>) });
   }
 
@@ -145,5 +254,6 @@ export async function POST(request: Request) {
     updated_at: now
   }).select("*").single();
   if (created.error) return NextResponse.json({ error: created.error.message }, { status: 500 });
+  await recordAudit(service, access.user.id, "pathway_asset.create", created.data.id, { pathwaySlug: pathway.slug, studio: data.studio, assetType: data.assetType, sourceType: data.sourceType });
   return NextResponse.json({ asset: await signedPreview(service, created.data as Record<string, unknown>) });
 }
