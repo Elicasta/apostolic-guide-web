@@ -2,13 +2,20 @@ import { after, NextResponse } from "next/server";
 import { z } from "zod";
 import { getAdminAccess } from "@/auth";
 import { getSolAdminSurface } from "@/sol-admin-context";
+import { runSolAgentTurn } from "@/sol-agent-kernel";
+import {
+  appendSolAgentMessage,
+  getSolAgentApproval,
+  getSolAgentThread,
+  resolveSolAgentApproval
+} from "@/sol-agent-memory";
+import { executeApprovedSolAgentTool } from "@/sol-agent-tools";
 import { hasStudioPermission } from "@/studio-permissions";
 import { executeSolRuns } from "@/sol-operator-executor";
-import { interpretSolMessage } from "@/sol-operator-chat";
+import { cancelSolRunV3, retrySolRun } from "@/sol-run-recovery";
 import { runTrustedSolDrafts } from "@/sol-trusted-autopilot";
 import {
   approveSolProposal,
-  cancelSolRun,
   dismissSolProposal,
   getSolOperatorSnapshot,
   scanSolOperator,
@@ -30,9 +37,11 @@ const actionSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("approve"), proposalId: z.string().uuid(), constraints: z.array(z.string().trim().min(1).max(240)).max(12).default([]) }),
   z.object({ action: z.literal("dismiss"), proposalId: z.string().uuid() }),
   z.object({ action: z.literal("cancel_run"), runId: z.string().uuid() }),
+  z.object({ action: z.literal("retry_run"), runId: z.string().uuid() }),
+  z.object({ action: z.literal("agent_approval"), approvalId: z.string().uuid(), decision: z.enum(["approved", "rejected"]), context: z.object({ pathname: z.string().trim().max(500) }).optional() }),
   z.object({
     action: z.literal("chat"),
-    message: z.string().trim().min(1).max(2000),
+    message: z.string().trim().min(1).max(4000),
     context: z.object({ pathname: z.string().trim().max(500) }).optional()
   })
 ]);
@@ -54,10 +63,14 @@ async function scanAndRunTrusted(actorUserId: string, request: Request) {
   return runTrustedSolDrafts(executionContext(request));
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   const access = await requireAccess();
   if (!access) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  return NextResponse.json(await getSolOperatorSnapshot());
+  const url = new URL(request.url);
+  const snapshot = await getSolOperatorSnapshot();
+  if (url.searchParams.get("agent") !== "1") return NextResponse.json(snapshot);
+  const pathname = url.searchParams.get("pathname") || "/admin";
+  return NextResponse.json({ snapshot, thread: await getSolAgentThread(access.user.id, pathname), surface: getSolAdminSurface(pathname) });
 }
 
 export async function POST(request: Request) {
@@ -90,34 +103,45 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: true, snapshot: await getSolOperatorSnapshot() });
     }
     if (body.action === "cancel_run") {
-      await cancelSolRun(body.runId, access.user.id);
+      await cancelSolRunV3(body.runId, access.user.id);
       return NextResponse.json({ ok: true, snapshot: await getSolOperatorSnapshot() });
     }
-
-    const snapshot = await getSolOperatorSnapshot();
-    const surface = getSolAdminSurface(body.context?.pathname ?? "/admin");
-    const decision = await interpretSolMessage(body.message, snapshot, surface);
-    let message = decision.reply;
-    if (decision.action === "scan") {
-      const trusted = await scanAndRunTrusted(access.user.id, request);
-      if (trusted.runIds.length) message = `${decision.reply} Trusted mode safely ran ${trusted.runIds.length} draft ${trusted.runIds.length === 1 ? "job" : "jobs"}.`;
-    } else if (decision.action === "set_settings") {
-      await updateSolSettings({ enabled: decision.enabled ?? snapshot.settings.enabled, mode: decision.mode ?? snapshot.settings.mode, weeklyTargets: snapshot.settings.weeklyTargets }, access.user.id);
-    } else if (decision.action === "approve") {
-      const runIds: string[] = [];
-      for (const proposalId of decision.proposalIds) {
-        const approved = await approveSolProposal(proposalId, decision.constraints, access.user.id);
-        runIds.push(...approved.runIds);
-      }
-      if (runIds.length) {
-        const context = executionContext(request);
-        after(() => executeSolRuns(runIds, context));
-        message = `${decision.reply} ${runIds.length} ${runIds.length === 1 ? "run is" : "runs are"} now tracked in Sol.`;
-      }
-    } else if (decision.action === "dismiss") {
-      for (const proposalId of decision.proposalIds) await dismissSolProposal(proposalId, access.user.id);
+    if (body.action === "retry_run") {
+      await retrySolRun(body.runId, access.user.id);
+      const context = executionContext(request);
+      after(() => executeSolRuns([body.runId], context));
+      return NextResponse.json({ ok: true, message: "Run queued for retry.", snapshot: await getSolOperatorSnapshot() });
     }
-    return NextResponse.json({ ok: true, message, decision: { action: decision.action, constraints: decision.constraints }, surface, snapshot: await getSolOperatorSnapshot() });
+    if (body.action === "agent_approval") {
+      const approval = await getSolAgentApproval(body.approvalId, access.user.id);
+      if (!approval || approval.status !== "pending") return NextResponse.json({ error: "That approval is no longer pending." }, { status: 409 });
+      const pathname = body.context?.pathname ?? "/admin";
+      const surface = getSolAdminSurface(pathname);
+      const thread = await getSolAgentThread(access.user.id, pathname);
+      if (!thread) return NextResponse.json({ error: "Sol agent memory is not ready." }, { status: 503 });
+      await resolveSolAgentApproval({ approvalId: approval.id, userId: access.user.id, decision: body.decision });
+      if (body.decision === "rejected") {
+        const message = `Cancelled approval: ${approval.summary} Nothing was changed.`;
+        await appendSolAgentMessage({ threadId: thread.id, role: "assistant", content: message, metadata: { approvalId: approval.id, decision: "rejected" } });
+        return NextResponse.json({ ok: true, message, thread: await getSolAgentThread(access.user.id, pathname), snapshot: await getSolOperatorSnapshot(), surface });
+      }
+      const result = await executeApprovedSolAgentTool({ approval, actorUserId: access.user.id, threadId: thread.id, surface, snapshot: await getSolOperatorSnapshot() });
+      await appendSolAgentMessage({ threadId: thread.id, role: "tool", kind: "tool_result", content: result.message, metadata: { approvalId: approval.id, approved: true, ok: result.ok, runIds: result.runIds ?? [] } });
+      await appendSolAgentMessage({ threadId: thread.id, role: "assistant", content: result.message, metadata: { approvalId: approval.id, decision: "approved" } });
+      if (result.runIds?.length) {
+        const context = executionContext(request);
+        after(() => executeSolRuns(result.runIds ?? [], context));
+      }
+      return NextResponse.json({ ok: result.ok, message: result.message, thread: await getSolAgentThread(access.user.id, pathname), snapshot: await getSolOperatorSnapshot(), surface });
+    }
+
+    const surface = getSolAdminSurface(body.context?.pathname ?? "/admin");
+    const turn = await runSolAgentTurn({ actorUserId: access.user.id, message: body.message, surface });
+    if (turn.runIds.length) {
+      const context = executionContext(request);
+      after(() => executeSolRuns(turn.runIds, context));
+    }
+    return NextResponse.json({ ok: true, message: turn.message, thread: turn.thread, snapshot: turn.snapshot, surface, agent: { turnId: turn.turnId, toolCount: turn.toolCount } });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Sol Operator request failed." }, { status: 500 });
   }

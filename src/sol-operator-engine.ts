@@ -3,7 +3,7 @@ export type SolRecipeKey = "audio_to_youtube" | "carousel_topic_pack" | "journey
 export type SolProposalPriority = "urgent" | "high" | "medium" | "low";
 export type SolProposalRisk = "safe_draft" | "review_required" | "external_effect";
 export type SolProposalStatus = "pending" | "approved" | "running" | "completed" | "dismissed" | "failed" | "expired";
-export type SolRunStatus = "queued" | "running" | "waiting_review" | "completed" | "failed" | "cancelled";
+export type SolRunStatus = "queued" | "running" | "retrying" | "stalled" | "waiting_review" | "completed" | "failed" | "cancelled";
 
 export type SolEvidence = { label: string; value: string | number; state?: "ready" | "missing" | "blocked" | "info" };
 export type SolPlanStep = { key: string; label: string; gate?: "automatic" | "theology" | "review" | "external" };

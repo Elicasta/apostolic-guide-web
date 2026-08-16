@@ -19,6 +19,10 @@
       "schedule": "* * * * *"
     },
     {
+      "path": "/api/cron/sol-runner",
+      "schedule": "* * * * *"
+    },
+    {
       "path": "/api/cron/sol",
       "schedule": "*/30 * * * *"
     }

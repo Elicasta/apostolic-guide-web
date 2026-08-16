@@ -39,6 +39,7 @@ import "./video-producer.css";
 import "./video-producer-flow.css";
 import "./sol-operator.css";
 import "./sol-jarvis.css";
+import "./sol-control.css";
 
 export const dynamic = "force-dynamic";
 
