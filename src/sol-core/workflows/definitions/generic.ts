@@ -8,6 +8,10 @@ function task(input: Partial<SolTaskDefinition> & Pick<SolTaskDefinition, "id" |
   return { timeoutMs: 120_000, retryPolicy: retry, ...input };
 }
 
+function strings(value: unknown, limit: number) {
+  return Array.isArray(value) ? value.map((item) => String(item)).filter(Boolean).slice(0, limit) : [];
+}
+
 export const researchAndReportWorkflow: SolWorkflowDefinition = {
   key: "research_and_report",
   version: 1,
@@ -15,7 +19,7 @@ export const researchAndReportWorkflow: SolWorkflowDefinition = {
   trusted: true,
   createTasks(input) {
     const query = String(input.query || "Research report");
-    const urls = Array.isArray(input.urls) ? input.urls.map(String).filter(Boolean).slice(0, 12) : [];
+    const urls = strings(input.urls, 12);
     if (!urls.length) throw new Error("research_and_report requires at least one HTTPS URL.");
     const retrieval = urls.map((url, index) => task({ id: `source_${index + 1}`, name: `Retrieve source ${index + 1}`, tool: "browser.extract", input: { url, maxChars: 45_000, includeHtml: false }, dependsOn: [], permission: "read" }));
     const sections = urls.map((url, index) => ({ label: `SOURCE ${index + 1}: ${url}`, content: { $from: `source_${index + 1}.text` } }));
@@ -37,8 +41,8 @@ export const testAndVerifySiteWorkflow: SolWorkflowDefinition = {
     const url = String(input.url || "");
     if (!url) throw new Error("test_and_verify_site requires a URL.");
     const expectedStatus = Number(input.expectedStatus) || 200;
-    const textIncludes = Array.isArray(input.textIncludes) ? input.textIncludes.map(String).slice(0, 20) : [];
-    const textExcludes = Array.isArray(input.textExcludes) ? input.textExcludes.map(String).slice(0, 20) : [];
+    const textIncludes = strings(input.textIncludes, 20);
+    const textExcludes = strings(input.textExcludes, 20);
     return [
       task({ id: "capabilities", name: "Check browser capabilities", tool: "runtime.capabilities", input: {}, dependsOn: [], permission: "read" }),
       task({ id: "open", name: "Open site", tool: "browser.open", input: { url }, dependsOn: [], permission: "read" }),
