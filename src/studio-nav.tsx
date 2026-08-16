@@ -21,6 +21,7 @@ export const studioNavSections: Array<{ label: string; items: Array<{ href: stri
   ]},
   { label: "Create", items: [
     { href: "/admin/carousel-studio", label: "Carousel Studio", icon: Layers3, permission: "manage_content" },
+    { href: "/admin/threads-studio", label: "Threads Studio", icon: MessageCircle, permission: "view_distribution" },
     { href: "/admin/audio", label: "Pathway Audio", icon: Headphones, permission: "manage_content" },
     { href: "/admin/video-producer", label: "Video Producer", icon: Sparkles, permission: "manage_content" },
     { href: "/admin/video-studio", label: "Video Studio", icon: Film, permission: "manage_content" }
@@ -33,7 +34,6 @@ export const studioNavSections: Array<{ label: string; items: Array<{ href: stri
   ]},
   { label: "Publish", items: [
     { href: "/admin/publishing", label: "Publishing", icon: Send, permission: "view_distribution", exact: true },
-    { href: "/admin/publishing/threads-studio", label: "Threads Studio", icon: MessageCircle, permission: "view_distribution" },
     { href: "/admin/broadcasts", label: "Broadcasts", icon: Mail, permission: "view_distribution" },
     { href: "/admin/social", label: "Social Automations", icon: Instagram, permission: "view_distribution" },
     { href: "/admin/comment-guide", label: "Comment Guide", icon: Bot, permission: "view_distribution" },
