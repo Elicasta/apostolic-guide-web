@@ -48,10 +48,7 @@ export type SolRuntimeTaskRecord = {
   workerId: string | null;
 };
 
-export type SolRuntimeAttemptRecord = {
-  id: string;
-  attemptNumber: number;
-};
+export type SolRuntimeAttemptRecord = { id: string; attemptNumber: number };
 
 export type SolRuntimeArtifactInput = {
   runId: string;
@@ -72,7 +69,7 @@ export interface SolRuntimeStore {
   completeAttempt(attemptId: string, output: Record<string, unknown>): Promise<void>;
   failAttempt(attemptId: string, error: { code: string; message: string }): Promise<void>;
   emit(input: { runId: string; taskId?: string | null; eventType: string; message: string; details?: Record<string, unknown> }): Promise<void>;
-  recordMetric(input: { runId?: string | null; metricKey: string; value?: number; metadata?: Record<string, unknown> }): Promise<void>;
+  recordMetric?(input: { runId?: string | null; metricKey: string; value?: number; metadata?: Record<string, unknown> }): Promise<void>;
   heartbeat(taskId: string, workerId: string, leaseSeconds: number): Promise<boolean>;
   completeTask(taskId: string, workerId: string, output: Record<string, unknown>): Promise<boolean>;
   skipTask(taskId: string, workerId: string, reason: string): Promise<boolean>;
