@@ -112,6 +112,10 @@ create index if not exists pathway_publications_creative_project_idx
 create index if not exists pathway_publications_creative_queue_idx
   on public.pathway_publications(status, scheduled_for, created_at)
   where creative_project_id is not null;
+create unique index if not exists pathway_publications_one_active_creative_platform_idx
+  on public.pathway_publications(creative_project_id, platform)
+  where creative_project_id is not null
+    and status in ('scheduled','publishing','needs_manual_finish');
 
 comment on table public.studio_creative_projects is
   'Persistent editable source-of-truth for Single, Carousel, and Story creative work.';
