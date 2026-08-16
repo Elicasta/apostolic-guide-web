@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { solRunIdempotencyKey } from "../src/sol-core/runtime/idempotency";
 import { deriveSolProgress } from "../src/sol-core/runtime/progress";
-import { canTransitionRun, canTransitionTask } from "../src/sol-core/runtime/state-machine";
+import { canTransitionRun, canTransitionTask, deriveSolRunStatus } from "../src/sol-core/runtime/state-machine";
 import { runnableTaskIds, validateSolPlan } from "../src/sol-core/runtime/task-graph";
 import { evaluateSolPermission } from "../src/sol-core/permissions/policy";
 import type { SolPlan, SolTaskDefinition } from "../src/sol-core/types/runtime";
@@ -58,6 +58,12 @@ test("review approval can resume and complete but cannot complete early", () => 
   assert.equal(canTransitionRun("waiting_for_approval", "completed"), true);
   assert.equal(canTransitionRun("running", "completed"), true);
   assert.equal(canTransitionTask("completed", "running"), false);
+
+  assert.equal(deriveSolRunStatus("waiting_for_approval", ["completed", "queued"]), "running");
+  assert.equal(deriveSolRunStatus("waiting_for_approval", ["completed", "completed"]), "completed");
+  assert.equal(deriveSolRunStatus("running", ["completed", "verifying"]), "running");
+  assert.equal(deriveSolRunStatus("running", ["failed", "blocked"]), "failed");
+  assert.equal(deriveSolRunStatus("running", ["stalled", "blocked"]), "stalled");
 });
 
 test("idempotency identity is stable across object key order", () => {
