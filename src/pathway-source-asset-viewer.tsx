@@ -48,6 +48,8 @@ export function PathwaySourceAssetViewer({ asset, signedUrl }: { asset: SourceAs
   const originalFileName = typeof asset.metadata.originalFileName === "string" ? asset.metadata.originalFileName : asset.storage_path?.split("/").pop() || asset.title;
   const sha = typeof asset.metadata.sha256 === "string" ? asset.metadata.sha256 : "";
   const ingestSession = typeof asset.metadata.ingestSessionId === "string" ? asset.metadata.ingestSessionId : "";
+  const storageProvider = typeof asset.metadata.storageProvider === "string" ? asset.metadata.storageProvider : asset.storage_bucket || "";
+  const previewLargeMedia = bytes > 0 && bytes <= 100 * 1024 * 1024;
 
   return <main className="admin-page pathway-source-viewer">
     <div className="pathway-source-topbar">
@@ -66,11 +68,11 @@ export function PathwaySourceAssetViewer({ asset, signedUrl }: { asset: SourceAs
     </header>
 
     <section className="pathway-source-stage">
-      {kind === "video" && signedUrl ? <video src={signedUrl} controls playsInline preload="metadata"/> : null}
-      {kind === "audio" && signedUrl ? <div className="pathway-source-audio"><FileAudio size={42}/><strong>{originalFileName}</strong><audio src={signedUrl} controls preload="metadata"/></div> : null}
+      {kind === "video" && signedUrl && previewLargeMedia ? <video src={signedUrl} controls playsInline preload="metadata"/> : null}
+      {kind === "audio" && signedUrl && previewLargeMedia ? <div className="pathway-source-audio"><FileAudio size={42}/><strong>{originalFileName}</strong><audio src={signedUrl} controls preload="metadata"/></div> : null}
       {kind === "image" && signedUrl ? <img src={signedUrl} alt={typeof asset.metadata.altText === "string" ? asset.metadata.altText : asset.title}/> : null}
-      {kind === "document" && signedUrl ? <iframe src={signedUrl} title={asset.title}/> : null}
-      {kind === "archive" || !signedUrl ? <div className="pathway-source-no-preview">{sourceIcon(kind)}<strong>{kind === "archive" ? "Project archive" : "Preview unavailable"}</strong><p>The original master is preserved in private Storage. Download it when you need the source file.</p></div> : null}
+      {kind === "document" && signedUrl && previewLargeMedia ? <iframe src={signedUrl} title={asset.title}/> : null}
+      {kind === "archive" || !signedUrl || ((kind === "video" || kind === "audio" || kind === "document") && !previewLargeMedia) ? <div className="pathway-source-no-preview">{sourceIcon(kind)}<strong>{kind === "archive" ? "Project archive" : bytes > 100 * 1024 * 1024 ? "Large source master" : "Preview unavailable"}</strong><p>{bytes > 100 * 1024 * 1024 ? "This master is intentionally not streamed into the browser preview. Download it or send it into production instead." : "The original master is preserved in private storage. Download it when you need the source file."}</p></div> : null}
     </section>
 
     <section className="pathway-source-grid">
@@ -87,7 +89,7 @@ export function PathwaySourceAssetViewer({ asset, signedUrl }: { asset: SourceAs
       <article className="admin-card pathway-source-provenance">
         <span className="section-kicker">Provenance</span>
         <p>This is the untouched source-master record. Production outputs should derive from it instead of replacing it.</p>
-        <div>{sha ? <code>SHA-256 {sha}</code> : <code>Large-file fingerprint tracked by ingest session</code>}{ingestSession ? <code>Ingest {ingestSession}</code> : null}{asset.storage_bucket ? <code>{asset.storage_bucket}</code> : null}</div>
+        <div>{sha ? <code>SHA-256 {sha}</code> : <code>Large-file fingerprint tracked by ingest session</code>}{ingestSession ? <code>Ingest {ingestSession}</code> : null}{storageProvider ? <code>{storageProvider}</code> : null}</div>
       </article>
     </section>
 
