@@ -205,14 +205,16 @@ export async function POST(request: Request) {
     ? session.media_metadata as Record<string, unknown>
     : {};
   const now = new Date().toISOString();
+  const assetId = crypto.randomUUID();
   const created = await service.from("studio_pathway_assets").insert({
+    id: assetId,
     pathway_slug: session.pathway_slug,
     studio: session.studio,
     asset_type: session.asset_type,
     title: titleFromFilename(session.file_name),
     status: "draft",
     source_type: "uploaded",
-    editable: mediaKind === "image",
+    editable: false,
     version: 1,
     content: {
       kind: mediaKind,
@@ -221,7 +223,7 @@ export async function POST(request: Request) {
     },
     storage_bucket: PATHWAY_ASSET_STORAGE_PROVIDER,
     storage_path: session.storage_path,
-    public_url: null,
+    public_url: `/api/admin/pathway-assets/file?id=${encodeURIComponent(assetId)}`,
     metadata: {
       originalFileName: session.file_name,
       mime: session.mime_type,
@@ -230,6 +232,7 @@ export async function POST(request: Request) {
       sha256: session.sha256 || undefined,
       mediaKind,
       role: "source-master",
+      immutableSource: true,
       storageProvider: PATHWAY_ASSET_STORAGE_PROVIDER,
       uploadMethod: "vercel-blob-client-multipart",
       blobUrl: blob.url,
