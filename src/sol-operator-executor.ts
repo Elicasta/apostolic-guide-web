@@ -1,5 +1,11 @@
-import { completeProposalFromRuns } from "./sol-operator";
+import { randomUUID } from "node:crypto";
 import { SOL_RECIPE_STEPS, solProgress, type SolRecipeKey } from "./sol-operator-engine";
+import {
+  isTransientSolFailure,
+  SOL_RUN_LEASE_MS,
+  SOL_RUN_REQUEST_TIMEOUT_MS,
+  solRetryDelayMs
+} from "./sol-run-recovery";
 import { createServiceClient } from "./supabase";
 
 type ExecutionContext = { origin: string; cookie: string };
@@ -10,15 +16,25 @@ function record(value: unknown) {
 }
 
 async function requestJson(context: ExecutionContext, path: string, body: Record<string, unknown>) {
-  const response = await fetch(`${context.origin}${path}`, {
-    method: "POST",
-    headers: { "content-type": "application/json", cookie: context.cookie },
-    body: JSON.stringify(body),
-    cache: "no-store"
-  });
-  const data = await response.json().catch(() => ({})) as Record<string, unknown>;
-  if (!response.ok) throw new Error(typeof data.error === "string" ? data.error : `${path} failed (${response.status}).`);
-  return data;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), SOL_RUN_REQUEST_TIMEOUT_MS);
+  try {
+    const response = await fetch(`${context.origin}${path}`, {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie: context.cookie },
+      body: JSON.stringify(body),
+      cache: "no-store",
+      signal: controller.signal
+    });
+    const data = await response.json().catch(() => ({})) as Record<string, unknown>;
+    if (!response.ok) throw new Error(typeof data.error === "string" ? `${data.error} (${response.status})` : `${path} failed (${response.status}).`);
+    return data;
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") throw new Error(`${path} timed out after ${Math.round(SOL_RUN_REQUEST_TIMEOUT_MS / 1000)} seconds.`);
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 async function loadRun(service: Service, runId: string) {
@@ -29,12 +45,24 @@ async function loadRun(service: Service, runId: string) {
 }
 
 async function appendEvent(service: Service, run: Record<string, unknown>, eventType: string, detail: Record<string, unknown> = {}) {
-  await service.from("sol_operator_events").insert({ run_id: run.id, proposal_id: run.proposal_id ?? null, event_type: eventType, detail });
+  const result = await service.from("sol_operator_events").insert({ run_id: run.id, proposal_id: run.proposal_id ?? null, event_type: eventType, detail });
+  if (result.error) console.error("Sol run event write failed", result.error.message);
 }
 
 async function cancelled(service: Service, runId: string) {
   const result = await service.from("sol_operator_runs").select("status").eq("id", runId).maybeSingle();
   return result.data?.status === "cancelled";
+}
+
+async function heartbeat(service: Service, run: Record<string, unknown>, extra: Record<string, unknown> = {}) {
+  const now = new Date();
+  const lease = new Date(now.getTime() + SOL_RUN_LEASE_MS).toISOString();
+  const values = { heartbeat_at: now.toISOString(), last_progress_at: now.toISOString(), lease_expires_at: lease, ...extra };
+  const result = await service.from("sol_operator_runs").update(values).eq("id", run.id).eq("status", "running");
+  if (result.error) throw result.error;
+  run.heartbeat_at = values.heartbeat_at;
+  run.last_progress_at = values.last_progress_at;
+  run.lease_expires_at = values.lease_expires_at;
 }
 
 async function updateStep(service: Service, run: Record<string, unknown>, stepKey: string, status: "running" | "completed" | "failed", detail?: string) {
@@ -47,8 +75,30 @@ async function updateStep(service: Service, run: Record<string, unknown>, stepKe
   const progress = status === "failed" ? Number(run.progress) || 0 : solProgress(completed, steps.length);
   run.current_step = stepKey;
   run.progress = progress;
-  const result = await service.from("sol_operator_runs").update({ steps, current_step: stepKey, progress }).eq("id", run.id);
+  await heartbeat(service, run, { steps, current_step: stepKey, progress });
+  await appendEvent(service, run, `step.${status}`, { step_key: stepKey, detail: detail ?? null, progress });
+}
+
+async function finishRun(service: Service, run: Record<string, unknown>, values: Record<string, unknown>) {
+  const now = new Date().toISOString();
+  const result = await service.from("sol_operator_runs").update({
+    ...values,
+    heartbeat_at: now,
+    last_progress_at: now,
+    lease_expires_at: null,
+    next_retry_at: null,
+    worker_id: null
+  }).eq("id", run.id).neq("status", "cancelled");
   if (result.error) throw result.error;
+}
+
+async function settleProposal(service: Service, proposalId: string | null) {
+  if (!proposalId) return;
+  const runs = await service.from("sol_operator_runs").select("status").eq("proposal_id", proposalId);
+  if (runs.error || !runs.data?.length) return;
+  if (runs.data.some((item) => ["queued", "running", "retrying"].includes(String(item.status)))) return;
+  const failedOnly = runs.data.every((item) => ["failed", "stalled", "cancelled"].includes(String(item.status)));
+  await service.from("sol_operator_proposals").update({ status: failedOnly ? "failed" : "completed" }).eq("id", proposalId);
 }
 
 async function audioToYoutube(service: Service, run: Record<string, unknown>, context: ExecutionContext) {
@@ -99,13 +149,14 @@ async function audioToYoutube(service: Service, run: Record<string, unknown>, co
     await updateStep(service, run, "queue_render", "completed", `${renderRows.length || 1} YouTube render queued.`);
   }
   await updateStep(service, run, "review", "completed", "Sol stopped before publishing.");
-  await service.from("sol_operator_runs").update({
+  await finishRun(service, run, {
     status: "waiting_review",
     progress: 100,
     current_step: "review",
     result: { slug, project: analysis.project ?? null, kit: kit.kit ?? null, renderIds: renderRows.map((item) => item.id), href: `/admin/video-studio?pathway=${encodeURIComponent(slug)}`, publishingBlocked: true },
-    completed_at: new Date().toISOString()
-  }).eq("id", run.id);
+    completed_at: new Date().toISOString(),
+    error: null
+  });
 }
 
 async function carouselTopicPack(service: Service, run: Record<string, unknown>, context: ExecutionContext) {
@@ -115,9 +166,9 @@ async function carouselTopicPack(service: Service, run: Record<string, unknown>,
   if (!slug || !topics.length) throw new Error("Carousel topic inputs are missing.");
   await updateStep(service, run, "build_topics", "completed", `${topics.length} canonical topics prepared.`);
 
-  const saved: Array<Record<string, unknown>> = [];
+  const saved: Array<Record<string, unknown>> = Array.isArray(record(run.result).drafts) ? record(run.result).drafts as Array<Record<string, unknown>> : [];
   await updateStep(service, run, "generate_decks", "running");
-  for (let index = 0; index < topics.length; index += 1) {
+  for (let index = saved.length; index < topics.length; index += 1) {
     if (await cancelled(service, String(run.id))) return;
     const topic = topics[index];
     const generated = await requestJson(context, "/api/admin/carousel-studio/generate", { slug, mode: "pathway", prompt: String(topic.prompt || topic.title || "Create a Pathway carousel."), targetSlides: 8 });
@@ -139,23 +190,27 @@ async function carouselTopicPack(service: Service, run: Record<string, unknown>,
       hook: String(rawSlides[0]?.title || topic.title || ""),
       cta_type: "visit_pathway",
       destination_url: `https://www.apostolicguide.com/pathways/${slug}`,
-      notes: JSON.stringify({ source: "sol-content-operator", recipe: "carousel_topic_pack", topic, plan, doctrineReview: review, model: generated.model ?? null, createdAt: new Date().toISOString() })
+      notes: JSON.stringify({ source: "sol-content-operator", recipe: "carousel_topic_pack", solRunId: run.id, topicIndex: index, topic, plan, doctrineReview: review, model: generated.model ?? null, createdAt: new Date().toISOString() })
     }).select("id,title,status").single();
     if (insert.error) throw insert.error;
     saved.push({ ...insert.data, doctrineStatus: verdict });
-    await service.from("sol_operator_runs").update({ progress: Math.min(78, 20 + Math.round(((index + 1) / topics.length) * 58)), result: { drafts: saved } }).eq("id", run.id);
+    const progress = Math.min(78, 20 + Math.round(((index + 1) / topics.length) * 58));
+    run.progress = progress;
+    run.result = { drafts: saved };
+    await heartbeat(service, run, { progress, result: { drafts: saved } });
   }
   await updateStep(service, run, "generate_decks", "completed", `${saved.length} carousel plans generated.`);
   await updateStep(service, run, "theology_check", "completed", "Every saved deck has a doctrine verdict attached.");
   await updateStep(service, run, "save_drafts", "completed", `${saved.length} reviewable assets saved.`);
   await updateStep(service, run, "review", "completed", "Sol stopped before export or publishing.");
-  await service.from("sol_operator_runs").update({
+  await finishRun(service, run, {
     status: "waiting_review",
     progress: 100,
     current_step: "review",
     result: { slug, drafts: saved, href: `/admin/pathways/${encodeURIComponent(slug)}`, publishingBlocked: true },
-    completed_at: new Date().toISOString()
-  }).eq("id", run.id);
+    completed_at: new Date().toISOString(),
+    error: null
+  });
 }
 
 async function journeyAutomationDraft(service: Service, run: Record<string, unknown>) {
@@ -205,13 +260,14 @@ async function journeyAutomationDraft(service: Service, run: Record<string, unkn
   if (linked.error) throw linked.error;
   await updateStep(service, run, "link_project", "completed", "Draft automation linked to the Pathway project.");
   await updateStep(service, run, "review", "completed", "Sol stopped before activation or enrollment.");
-  await service.from("sol_operator_runs").update({
+  await finishRun(service, run, {
     status: "waiting_review",
     progress: 100,
     current_step: "review",
     result: { slug, automationId: automation.data.id, journeyId: journey.data.id, href: "/admin/social", activationBlocked: true },
-    completed_at: new Date().toISOString()
-  }).eq("id", run.id);
+    completed_at: new Date().toISOString(),
+    error: null
+  });
 }
 
 export async function executeSolRun(runId: string, context: ExecutionContext) {
@@ -220,30 +276,74 @@ export async function executeSolRun(runId: string, context: ExecutionContext) {
   let run: Record<string, unknown> | null = null;
   try {
     run = await loadRun(service, runId);
-    if (run.status !== "queued") return;
-    const claimed = await service.from("sol_operator_runs").update({ status: "running", started_at: new Date().toISOString(), error: null }).eq("id", runId).eq("status", "queued").select("id").maybeSingle();
+    if (!["queued", "retrying"].includes(String(run.status))) return;
+    if (run.status === "retrying" && run.next_retry_at && Date.parse(String(run.next_retry_at)) > Date.now()) return;
+    const attemptCount = (Number(run.attempt_count) || 0) + 1;
+    const workerId = randomUUID();
+    const now = new Date();
+    const claimed = await service.from("sol_operator_runs").update({
+      status: "running",
+      started_at: now.toISOString(),
+      heartbeat_at: now.toISOString(),
+      last_progress_at: now.toISOString(),
+      lease_expires_at: new Date(now.getTime() + SOL_RUN_LEASE_MS).toISOString(),
+      next_retry_at: null,
+      worker_id: workerId,
+      attempt_count: attemptCount,
+      error: null
+    }).eq("id", runId).in("status", ["queued", "retrying"]).select("id").maybeSingle();
     if (claimed.error || !claimed.data) return;
-    await appendEvent(service, run, "run.started", { recipe_key: run.recipe_key, pathway_slug: run.pathway_slug });
+    run.status = "running";
+    run.attempt_count = attemptCount;
+    run.worker_id = workerId;
+    await appendEvent(service, run, "run.started", { recipe_key: run.recipe_key, pathway_slug: run.pathway_slug, attempt_count: attemptCount, worker_id: workerId });
     const recipe = String(run.recipe_key) as SolRecipeKey;
     if (recipe === "audio_to_youtube") await audioToYoutube(service, run, context);
     else if (recipe === "carousel_topic_pack") await carouselTopicPack(service, run, context);
     else await journeyAutomationDraft(service, run);
     const final = await loadRun(service, runId);
-    await appendEvent(service, run, "run.finished", { status: final.status, result: final.result });
+    await appendEvent(service, run, "run.finished", { status: final.status, result: final.result, attempt_count: attemptCount });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Sol run failed.";
-    if (run) {
+    if (run && !(await cancelled(service, runId))) {
       const stepKey = String(run.current_step || "unknown");
       try { await updateStep(service, run, stepKey, "failed", message); } catch {}
-      await service.from("sol_operator_runs").update({ status: "failed", error: message.slice(0, 1800), completed_at: new Date().toISOString() }).eq("id", runId).neq("status", "cancelled");
-      await appendEvent(service, run, "run.failed", { error: message });
+      const attemptCount = Number(run.attempt_count) || 1;
+      const maxAttempts = Math.max(1, Number(run.max_attempts) || 3);
+      if (isTransientSolFailure(message) && attemptCount < maxAttempts) {
+        const nextRetryAt = new Date(Date.now() + solRetryDelayMs(attemptCount)).toISOString();
+        await service.from("sol_operator_runs").update({
+          status: "retrying",
+          error: message.slice(0, 1800),
+          next_retry_at: nextRetryAt,
+          lease_expires_at: null,
+          worker_id: null
+        }).eq("id", runId).neq("status", "cancelled");
+        await appendEvent(service, run, "run.retry_scheduled", { error: message, next_retry_at: nextRetryAt, attempt_count: attemptCount, max_attempts: maxAttempts });
+      } else {
+        await service.from("sol_operator_runs").update({
+          status: "failed",
+          error: message.slice(0, 1800),
+          completed_at: new Date().toISOString(),
+          lease_expires_at: null,
+          worker_id: null
+        }).eq("id", runId).neq("status", "cancelled");
+        await appendEvent(service, run, "run.failed", { error: message, attempt_count: attemptCount, max_attempts: maxAttempts });
+      }
     }
   } finally {
     const proposalId = run?.proposal_id ? String(run.proposal_id) : null;
-    if (proposalId) await completeProposalFromRuns(proposalId);
+    await settleProposal(service, proposalId);
   }
 }
 
 export async function executeSolRuns(runIds: string[], context: ExecutionContext) {
-  for (const runId of runIds) await executeSolRun(runId, context);
+  const queue = [...new Set(runIds)];
+  const workerCount = Math.min(2, queue.length);
+  await Promise.all(Array.from({ length: workerCount }, async () => {
+    while (queue.length) {
+      const runId = queue.shift();
+      if (runId) await executeSolRun(runId, context);
+    }
+  }));
 }
