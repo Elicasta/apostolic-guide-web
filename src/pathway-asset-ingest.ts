@@ -1,10 +1,5 @@
-export const PATHWAY_ASSET_INGEST_BUCKET = "studio-pathway-assets";
-export const PATHWAY_ASSET_TUS_CHUNK_BYTES = 6 * 1024 * 1024;
-export const PATHWAY_ASSET_ENGINE_MAX_UPLOAD_BYTES = 1024 * 1024 * 1024;
-// The connected Supabase organization is currently on the Free plan, whose
-// global Storage ceiling is 50 MB. Keep the engine ceiling separate so a
-// storage-plan upgrade is a capacity change, not an ingest rewrite.
-export const PATHWAY_ASSET_MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
+export const PATHWAY_ASSET_STORAGE_PROVIDER = "vercel_blob";
+export const PATHWAY_ASSET_MAX_UPLOAD_BYTES = 20 * 1024 * 1024 * 1024;
 export const PATHWAY_ASSET_HASH_LIMIT_BYTES = 64 * 1024 * 1024;
 
 export type PathwayAssetIngestStudio = "carousel" | "video";
@@ -17,7 +12,10 @@ const SUPPORTED_MIME_TYPES = new Set([
   "image/webp",
   "video/mp4",
   "video/quicktime",
+  "video/x-m4v",
   "video/webm",
+  "video/mpeg",
+  "video/x-msvideo",
   "audio/mpeg",
   "audio/wav",
   "audio/x-wav",
@@ -89,7 +87,7 @@ export function pathwayAssetDisplayKind(mimeType: string) {
 
 export function humanPathwayAssetBytes(bytes: number) {
   if (!Number.isFinite(bytes) || bytes <= 0) return "0 B";
-  const units = ["B", "KB", "MB", "GB"];
+  const units = ["B", "KB", "MB", "GB", "TB"];
   let value = bytes;
   let unit = 0;
   while (value >= 1024 && unit < units.length - 1) {
