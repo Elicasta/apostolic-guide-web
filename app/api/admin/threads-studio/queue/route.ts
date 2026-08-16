@@ -53,7 +53,25 @@ export async function POST(request: Request) {
       row = result.data;
     }
     saved.push(row as Record<string, unknown>);
-    const calendar = await service.from("studio_content_calendar_items").upsert({ title: item.body.slice(0,80), content_type: "thread", platform: "threads", status: "scheduled", scheduled_for: item.scheduledFor, published_at: null, source: "threads-studio", source_ref: row.id, metadata: { threads_post_id: row.id, category: item.category, doctrine_status: item.doctrineStatus ?? null, mirror_to_x: item.mirrorToX, source_url: item.sourceUrl ?? null }, updated_at: now }, { onConflict: "source,source_ref" });
+
+    const rowId = String(row.id);
+    const calendarValues = {
+      title: item.body.slice(0,80),
+      content_type: "thread",
+      platform: "threads",
+      status: "scheduled",
+      scheduled_for: item.scheduledFor,
+      published_at: null,
+      source: "threads-studio",
+      source_ref: rowId,
+      metadata: { threads_post_id: rowId, category: item.category, doctrine_status: item.doctrineStatus ?? null, mirror_to_x: item.mirrorToX, source_url: item.sourceUrl ?? null },
+      updated_at: now
+    };
+    const existingCalendar = await service.from("studio_content_calendar_items").select("id").eq("source", "threads-studio").eq("source_ref", rowId).limit(1);
+    if (existingCalendar.error) return NextResponse.json({ error: existingCalendar.error.message }, { status: 500 });
+    const calendar = existingCalendar.data?.length
+      ? await service.from("studio_content_calendar_items").update(calendarValues).eq("source", "threads-studio").eq("source_ref", rowId)
+      : await service.from("studio_content_calendar_items").insert(calendarValues);
     if (calendar.error) return NextResponse.json({ error: calendar.error.message }, { status: 500 });
   }
   await service.from("studio_threads_batches").update({ status: "scheduled", updated_at: now }).eq("id", batchId);
