@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Film, FolderOpen, Loader2, Settings2, Youtube } from "lucide-react";
 import { PathwayAssetLibrary } from "@/pathway-asset-library";
 
 const STEPS = [
@@ -10,8 +10,10 @@ const STEPS = [
   ["Direct", "Sol + audio timing"],
   ["Edit", "Visual beats"],
   ["Render", "Create MP4s"],
-  ["Review", "QC + assets"]
+  ["Review", "QC + handoff"]
 ] as const;
+
+type ReviewPanel = "video" | "publishing" | "assets";
 
 type PathwayContext = {
   slug: string;
@@ -38,6 +40,8 @@ function sameStatuses(left: string[], right: string[]) {
 export function VideoStudioWorkflow({ aiReady }: { aiReady: boolean }) {
   const [page, setPage] = useState<HTMLElement | null>(null);
   const [stage, setStage] = useState(0);
+  const [reviewPanel, setReviewPanel] = useState<ReviewPanel>("video");
+  const [showAllPublishing, setShowAllPublishing] = useState(false);
   const [pathwaySlug, setPathwaySlug] = useState("");
   const [pathwayTitle, setPathwayTitle] = useState("Pathway");
   const [statuses, setStatuses] = useState<string[]>([]);
@@ -67,10 +71,19 @@ export function VideoStudioWorkflow({ aiReady }: { aiReady: boolean }) {
   useEffect(() => {
     if (!page) return;
     page.dataset.workflowStage = String(stage);
-  }, [page, stage]);
+    page.dataset.reviewPanel = stage === 4 ? reviewPanel : "";
+    page.dataset.publishingDetail = showAllPublishing ? "all" : "essential";
+  }, [page, stage, reviewPanel, showAllPublishing]);
 
   useEffect(() => {
-    if (stage !== 4 || !pathwaySlug) return;
+    if (stage !== 4) {
+      setReviewPanel("video");
+      setShowAllPublishing(false);
+    }
+  }, [stage]);
+
+  useEffect(() => {
+    if (stage !== 4 || reviewPanel !== "assets" || !pathwaySlug) return;
     let cancelled = false;
     const run = async () => {
       setSyncing(true);
@@ -87,7 +100,7 @@ export function VideoStudioWorkflow({ aiReady }: { aiReady: boolean }) {
     };
     void run();
     return () => { cancelled = true; };
-  }, [stage, pathwaySlug]);
+  }, [stage, reviewPanel, pathwaySlug]);
 
   if (!page) return null;
 
@@ -98,21 +111,33 @@ export function VideoStudioWorkflow({ aiReady }: { aiReady: boolean }) {
         <span><strong>{label}</strong><span>{description}</span></span>
       </button>)}
     </nav>
-    {stage > 0 ? <div className="video-workflow-context" aria-label="Current video project">
+    {stage > 0 && stage < 4 ? <div className="video-workflow-context" aria-label="Current video project">
       <div><span>Current project</span><strong>{pathwayTitle}</strong></div>
       <p>{statuses.length ? statuses.join(" · ") : "Project state saved across every stage."}</p>
     </div> : null}
+    {stage === 4 ? <section className="video-review-switcher" aria-label="Review workspace">
+      <div className="video-review-switcher-copy">
+        <span>Final handoff</span>
+        <strong>{pathwayTitle}</strong>
+      </div>
+      <div className="video-review-tabs" role="tablist" aria-label="Review panels">
+        <button type="button" role="tab" aria-selected={reviewPanel === "video"} className={reviewPanel === "video" ? "is-active" : ""} onClick={() => setReviewPanel("video")}><Film size={15}/> Video</button>
+        <button type="button" role="tab" aria-selected={reviewPanel === "publishing"} className={reviewPanel === "publishing" ? "is-active" : ""} onClick={() => setReviewPanel("publishing")}><Youtube size={15}/> Publishing</button>
+        <button type="button" role="tab" aria-selected={reviewPanel === "assets"} className={reviewPanel === "assets" ? "is-active" : ""} onClick={() => setReviewPanel("assets")}><FolderOpen size={15}/> Assets</button>
+      </div>
+      {reviewPanel === "publishing" ? <button type="button" className={showAllPublishing ? "video-review-more is-active" : "video-review-more"} onClick={() => setShowAllPublishing((value) => !value)}><Settings2 size={14}/> {showAllPublishing ? "Essentials only" : "More metadata"}</button> : null}
+    </section> : null}
   </>, page);
 
   const extras = createPortal(<>
-    {stage === 4 ? <>
-      {syncing ? <div className="admin-notice video-workflow-sync"><Loader2 size={15} className="spin"/> Indexing Video Studio project, renders, and thumbnail into the Pathway folder…</div> : null}
+    {stage === 4 && reviewPanel === "assets" ? <>
+      {syncing ? <div className="admin-notice video-workflow-sync"><Loader2 size={15} className="spin"/> Indexing this Video Studio project into the Pathway library…</div> : null}
       <PathwayAssetLibrary key={`${pathwaySlug}:${syncNonce}`} pathwaySlug={pathwaySlug} pathwayTitle={pathwayTitle} studio="video" aiReady={aiReady}/>
     </> : null}
-    <div className="video-workflow-footer">
+    {stage < 4 ? <div className="video-workflow-footer">
       <button type="button" className="button" disabled={stage === 0} onClick={() => setStage((value) => Math.max(0, value - 1))}><ChevronLeft size={15}/> Back</button>
-      <button type="button" className="button primary" disabled={stage === STEPS.length - 1} onClick={() => setStage((value) => Math.min(STEPS.length - 1, value + 1))}>Next <ChevronRight size={15}/></button>
-    </div>
+      <button type="button" className="button primary" onClick={() => setStage((value) => Math.min(STEPS.length - 1, value + 1))}>Next <ChevronRight size={15}/></button>
+    </div> : null}
   </>, page);
   return <>{nav}{extras}</>;
 }
