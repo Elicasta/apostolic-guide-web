@@ -59,7 +59,7 @@ export function VideoProducerReelsHandoff({ projectId }: { projectId: string }) 
   }
 
   return (
-    <div className={styles.handoff}>
+    <div className={styles.shell} style={{ padding: "0 20px 48px" }}>
       <VideoProducerReelsLibrary parentProjectId={projectId} embedded/>
 
       <details className={styles.candidateDetails}>
