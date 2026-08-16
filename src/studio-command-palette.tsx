@@ -35,7 +35,7 @@ const staticCommands: StaticCommand[] = [
   { id: "website-content", label: "Website content", description: "Open publishing workspace", href: "/admin/content", permission: "view_content", Icon: FileText },
   { id: "app-content", label: "App content", description: "Open shared app content", href: "/admin/app-content", permission: "view_content", Icon: BookOpen },
   { id: "publishing", label: "Publishing", description: "Open the master outbound publishing desk", href: "/admin/publishing", permission: "view_distribution", Icon: Send },
-  { id: "threads-studio", label: "Threads Studio", description: "Create and theology-check Threads before publishing", href: "/admin/publishing/threads-studio", permission: "view_distribution", Icon: MessageCircle },
+  { id: "threads-studio", label: "Threads Studio", description: "Create and theology-check Threads before publishing", href: "/admin/threads-studio", permission: "view_distribution", Icon: MessageCircle },
   { id: "broadcasts", label: "Broadcasts", description: "Create and review email broadcasts", href: "/admin/broadcasts", permission: "view_distribution", Icon: Mail },
   { id: "social", label: "Social automations", description: "Instagram automation controls", href: "/admin/social", permission: "view_distribution", Icon: Instagram },
   { id: "analytics", label: "Analytics", description: "Open traffic and study analytics", href: "/admin/analytics", permission: "view_analytics", Icon: Activity },
