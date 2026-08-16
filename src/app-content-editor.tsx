@@ -19,11 +19,19 @@ function entityTypeForKind(kind: string): AppContentSource["entityType"] {
   return undefined;
 }
 
+function entityTypeLabel(value: AppContentSource["entityType"]) {
+  if (value === "scripture") return "Scripture";
+  if (value === "pathway") return "Pathway";
+  if (value === "objection") return "Objection";
+  if (value === "category") return "Category";
+  return "Select a source";
+}
+
 export function AppContentEditor({ sources }: { sources: AppContentSource[] }) {
   const [state, setState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [message, setMessage] = useState("");
   const [sourceId, setSourceId] = useState("");
-  const [entityType, setEntityType] = useState<AppContentSource["entityType"]>("pathway");
+  const [entityType, setEntityType] = useState<AppContentSource["entityType"]>(undefined);
   const [entityId, setEntityId] = useState("");
   const [payloadText, setPayloadText] = useState("");
 
@@ -33,12 +41,12 @@ export function AppContentEditor({ sources }: { sources: AppContentSource[] }) {
     setMessage("");
     const source = sources.find((item) => item.id === id);
     if (!source) {
+      setEntityType(undefined);
       setEntityId("");
       setPayloadText("");
       return;
     }
-    const nextType = source.entityType ?? entityTypeForKind(source.kind);
-    if (nextType) setEntityType(nextType);
+    setEntityType(source.entityType ?? entityTypeForKind(source.kind));
     setEntityId(source.entityId ?? "");
     setPayloadText(source.payload ? JSON.stringify(source.payload, null, 2) : "");
   }
@@ -48,6 +56,12 @@ export function AppContentEditor({ sources }: { sources: AppContentSource[] }) {
     setState("saving");
     setMessage("");
     const form = new FormData(event.currentTarget);
+
+    if (!entityType) {
+      setState("error");
+      setMessage("Choose a canonical source with an app content type.");
+      return;
+    }
 
     let payload: unknown;
     try {
@@ -91,12 +105,12 @@ export function AppContentEditor({ sources }: { sources: AppContentSource[] }) {
         </select>
       </label>
       <div className="form-row">
-        <label>Entity type<select name="entityType" value={entityType} onChange={(event) => setEntityType(event.target.value as AppContentSource["entityType"])}><option value="scripture">Scripture</option><option value="pathway">Pathway</option><option value="objection">Objection</option><option value="category">Category</option></select></label>
+        <label>Entity type<input value={entityTypeLabel(entityType)} readOnly aria-readonly="true" /></label>
         <label>Status<select name="status" defaultValue="draft"><option value="draft">Draft</option><option value="published">Published</option><option value="archived">Archived</option></select></label>
       </div>
       <label>Stable app entity ID<input name="entityId" value={entityId} onChange={(event) => setEntityId(event.target.value)} required placeholder="john-14-9" /></label>
       <label>Validated app payload<textarea name="payload" value={payloadText} onChange={(event) => setPayloadText(event.target.value)} required spellCheck={false} placeholder={'{\n  "id": "john-14-9",\n  "reference": "John 14:9"\n}'} /></label>
-      <button className="button button-crimson" disabled={state === "saving" || !sourceId || !entityId.trim() || !payloadText.trim()}>{state === "saving" ? "Validating…" : "Save app projection"}</button>
+      <button className="button button-crimson" disabled={state === "saving" || !sourceId || !entityType || !entityId.trim() || !payloadText.trim()}>{state === "saving" ? "Validating…" : "Save app projection"}</button>
       {message && <p className={state === "error" ? "form-error" : "form-success"}>{message}</p>}
     </form>
   );
