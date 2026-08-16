@@ -1,6 +1,10 @@
 export const PATHWAY_ASSET_INGEST_BUCKET = "studio-pathway-assets";
 export const PATHWAY_ASSET_TUS_CHUNK_BYTES = 6 * 1024 * 1024;
-export const PATHWAY_ASSET_MAX_UPLOAD_BYTES = 1024 * 1024 * 1024;
+export const PATHWAY_ASSET_ENGINE_MAX_UPLOAD_BYTES = 1024 * 1024 * 1024;
+// The connected Supabase organization is currently on the Free plan, whose
+// global Storage ceiling is 50 MB. Keep the engine ceiling separate so a
+// storage-plan upgrade is a capacity change, not an ingest rewrite.
+export const PATHWAY_ASSET_MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
 export const PATHWAY_ASSET_HASH_LIMIT_BYTES = 64 * 1024 * 1024;
 
 export type PathwayAssetIngestStudio = "carousel" | "video";
