@@ -2,8 +2,8 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getStudioPermission } from "@/auth";
 import { CREATIVE_PUBLICATION_MODES, currentRenderSet, nextAvailablePublishingSlot, publicationStatusForMode } from "@/creative-publishing";
+import { executePublication } from "@/creative-publication-executor";
 import { loadCreativeProject } from "@/creative-project-server";
-import { executeScheduledPublication } from "@/scheduled-publishing";
 import { createServiceClient } from "@/supabase";
 
 const createSchema = z.object({
@@ -143,7 +143,7 @@ export async function POST(request: Request) {
 
     if (parsed.data.mode === "publish_now") {
       try {
-        await executeScheduledPublication(created.data.id);
+        await executePublication(created.data.id);
       } catch (error) {
         const failed = await service.from("pathway_publications").select("*").eq("id", created.data.id).single();
         return NextResponse.json({ publication: failed.data ?? created.data, error: error instanceof Error ? error.message : "Publishing failed." }, { status: 502 });
