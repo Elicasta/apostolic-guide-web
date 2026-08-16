@@ -128,7 +128,12 @@ test("runtime executor acts, verifies, persists, and completes the run", async (
   const currentTask = task({ verifierName: "value.present" });
   const store = new MemoryStore(run(), [currentTask]);
   const tools = new SolToolRegistry().register(readTool());
-  const verifiers = new SolVerifierRegistry().register("value.present", async (value: unknown) => ({ passed: Boolean((value as { value?: string }).value) }));
+  const verifiers = new SolVerifierRegistry().register("value.present", async (value: unknown) => {
+    const present = Boolean((value as { value?: string }).value);
+    return present
+      ? { passed: true as const }
+      : { passed: false as const, code: "VALUE_MISSING", message: "Value is required." };
+  });
   const executor = new SolRuntimeExecutor(store, tools, verifiers, { workerId: "worker_1" });
   await executor.executeClaimedTask(currentTask);
   assert.equal(currentTask.status, "completed");
