@@ -31,6 +31,10 @@ function readPathway(): PathwayContext {
   };
 }
 
+function sameStatuses(left: string[], right: string[]) {
+  return left.length === right.length && left.every((value, index) => value === right[index]);
+}
+
 export function VideoStudioWorkflow({ aiReady }: { aiReady: boolean }) {
   const [page, setPage] = useState<HTMLElement | null>(null);
   const [stage, setStage] = useState(0);
@@ -46,9 +50,9 @@ export function VideoStudioWorkflow({ aiReady }: { aiReady: boolean }) {
     if (!root) return;
     const sync = () => {
       const pathway = readPathway();
-      setPathwaySlug(pathway.slug);
-      setPathwayTitle(pathway.title);
-      setStatuses(pathway.statuses);
+      setPathwaySlug((current) => current === pathway.slug ? current : pathway.slug);
+      setPathwayTitle((current) => current === pathway.title ? current : pathway.title);
+      setStatuses((current) => sameStatuses(current, pathway.statuses) ? current : pathway.statuses);
     };
     sync();
     document.addEventListener("change", sync, true);
