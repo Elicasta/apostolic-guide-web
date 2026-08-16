@@ -62,7 +62,7 @@ export function VideoProducerReelsHandoff({ projectId }: { projectId: string }) 
     <div className={styles.handoff}>
       <VideoProducerReelsLibrary parentProjectId={projectId} embedded/>
 
-      <details className={styles.candidateDetails} open={false}>
+      <details className={styles.candidateDetails}>
         <summary>
           <span className={styles.candidateSummary}>
             <Smartphone size={16}/>
