@@ -1,28 +1,13 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getStudioPermission } from "@/auth";
+import { buildPathwayAssetRestorePatch } from "@/pathway-asset-versioning";
 import { createServiceClient } from "@/supabase";
 
 const schema = z.object({
   assetId: z.string().uuid(),
   version: z.number().int().positive()
 });
-
-const RESTORABLE_FIELDS = [
-  "parent_asset_id",
-  "asset_type",
-  "title",
-  "status",
-  "source_type",
-  "editable",
-  "content",
-  "storage_bucket",
-  "storage_path",
-  "public_url",
-  "prompt",
-  "model",
-  "metadata"
-] as const;
 
 export async function POST(request: Request) {
   const { access, allowed } = await getStudioPermission("manage_content");
@@ -63,15 +48,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: preserved.error.message }, { status: 500 });
   }
 
-  const snapshot = versionResult.data.snapshot as Record<string, unknown>;
-  const restored: Record<string, unknown> = {};
-  for (const field of RESTORABLE_FIELDS) {
-    if (field in snapshot) restored[field] = snapshot[field];
-  }
-
-  restored.version = currentVersion + 1;
-  restored.updated_by = access.user.id;
-  restored.updated_at = new Date().toISOString();
+  const restored = buildPathwayAssetRestorePatch({
+    snapshot: versionResult.data.snapshot as Record<string, unknown>,
+    currentVersion,
+    userId: access.user.id,
+    updatedAt: new Date().toISOString()
+  });
 
   const saved = await service.from("studio_pathway_assets")
     .update(restored)
