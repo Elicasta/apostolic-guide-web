@@ -21,6 +21,10 @@
     {
       "path": "/api/cron/sol",
       "schedule": "*/30 * * * *"
+    },
+    {
+      "path": "/api/cron/pathway-asset-ingest-cleanup",
+      "schedule": "17 4 * * *"
     }
   ]
 }
