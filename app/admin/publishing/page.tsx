@@ -64,7 +64,7 @@ type SocialClipRow = {
   completed_at: string | null;
 };
 
-export default async function AdminPublishingPage({ searchParams }: { searchParams: Promise<{ projectId?: string; view?: string }> }) {
+export default async function AdminPublishingPage({ searchParams }: { searchParams: Promise<{ projectId?: string; threadId?: string; view?: string }> }) {
   const [viewPermission, managePermission] = await Promise.all([
     getStudioPermission("view_distribution"),
     getStudioPermission("manage_distribution")
@@ -144,6 +144,7 @@ export default async function AdminPublishingPage({ searchParams }: { searchPara
     </section>
     <UnifiedPublishingWorkspace
       initialProjectId={query.projectId ?? null}
+      initialThreadId={query.threadId ?? null}
       initialView={initialView}
       channel={{
         packages,
