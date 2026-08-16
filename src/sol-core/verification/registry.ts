@@ -1,5 +1,5 @@
 export type SolVerificationResult =
-  | { passed: true; observations?: Record<string, unknown> }
+  | { passed: true; code?: string; message?: string; observations?: Record<string, unknown> }
   | { passed: false; code: string; message: string; observations?: Record<string, unknown> };
 
 export type SolVerifier<T = unknown> = (value: T, context: { runId: string; taskId: string }) => Promise<SolVerificationResult>;
