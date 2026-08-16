@@ -57,7 +57,7 @@ export async function PATCH(request: Request) {
     updatedIds.push(asset.id);
   }
 
-  await service.rpc("record_studio_audit", {
+  const audit = await service.rpc("record_studio_audit", {
     p_actor_user_id: access.user.id,
     p_action: parsed.data.archive === true ? "pathway_asset.bulk_archive" : "pathway_asset.bulk_update",
     p_resource_type: "pathway_asset_batch",
@@ -69,7 +69,8 @@ export async function PATCH(request: Request) {
       favorite: parsed.data.favorite ?? null,
       addTags
     }
-  }).catch(() => null);
+  });
+  if (audit.error) console.error("pathway asset bulk audit failed", audit.error.message);
 
   return NextResponse.json({ updatedIds, count: updatedIds.length });
 }
