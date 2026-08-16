@@ -1,8 +1,9 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { z } from "zod";
 import { getAdminAccess } from "@/auth";
 import { resolveSolRuntimeApproval } from "@/sol-runtime-approval";
 import { getSolRuntimeReview } from "@/sol-runtime-review";
+import { runSolRuntimeWorker } from "@/sol-runtime-worker";
 import { hasStudioPermission } from "@/studio-permissions";
 
 export const runtime = "nodejs";
@@ -40,6 +41,7 @@ export async function POST(request: Request, context: { params: Promise<{ review
   const { reviewId } = await context.params;
   try {
     const review = await resolveSolRuntimeApproval({ reviewId, userId: current.user.id, decision: parsed.data.decision, note: parsed.data.note });
+    if (parsed.data.decision === "approved") after(() => runSolRuntimeWorker({ maxTasks: 4 }).catch((error) => console.error("SOL Runtime approval wake failed", error)));
     return NextResponse.json({ ok: true, review });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to resolve SOL review.";
