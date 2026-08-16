@@ -24,12 +24,14 @@ export const studioNavSections: Array<{ label: string; items: Array<{ href: stri
     { href: "/admin/audio", label: "Pathway audio", icon: Headphones, permission: "manage_content" },
     { href: "/admin/video-studio", label: "Video Studio", icon: Film, permission: "manage_content" },
     { href: "/admin/video-producer", label: "Video Producer", icon: Sparkles, permission: "manage_content" },
-    { href: "/admin/carousel-studio", label: "Carousel Studio", icon: Layers3, permission: "manage_content" },
+    { href: "/admin/creative-studio", label: "Creative Studio", icon: Layers3, permission: "manage_content" },
+    { href: "/admin/creative-library", label: "Creative Library", icon: FolderOpen, permission: "manage_content" },
     { href: "/admin/assets", label: "Pathway Assets", icon: FolderOpen, permission: "manage_content" },
     { href: "/admin/content", label: "Website content", icon: FileText, permission: "view_content" },
     { href: "/admin/app-content", label: "App content", icon: BookOpen, permission: "view_content" }
   ]},
   { label: "Distribution", items: [
+    { href: "/admin/publishing", label: "Publishing", icon: Send, permission: "view_distribution" },
     { href: "/admin/publish", label: "Channel Publishing", icon: Send, permission: "view_distribution" },
     { href: "/admin/content-calendar", label: "Content Calendar", icon: CalendarDays, permission: "view_distribution" },
     { href: "/admin/threads-studio", label: "Threads Studio", icon: Send, permission: "view_distribution" },
