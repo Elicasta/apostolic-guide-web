@@ -99,6 +99,22 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: created.error.message }, { status: 500 });
   }
 
+  const audit = await service.rpc("record_studio_audit", {
+    p_actor_user_id: access.user.id,
+    p_action: parsed.data.sourceType === "generated" ? "pathway_asset.generated_save" : "pathway_asset.upload",
+    p_resource_type: "pathway_asset",
+    p_resource_id: assetId,
+    p_metadata: {
+      pathwaySlug: pathway.slug,
+      studio: parsed.data.studio,
+      assetType: parsed.data.assetType,
+      sourceType: parsed.data.sourceType,
+      bytes: bytes.length,
+      sha256
+    }
+  });
+  if (audit.error) console.error("pathway asset upload audit failed", audit.error.message);
+
   const signed = await service.storage.from("studio-social").createSignedUrl(storagePath, 60 * 60);
   return NextResponse.json({ asset: { ...created.data, preview_url: signed.error ? null : signed.data.signedUrl } });
 }
