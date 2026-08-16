@@ -5,6 +5,7 @@ import { getAdminAccess } from "@/auth";
 import { StudioMobileNav, StudioNav } from "@/studio-nav";
 import { StudioCommandPalette } from "@/studio-command-palette";
 import { SolAdminJarvis } from "@/sol-admin-jarvis";
+import { SolRuntimeReviewDock } from "@/sol-runtime-review-dock";
 import { hasStudioPermission, STUDIO_ROLE_LABELS, type StudioRole } from "@/studio-permissions";
 import { getNotificationUnreadCount } from "@/studio-notifications";
 import "./admin-surface-isolation.css";
@@ -42,6 +43,7 @@ import "./pathway-source-asset.css";
 import "./sol-operator.css";
 import "./sol-jarvis.css";
 import "./sol-control.css";
+import "./sol-review.css";
 import "./creative-studio.css";
 
 export const dynamic = "force-dynamic";
@@ -82,6 +84,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           {children}
         </div>
       </div>
+      <SolRuntimeReviewDock/>
       <SolAdminJarvis canOperate={hasStudioPermission(role, "manage_content")}/>
     </div>
   );

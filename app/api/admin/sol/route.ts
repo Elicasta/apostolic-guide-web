@@ -12,6 +12,9 @@ import {
 import { executeApprovedSolAgentTool } from "@/sol-agent-tools";
 import { hasStudioPermission } from "@/studio-permissions";
 import { executeSolRuns } from "@/sol-operator-executor";
+import { adoptLegacyWaitingReviews } from "@/sol-runtime-adoption";
+import { routeKnownSolRequest } from "@/sol-runtime-router";
+import { runSolRuntimeWorker } from "@/sol-runtime-worker";
 import { cancelSolRunV3, retrySolRun } from "@/sol-run-recovery";
 import { runTrustedSolDrafts } from "@/sol-trusted-autopilot";
 import {
@@ -67,6 +70,11 @@ export async function GET(request: Request) {
   const access = await requireAccess();
   if (!access) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const url = new URL(request.url);
+  try {
+    await adoptLegacyWaitingReviews();
+  } catch (error) {
+    console.error("SOL Runtime review adoption failed", error);
+  }
   const snapshot = await getSolOperatorSnapshot();
   if (url.searchParams.get("agent") !== "1") return NextResponse.json(snapshot);
   const pathname = url.searchParams.get("pathname") || "/admin";
@@ -96,7 +104,7 @@ export async function POST(request: Request) {
       const approved = await approveSolProposal(body.proposalId, body.constraints, access.user.id);
       const context = executionContext(request);
       after(() => executeSolRuns(approved.runIds, context));
-      return NextResponse.json({ ok: true, message: `Started ${approved.runIds.length} ${approved.runIds.length === 1 ? "run" : "runs"}.`, snapshot: await getSolOperatorSnapshot() });
+      return NextResponse.json({ ok: true, message: `Started or reused ${approved.runIds.length} ${approved.runIds.length === 1 ? "run" : "runs"}.`, snapshot: await getSolOperatorSnapshot() });
     }
     if (body.action === "dismiss") {
       await dismissSolProposal(body.proposalId, access.user.id);
@@ -135,7 +143,33 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: result.ok, message: result.message, thread: await getSolAgentThread(access.user.id, pathname), snapshot: await getSolOperatorSnapshot(), surface });
     }
 
-    const surface = getSolAdminSurface(body.context?.pathname ?? "/admin");
+    const pathname = body.context?.pathname ?? "/admin";
+    const surface = getSolAdminSurface(pathname);
+    const snapshot = await getSolOperatorSnapshot();
+    if (snapshot.settings.enabled && snapshot.settings.mode !== "watch") {
+      const runtimeRequest = await routeKnownSolRequest({ message: body.message, userId: access.user.id, mode: snapshot.settings.mode });
+      if (runtimeRequest) {
+        const thread = await getSolAgentThread(access.user.id, pathname);
+        if (thread) {
+          await appendSolAgentMessage({ threadId: thread.id, role: "user", content: body.message, metadata: { runtime: true } });
+          const message = runtimeRequest.reused
+            ? `That work already exists. I reused runtime run ${runtimeRequest.runId.slice(0, 8)} instead of creating a duplicate.`
+            : `Started ${runtimeRequest.intent.workflowKey}. I will execute the durable task graph, verify the outputs, and stop at any required approval.`;
+          await appendSolAgentMessage({ threadId: thread.id, role: "assistant", content: message, metadata: { runtime: true, runId: runtimeRequest.runId, reused: runtimeRequest.reused, workflow: runtimeRequest.intent.workflowKey } });
+        }
+        after(() => runSolRuntimeWorker({ maxTasks: 24 }));
+        return NextResponse.json({
+          ok: true,
+          message: runtimeRequest.reused ? "Equivalent work already exists. SOL reused the existing durable run." : "SOL Runtime started the workflow. It will continue independently of this browser session.",
+          runtime: { runId: runtimeRequest.runId, reused: runtimeRequest.reused, executionGeneration: runtimeRequest.executionGeneration, workflow: runtimeRequest.intent.workflowKey, intent: runtimeRequest.intent.intent },
+          thread: await getSolAgentThread(access.user.id, pathname),
+          snapshot,
+          surface,
+          agent: { turnId: null, toolCount: 0 }
+        });
+      }
+    }
+
     const turn = await runSolAgentTurn({ actorUserId: access.user.id, message: body.message, surface });
     if (turn.runIds.length) {
       const context = executionContext(request);

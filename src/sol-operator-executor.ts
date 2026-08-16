@@ -6,6 +6,7 @@ import {
   SOL_RUN_REQUEST_TIMEOUT_MS,
   solRetryDelayMs
 } from "./sol-run-recovery";
+import { createLegacyRuntimeReview } from "./sol-runtime-review";
 import { createServiceClient } from "./supabase";
 
 type ExecutionContext = { origin: string; cookie: string };
@@ -96,9 +97,58 @@ async function settleProposal(service: Service, proposalId: string | null) {
   if (!proposalId) return;
   const runs = await service.from("sol_operator_runs").select("status").eq("proposal_id", proposalId);
   if (runs.error || !runs.data?.length) return;
-  if (runs.data.some((item) => ["queued", "running", "retrying"].includes(String(item.status)))) return;
+  if (runs.data.some((item) => ["queued", "running", "retrying", "waiting_review"].includes(String(item.status)))) return;
   const failedOnly = runs.data.every((item) => ["failed", "stalled", "cancelled"].includes(String(item.status)));
   await service.from("sol_operator_proposals").update({ status: failedOnly ? "failed" : "completed" }).eq("id", proposalId);
+}
+
+async function waitForRuntimeReview(service: Service, run: Record<string, unknown>, input: {
+  result: Record<string, unknown>;
+  artifact: {
+    type: string;
+    title: string;
+    storageType: "database" | "file" | "url" | "external";
+    location: string;
+    metadata?: Record<string, unknown>;
+    verificationStatus?: "pending" | "passed" | "failed";
+  };
+  message: string;
+}) {
+  const recipe = String(run.recipe_key) as SolRecipeKey;
+  const definition = SOL_RECIPE_STEPS[recipe];
+  const current = Array.isArray(run.steps) ? run.steps as Array<Record<string, unknown>> : definition.map((step) => ({ ...step, status: "pending" }));
+  const steps = current.map((step) => step.key === "review" ? { ...step, status: "waiting_for_approval", detail: input.message } : step);
+  const completed = steps.filter((step) => step.status === "completed").length;
+  const progress = solProgress(completed, steps.length);
+  run.steps = steps;
+  run.current_step = "review";
+  run.progress = progress;
+  run.result = input.result;
+
+  const runtimeReview = await createLegacyRuntimeReview({
+    legacyRun: run,
+    artifact: input.artifact,
+    requestedAction: `Review ${input.artifact.title}`
+  });
+  const result = {
+    ...input.result,
+    runtimeRunId: runtimeReview.runtimeRunId,
+    reviewId: runtimeReview.reviewId,
+    reviewStatus: "pending",
+    href: `/admin/sol/reviews/${runtimeReview.reviewId}`
+  };
+  run.result = result;
+
+  await finishRun(service, run, {
+    status: "waiting_review",
+    progress,
+    current_step: "review",
+    steps,
+    result,
+    completed_at: null,
+    error: null
+  });
+  await appendEvent(service, run, "review.requested", { review_id: runtimeReview.reviewId, runtime_run_id: runtimeReview.runtimeRunId, progress, artifact: input.artifact.type });
 }
 
 async function audioToYoutube(service: Service, run: Record<string, unknown>, context: ExecutionContext) {
@@ -148,14 +198,19 @@ async function audioToYoutube(service: Service, run: Record<string, unknown>, co
     renderRows = Array.isArray(rendering.renders) ? rendering.renders as Array<Record<string, unknown>> : [];
     await updateStep(service, run, "queue_render", "completed", `${renderRows.length || 1} YouTube render queued.`);
   }
-  await updateStep(service, run, "review", "completed", "Sol stopped before publishing.");
-  await finishRun(service, run, {
-    status: "waiting_review",
-    progress: 100,
-    current_step: "review",
-    result: { slug, project: analysis.project ?? null, kit: kit.kit ?? null, renderIds: renderRows.map((item) => item.id), href: `/admin/video-studio?pathway=${encodeURIComponent(slug)}`, publishingBlocked: true },
-    completed_at: new Date().toISOString(),
-    error: null
+
+  const result = { slug, project: analysis.project ?? null, kit: kit.kit ?? null, renderIds: renderRows.map((item) => item.id), publishingBlocked: true };
+  await waitForRuntimeReview(service, run, {
+    result,
+    artifact: {
+      type: "youtube_preparation_package",
+      title: `${slug} YouTube package`,
+      storageType: "database",
+      location: `/admin/video-studio?pathway=${encodeURIComponent(slug)}`,
+      metadata: { renderIds: result.renderIds, publishingBlocked: true },
+      verificationStatus: "passed"
+    },
+    message: "Preparation finished. Human review is required before publishing."
   });
 }
 
@@ -202,14 +257,19 @@ async function carouselTopicPack(service: Service, run: Record<string, unknown>,
   await updateStep(service, run, "generate_decks", "completed", `${saved.length} carousel plans generated.`);
   await updateStep(service, run, "theology_check", "completed", "Every saved deck has a doctrine verdict attached.");
   await updateStep(service, run, "save_drafts", "completed", `${saved.length} reviewable assets saved.`);
-  await updateStep(service, run, "review", "completed", "Sol stopped before export or publishing.");
-  await finishRun(service, run, {
-    status: "waiting_review",
-    progress: 100,
-    current_step: "review",
-    result: { slug, drafts: saved, href: `/admin/pathways/${encodeURIComponent(slug)}`, publishingBlocked: true },
-    completed_at: new Date().toISOString(),
-    error: null
+
+  const result = { slug, drafts: saved, publishingBlocked: true };
+  await waitForRuntimeReview(service, run, {
+    result,
+    artifact: {
+      type: "carousel_package",
+      title: `${slug} carousel package`,
+      storageType: "database",
+      location: `/admin/pathways/${encodeURIComponent(slug)}`,
+      metadata: { draftIds: saved.map((item) => item.id), doctrineStatuses: saved.map((item) => item.doctrineStatus), publishingBlocked: true },
+      verificationStatus: saved.some((item) => item.doctrineStatus === "blocked") ? "pending" : "passed"
+    },
+    message: "Drafts are saved. Human review is required before export or publishing."
   });
 }
 
@@ -259,14 +319,19 @@ async function journeyAutomationDraft(service: Service, run: Record<string, unkn
   const linked = await service.from("pathway_publishing_profiles").upsert({ pathway_slug: slug, primary_keyword: keyword, app_url: destinationUrl, social_automation_id: automation.data.id }, { onConflict: "pathway_slug" });
   if (linked.error) throw linked.error;
   await updateStep(service, run, "link_project", "completed", "Draft automation linked to the Pathway project.");
-  await updateStep(service, run, "review", "completed", "Sol stopped before activation or enrollment.");
-  await finishRun(service, run, {
-    status: "waiting_review",
-    progress: 100,
-    current_step: "review",
-    result: { slug, automationId: automation.data.id, journeyId: journey.data.id, href: "/admin/social", activationBlocked: true },
-    completed_at: new Date().toISOString(),
-    error: null
+
+  const result = { slug, automationId: automation.data.id, journeyId: journey.data.id, activationBlocked: true };
+  await waitForRuntimeReview(service, run, {
+    result,
+    artifact: {
+      type: "keyword_automation_draft",
+      title: `${title} keyword automation`,
+      storageType: "database",
+      location: "/admin/social",
+      metadata: { automationId: automation.data.id, journeyId: journey.data.id, keyword, destinationUrl, enabled: false },
+      verificationStatus: "passed"
+    },
+    message: "Draft automation is disabled. Human review is required before activation or enrollment."
   });
 }
 
@@ -302,7 +367,7 @@ export async function executeSolRun(runId: string, context: ExecutionContext) {
     else if (recipe === "carousel_topic_pack") await carouselTopicPack(service, run, context);
     else await journeyAutomationDraft(service, run);
     const final = await loadRun(service, runId);
-    await appendEvent(service, run, "run.finished", { status: final.status, result: final.result, attempt_count: attemptCount });
+    await appendEvent(service, run, final.status === "waiting_review" ? "run.paused_for_review" : "run.finished", { status: final.status, result: final.result, attempt_count: attemptCount });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Sol run failed.";
     if (run && !(await cancelled(service, runId))) {
