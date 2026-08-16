@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSolOperatorSnapshot, scanSolOperator } from "@/sol-operator";
+import { runTrustedSolDrafts } from "@/sol-trusted-autopilot";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -18,11 +19,21 @@ export async function GET(request: Request) {
   if (!before.settings.enabled) return NextResponse.json({ ok: true, skipped: true, reason: "Sol is turned off." });
 
   const analysis = await scanSolOperator();
+  const trusted = before.settings.mode === "trusted"
+    ? await runTrustedSolDrafts({ origin: new URL(request.url).origin, cookie: "" })
+    : null;
+
   return NextResponse.json({
     ok: true,
     scannedAt: new Date().toISOString(),
     proposals: analysis.proposals.length,
     mode: before.settings.mode,
-    execution: "approval_required"
+    execution: before.settings.mode === "trusted" ? "safe_drafts_auto_run" : before.settings.mode === "assist" ? "approval_required" : "observe_only",
+    trusted: trusted ? {
+      proposalCount: trusted.proposalIds.length,
+      runCount: trusted.runIds.length,
+      skipped: trusted.skipped,
+      reason: trusted.reason
+    } : null
   });
 }

@@ -1,9 +1,11 @@
 import { after, NextResponse } from "next/server";
 import { z } from "zod";
 import { getAdminAccess } from "@/auth";
+import { getSolAdminSurface } from "@/sol-admin-context";
 import { hasStudioPermission } from "@/studio-permissions";
 import { executeSolRuns } from "@/sol-operator-executor";
 import { interpretSolMessage } from "@/sol-operator-chat";
+import { runTrustedSolDrafts } from "@/sol-trusted-autopilot";
 import {
   approveSolProposal,
   cancelSolRun,
@@ -28,7 +30,11 @@ const actionSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("approve"), proposalId: z.string().uuid(), constraints: z.array(z.string().trim().min(1).max(240)).max(12).default([]) }),
   z.object({ action: z.literal("dismiss"), proposalId: z.string().uuid() }),
   z.object({ action: z.literal("cancel_run"), runId: z.string().uuid() }),
-  z.object({ action: z.literal("chat"), message: z.string().trim().min(1).max(2000) })
+  z.object({
+    action: z.literal("chat"),
+    message: z.string().trim().min(1).max(2000),
+    context: z.object({ pathname: z.string().trim().max(500) }).optional()
+  })
 ]);
 
 async function requireAccess() {
@@ -39,6 +45,13 @@ async function requireAccess() {
 
 function executionContext(request: Request) {
   return { origin: new URL(request.url).origin, cookie: request.headers.get("cookie") ?? "" };
+}
+
+async function scanAndRunTrusted(actorUserId: string, request: Request) {
+  await scanSolOperator(actorUserId);
+  const scanned = await getSolOperatorSnapshot();
+  if (!scanned.settings.enabled || scanned.settings.mode !== "trusted") return { runIds: [] as string[] };
+  return runTrustedSolDrafts(executionContext(request));
 }
 
 export async function GET() {
@@ -62,8 +75,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: true, snapshot: await getSolOperatorSnapshot() });
     }
     if (body.action === "scan") {
-      await scanSolOperator(access.user.id);
-      return NextResponse.json({ ok: true, snapshot: await getSolOperatorSnapshot() });
+      const trusted = await scanAndRunTrusted(access.user.id, request);
+      const autoMessage = trusted.runIds.length ? ` Trusted mode safely ran ${trusted.runIds.length} draft ${trusted.runIds.length === 1 ? "job" : "jobs"}.` : "";
+      return NextResponse.json({ ok: true, message: `Workspace scan complete.${autoMessage}`, snapshot: await getSolOperatorSnapshot() });
     }
     if (body.action === "approve") {
       const approved = await approveSolProposal(body.proposalId, body.constraints, access.user.id);
@@ -81,10 +95,12 @@ export async function POST(request: Request) {
     }
 
     const snapshot = await getSolOperatorSnapshot();
-    const decision = await interpretSolMessage(body.message, snapshot);
+    const surface = getSolAdminSurface(body.context?.pathname ?? "/admin");
+    const decision = await interpretSolMessage(body.message, snapshot, surface);
     let message = decision.reply;
     if (decision.action === "scan") {
-      await scanSolOperator(access.user.id);
+      const trusted = await scanAndRunTrusted(access.user.id, request);
+      if (trusted.runIds.length) message = `${decision.reply} Trusted mode safely ran ${trusted.runIds.length} draft ${trusted.runIds.length === 1 ? "job" : "jobs"}.`;
     } else if (decision.action === "set_settings") {
       await updateSolSettings({ enabled: decision.enabled ?? snapshot.settings.enabled, mode: decision.mode ?? snapshot.settings.mode, weeklyTargets: snapshot.settings.weeklyTargets }, access.user.id);
     } else if (decision.action === "approve") {
@@ -101,7 +117,7 @@ export async function POST(request: Request) {
     } else if (decision.action === "dismiss") {
       for (const proposalId of decision.proposalIds) await dismissSolProposal(proposalId, access.user.id);
     }
-    return NextResponse.json({ ok: true, message, decision: { action: decision.action, constraints: decision.constraints }, snapshot: await getSolOperatorSnapshot() });
+    return NextResponse.json({ ok: true, message, decision: { action: decision.action, constraints: decision.constraints }, surface, snapshot: await getSolOperatorSnapshot() });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Sol Operator request failed." }, { status: 500 });
   }
