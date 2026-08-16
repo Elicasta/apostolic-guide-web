@@ -47,3 +47,31 @@ export function canTransitionRun(from: SolRunStatus, to: SolRunStatus) {
 export function assertRunTransition(from: SolRunStatus, to: SolRunStatus) {
   if (!canTransitionRun(from, to)) throw new Error(`Invalid SOL run transition: ${from} -> ${to}`);
 }
+
+/**
+ * Derive the run lifecycle from persisted task state.
+ *
+ * This is deliberately shared by the worker and approval resolver so a review
+ * decision cannot mark a run complete while downstream work is still queued.
+ * Terminal task failures outrank waiting/queued work because blocked dependants
+ * cannot make progress after a required task has failed or stalled.
+ */
+export function deriveSolRunStatus(current: SolRunStatus, taskStatuses: readonly SolTaskStatus[]): SolRunStatus {
+  if (["completed", "cancelled", "superseded"].includes(current)) return current;
+  if (!taskStatuses.length) return current;
+  if (taskStatuses.every((status) => status === "completed" || status === "skipped")) return "completed";
+
+  const states = new Set(taskStatuses);
+  if (states.has("cancelled")) return "cancelled";
+  if (states.has("stalled")) return "stalled";
+  if (states.has("failed")) return "failed";
+  if (states.has("waiting_for_approval")) return "waiting_for_approval";
+  if (states.has("repairing")) return "repairing";
+  if (states.has("running") || states.has("verifying")) return "running";
+  if (states.has("retry_scheduled")) return "retrying";
+  if (states.has("queued") || states.has("blocked") || states.has("pending") || states.has("waiting")) {
+    return states.has("completed") || states.has("skipped") ? "running" : "queued";
+  }
+
+  return current;
+}
