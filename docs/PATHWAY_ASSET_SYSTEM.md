@@ -14,6 +14,7 @@ The system borrows the useful patterns from modern DAM and creative-review produ
 - Creative review systems treat revisions as versions of one asset rather than a pile of unrelated filenames.
 - Related-asset relationships help keep a parent creative and its slides, thumbnails, renders, captions, and derivatives together.
 - Distribution should point back to the source asset so operators can answer where an asset is being used.
+- Heavy source media should upload directly and resumably instead of flowing through application-server memory.
 
 Apostolic Guide applies those patterns around the Pathway instead of around a generic enterprise folder hierarchy.
 
@@ -35,6 +36,7 @@ For any Pathway, an operator should be able to answer these questions without hu
 - Can I recover an earlier creative version?
 - Can I update a batch of selected assets safely?
 - Can I download, share, edit, archive, or queue it for publishing?
+- Can I ingest a large video or audio master without restarting after a network interruption?
 
 ## Data ownership
 
@@ -43,6 +45,8 @@ For any Pathway, an operator should be able to answer these questions without hu
 `studio_pathway_asset_versions` stores immutable snapshots before creative source changes. Restoring an old snapshot never rewinds the version number. It preserves the current version first, then applies the old snapshot as a new version.
 
 `studio_pathway_asset_views` stores per-user dynamic Smart Views for a Pathway. It stores filters only. It never duplicates assets.
+
+`studio_pathway_asset_uploads` is the resumable-ingest ledger. It records the operator, Pathway, destination lane, source filename, MIME type, byte length, current transfer state, last known byte offset, TUS upload URL, expiry, and finalized asset ID.
 
 `studio_visual_style_profile` stores approved visual reference asset IDs used by Sol.
 
@@ -61,8 +65,14 @@ Current fields include:
 - `tags[]`
 - `favorite`
 - `sha256`
-- `mime`
+- `mime` / `mimeType`
 - `bytes`
+- `mediaKind`
+- `role`
+- `uploadMethod`
+- `ingestSessionId`
+- original filename / last modified timestamp
+- duration and dimensions when the browser can inspect them
 - generation metadata such as model, size, and creation type
 
 Tags are normalized, case-insensitively deduplicated, and capped to keep the metadata predictable.
@@ -83,11 +93,34 @@ The operator can apply the suggestion into the editable fields, review it, chang
 
 ## Upload safety
 
-Manual uploads currently accept PNG, JPEG, and WebP images up to 8 MB each.
+There are now two ingest paths.
 
-Each upload receives a unique storage path. Before storage, the server computes a SHA-256 fingerprint and checks active assets in the same Pathway and production lane. Exact duplicate files return `409 Conflict` rather than creating a second copy.
+### Fast image upload
 
-The UI supports multi-file selection and drag/drop, then uploads files sequentially so one failed file does not discard the rest of the batch.
+The library still supports quick PNG, JPEG, and WebP uploads up to 8 MB each. The server computes SHA-256 and skips exact duplicates.
+
+### Ingest Dock
+
+The dedicated **Pathway Assets Ingest Dock** is for source masters:
+
+- PNG / JPEG / WebP
+- MP4 / MOV / WebM
+- MP3 / WAV / M4A-compatible `audio/mp4`
+- PDF reference documents
+- ZIP project archives
+- up to 1 GB per source in the current bucket policy
+
+Large files do not pass through Next.js as base64 or request bodies. The server creates a signed upload token and the browser talks directly to Supabase Storage using the TUS protocol.
+
+Supabase requires 6 MB TUS chunks. The UI uses that chunk size, tracks byte offset, speed and ETA, supports pause/cancel/retry, and can resume an interrupted transfer after the operator reselects the same local file.
+
+The upload ledger retains the TUS URL and client fingerprint for 24 hours. A daily cron marks expired sessions and removes any orphaned storage object that exists at the reserved path.
+
+Video and audio masters automatically route into the Video Production lane. Images, PDFs, and archives honor the lane selected when the operator enters the Ingest Dock.
+
+For files up to 64 MB the browser also computes SHA-256 before transfer so the API can warn when the same binary already exists. Larger files still receive stable browser-file fingerprints for session recovery without pretending that filename/size is cryptographic duplicate proof.
+
+Finalization verifies that the storage object exists and that its stored byte size matches the source before creating the durable `studio_pathway_assets` record.
 
 ## Search and organization
 
@@ -175,12 +208,15 @@ A restore is non-destructive:
 
 Any image-backed asset can be added to or removed from the Apostolic Guide visual style reference set. The library marks active references so operators can see what is currently teaching Sol the visual language.
 
+Non-image source masters deliberately do not receive image preview URLs, which prevents the UI from trying to render MP4/WAV/PDF files as images and prevents them from appearing as Sol visual style references.
+
 ## Audit trail
 
 Privileged Pathway Asset mutations write to the existing Studio audit system where practical, including:
 
 - create/version save
 - upload/generated save
+- ingest prepare/finalize/cancel
 - metadata update/archive
 - bulk update/archive
 - version restore
@@ -193,13 +229,27 @@ The audit system remains server-only.
 
 All Pathway asset admin routes require `manage_content`.
 
-Storage previews use signed URLs for private files when no public URL is present. The service client performs server-side operations after Studio permission checks.
+The source-media bucket is private. The application signs a single storage path for upload instead of exposing the service role or proxying large binaries through the app server.
 
-Saved views are scoped to the authenticated user and Pathway. Direct table access is revoked; the server API owns access.
+Storage previews use signed URLs for private image files when no public URL is present. Non-image masters remain downloadable through the permission-checked server download route without receiving an image preview URL.
 
-## Deliberately not built yet
+Saved views and ingest sessions are scoped to the authenticated user. Direct table access is revoked; server APIs own access.
 
-These are useful product patterns, but they are separate lakes and should not be jammed into this one:
+## Recovery and failure policy
+
+A resumable upload has three identities:
+
+1. the browser file fingerprint,
+2. the server ingest-session UUID,
+3. the unique TUS upload URL.
+
+The browser can safely pause or lose connectivity because Storage owns the partial transfer. On retry the Studio renews the signed upload credential, performs a `HEAD` request against the TUS URL to recover the authoritative offset, and resumes from there.
+
+A source is not registered as a durable asset until storage verification passes. That keeps half-uploaded files out of the normal library.
+
+## Deliberately separate future lakes
+
+These remain independent product projects rather than hidden inside ingest:
 
 - frame-accurate comments and annotations
 - multi-stage external proofing/approval links
@@ -207,12 +257,9 @@ These are useful product patterns, but they are separate lakes and should not be
 - license/rights expiration enforcement
 - derivative/transformation presets
 - visual similarity search
-- resumable master-video ingest
+- automatic video proxy generation / transcoding
+- waveform and thumbnail extraction jobs for heavy media
 
-The current single-operator workflow does not need all of those at once.
+## Current next step
 
-## Next contained lake
-
-Large media should not be pushed through JSON/base64 uploads. The next asset-system lake is **resumable large-file ingest** for video and other heavy media, using direct/resumable Storage uploads with progress, retry, cancellation, server-side registration, and the same Pathway metadata/fingerprint rules.
-
-Do that when Pathway Assets needs to ingest master video files directly. Do not bolt large video upload onto the current image endpoint.
+The resumable-ingest lake is now part of Pathway Assets. The next media-system expansion should only happen when there is a proven production bottleneck. The most natural future step is a background derivative worker that turns source masters into lightweight preview proxies, thumbnails, waveforms, and production-ready renditions without altering the original file.
