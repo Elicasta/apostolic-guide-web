@@ -48,7 +48,7 @@ export const solDatabaseQueryTool: SolTool<z.infer<typeof queryInput>, z.infer<t
       if (input.orderBy) query = query.order(input.orderBy, { ascending: input.ascending });
       const result = await query;
       if (result.error) throw result.error;
-      const rows = (result.data ?? []) as Array<Record<string, unknown>>;
+      const rows = (result.data ?? []) as unknown as Array<Record<string, unknown>>;
       return { ok: true, data: { rows, count: rows.length }, observations: { table: input.table, count: rows.length } };
     } catch (error) {
       return { ok: false, error: { code: "DATABASE_QUERY_FAILED", message: error instanceof Error ? error.message : "Database query failed.", retryable: false } };
@@ -66,7 +66,7 @@ export const solDatabaseInsertTool: SolTool<z.infer<typeof insertInput>, z.infer
       if (!WRITE_TABLES.has(input.table)) throw new Error(`Table ${input.table} is not in the runtime write allowlist.`);
       const result = await client().from(input.table).insert(input.values).select(safeColumns(input.select));
       if (result.error) throw result.error;
-      const rows = (result.data ?? []) as Array<Record<string, unknown>>;
+      const rows = (result.data ?? []) as unknown as Array<Record<string, unknown>>;
       return { ok: true, data: { rows, count: rows.length } };
     } catch (error) {
       return { ok: false, error: { code: "DATABASE_INSERT_FAILED", message: error instanceof Error ? error.message : "Database insert failed.", retryable: false } };
@@ -85,7 +85,7 @@ export const solDatabaseUpdateTool: SolTool<z.infer<typeof updateInput>, z.infer
       query = applyFilters(query, input.filters);
       const result = await query.select(safeColumns(input.select));
       if (result.error) throw result.error;
-      const rows = (result.data ?? []) as Array<Record<string, unknown>>;
+      const rows = (result.data ?? []) as unknown as Array<Record<string, unknown>>;
       return { ok: true, data: { rows, count: rows.length } };
     } catch (error) {
       return { ok: false, error: { code: "DATABASE_UPDATE_FAILED", message: error instanceof Error ? error.message : "Database update failed.", retryable: false } };
