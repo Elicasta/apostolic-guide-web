@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { CalendarPlus, Download, FolderOpen, Image as ImageIcon, Loader2, Pencil, RefreshCw, Share2, Sparkles, Star, Upload } from "lucide-react";
+import { Archive, CalendarPlus, Download, FolderOpen, Image as ImageIcon, Info, Loader2, Pencil, RefreshCw, Search, Share2, Sparkles, Star, Upload, X } from "lucide-react";
+import { assetAltText, assetDescription, assetIsFavorite, assetSearchText, assetTags, parseAssetTagInput } from "@/pathway-asset-metadata";
 
 type Studio = "carousel" | "video";
 type StudioScope = "all" | Studio;
+type AssetStatus = "draft" | "review" | "approved" | "ready" | "published" | "archived";
 type PathwayAsset = {
   id: string;
   pathway_slug: string;
@@ -12,7 +14,7 @@ type PathwayAsset = {
   asset_type: string;
   parent_asset_id: string | null;
   title: string;
-  status: string;
+  status: AssetStatus;
   source_type: string;
   editable: boolean;
   version: number;
@@ -25,9 +27,14 @@ type PathwayAsset = {
   model: string | null;
   metadata: Record<string, unknown>;
   updated_at: string;
+  is_style_reference?: boolean;
 };
 
 type GeneratedImage = { dataUrl: string; prompt: string; solModel: string; imageModel: string; size: string; referenceCount?: number };
+type AssetPatch = { title?: string; status?: AssetStatus; favorite?: boolean; description?: string; altText?: string; tags?: string[]; archive?: boolean };
+
+const STATUS_OPTIONS: AssetStatus[] = ["draft", "review", "approved", "ready", "published"];
+const STATUS_ORDER: Record<AssetStatus, number> = { draft: 0, review: 1, approved: 2, ready: 3, published: 4, archived: 5 };
 
 function fileToDataUrl(file: File) {
   return new Promise<string>((resolve, reject) => {
@@ -61,6 +68,14 @@ function filenameFromDisposition(value: string | null, fallback: string) {
   return quoted || plain || fallback;
 }
 
+function humanBytes(value: unknown) {
+  const bytes = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(bytes) || bytes <= 0) return "";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 export function PathwayAssetLibrary({
   pathwaySlug,
   pathwayTitle,
@@ -77,24 +92,57 @@ export function PathwayAssetLibrary({
   const [assets, setAssets] = useState<PathwayAsset[]>([]);
   const [studioScope, setStudioScope] = useState<StudioScope>("all");
   const [filter, setFilter] = useState<"all" | "visual" | "copy" | "output">("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | AssetStatus>("all");
+  const [favoritesOnly, setFavoritesOnly] = useState(false);
+  const [query, setQuery] = useState("");
+  const [sort, setSort] = useState<"updated" | "title" | "status">("updated");
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [imagePrompt, setImagePrompt] = useState("");
   const [imageType, setImageType] = useState<"single-post" | "story" | "thumbnail" | "background">(studio === "video" ? "thumbnail" : "single-post");
   const [generated, setGenerated] = useState<GeneratedImage | null>(null);
+  const [inspectId, setInspectId] = useState<string | null>(null);
+  const [detailTitle, setDetailTitle] = useState("");
+  const [detailDescription, setDetailDescription] = useState("");
+  const [detailAltText, setDetailAltText] = useState("");
+  const [detailTags, setDetailTags] = useState("");
+  const [detailStatus, setDetailStatus] = useState<AssetStatus>("draft");
   const uploadRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     setImageType(studio === "video" ? "thumbnail" : "single-post");
   }, [studio]);
 
-  const visible = useMemo(() => assets.filter((asset) => {
-    if (studioScope !== "all" && asset.studio !== studioScope) return false;
-    return filter === "all" || assetGroup(asset.asset_type) === filter;
-  }), [assets, filter, studioScope]);
+  const selectedAsset = useMemo(() => assets.find((asset) => asset.id === inspectId) ?? null, [assets, inspectId]);
+  useEffect(() => {
+    if (!selectedAsset) return;
+    setDetailTitle(selectedAsset.title);
+    setDetailDescription(assetDescription(selectedAsset.metadata));
+    setDetailAltText(assetAltText(selectedAsset.metadata));
+    setDetailTags(assetTags(selectedAsset.metadata).join(", "));
+    setDetailStatus(selectedAsset.status);
+  }, [selectedAsset]);
+
+  const visible = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    return assets.filter((asset) => {
+      if (studioScope !== "all" && asset.studio !== studioScope) return false;
+      if (filter !== "all" && assetGroup(asset.asset_type) !== filter) return false;
+      if (statusFilter !== "all" && asset.status !== statusFilter) return false;
+      if (favoritesOnly && !assetIsFavorite(asset.metadata)) return false;
+      if (needle && !assetSearchText(asset).includes(needle)) return false;
+      return true;
+    }).sort((a, b) => {
+      if (sort === "title") return a.title.localeCompare(b.title);
+      if (sort === "status") return STATUS_ORDER[a.status] - STATUS_ORDER[b.status] || a.title.localeCompare(b.title);
+      return String(b.updated_at || "").localeCompare(String(a.updated_at || ""));
+    });
+  }, [assets, favoritesOnly, filter, query, sort, statusFilter, studioScope]);
+
   const parentCount = assets.filter((asset) => !asset.parent_asset_id).length;
   const carouselCount = assets.filter((asset) => asset.studio === "carousel").length;
   const videoCount = assets.filter((asset) => asset.studio === "video").length;
+  const favoriteCount = assets.filter((asset) => assetIsFavorite(asset.metadata)).length;
 
   async function refresh() {
     if (!pathwaySlug) return;
@@ -123,22 +171,82 @@ export function PathwayAssetLibrary({
 
   useEffect(() => { void refresh(); }, [pathwaySlug]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  async function uploadManual(file: File) {
-    setBusy("upload");
-    setMessage(`Uploading to ${pathwayTitle} → ${studio === "carousel" ? "Carousel Studio" : "Video Studio"}…`);
+  async function patchAsset(asset: PathwayAsset, patch: AssetPatch, successMessage?: string) {
+    const key = patch.archive ? `archive:${asset.id}` : `patch:${asset.id}`;
+    setBusy(key);
     try {
-      const dataUrl = await fileToDataUrl(file);
-      const response = await fetch("/api/admin/pathway-assets/upload", {
-        method: "POST",
+      const response = await fetch("/api/admin/pathway-assets", {
+        method: "PATCH",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ pathwaySlug, studio, assetType: "uploaded-image", title: file.name.replace(/\.[^.]+$/, ""), dataUrl, sourceType: "uploaded", metadata: { originalFilename: file.name } })
+        body: JSON.stringify({ id: asset.id, ...patch })
       });
       const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data.error || "Upload failed.");
-      setMessage("Uploaded. It now belongs to this Pathway and can be reused later.");
-      await refresh();
+      if (!response.ok) throw new Error(data.error || "Asset could not be updated.");
+      if (patch.archive) {
+        setAssets((current) => current.filter((item) => item.id !== asset.id));
+        if (inspectId === asset.id) setInspectId(null);
+      } else {
+        const next = { ...(data.asset as PathwayAsset), is_style_reference: asset.is_style_reference };
+        setAssets((current) => current.map((item) => item.id === asset.id ? next : item));
+      }
+      if (successMessage) setMessage(successMessage);
+      return true;
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Upload failed.");
+      setMessage(error instanceof Error ? error.message : "Asset could not be updated.");
+      return false;
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function uploadManual(files: File[]) {
+    if (!files.length) return;
+    setBusy("upload");
+    setMessage(`Uploading ${files.length} image${files.length === 1 ? "" : "s"} to ${pathwayTitle} → ${studio === "carousel" ? "Carousel Studio" : "Video Studio"}…`);
+    let saved = 0;
+    let duplicates = 0;
+    const errors: string[] = [];
+    try {
+      for (const file of files) {
+        if (!(["image/png", "image/jpeg", "image/webp"].includes(file.type))) {
+          errors.push(`${file.name}: unsupported file type`);
+          continue;
+        }
+        if (file.size > 8 * 1024 * 1024) {
+          errors.push(`${file.name}: larger than 8 MB`);
+          continue;
+        }
+        try {
+          const dataUrl = await fileToDataUrl(file);
+          const response = await fetch("/api/admin/pathway-assets/upload", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({
+              pathwaySlug,
+              studio,
+              assetType: "uploaded-image",
+              title: file.name.replace(/\.[^.]+$/, ""),
+              dataUrl,
+              sourceType: "uploaded",
+              metadata: { originalFilename: file.name, favorite: false, tags: [] }
+            })
+          });
+          const data = await response.json().catch(() => ({}));
+          if (response.status === 409 && data.duplicateAssetId) {
+            duplicates += 1;
+            continue;
+          }
+          if (!response.ok) throw new Error(data.error || "Upload failed.");
+          saved += 1;
+        } catch (error) {
+          errors.push(`${file.name}: ${error instanceof Error ? error.message : "upload failed"}`);
+        }
+      }
+      const parts = [`${saved} saved`];
+      if (duplicates) parts.push(`${duplicates} duplicate${duplicates === 1 ? "" : "s"} skipped`);
+      if (errors.length) parts.push(`${errors.length} failed`);
+      setMessage(`${parts.join(" · ")}. ${errors.length ? errors.slice(0, 2).join(" | ") : "Everything is attached to this Pathway."}`);
+      await refresh();
     } finally {
       setBusy(null);
       if (uploadRef.current) uploadRef.current.value = "";
@@ -184,7 +292,7 @@ export function PathwayAssetLibrary({
           sourceType: "generated",
           prompt: generated.prompt,
           model: generated.imageModel,
-          metadata: { solModel: generated.solModel, size: generated.size, creationType: imageType }
+          metadata: { solModel: generated.solModel, size: generated.size, creationType: imageType, favorite: false, tags: [] }
         })
       });
       const data = await response.json().catch(() => ({}));
@@ -199,22 +307,35 @@ export function PathwayAssetLibrary({
     }
   }
 
-  async function setStyleReference(asset: PathwayAsset) {
+  async function setStyleReference(asset: PathwayAsset, enabled = !asset.is_style_reference) {
     setBusy(`style:${asset.id}`);
     try {
       const response = await fetch("/api/admin/pathway-assets/style-reference", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ assetId: asset.id, enabled: true })
+        body: JSON.stringify({ assetId: asset.id, enabled })
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || "Style reference could not be saved.");
-      setMessage(`${asset.title} is now part of the remembered Apostolic Guide visual reference set.`);
+      const ids = new Set(Array.isArray(data.referenceAssetIds) ? data.referenceAssetIds : []);
+      setAssets((current) => current.map((item) => ({ ...item, is_style_reference: ids.has(item.id) })));
+      setMessage(enabled ? `${asset.title} is now teaching Sol the Apostolic Guide visual language.` : `${asset.title} was removed from Sol’s style reference set.`);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Style reference could not be saved.");
     } finally {
       setBusy(null);
     }
+  }
+
+  async function saveDetails(asset: PathwayAsset) {
+    const ok = await patchAsset(asset, {
+      title: detailTitle,
+      description: detailDescription,
+      altText: detailAltText,
+      tags: parseAssetTagInput(detailTags),
+      status: detailStatus
+    }, "Asset details saved. Search, filters, and downstream work can use this metadata now.");
+    if (ok) setMessage("Asset details saved. Search, filters, and downstream work can use this metadata now.");
   }
 
   async function queueInCalendar(asset: PathwayAsset) {
@@ -308,13 +429,17 @@ export function PathwayAssetLibrary({
 
   return <section className="admin-card pathway-asset-library">
     <div className="pathway-assets-head">
-      <div className="pathway-folder-title"><FolderOpen size={22}/><div><span className="section-kicker">Pathway parent folder</span><h2>{pathwayTitle}</h2><p>/{pathwaySlug}/ · {assets.length} assets · {parentCount} top-level projects</p></div></div>
+      <div className="pathway-folder-title"><FolderOpen size={22}/><div><span className="section-kicker">Pathway source of truth</span><h2>{pathwayTitle}</h2><p>/{pathwaySlug}/ · {assets.length} active assets · {parentCount} top-level projects · {favoriteCount} favorites</p></div></div>
       <div className="pathway-assets-actions">
-        <input ref={uploadRef} hidden type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => { const file = event.target.files?.[0]; if (file) void uploadManual(file); }}/>
-        <button type="button" className="button" disabled={Boolean(busy)} onClick={() => uploadRef.current?.click()}><Upload size={15}/> Upload to {studio === "carousel" ? "Carousel" : "Video"}</button>
+        <input ref={uploadRef} hidden multiple type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => { const files = Array.from(event.target.files ?? []); if (files.length) void uploadManual(files); }}/>
+        <button type="button" className="button" disabled={Boolean(busy)} onClick={() => uploadRef.current?.click()}><Upload size={15}/> Upload images</button>
         <button type="button" className="button" disabled={busy === "load"} onClick={() => void refresh()}>{busy === "load" ? <Loader2 size={15} className="spin"/> : <RefreshCw size={15}/>} Refresh</button>
       </div>
     </div>
+
+    <button type="button" className="pathway-assets-dropzone" disabled={Boolean(busy)} onClick={() => uploadRef.current?.click()} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); const files = Array.from(event.dataTransfer.files ?? []); if (files.length) void uploadManual(files); }}>
+      <Upload size={18}/><span><strong>Drop PNG, JPEG, or WebP files here</strong><small>Multi-upload · 8 MB max each · exact duplicates are skipped automatically · destination: {studio === "carousel" ? "Carousel + Social" : "Video"}</small></span>
+    </button>
 
     <div className="pathway-folder-lanes" aria-label="Pathway asset lanes">
       <button type="button" className={studioScope === "all" ? "is-active" : ""} onClick={() => setStudioScope("all")}><strong>All Pathway</strong><span>{assets.length}</span></button>
@@ -336,23 +461,59 @@ export function PathwayAssetLibrary({
       {generated ? <div className="pathway-generated-preview"><img src={generated.dataUrl} alt="Generated Apostolic Guide visual preview"/><div><strong>Generated visual</strong><span>{generated.imageModel}</span><button type="button" className="button primary" disabled={Boolean(busy)} onClick={() => void saveGenerated()}>{busy === "save-image" ? <Loader2 className="spin" size={15}/> : <FolderOpen size={15}/>} Save to Pathway</button></div></div> : null}
     </div>
 
+    <div className="pathway-assets-toolbar">
+      <label className="pathway-assets-search"><Search size={16}/><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search title, tag, description, type…"/></label>
+      <select aria-label="Filter by status" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as typeof statusFilter)}><option value="all">All statuses</option>{STATUS_OPTIONS.map((status) => <option value={status} key={status}>{status}</option>)}</select>
+      <select aria-label="Sort assets" value={sort} onChange={(event) => setSort(event.target.value as typeof sort)}><option value="updated">Recently updated</option><option value="title">Title A–Z</option><option value="status">Workflow status</option></select>
+      <button type="button" className={favoritesOnly ? "is-active" : ""} onClick={() => setFavoritesOnly((value) => !value)}><Star size={15} fill={favoritesOnly ? "currentColor" : "none"}/> Favorites {favoriteCount ? `(${favoriteCount})` : ""}</button>
+    </div>
+
     <div className="pathway-assets-filter">
       {(["all","visual","copy","output"] as const).map((key) => <button type="button" key={key} className={filter === key ? "is-active" : ""} onClick={() => setFilter(key)}>{key === "all" ? "All assets" : key === "visual" ? "Visuals" : key === "copy" ? "Copy" : "Projects + outputs"}</button>)}
+      <span className="pathway-assets-result-count">{visible.length} shown</span>
     </div>
+
+    {selectedAsset ? <div className="pathway-asset-inspector">
+      <div className="pathway-asset-inspector-preview">{selectedAsset.preview_url ? <img src={selectedAsset.preview_url} alt={assetAltText(selectedAsset.metadata) || ""}/> : <ImageIcon size={30}/>}</div>
+      <div className="pathway-asset-inspector-body">
+        <div className="pathway-asset-inspector-head"><div><span className="section-kicker">Asset details</span><h3>{selectedAsset.title}</h3><p>{selectedAsset.studio} · {selectedAsset.asset_type.replaceAll("-", " ")} · version {selectedAsset.version} · {selectedAsset.source_type}</p></div><button type="button" aria-label="Close asset details" onClick={() => setInspectId(null)}><X size={18}/></button></div>
+        <div className="pathway-asset-inspector-form">
+          <label><span>Title</span><input value={detailTitle} maxLength={180} onChange={(event) => setDetailTitle(event.target.value)}/></label>
+          <label><span>Status</span><select value={detailStatus} onChange={(event) => setDetailStatus(event.target.value as AssetStatus)}>{STATUS_OPTIONS.map((status) => <option value={status} key={status}>{status}</option>)}</select></label>
+          <label className="is-wide"><span>Description</span><textarea rows={3} maxLength={1200} value={detailDescription} onChange={(event) => setDetailDescription(event.target.value)} placeholder="What is this asset for?"/></label>
+          <label className="is-wide"><span>Alt text</span><textarea rows={2} maxLength={500} value={detailAltText} onChange={(event) => setDetailAltText(event.target.value)} placeholder="Describe the visual for accessibility and reuse."/></label>
+          <label className="is-wide"><span>Tags</span><input value={detailTags} onChange={(event) => setDetailTags(event.target.value)} placeholder="Jesus, deity, John 1, cover"/><small>Comma-separated. Search uses these.</small></label>
+        </div>
+        <div className="pathway-asset-technical">
+          {typeof selectedAsset.metadata?.mime === "string" ? <span>{String(selectedAsset.metadata.mime)}</span> : null}
+          {humanBytes(selectedAsset.metadata?.bytes) ? <span>{humanBytes(selectedAsset.metadata?.bytes)}</span> : null}
+          {typeof selectedAsset.metadata?.sha256 === "string" ? <span>SHA {String(selectedAsset.metadata.sha256).slice(0, 10)}…</span> : null}
+          {selectedAsset.model ? <span>{selectedAsset.model}</span> : null}
+        </div>
+        <div className="pathway-asset-inspector-actions">
+          <button type="button" className="button primary" disabled={Boolean(busy) || !detailTitle.trim()} onClick={() => void saveDetails(selectedAsset)}>{busy === `patch:${selectedAsset.id}` ? <Loader2 className="spin" size={15}/> : null} Save details</button>
+          <button type="button" className="button" disabled={Boolean(busy)} onClick={() => void patchAsset(selectedAsset, { favorite: !assetIsFavorite(selectedAsset.metadata) }, assetIsFavorite(selectedAsset.metadata) ? "Removed from favorites." : "Added to favorites.")}><Star size={15} fill={assetIsFavorite(selectedAsset.metadata) ? "currentColor" : "none"}/> {assetIsFavorite(selectedAsset.metadata) ? "Favorited" : "Favorite"}</button>
+          {selectedAsset.preview_url ? <button type="button" className={`button ${selectedAsset.is_style_reference ? "is-active" : ""}`} disabled={Boolean(busy)} onClick={() => void setStyleReference(selectedAsset)}><Sparkles size={15}/> {selectedAsset.is_style_reference ? "Style reference" : "Teach Sol style"}</button> : null}
+          <button type="button" className="button danger" disabled={Boolean(busy)} onClick={() => void patchAsset(selectedAsset, { archive: true }, "Asset archived. Its file and history remain preserved.")}><Archive size={15}/> Archive</button>
+        </div>
+      </div>
+    </div> : null}
 
     {visible.length ? <div className="pathway-assets-grid">{visible.map((asset) => {
       const canCalendar = !asset.parent_asset_id && Boolean(calendarType(asset));
-      return <article className="pathway-asset-card" key={asset.id}>
-        {asset.preview_url ? <button type="button" className="pathway-asset-preview" onClick={() => onOpenAsset?.(asset)}><img src={asset.preview_url} alt=""/></button> : <div className="pathway-asset-preview is-empty"><ImageIcon size={22}/></div>}
-        <div className="pathway-asset-copy"><span>{asset.studio} · {asset.asset_type.replaceAll("-", " ")} · v{asset.version}</span><strong>{asset.title}</strong><small>{asset.status} · {asset.source_type} · {new Date(asset.updated_at).toLocaleString()}</small></div>
+      const tags = assetTags(asset.metadata);
+      return <article className={`pathway-asset-card ${inspectId === asset.id ? "is-inspected" : ""}`} key={asset.id}>
+        {asset.preview_url ? <button type="button" className="pathway-asset-preview" onClick={() => setInspectId(asset.id)}><img src={asset.preview_url} alt={assetAltText(asset.metadata) || ""}/>{assetIsFavorite(asset.metadata) ? <span className="pathway-asset-favorite-badge"><Star size={13} fill="currentColor"/></span> : null}</button> : <button type="button" className="pathway-asset-preview is-empty" onClick={() => setInspectId(asset.id)}><ImageIcon size={22}/></button>}
+        <div className="pathway-asset-copy"><span>{asset.studio} · {asset.asset_type.replaceAll("-", " ")} · v{asset.version}</span><strong>{asset.title}</strong><small>{asset.status} · {asset.source_type} · {new Date(asset.updated_at).toLocaleString()}</small>{assetDescription(asset.metadata) ? <p>{assetDescription(asset.metadata)}</p> : null}{tags.length ? <div className="pathway-asset-tags">{tags.slice(0, 4).map((tag) => <i key={tag}>{tag}</i>)}{tags.length > 4 ? <i>+{tags.length - 4}</i> : null}</div> : null}</div>
         <div className="pathway-asset-actions">
+          <button type="button" onClick={() => setInspectId(asset.id)}><Info size={14}/> Details</button>
           {asset.editable && onOpenAsset ? <button type="button" onClick={() => onOpenAsset(asset)}><Pencil size={14}/> Edit</button> : null}
           {canCalendar ? <button type="button" disabled={Boolean(busy)} onClick={() => void queueInCalendar(asset)}>{busy === `calendar:${asset.id}` ? <Loader2 className="spin" size={14}/> : <CalendarPlus size={14}/>} Calendar</button> : null}
           {(asset.storage_path || asset.public_url) ? <button type="button" disabled={Boolean(busy)} onClick={() => void downloadAsset(asset)}>{busy === `download:${asset.id}` ? <Loader2 className="spin" size={14}/> : <Download size={14}/>} Download</button> : null}
           {(asset.storage_path || asset.public_url) ? <button type="button" disabled={Boolean(busy)} onClick={() => void shareAsset(asset)}>{busy === `share:${asset.id}` ? <Loader2 className="spin" size={14}/> : <Share2 size={14}/>} Share</button> : null}
-          {asset.preview_url ? <button type="button" disabled={busy === `style:${asset.id}`} onClick={() => void setStyleReference(asset)}>{busy === `style:${asset.id}` ? <Loader2 className="spin" size={14}/> : <Star size={14}/>} Remember style</button> : null}
+          {asset.preview_url ? <button type="button" className={asset.is_style_reference ? "is-active" : ""} disabled={busy === `style:${asset.id}`} onClick={() => void setStyleReference(asset)}>{busy === `style:${asset.id}` ? <Loader2 className="spin" size={14}/> : <Sparkles size={14}/>} {asset.is_style_reference ? "Style ref" : "Teach style"}</button> : null}
         </div>
       </article>;
-    })}</div> : <div className="studio-empty-state compact"><FolderOpen size={26}/><strong>No assets in this lane yet</strong><p>Generate, save, or upload the first asset. Every future output will stay attached to this Pathway.</p></div>}
+    })}</div> : <div className="studio-empty-state compact"><FolderOpen size={26}/><strong>No assets match this view</strong><p>{assets.length ? "Clear the search or filters to see the rest of this Pathway library." : "Generate, save, or upload the first asset. Every future output will stay attached to this Pathway."}</p></div>}
   </section>;
 }
