@@ -12,9 +12,9 @@ import {
   apostolicKeywordAutomationDraftTool,
   apostolicPathwayGetTool,
   apostolicSocialDraftTool,
-  apostolicValidateLinksTool,
-  apostolicYoutubeDraftTool
+  apostolicValidateLinksTool
 } from "./apostolic-sol/tools";
+import { apostolicVideoPrepareTool } from "./apostolic-sol/tools/video";
 import { pathwayCampaignWorkflow } from "./apostolic-sol/workflows/pathway-campaign";
 import { solAiGenerateJsonTool, solAiGenerateTextTool } from "./sol-core/tools/ai";
 import { solBrowserExtractTool, solBrowserOpenTool, solBrowserScreenshotTool, solBrowserTestTool } from "./sol-core/tools/browser";
@@ -80,7 +80,7 @@ export function getSolRuntimeToolRegistry() {
       .register(apostolicCarouselRenderTool)
       .register(apostolicSocialDraftTool)
       .register(apostolicEmailDraftTool)
-      .register(apostolicYoutubeDraftTool)
+      .register(apostolicVideoPrepareTool)
       .register(apostolicKeywordAutomationDraftTool)
       .register(apostolicValidateLinksTool)
       .register(apostolicCampaignFinalizeTool);
