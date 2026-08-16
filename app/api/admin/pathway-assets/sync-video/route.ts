@@ -18,11 +18,28 @@ export async function POST(request: Request) {
 
   const [projectResult, rendersResult, kitResult] = await Promise.all([
     service.from("pathway_video_projects").select("id,pathway_slug,audio_content_hash,timeline,style,updated_at").eq("pathway_slug", pathway.slug).maybeSingle(),
-    service.from("pathway_video_renders").select("id,pathway_slug,format,status,output_url,storage_path,error,requested_at,completed_at").eq("pathway_slug", pathway.slug).eq("status", "completed").order("requested_at", { ascending: false }).limit(100),
+    service.from("pathway_video_renders").select("id,pathway_slug,asset_id,format,status,output_url,storage_path,error,requested_at,completed_at").eq("pathway_slug", pathway.slug).eq("status", "completed").order("requested_at", { ascending: false }).limit(100),
     service.from("pathway_video_publishing_kits").select("thumbnail_background_url,thumbnail_storage_path,metadata,image_model,image_quality,updated_at").eq("pathway_slug", pathway.slug).maybeSingle()
   ]);
   const failed = [projectResult.error, rendersResult.error, kitResult.error].find(Boolean);
   if (failed) return NextResponse.json({ error: failed!.message }, { status: 500 });
+
+  const sourceAssetIds = Array.from(new Set((rendersResult.data ?? [])
+    .map((render) => render.asset_id)
+    .filter((id): id is string => typeof id === "string" && Boolean(id))));
+  const sourceAssetsResult = sourceAssetIds.length
+    ? await service.from("pathway_assets").select("id,status").in("id", sourceAssetIds)
+    : { data: [], error: null };
+  if (sourceAssetsResult.error) return NextResponse.json({ error: sourceAssetsResult.error.message }, { status: 500 });
+
+  const archivedSourceAssetIds = new Set((sourceAssetsResult.data ?? [])
+    .filter((asset) => asset.status === "archived")
+    .map((asset) => asset.id));
+  const archivedRenderIds = (rendersResult.data ?? [])
+    .filter((render) => typeof render.asset_id === "string" && archivedSourceAssetIds.has(render.asset_id))
+    .map((render) => render.id);
+  const eligibleRenders = (rendersResult.data ?? [])
+    .filter((render) => !(typeof render.asset_id === "string" && archivedSourceAssetIds.has(render.asset_id)));
 
   const staleRenderAssets = await service.from("studio_pathway_assets")
     .delete()
@@ -32,6 +49,16 @@ export async function POST(request: Request) {
     .is("storage_path", null)
     .is("public_url", null);
   if (staleRenderAssets.error) return NextResponse.json({ error: staleRenderAssets.error.message }, { status: 500 });
+
+  for (const renderId of archivedRenderIds) {
+    const archivedSync = await service.from("studio_pathway_assets")
+      .delete()
+      .eq("pathway_slug", pathway.slug)
+      .eq("studio", "video")
+      .eq("asset_type", "video-render")
+      .contains("metadata", { renderId });
+    if (archivedSync.error) return NextResponse.json({ error: archivedSync.error.message }, { status: 500 });
+  }
 
   const now = new Date().toISOString();
   let parentId: string | null = null;
@@ -49,7 +76,7 @@ export async function POST(request: Request) {
     }
   }
 
-  for (const render of rendersResult.data ?? []) {
+  for (const render of eligibleRenders) {
     const existing = await service.from("studio_pathway_assets").select("id").eq("pathway_slug", pathway.slug).eq("studio", "video").eq("asset_type", "video-render").contains("metadata", { renderId: render.id }).maybeSingle();
     if (existing.error) return NextResponse.json({ error: existing.error.message }, { status: 500 });
     const values = {
@@ -108,5 +135,5 @@ export async function POST(request: Request) {
     }
   }
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, syncedRenders: eligibleRenders.length, skippedArchivedRenders: archivedRenderIds.length });
 }
