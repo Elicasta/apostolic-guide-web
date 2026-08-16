@@ -1,8 +1,11 @@
+import { mkdir, writeFile } from "node:fs/promises";
+import path from "node:path";
 import { z } from "zod";
 import { assertSolPublicHttps } from "../http/request";
 import type { SolTool } from "../types";
 
 const MAX_HTML = 1_500_000;
+const MAX_SCREENSHOT_BYTES = 12_000_000;
 
 async function fetchHtml(rawUrl: string, signal: AbortSignal) {
   const url = await assertSolPublicHttps(rawUrl);
@@ -87,9 +90,9 @@ export const solBrowserTestTool: SolTool<z.infer<typeof testInput>, z.infer<type
 };
 
 const screenshotInput = z.object({ url: z.string().url(), width: z.number().int().min(320).max(2560).default(1440), height: z.number().int().min(320).max(2560).default(1200), fullPage: z.boolean().default(true) });
-const screenshotOutput = z.object({ url: z.string(), provider: z.string(), bytes: z.number().int().nonnegative(), contentType: z.string(), artifacts: z.array(z.object({ type: z.string(), title: z.string(), storageType: z.literal("external"), location: z.string(), metadata: z.record(z.string(), z.unknown()), verificationStatus: z.enum(["pending","passed","failed"]) })) });
+const screenshotOutput = z.object({ url: z.string(), provider: z.string(), bytes: z.number().int().nonnegative(), contentType: z.string(), artifacts: z.array(z.object({ type: z.string(), title: z.string(), storageType: z.literal("file"), location: z.string(), metadata: z.record(z.string(), z.unknown()), verificationStatus: z.enum(["pending","passed","failed"]) })) });
 export const solBrowserScreenshotTool: SolTool<z.infer<typeof screenshotInput>, z.infer<typeof screenshotOutput>> = {
-  name: "browser.screenshot", description: "Capture a real rendered screenshot through the configured Browserless Chrome provider.", inputSchema: screenshotInput, outputSchema: screenshotOutput,
+  name: "browser.screenshot", description: "Capture a real rendered screenshot through the configured Browserless Chrome provider into the run-scoped runtime workspace.", inputSchema: screenshotInput, outputSchema: screenshotOutput,
   permissions: ["read"], supportedEnvironments: ["development","preview","production"], idempotency: "not_required",
   async execute(input, context) {
     try {
@@ -108,8 +111,13 @@ export const solBrowserScreenshotTool: SolTool<z.infer<typeof screenshotInput>, 
       });
       if (!response.ok) throw new Error(`Browserless screenshot failed (${response.status}).`);
       const bytes = new Uint8Array(await response.arrayBuffer());
-      const dataUrl = `data:image/png;base64,${Buffer.from(bytes).toString("base64")}`;
-      return { ok: true, data: { url: input.url, provider: "browserless", bytes: bytes.byteLength, contentType: "image/png", artifacts: [{ type: "site_screenshot", title: `Screenshot ${new URL(input.url).hostname}`, storageType: "external", location: dataUrl, metadata: { sourceUrl: input.url, width: input.width, height: input.height, fullPage: input.fullPage }, verificationStatus: "passed" }] } };
+      if (!bytes.byteLength) throw new Error("Browserless returned an empty screenshot.");
+      if (bytes.byteLength > MAX_SCREENSHOT_BYTES) throw new Error(`Screenshot exceeds ${MAX_SCREENSHOT_BYTES} bytes.`);
+      const root = path.join("/tmp", "sol-runtime", context.runId, "screenshots");
+      await mkdir(root, { recursive: true });
+      const filePath = path.join(root, `${context.taskId}.png`);
+      await writeFile(filePath, bytes);
+      return { ok: true, data: { url: input.url, provider: "browserless", bytes: bytes.byteLength, contentType: "image/png", artifacts: [{ type: "site_screenshot", title: `Screenshot ${new URL(input.url).hostname}`, storageType: "file", location: filePath, metadata: { sourceUrl: input.url, width: input.width, height: input.height, fullPage: input.fullPage, ephemeral: true, bytes: bytes.byteLength }, verificationStatus: "passed" }] } };
     } catch (error) {
       return { ok: false, error: { code: error instanceof Error && error.name === "AbortError" ? "TIMEOUT" : "BROWSER_SCREENSHOT_FAILED", message: error instanceof Error ? error.message : "Screenshot failed.", retryable: error instanceof Error && error.name === "AbortError" } };
     }
