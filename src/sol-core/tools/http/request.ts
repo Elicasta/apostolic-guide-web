@@ -26,14 +26,7 @@ function isPrivateIpv4(address: string) {
   const parts = address.split(".").map(Number);
   if (parts.length !== 4 || parts.some((part) => !Number.isInteger(part) || part < 0 || part > 255)) return true;
   const [a, b] = parts;
-  return a === 0
-    || a === 10
-    || a === 127
-    || (a === 169 && b === 254)
-    || (a === 172 && b >= 16 && b <= 31)
-    || (a === 192 && b === 168)
-    || (a === 100 && b >= 64 && b <= 127)
-    || a >= 224;
+  return a === 0 || a === 10 || a === 127 || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 100 && b >= 64 && b <= 127) || a >= 224;
 }
 
 function isPrivateIpv6(address: string) {
@@ -51,9 +44,9 @@ function isPrivateAddress(address: string) {
   return true;
 }
 
-async function assertPublicHttps(rawUrl: string) {
+export async function assertSolPublicHttps(rawUrl: string) {
   const url = new URL(rawUrl);
-  if (url.protocol !== "https:") throw new Error("HTTP tool only permits HTTPS URLs.");
+  if (url.protocol !== "https:") throw new Error("SOL internet tools only permit HTTPS URLs.");
   if (url.username || url.password) throw new Error("Credentials in request URLs are not permitted.");
   const hostname = url.hostname.toLowerCase();
   if (!hostname || hostname === "localhost" || hostname.endsWith(".localhost") || hostname.endsWith(".local") || hostname.endsWith(".internal")) throw new Error("Private or local hostnames are not permitted.");
@@ -109,42 +102,22 @@ export const solHttpRequestTool: SolTool<z.infer<typeof inputSchema>, z.infer<ty
   idempotency: "not_required",
   async execute(input, context) {
     try {
-      let url = await assertPublicHttps(input.url);
+      let url = await assertSolPublicHttps(input.url);
       let response: Response | null = null;
       for (let redirect = 0; redirect <= MAX_REDIRECTS; redirect += 1) {
-        response = await fetch(url, {
-          method: input.method,
-          headers: input.headers,
-          redirect: "manual",
-          cache: "no-store",
-          signal: context.signal
-        });
+        response = await fetch(url, { method: input.method, headers: input.headers, redirect: "manual", cache: "no-store", signal: context.signal });
         if (![301, 302, 303, 307, 308].includes(response.status)) break;
         const location = response.headers.get("location");
         if (!location) break;
         if (redirect === MAX_REDIRECTS) return { ok: false, error: { code: "REDIRECT_LIMIT", message: "HTTP redirect limit exceeded.", retryable: false } };
-        url = await assertPublicHttps(new URL(location, url).toString());
+        url = await assertSolPublicHttps(new URL(location, url).toString());
       }
       if (!response) return { ok: false, error: { code: "NETWORK", message: "HTTP request produced no response.", retryable: true } };
       const contentType = response.headers.get("content-type");
       const body = input.method === "HEAD" ? "" : await readBoundedBody(response, context.signal);
       let json: unknown;
-      if (body && contentType?.toLowerCase().includes("application/json")) {
-        try { json = JSON.parse(body); } catch {}
-      }
-      return {
-        ok: true,
-        data: {
-          url: url.toString(),
-          status: response.status,
-          ok: response.ok,
-          contentType,
-          headers: responseHeaders(response),
-          body,
-          ...(json === undefined ? {} : { json })
-        },
-        observations: { responseBytes: new TextEncoder().encode(body).byteLength, redirectsFollowed: url.toString() === input.url ? 0 : undefined }
-      };
+      if (body && contentType?.toLowerCase().includes("application/json")) { try { json = JSON.parse(body); } catch {} }
+      return { ok: true, data: { url: url.toString(), status: response.status, ok: response.ok, contentType, headers: responseHeaders(response), body, ...(json === undefined ? {} : { json }) }, observations: { responseBytes: new TextEncoder().encode(body).byteLength, redirectsFollowed: url.toString() === input.url ? 0 : undefined } };
     } catch (error) {
       if (error instanceof Error && error.name === "AbortError") return { ok: false, error: { code: "TIMEOUT", message: "HTTP request was aborted or timed out.", retryable: true } };
       const message = error instanceof Error ? error.message : "HTTP request failed.";
