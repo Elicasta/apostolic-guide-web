@@ -1,6 +1,7 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
 import { SolRuntimeExecutor } from "./sol-core/runtime/executor";
+import type { SolRuntimeTaskRecord } from "./sol-core/runtime/store";
 import { getSolRuntimeToolRegistry, getSolRuntimeVerifierRegistry } from "./sol-runtime-registry";
 import { SupabaseSolRuntimeStore } from "./sol-runtime-store-supabase";
 
@@ -35,7 +36,7 @@ export async function runSolRuntimeWorker(options?: { maxTasks?: number }) {
   const runIds = new Set<string>();
   while (executed < maxTasks) {
     const remaining = maxTasks - executed;
-    const claimed = await store.claimTasks(workerId, Math.min(concurrency, remaining), DEFAULT_LEASE_SECONDS);
+    const claimed: SolRuntimeTaskRecord[] = await store.claimTasks(workerId, Math.min(concurrency, remaining), DEFAULT_LEASE_SECONDS);
     if (!claimed.length) break;
     batches += 1;
     claimed.forEach((task) => runIds.add(task.runId));
