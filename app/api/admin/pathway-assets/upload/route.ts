@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getStudioPermission } from "@/auth";
@@ -39,6 +40,7 @@ export async function POST(request: Request) {
   if (!bytes.length || bytes.length > 8 * 1024 * 1024) return NextResponse.json({ error: "Image must be 8 MB or smaller." }, { status: 400 });
   const mime = match[1];
   const extension = mime === "image/jpeg" ? "jpg" : mime === "image/webp" ? "webp" : "png";
+  const sha256 = createHash("sha256").update(bytes).digest("hex");
 
   const service = createServiceClient();
   if (!service) return NextResponse.json({ error: "Supabase is not configured." }, { status: 503 });
@@ -46,6 +48,22 @@ export async function POST(request: Request) {
     const parent = await service.from("studio_pathway_assets").select("id,pathway_slug,studio").eq("id", parsed.data.parentAssetId).maybeSingle();
     if (parent.error) return NextResponse.json({ error: parent.error.message }, { status: 500 });
     if (!parent.data || parent.data.pathway_slug !== pathway.slug || parent.data.studio !== parsed.data.studio) return NextResponse.json({ error: "Parent asset does not belong to this Pathway." }, { status: 409 });
+  }
+
+  const duplicate = await service.from("studio_pathway_assets")
+    .select("id,title,studio,asset_type")
+    .eq("pathway_slug", pathway.slug)
+    .eq("studio", parsed.data.studio)
+    .neq("status", "archived")
+    .contains("metadata", { sha256 })
+    .limit(1)
+    .maybeSingle();
+  if (duplicate.error) return NextResponse.json({ error: duplicate.error.message }, { status: 500 });
+  if (duplicate.data) {
+    return NextResponse.json({
+      error: `This exact file is already saved as “${duplicate.data.title}” in this Pathway.`,
+      duplicateAssetId: duplicate.data.id
+    }, { status: 409 });
   }
 
   const assetId = crypto.randomUUID();
@@ -70,7 +88,7 @@ export async function POST(request: Request) {
     storage_path: storagePath,
     prompt: parsed.data.prompt ?? null,
     model: parsed.data.model ?? null,
-    metadata: { ...parsed.data.metadata, mime, bytes: bytes.length },
+    metadata: { ...parsed.data.metadata, mime, bytes: bytes.length, sha256 },
     created_by: access.user.id,
     updated_by: access.user.id,
     created_at: now,
