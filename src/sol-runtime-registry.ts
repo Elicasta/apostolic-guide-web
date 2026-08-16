@@ -1,20 +1,8 @@
 import "server-only";
-import {
-  apostolicCampaignConceptTool,
-  apostolicCampaignCopyTool,
-  apostolicCampaignCreateDraftTool,
-  apostolicCampaignFinalizeTool,
-  apostolicCarouselDeckTool,
-  apostolicCarouselRenderTool,
-  apostolicDoctrineCheckTool,
-  apostolicDoctrineVerifySourceTool,
-  apostolicEmailDraftTool,
-  apostolicKeywordAutomationDraftTool,
-  apostolicPathwayGetTool,
-  apostolicSocialDraftTool,
-  apostolicValidateLinksTool
-} from "./apostolic-sol/tools";
+import { apostolicCampaignConceptTool, apostolicCampaignCopyTool, apostolicCarouselDeckTool, apostolicDoctrineCheckTool } from "./apostolic-sol/tools/content";
+import { apostolicCampaignCreateDraftTool, apostolicCampaignFinalizeTool, apostolicCarouselRenderTool, apostolicEmailDraftTool, apostolicKeywordAutomationDraftTool, apostolicSocialDraftTool, apostolicValidateLinksTool } from "./apostolic-sol/tools/campaign-store";
 import { apostolicCampaignRepairTool } from "./apostolic-sol/tools/repair";
+import { apostolicDoctrineVerifySourceTool, apostolicPathwayGetTool } from "./apostolic-sol/tools/source";
 import { apostolicVideoPrepareTool } from "./apostolic-sol/tools/video";
 import { pathwayCampaignWorkflow } from "./apostolic-sol/workflows/pathway-campaign";
 import { solAiGenerateJsonTool, solAiGenerateTextTool } from "./sol-core/tools/ai";
@@ -27,15 +15,7 @@ import { solHttpRequestTool } from "./sol-core/tools/http/request";
 import { SolToolRegistry } from "./sol-core/tools/registry";
 import { solRuntimeCapabilitiesTool, solRuntimeComposeTextTool } from "./sol-core/tools/runtime";
 import { solVercelDeployTool, solVercelVerifyTool } from "./sol-core/tools/vercel";
-import {
-  verifyBrowserAssertions,
-  verifyCarouselRender,
-  verifyDeploymentReady,
-  verifyDoctrinePassed,
-  verifyGithubSuccess,
-  verifyLinksPassed,
-  verifyNonEmptyText
-} from "./sol-core/verification/common";
+import { verifyBrowserAssertions, verifyCarouselRender, verifyDeploymentReady, verifyDoctrinePassed, verifyGithubSuccess, verifyLinksPassed, verifyNonEmptyText } from "./sol-core/verification/common";
 import { SolVerifierRegistry } from "./sol-core/verification/registry";
 import { buildAndDeployWorkflow, researchAndReportWorkflow, testAndVerifySiteWorkflow } from "./sol-core/workflows/definitions/generic";
 import { SolWorkflowRegistry } from "./sol-core/workflows/registry";
@@ -117,9 +97,6 @@ export function getSolRuntimeWorkflowRegistry() {
 
 export function isSolRuntimeWorkflowTrusted(key: string | null, version: number | null) {
   if (!key || !version) return false;
-  try {
-    return getSolRuntimeWorkflowRegistry().get(key, version).trusted;
-  } catch {
-    return false;
-  }
+  try { return getSolRuntimeWorkflowRegistry().get(key, version).trusted; }
+  catch { return false; }
 }
