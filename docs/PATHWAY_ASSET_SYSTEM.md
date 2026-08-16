@@ -8,35 +8,14 @@ The rule is simple: **media belongs to a Pathway first, then a production lane.*
 
 The system borrows the useful patterns from modern DAM and creative-review products without copying their enterprise bloat:
 
-- DAM systems use metadata, tags, search, favorites, collections, duplicate detection, bulk actions, permissions, and usage reporting to keep media findable.
-- Smart collections/saved searches are dynamic queries, not duplicated files.
-- AI-derived tags and descriptions are most useful as reviewable suggestions rather than silent truth.
-- Creative review systems treat revisions as versions of one asset rather than a pile of unrelated filenames.
-- Related-asset relationships help keep a parent creative and its slides, thumbnails, renders, captions, and derivatives together.
-- Distribution should point back to the source asset so operators can answer where an asset is being used.
-- Heavy source media should upload directly and resumably instead of flowing through application-server memory.
+- metadata, tags, search, favorites, Smart Views, duplicate detection, bulk actions, permissions, and usage reporting keep media findable;
+- AI-derived descriptions and tags are reviewable suggestions, not silent truth;
+- revisions stay attached to one asset through version history;
+- parent/child relationships keep decks, slides, thumbnails, renders, captions, and derivatives together;
+- distribution records point back to the source asset so operators can answer where a file is being used;
+- large source media uploads directly to object storage instead of flowing through Next.js memory.
 
-Apostolic Guide applies those patterns around the Pathway instead of around a generic enterprise folder hierarchy.
-
-## User outcome
-
-For any Pathway, an operator should be able to answer these questions without hunting through folders or other Studio screens:
-
-- What media already exists?
-- Which file is the approved one?
-- What is ready, published, or still in review?
-- What was this visual created for?
-- Can I find it later by subject, Scripture, format, description, or tag?
-- Can I save this search as a live Smart View?
-- Can Sol suggest useful discovery metadata without silently changing the asset?
-- Is this one of the visual references Sol should learn from?
-- Have I already uploaded this exact file?
-- Where is this asset currently being used?
-- Which assets are its parent and children?
-- Can I recover an earlier creative version?
-- Can I update a batch of selected assets safely?
-- Can I download, share, edit, archive, or queue it for publishing?
-- Can I ingest a large video or audio master without restarting after a network interruption?
+Apostolic Guide applies those patterns around the Pathway instead of around a generic folder tree.
 
 ## Data ownership
 
@@ -44,19 +23,19 @@ For any Pathway, an operator should be able to answer these questions without hu
 
 `studio_pathway_asset_versions` stores immutable snapshots before creative source changes. Restoring an old snapshot never rewinds the version number. It preserves the current version first, then applies the old snapshot as a new version.
 
-`studio_pathway_asset_views` stores per-user dynamic Smart Views for a Pathway. It stores filters only. It never duplicates assets.
+`studio_pathway_asset_views` stores per-user dynamic Smart Views for a Pathway. It stores filters only and never duplicates files.
 
-`studio_pathway_asset_uploads` is the resumable-ingest ledger. It records the operator, Pathway, destination lane, source filename, MIME type, byte length, current transfer state, last known byte offset, TUS upload URL, expiry, and finalized asset ID.
+`studio_pathway_asset_uploads` is the source-ingest ledger. It records the operator, Pathway, production lane, source filename, MIME type, byte length, transfer state, storage provider/path, expiry, and finalized asset ID.
 
 `studio_visual_style_profile` stores approved visual reference asset IDs used by Sol.
 
-Supabase Storage holds binary files. Asset rows hold the storage bucket/path and operational metadata.
+**Vercel Blob holds large source-master bytes. Supabase holds the DAM database, workflow state, metadata, relationships, audit trail, and ingest ledger.** Existing small-image workflows that already use Supabase Storage remain supported.
 
-The existing `studio_content_calendar_items.asset_id` link is also treated as an asset usage reference so the library can show whether a file has entered distribution.
+The `studio_content_calendar_items.asset_id` link is treated as an asset usage reference so the library can show whether a file has entered distribution.
 
 ## Operational metadata
 
-Operational DAM metadata lives in the asset `metadata` JSONB envelope so the existing schema can evolve without a destructive table rewrite.
+Operational DAM metadata lives in the asset `metadata` JSONB envelope so the schema can evolve without destructive rewrites.
 
 Current fields include:
 
@@ -69,19 +48,22 @@ Current fields include:
 - `bytes`
 - `mediaKind`
 - `role`
+- `storageProvider`
 - `uploadMethod`
 - `ingestSessionId`
+- `immutableSource`
 - original filename / last modified timestamp
 - duration and dimensions when the browser can inspect them
+- provider ETag and private Blob provenance for ingested masters
 - generation metadata such as model, size, and creation type
 
-Tags are normalized, case-insensitively deduplicated, and capped to keep the metadata predictable.
+Tags are normalized, case-insensitively deduplicated, and capped.
 
 ## Sol metadata assist
 
 For an image-backed asset, Sol can analyze the visual together with the Pathway title, summary, Scripture context, current asset type, and generation prompt.
 
-Sol returns a **suggestion**, not a database mutation:
+Sol returns a suggestion instead of mutating the database:
 
 - suggested library title
 - description
@@ -89,11 +71,11 @@ Sol returns a **suggestion**, not a database mutation:
 - search tags
 - confidence score
 
-The operator can apply the suggestion into the editable fields, review it, change anything, and then save manually. This avoids turning model output into unreviewed asset truth.
+The operator can apply the suggestion, review it, change anything, and save manually.
 
 ## Upload safety
 
-There are now two ingest paths.
+There are two ingest paths.
 
 ### Fast image upload
 
@@ -104,23 +86,35 @@ The library still supports quick PNG, JPEG, and WebP uploads up to 8 MB each. Th
 The dedicated **Pathway Assets Ingest Dock** is for source masters:
 
 - PNG / JPEG / WebP
-- MP4 / MOV / WebM
+- MP4 / MOV / M4V / WebM / MPEG / AVI
 - MP3 / WAV / M4A-compatible `audio/mp4`
 - PDF reference documents
 - ZIP project archives
-- up to 1 GB per source in the current bucket policy
+- up to 20 GB per source at the application layer
 
-Large files do not pass through Next.js as base64 or request bodies. The server creates a signed upload token and the browser talks directly to Supabase Storage using the TUS protocol.
+The browser uploads directly to the existing private Vercel Blob store through `@vercel/blob/client`. Next.js authorizes the upload and tracks the session, but the application server never proxies the large file bytes.
 
-Supabase requires 6 MB TUS chunks. The UI uses that chunk size, tracks byte offset, speed and ETA, supports pause/cancel/retry, and can resume an interrupted transfer after the operator reselects the same local file.
+Large files use Vercel Blob multipart upload. Multipart splits the file into parts, uploads parts in parallel, retries failed parts, and reports live progress. The Studio surfaces percentage, transferred bytes, speed, ETA, retry, and cancellation.
 
-The upload ledger retains the TUS URL and client fingerprint for 24 hours. A daily cron marks expired sessions and removes any orphaned storage object that exists at the reserved path.
+The upload session remains in Supabase for 24 hours. A daily cron expires stale sessions and removes any orphaned Blob object associated with the reserved source path.
 
 Video and audio masters automatically route into the Video Production lane. Images, PDFs, and archives honor the lane selected when the operator enters the Ingest Dock.
 
-For files up to 64 MB the browser also computes SHA-256 before transfer so the API can warn when the same binary already exists. Larger files still receive stable browser-file fingerprints for session recovery without pretending that filename/size is cryptographic duplicate proof.
+For files up to 64 MB the browser computes SHA-256 before transfer so the API can warn when the same binary already exists. Larger files keep a stable browser-file fingerprint for tracing without pretending that filename and size are cryptographic duplicate proof.
 
-Finalization verifies that the storage object exists and that its stored byte size matches the source before creating the durable `studio_pathway_assets` record.
+Finalization calls Vercel Blob metadata verification and refuses to create `studio_pathway_assets` unless the Blob exists and its stored byte size matches the selected source file.
+
+Finalized source masters are deliberately immutable. Production work should create derivatives rather than edit or replace the original source record.
+
+## Private Blob delivery
+
+The private Blob URL is never exposed as an unauthenticated public asset.
+
+`/api/admin/pathway-assets/file` verifies `manage_content`, fetches the private object with the server-side Blob token, and streams authorized previews.
+
+`/api/admin/pathway-assets/download` follows the same permission model and streams Vercel Blob masters instead of buffering multi-gigabyte files into Function memory.
+
+To avoid turning an admin preview into a multi-gigabyte transfer, video/audio/PDF masters larger than 100 MB do not auto-stream in the source viewer. The original is still available for download and production handoff.
 
 ## Search and organization
 
@@ -131,7 +125,7 @@ The Pathway library supports:
 - visual/copy/output groups
 - workflow status filtering
 - favorites
-- multi-term title/type/source/status/description/alt-text/tag search
+- multi-term metadata search
 - updated/title/workflow sorting
 - asset detail inspection
 - dynamic Smart Views
@@ -150,7 +144,7 @@ Operators can select up to 100 assets per server request and:
 - favorite the set
 - archive the set
 
-Bulk archive is still soft removal. If a partial database failure occurs, the API returns the IDs that were already updated rather than pretending the whole batch succeeded.
+Bulk archive is soft removal. If a partial database failure occurs, the API returns the IDs already updated rather than pretending the whole batch succeeded.
 
 ## Usage tracing
 
@@ -162,17 +156,11 @@ Asset list responses include Content Calendar usage information derived from `as
 - latest workflow state
 - schedule time when available
 
-This is intentionally a source-reference model. The calendar points to the asset. The asset library does not clone distribution records into its own metadata.
+The calendar points to the asset. The asset library does not clone distribution records into its own metadata.
 
 ## Asset relationships
 
 The existing `parent_asset_id` relationship is surfaced in the inspector as the first related-asset model:
-
-- open parent asset
-- see child count
-- jump directly to child assets
-
-This maps well to Apostolic Guide outputs such as:
 
 `Carousel Deck → Slides`
 
@@ -180,39 +168,41 @@ This maps well to Apostolic Guide outputs such as:
 
 `Story Set → Story Frames`
 
-If we later need many-to-many semantic relationships, add a dedicated relation table rather than overloading `parent_asset_id`.
+If many-to-many semantic relationships become necessary, add a dedicated relation table rather than overloading `parent_asset_id`.
 
 ## Workflow states
 
-Assets use the existing lifecycle:
+Assets use the lifecycle:
 
 `draft → review → approved → ready → published`
 
-`archived` is a soft removal state. Archiving removes the item from normal library queries while keeping its record, file reference, and history intact.
+`archived` is soft removal. Archiving removes an item from normal library queries while keeping its record, source reference, and history intact.
 
 ## Version policy
 
 Creative source edits increment the asset version and snapshot the prior asset first.
 
-Operational metadata edits such as tags, description, favorite, alt text, or status do **not** create a creative version. This prevents version history from being flooded by library housekeeping.
+Operational metadata edits such as tags, description, favorite, alt text, or status do not create a creative version.
 
 A restore is non-destructive:
 
-1. preserve current version,
-2. load requested historical snapshot,
-3. apply its restorable creative fields,
-4. increment the current version,
+1. preserve current version;
+2. load the requested historical snapshot;
+3. apply its restorable creative fields;
+4. increment the current version;
 5. keep the full chain recoverable.
+
+Ingested source masters are a separate immutable class. They are not edited in place.
 
 ## Visual memory
 
-Any image-backed asset can be added to or removed from the Apostolic Guide visual style reference set. The library marks active references so operators can see what is currently teaching Sol the visual language.
+Any image-backed creative asset can be added to or removed from the Apostolic Guide visual style reference set. The library marks active references so operators can see what is currently teaching Sol the visual language.
 
-Non-image source masters deliberately do not receive image preview URLs, which prevents the UI from trying to render MP4/WAV/PDF files as images and prevents them from appearing as Sol visual style references.
+Non-image source masters do not receive image-style references.
 
 ## Audit trail
 
-Privileged Pathway Asset mutations write to the existing Studio audit system where practical, including:
+Privileged Pathway Asset mutations write to the Studio audit system where practical, including:
 
 - create/version save
 - upload/generated save
@@ -227,32 +217,32 @@ The audit system remains server-only.
 
 ## Security model
 
-All Pathway asset admin routes require `manage_content`.
+All Pathway Asset admin routes require `manage_content`.
 
-The source-media bucket is private. The application signs a single storage path for upload instead of exposing the service role or proxying large binaries through the app server.
+The private Vercel Blob store uses `BLOB_READ_WRITE_TOKEN` only on the server. Client uploads receive short-lived upload authorization through `handleUpload`; the long-lived read/write token is never sent to the browser.
 
-Storage previews use signed URLs for private image files when no public URL is present. Non-image masters remain downloadable through the permission-checked server download route without receiving an image preview URL.
-
-Saved views and ingest sessions are scoped to the authenticated user. Direct table access is revoked; server APIs own access.
+Source preview and download routes authenticate beside the Blob read operation. Saved views and ingest sessions are scoped to the authenticated user. Direct table access remains revoked; server APIs own access.
 
 ## Recovery and failure policy
 
-A resumable upload has three identities:
+The source ingest flow has three durable identities:
 
-1. the browser file fingerprint,
-2. the server ingest-session UUID,
-3. the unique TUS upload URL.
+1. browser file fingerprint;
+2. server ingest-session UUID;
+3. unique Vercel Blob pathname.
 
-The browser can safely pause or lose connectivity because Storage owns the partial transfer. On retry the Studio renews the signed upload credential, performs a `HEAD` request against the TUS URL to recover the authoritative offset, and resumes from there.
+Multipart upload retries individual failed parts while the active browser transfer is alive. Cancellation aborts the browser request and asks the server to clean the reserved Blob path.
 
-A source is not registered as a durable asset until storage verification passes. That keeps half-uploaded files out of the normal library.
+A full browser close does not pretend to provide byte-perfect cross-session resume. The Supabase ledger preserves the interrupted state so cleanup is deterministic, and the operator can reselect the source to begin a fresh multipart transfer. This is preferable to advertising recovery guarantees the underlying client API does not provide.
+
+A source is not registered as a normal DAM asset until Blob verification passes. Half-uploaded files therefore never appear as durable masters.
 
 ## Deliberately separate future lakes
 
-These remain independent product projects rather than hidden inside ingest:
+These remain separate product projects:
 
 - frame-accurate comments and annotations
-- multi-stage external proofing/approval links
+- multi-stage external proofing links
 - expiring external portals
 - license/rights expiration enforcement
 - derivative/transformation presets
@@ -262,4 +252,4 @@ These remain independent product projects rather than hidden inside ingest:
 
 ## Current next step
 
-The resumable-ingest lake is now part of Pathway Assets. The next media-system expansion should only happen when there is a proven production bottleneck. The most natural future step is a background derivative worker that turns source masters into lightweight preview proxies, thumbnails, waveforms, and production-ready renditions without altering the original file.
+The source-ingest lake now shares the same Vercel Blob storage architecture already used by Video Producer. The next natural media-system expansion is a background derivative worker that turns source masters into lightweight preview proxies, thumbnails, waveforms, and production-ready renditions without altering the original.
