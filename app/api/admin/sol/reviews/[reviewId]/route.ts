@@ -38,10 +38,11 @@ export async function POST(request: Request, context: { params: Promise<{ review
   if (!hasStudioPermission(current.role, "manage_content")) return NextResponse.json({ error: "Your Studio role cannot resolve reviews." }, { status: 403 });
   const parsed = decisionSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Invalid review decision." }, { status: 400 });
+  if (parsed.data.decision === "changes_requested" && !parsed.data.note?.trim()) return NextResponse.json({ error: "Request Changes requires a note." }, { status: 400 });
   const { reviewId } = await context.params;
   try {
     const review = await resolveSolRuntimeApproval({ reviewId, userId: current.user.id, decision: parsed.data.decision, note: parsed.data.note });
-    if (parsed.data.decision === "approved") after(() => runSolRuntimeWorker({ maxTasks: 4 }).catch((error) => console.error("SOL Runtime approval wake failed", error)));
+    if (parsed.data.decision !== "rejected") after(() => runSolRuntimeWorker({ maxTasks: parsed.data.decision === "changes_requested" ? 12 : 6 }).catch((error) => console.error("SOL Runtime approval wake failed", error)));
     return NextResponse.json({ ok: true, review });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to resolve SOL review.";
