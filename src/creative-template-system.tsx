@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Loader2, Palette } from "lucide-react";
+import { Check, Loader2 } from "lucide-react";
 import { createPortal } from "react-dom";
 import { useEffect, useMemo, useState } from "react";
 
@@ -26,12 +26,7 @@ type CreativeProject = {
 
 type TemplateId = "street-theology" | "editorial-white" | "cinematic" | "verse-connection" | "manifesto";
 
-type Template = {
-  id: TemplateId;
-  label: string;
-  description: string;
-  surface: string;
-};
+type Template = { id: TemplateId; label: string; description: string; surface: "dark" | "light" };
 
 const TEMPLATES: Template[] = [
   { id: "street-theology", label: "Street Theology", description: "Texture + hard type", surface: "dark" },
@@ -40,8 +35,6 @@ const TEMPLATES: Template[] = [
   { id: "verse-connection", label: "Verse Connection", description: "Paired verses", surface: "light" },
   { id: "manifesto", label: "Manifesto", description: "Single statement", surface: "dark" }
 ];
-
-const NEXT_TEMPLATE_KEY = "ag-creative-template-next-v1";
 
 function normalizeTemplate(value: unknown): TemplateId {
   if (value === "street-theology" || value === "editorial-white" || value === "cinematic" || value === "verse-connection" || value === "manifesto") return value;
@@ -53,8 +46,7 @@ function normalizeTemplate(value: unknown): TemplateId {
 
 function applyTemplateToDom(template: TemplateId) {
   const shell = document.querySelector<HTMLElement>(".creative-studio-shell");
-  if (!shell) return;
-  shell.dataset.creativeTemplate = template;
+  if (shell) shell.dataset.creativeTemplate = template;
 }
 
 async function requestProject(id: string) {
@@ -95,16 +87,17 @@ async function persistTemplate(id: string, template: TemplateId) {
   return data.project as CreativeProject;
 }
 
-function TemplatePicker({ selected, disabled, saving, onPick }: {
+function TemplatePicker({ selected, disabled, saving, error, onPick }: {
   selected: TemplateId;
   disabled: boolean;
   saving: TemplateId | null;
+  error: string;
   onPick: (template: TemplateId) => void;
 }) {
   return <section className="creative-template-system" aria-label="Creative templates">
     <div className="creative-template-head">
       <div><span>Art direction</span><strong>Carousel Studio templates</strong></div>
-      <small>Now saved with the project</small>
+      <small>Saved with this project</small>
     </div>
     <div className="creative-template-grid">
       {TEMPLATES.map((template) => <button
@@ -120,24 +113,27 @@ function TemplatePicker({ selected, disabled, saving, onPick }: {
         {saving === template.id ? <Loader2 className="spin" size={14}/> : selected === template.id ? <Check size={14}/> : null}
       </button>)}
     </div>
-    {disabled ? <p>Finish the current save before changing art direction.</p> : <p>Template choice persists with the Creative Project and is used by the rendered PNGs.</p>}
+    {error ? <p className="is-error">{error}</p> : disabled ? <p>Finish the current autosave before changing art direction.</p> : <p>These are the original Carousel Studio directions, now attached to the persistent Creative Project and its renders.</p>}
   </section>;
 }
 
 export function CreativeTemplateSystem({ projectId }: { projectId?: string | null }) {
   const [target, setTarget] = useState<Element | null>(null);
-  const [selected, setSelected] = useState<TemplateId>("street-theology");
+  const [selected, setSelected] = useState<TemplateId>("editorial-white");
   const [saving, setSaving] = useState<TemplateId | null>(null);
-  const [saveReady, setSaveReady] = useState(true);
+  const [saveReady, setSaveReady] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
+    if (!projectId) {
+      setTarget(null);
+      return;
+    }
     const sync = () => {
-      const next = projectId
-        ? document.querySelector(".creative-preview-panel")
-        : document.querySelector(".creative-create-card");
+      const next = document.querySelector(".creative-preview-panel");
       setTarget((current) => current === next ? current : next);
       const indicator = document.querySelector(".creative-save-state");
-      setSaveReady(!projectId || !indicator || indicator.classList.contains("is-saved"));
+      setSaveReady(Boolean(indicator?.classList.contains("is-saved")));
     };
     sync();
     const timer = window.setInterval(sync, 300);
@@ -145,60 +141,31 @@ export function CreativeTemplateSystem({ projectId }: { projectId?: string | nul
   }, [projectId]);
 
   useEffect(() => {
-    if (!projectId) {
-      try {
-        const pending = window.sessionStorage.getItem(NEXT_TEMPLATE_KEY);
-        if (pending) setSelected(normalizeTemplate(pending));
-      } catch {}
-      return;
-    }
-
+    if (!projectId) return;
     let cancelled = false;
-    void requestProject(projectId).then(async (project) => {
+    void requestProject(projectId).then((project) => {
       if (cancelled) return;
-      const currentTemplate = normalizeTemplate(project.editorState.visualSettings?.template || project.editorState.visualSettings?.style);
-      let nextTemplate = currentTemplate;
-      try {
-        const pending = window.sessionStorage.getItem(NEXT_TEMPLATE_KEY);
-        if (pending) {
-          nextTemplate = normalizeTemplate(pending);
-          window.sessionStorage.removeItem(NEXT_TEMPLATE_KEY);
-        }
-      } catch {}
-
-      setSelected(nextTemplate);
-      applyTemplateToDom(nextTemplate);
-      if (nextTemplate !== currentTemplate) {
-        setSaving(nextTemplate);
-        try {
-          await persistTemplate(projectId, nextTemplate);
-        } finally {
-          if (!cancelled) setSaving(null);
-        }
-      }
-    }).catch(() => undefined);
-
+      const template = normalizeTemplate(project.editorState.visualSettings?.template || project.editorState.visualSettings?.style);
+      setSelected(template);
+      applyTemplateToDom(template);
+    }).catch((reason) => { if (!cancelled) setError(reason instanceof Error ? reason.message : "Template state could not be loaded."); });
     return () => { cancelled = true; };
   }, [projectId]);
 
-  useEffect(() => { applyTemplateToDom(selected); }, [selected, target]);
+  useEffect(() => { if (projectId) applyTemplateToDom(selected); }, [projectId, selected, target]);
 
-  const disabled = Boolean(projectId) && (!saveReady || Boolean(saving));
-  const picker = useMemo(() => <TemplatePicker selected={selected} disabled={disabled} saving={saving} onPick={(template) => {
-    if (!projectId) {
-      setSelected(template);
-      try { window.sessionStorage.setItem(NEXT_TEMPLATE_KEY, template); } catch {}
-      return;
-    }
-    if (disabled || template === selected) return;
+  const disabled = !saveReady || Boolean(saving);
+  const picker = useMemo(() => <TemplatePicker selected={selected} disabled={disabled} saving={saving} error={error} onPick={(template) => {
+    if (!projectId || disabled || template === selected) return;
     setSaving(template);
+    setError("");
     void persistTemplate(projectId, template).then(() => {
       setSelected(template);
       applyTemplateToDom(template);
       window.location.reload();
-    }).catch(() => undefined).finally(() => setSaving(null));
-  }}/>, [disabled, projectId, saving, selected]);
+    }).catch((reason) => setError(reason instanceof Error ? reason.message : "Template could not be saved.")).finally(() => setSaving(null));
+  }}/>, [disabled, error, projectId, saving, selected]);
 
-  if (!target) return null;
+  if (!target || !projectId) return null;
   return createPortal(picker, target);
 }
