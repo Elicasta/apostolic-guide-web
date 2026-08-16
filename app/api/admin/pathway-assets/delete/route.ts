@@ -153,7 +153,7 @@ export async function DELETE(request: Request) {
       publication.status === "published" || publication.status === "scheduled" || Boolean(publication.published_url)
     );
     const protectedSourceAsset = (sourceAssetResult.data ?? []).some((asset) =>
-      asset.status === "published" || Boolean(asset.published_url)
+      asset.status === "published" || asset.status === "scheduled" || Boolean(asset.published_url)
     );
     if (protectedPublication || protectedSourceAsset) {
       return NextResponse.json({ error: "This video is connected to published or scheduled content. Archive it instead of deleting it." }, { status: 409 });
@@ -192,6 +192,9 @@ export async function DELETE(request: Request) {
   }
 
   if (linkedAssetIds.length) {
+    const publicationDelete = await service.from("pathway_publications").delete().in("asset_id", linkedAssetIds);
+    if (publicationDelete.error) return NextResponse.json({ error: publicationDelete.error.message }, { status: 500 });
+
     const sourceDelete = await service.from("pathway_assets").delete().in("id", linkedAssetIds);
     if (sourceDelete.error) return NextResponse.json({ error: sourceDelete.error.message }, { status: 500 });
   }
