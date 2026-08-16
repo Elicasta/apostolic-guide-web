@@ -1,24 +1,6 @@
--- Private Pathway source-media bucket + resumable ingest ledger.
--- TUS chunks are uploaded directly to Supabase Storage; the app only signs,
--- tracks, verifies, and finalizes the resulting source asset.
-
-insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
-values (
-  'studio-pathway-assets',
-  'studio-pathway-assets',
-  false,
-  1073741824,
-  array[
-    'image/png','image/jpeg','image/webp',
-    'video/mp4','video/quicktime','video/webm',
-    'audio/mpeg','audio/wav','audio/x-wav','audio/wave','audio/mp4',
-    'application/pdf','application/zip'
-  ]::text[]
-)
-on conflict (id) do update
-set public = excluded.public,
-    file_size_limit = excluded.file_size_limit,
-    allowed_mime_types = excluded.allowed_mime_types;
+-- Pathway source-media ingest ledger.
+-- Large source bytes live in Vercel Blob. Supabase stores the durable DAM
+-- record, upload state, ownership, provenance, and downstream relationships.
 
 alter table public.studio_pathway_assets
   drop constraint if exists studio_pathway_assets_asset_type_check;
@@ -38,11 +20,11 @@ create table if not exists public.studio_pathway_asset_uploads (
   pathway_slug text not null,
   studio text not null check (studio in ('carousel','video')),
   asset_type text not null check (asset_type in ('uploaded-image','uploaded-video','source-audio','source-document','source-archive')),
-  storage_bucket text not null default 'studio-pathway-assets',
+  storage_bucket text not null default 'vercel_blob',
   storage_path text not null unique,
   file_name text not null check (char_length(file_name) between 1 and 255),
   mime_type text not null,
-  file_size bigint not null check (file_size > 0 and file_size <= 1073741824),
+  file_size bigint not null check (file_size > 0 and file_size <= 21474836480),
   last_modified bigint,
   client_fingerprint text,
   sha256 text,
