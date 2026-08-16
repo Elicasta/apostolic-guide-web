@@ -1,10 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArchiveRestore, Film, Images, Library, Loader2, Plus, RefreshCw, Smartphone, Trash2 } from "lucide-react";
+import { ArchiveRestore, ChevronDown, Film, Loader2, Plus, RefreshCw, Smartphone, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import styles from "./video-producer-sequential.module.css";
+import styles from "./video-producer-library.module.css";
+import { VideoProducerSectionNav } from "./video-producer-section-nav";
 
 type LibraryRender = {
   id: string;
@@ -47,11 +48,18 @@ function statusLabel(status: string) {
     planned: "Finish setup",
     approved: "Ready to render",
     rendering: "Rendering",
-    review: "Review master ready",
+    review: "Master ready",
     completed: "Complete",
     failed: "Needs attention"
   };
   return labels[status] || status;
+}
+
+function statusState(project: LibraryProject) {
+  if (project.status === "failed" || project.latest_render?.status === "failed") return "error";
+  if (["uploading", "transcribing", "directing", "rendering"].includes(project.status) || ["queued", "rendering"].includes(project.latest_render?.status || "")) return "working";
+  if (["approved", "review", "completed"].includes(project.status) || project.latest_render?.status === "completed") return "ready";
+  return "neutral";
 }
 
 function projectStep(project: LibraryProject) {
@@ -100,7 +108,6 @@ export function VideoProducerDashboard() {
   const roots = useMemo(() => projects.filter((project) => !project.parent_project_id), [projects]);
   const active = roots.filter((project) => project.status !== "completed");
   const done = roots.filter((project) => project.status === "completed");
-  const reelCount = projects.filter((project) => project.mode === "reels").length;
 
   function open(project: LibraryProject) {
     router.push(`/admin/video-producer/${project.id}/${projectStep(project)}`);
@@ -126,70 +133,63 @@ export function VideoProducerDashboard() {
   function projectRow(project: LibraryProject, complete = false) {
     const render = project.latest_render;
     const percent = render?.status === "completed" ? 100 : Math.max(0, Math.min(100, Number(render?.progress?.percent || 0)));
+    const state = statusState(project);
     return (
-      <div className={styles.projectRow} key={project.id}>
-        <button type="button" className={styles.projectRowMain} onClick={() => open(project)}>
-          <span className={styles.projectIcon}>{project.mode === "podcast" ? <Film size={18}/> : <Smartphone size={18}/>}</span>
-          <span className={styles.projectCopy}>
+      <div className={styles.row} key={project.id}>
+        <button type="button" className={styles.rowMain} onClick={() => open(project)}>
+          <span className={styles.rowIcon}>{project.mode === "podcast" ? <Film size={18}/> : <Smartphone size={18}/>}</span>
+          <span className={styles.rowCopy}>
             <strong>{project.title}</strong>
-            <small>{project.mode === "podcast" ? "Podcast" : "Reel"} · {duration(project)} · {complete ? "Complete" : statusLabel(project.status)}</small>
+            <span className={styles.rowMeta}><span className={styles.rowMetaText}>{project.mode === "podcast" ? "Podcast" : "Reel"} · {duration(project)}</span></span>
+            <span className={styles.statusPill} data-state={state}>{complete ? "Complete" : statusLabel(project.status)}</span>
             {!complete && render && render.status !== "completed" ? <span className={styles.miniProgress}><i style={{ width: `${Math.max(percent, 3)}%` }}/></span> : null}
           </span>
-          <span className={styles.continueLabel}>{complete ? "Open" : "Continue"}</span>
         </button>
-        <button type="button" className={styles.trashAction} disabled={deleting === project.id} onClick={() => void trashProject(project)} aria-label={`Delete ${project.title}`} title="Move to Recovery Bucket">
-          {deleting === project.id ? <Loader2 size={14} className={styles.spin}/> : <Trash2 size={14}/>} 
-        </button>
+        <div className={styles.rowActions}>
+          <button type="button" className={`${styles.rowAction} ${styles.rowActionDanger}`} disabled={deleting === project.id} onClick={() => void trashProject(project)} aria-label={`Move ${project.title} to Recovery Bucket`} title="Move to Recovery Bucket">
+            {deleting === project.id ? <Loader2 size={13} className={styles.spin}/> : <Trash2 size={13}/>} 
+          </button>
+        </div>
       </div>
     );
   }
 
   return (
-    <main className={styles.dashboard}>
-      <div className={styles.dashboardShell}>
-        <header className={styles.dashboardHeader}>
-          <div>
+    <main className={styles.page}>
+      <div className={styles.shell}>
+        <header className={styles.hero}>
+          <div className={styles.heroCopy}>
             <div className={styles.eyebrow}>Apostolic Guide Media</div>
             <h1>Video Producer</h1>
-            <p>Choose a project, finish one step, then move forward. No giant workspace.</p>
+            <p>Pick the work in front of you. The full editor only opens when you enter a project.</p>
           </div>
-          <button type="button" className={styles.iconAction} onClick={() => void load()} disabled={loading} aria-label="Refresh projects">
+          <button type="button" className={styles.iconButton} onClick={() => void load()} disabled={loading} aria-label="Refresh projects">
             {loading ? <Loader2 size={18} className={styles.spin}/> : <RefreshCw size={18}/>} 
           </button>
         </header>
 
-        <section className={styles.newProjectRow} aria-label="Start or browse projects">
-          <button type="button" onClick={() => router.push("/admin/video-producer/new?mode=podcast")}>
-            <Film size={20}/><span><strong>New podcast</strong><small>Long-form · 16:9</small></span><Plus size={17}/>
-          </button>
-          <button type="button" onClick={() => router.push("/admin/video-producer/new?mode=reels")}>
-            <Smartphone size={20}/><span><strong>New reel</strong><small>Standalone · 9:16</small></span><Plus size={17}/>
-          </button>
-          <button type="button" onClick={() => router.push("/admin/video-producer/reels")}>
-            <Library size={20}/><span><strong>Reels library</strong><small>{reelCount} total · parent + standalone</small></span><Smartphone size={17}/>
-          </button>
-          <button type="button" onClick={() => router.push("/admin/video-producer/graphics")}>
-            <Images size={20}/><span><strong>Graphics library</strong><small>Reusable PNG + WebP designs</small></span><Library size={17}/>
-          </button>
-        </section>
+        <VideoProducerSectionNav active="projects"/>
 
-        <div className={styles.libraryUtilityRow}>
-          <span />
-          <Link className={styles.recoveryLink} href="/admin/video-producer/recovery"><ArchiveRestore size={14}/> Recovery Bucket</Link>
+        <div className={styles.actionBar}>
+          <div className={styles.primaryActions}>
+            <button type="button" className={styles.primaryButton} onClick={() => router.push("/admin/video-producer/new?mode=podcast")}><Plus size={14}/><Film size={14}/> Podcast</button>
+            <button type="button" className={styles.secondaryButton} onClick={() => router.push("/admin/video-producer/new?mode=reels")}><Plus size={14}/><Smartphone size={14}/> Reel</button>
+          </div>
+          <Link className={styles.utilityLink} href="/admin/video-producer/recovery"><ArchiveRestore size={13}/> Recovery</Link>
         </div>
 
-        {error ? <div className={styles.error} style={{ marginTop: 14 }}>{error}</div> : null}
+        {error ? <div className={styles.error}>{error}</div> : null}
 
-        <section className={styles.projectSection}>
-          <div className={styles.sectionHeading}><h2>In production</h2><span>{active.length}</span></div>
-          {loading && !roots.length ? <div className={styles.empty}>Loading projects…</div> : active.length ? <div className={styles.projectList}>{active.map((project) => projectRow(project))}</div> : <div className={styles.empty}>Nothing waiting on you.</div>}
+        <section className={styles.section}>
+          <div className={styles.sectionHead}><div className={styles.sectionTitle}><h2>In production</h2><span className={styles.count}>{active.length}</span></div></div>
+          {loading && !roots.length ? <div className={styles.empty}>Loading projects…</div> : active.length ? <div className={styles.list}>{active.map((project) => projectRow(project))}</div> : <div className={styles.empty}>Nothing waiting on you. Start a Podcast or Reel above.</div>}
         </section>
 
         {done.length ? (
-          <section className={styles.projectSection}>
-            <div className={styles.sectionHeading}><h2>Completed</h2><span>{done.length}</span></div>
-            <div className={styles.projectList}>{done.slice(0, 12).map((project) => projectRow(project, true))}</div>
-          </section>
+          <details className={styles.collapsible}>
+            <summary><span>Completed projects · {done.length}</span><ChevronDown size={15}/></summary>
+            <div className={styles.list}>{done.slice(0, 12).map((project) => projectRow(project, true))}</div>
+          </details>
         ) : null}
       </div>
     </main>
