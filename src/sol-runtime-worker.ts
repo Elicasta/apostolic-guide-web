@@ -2,7 +2,7 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import { SolRuntimeExecutor } from "./sol-core/runtime/executor";
 import type { SolRuntimeTaskRecord } from "./sol-core/runtime/store";
-import { getSolRuntimeToolRegistry, getSolRuntimeVerifierRegistry } from "./sol-runtime-registry";
+import { getSolRuntimeToolRegistry, getSolRuntimeVerifierRegistry, isSolRuntimeWorkflowTrusted } from "./sol-runtime-registry";
 import { SupabaseSolRuntimeStore } from "./sol-runtime-store-supabase";
 
 const DEFAULT_CONCURRENCY = 4;
@@ -24,11 +24,7 @@ export async function runSolRuntimeWorker(options?: { maxTasks?: number }) {
   const executor = new SolRuntimeExecutor(store, tools, verifiers, {
     workerId,
     leaseSeconds: DEFAULT_LEASE_SECONDS,
-    workflowAllowlisted: (key, version) => Boolean(key && version && [
-      "research_and_report",
-      "test_and_verify_site",
-      "apostolic.pathway_campaign.prepare"
-    ].includes(key))
+    workflowAllowlisted: isSolRuntimeWorkflowTrusted
   });
 
   let executed = 0;
