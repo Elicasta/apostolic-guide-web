@@ -6,7 +6,8 @@ import {
   CREATIVE_INTENTS,
   CREATIVE_STATUSES,
   createDefaultFrames,
-  recommendedFrameCount
+  recommendedFrameCount,
+  type CreativeIntent
 } from "@/creative-project";
 import { creativeProjectFromRow } from "@/creative-project-server";
 import { pathwayBySlug } from "@/pathway-catalog";
@@ -24,6 +25,20 @@ const createSchema = z.object({
 
 function safeSearch(value: string) {
   return value.replace(/[%,]/g, " ").replace(/\s+/g, " ").trim().slice(0, 120);
+}
+
+function defaultTemplateForIntent(intent: CreativeIntent) {
+  if (intent === "teaching" || intent === "objection") return "street-theology";
+  if (intent === "scripture") return "verse-connection";
+  if (intent === "quote") return "manifesto";
+  if (intent === "invitation") return "cinematic";
+  return "editorial-white";
+}
+
+function defaultTextureForTemplate(template: string) {
+  if (template === "editorial-white" || template === "verse-connection") return "ag-paper-white";
+  if (template === "cinematic") return "ag-navy-speckle";
+  return "ag-navy-paper";
 }
 
 export async function GET(request: Request) {
@@ -72,6 +87,7 @@ export async function POST(request: Request) {
     scripture: index > 0 && index < all.length - 1 ? pathway.steps[Math.min(index - 1, pathway.steps.length - 1)]?.reference ?? "" : ""
   }));
   const title = parsed.data.title || `${pathway.title} · ${parsed.data.intent[0].toUpperCase()}${parsed.data.intent.slice(1)} ${parsed.data.format === "single" ? "Single Post" : parsed.data.format === "story" ? "Story" : "Carousel"}`;
+  const template = defaultTemplateForIntent(parsed.data.intent);
   const now = new Date().toISOString();
   const searchText = [title, pathway.title, pathway.slug, parsed.data.intent, parsed.data.format, ...frames.map((frame) => frame.scripture), ...parsed.data.tags].join(" ");
   const created = await service.from("studio_creative_projects").insert({
@@ -83,7 +99,16 @@ export async function POST(request: Request) {
     destination: parsed.data.destination,
     frame_count: frames.length,
     status: "draft",
-    editor_state: { frames, visualSettings: {}, sourceImages: [] },
+    editor_state: {
+      frames,
+      visualSettings: {
+        style: template,
+        template,
+        texture: defaultTextureForTemplate(template),
+        alignment: template === "editorial-white" || template === "verse-connection" ? "left" : "center"
+      },
+      sourceImages: []
+    },
     tags: parsed.data.tags,
     scripture_references: frames.map((frame) => frame.scripture).filter(Boolean),
     search_text: searchText,

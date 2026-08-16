@@ -1,18 +1,10 @@
 import { redirect } from "next/navigation";
-import { getStudioPermission } from "@/auth";
-import { CreativeStudioClient } from "@/creative-studio-client";
-import { allPathways } from "@/pathway-catalog";
 
-export default async function AdminCreativeStudioPage({ searchParams }: { searchParams: Promise<{ project?: string }> }) {
-  const { access, allowed } = await getStudioPermission("manage_content");
-  if (!allowed || access.state !== "allowed") redirect("/admin");
+export default async function AdminCreativeStudioPage({ searchParams }: { searchParams: Promise<{ project?: string; view?: string }> }) {
   const query = await searchParams;
-  const pathways = allPathways.map((pathway) => ({
-    slug: pathway.slug,
-    title: pathway.title,
-    collection: pathway.collection,
-    summary: pathway.summary,
-    steps: pathway.steps.map((step) => ({ reference: step.reference, title: step.title, explanation: step.explanation }))
-  }));
-  return <CreativeStudioClient pathways={pathways} initialProjectId={query.project ?? null} aiReady={Boolean(process.env.OPENAI_API_KEY?.trim())}/>;
+  const params = new URLSearchParams();
+  if (query.project) params.set("project", query.project);
+  if (query.view) params.set("view", query.view);
+  const suffix = params.toString();
+  redirect(`/admin/carousel-studio${suffix ? `?${suffix}` : ""}`);
 }

@@ -1,0 +1,6 @@
+/* Carousel Studio is the canonical visual creation workspace. The persistent
+   project/editor engine keeps its internal creative-* class names, but the
+   product surface is Carousel Studio. */
+.carousel-studio-master .creative-kicker{font-size:0}
+.carousel-studio-master .creative-kicker::after{content:"Carousel Studio";font-size:11px;font-weight:800;letter-spacing:.13em;text-transform:uppercase;color:#a12d3d}
+.carousel-studio-master .creative-page-head .creative-secondary{white-space:nowrap}
