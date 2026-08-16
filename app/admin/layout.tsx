@@ -38,6 +38,7 @@ import "./ai-clips-v2.css";
 import "./video-producer.css";
 import "./video-producer-flow.css";
 import "./pathway-asset-ingest.css";
+import "./pathway-source-asset.css";
 import "./sol-operator.css";
 import "./sol-jarvis.css";
 
