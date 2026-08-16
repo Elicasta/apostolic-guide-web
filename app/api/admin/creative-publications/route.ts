@@ -18,6 +18,8 @@ const createSchema = z.object({
   if (value.mode === "schedule" && !value.scheduledFor) ctx.addIssue({ code: "custom", message: "Choose a scheduled time." });
 });
 
+const ACTIVE_PUBLICATION_STATUSES = ["scheduled", "publishing", "needs_manual_finish"] as const;
+
 export async function GET() {
   const { access, allowed } = await getStudioPermission("view_distribution");
   if (!allowed || access.state !== "allowed") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -40,7 +42,7 @@ export async function GET() {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   const publications = publicationResult.data ?? [];
   const activeIds = new Set(publications
-    .filter((item) => ["scheduled", "publishing", "needs_manual_finish"].includes(item.status))
+    .filter((item) => ACTIVE_PUBLICATION_STATUSES.includes(item.status as typeof ACTIVE_PUBLICATION_STATUSES[number]))
     .map((item) => item.creative_project_id)
     .filter(Boolean));
   const readyProjects = (projectResult.data ?? []).filter((project) => project.status === "ready" && !activeIds.has(project.id));
@@ -69,10 +71,10 @@ export async function POST(request: Request) {
       .select("id,status,scheduled_for")
       .eq("creative_project_id", project.id)
       .eq("platform", parsed.data.platform)
-      .in("status", ["scheduled", "publishing"])
+      .in("status", [...ACTIVE_PUBLICATION_STATUSES])
       .limit(1);
     if (active.error) return NextResponse.json({ error: active.error.message }, { status: 500 });
-    if (active.data?.length) return NextResponse.json({ error: "This project already has an active Instagram publication. Cancel or finish it before adding another." }, { status: 409 });
+    if (active.data?.length) return NextResponse.json({ error: "This project already has an active Instagram publication. Finish or resolve it before adding another." }, { status: 409 });
 
     const links = await service.from("studio_creative_project_assets")
       .select("frame_id,role,sort_order,created_at,asset:studio_pathway_assets(id,public_url,metadata,title,asset_type)")
@@ -94,7 +96,7 @@ export async function POST(request: Request) {
       const occupied = await service.from("pathway_publications")
         .select("scheduled_for")
         .eq("platform", parsed.data.platform)
-        .in("status", ["scheduled", "publishing"])
+        .in("status", [...ACTIVE_PUBLICATION_STATUSES])
         .gte("scheduled_for", new Date().toISOString())
         .order("scheduled_for", { ascending: true })
         .limit(200);
@@ -135,7 +137,10 @@ export async function POST(request: Request) {
         media
       }
     }).select("*").single();
-    if (created.error) return NextResponse.json({ error: created.error.message }, { status: 500 });
+    if (created.error) {
+      if (created.error.code === "23505") return NextResponse.json({ error: "This project already has an active Instagram publication. The duplicate request was blocked." }, { status: 409 });
+      return NextResponse.json({ error: created.error.message }, { status: 500 });
+    }
 
     const projectStatus = status === "needs_manual_finish" ? "needs_manual_finish" : "scheduled";
     const projectUpdate = await service.from("studio_creative_projects").update({ status: projectStatus, updated_by: access.user.id, updated_at: new Date().toISOString() }).eq("id", project.id);
