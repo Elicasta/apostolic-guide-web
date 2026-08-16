@@ -13,11 +13,21 @@ const STEPS = [
   ["Review", "QC + assets"]
 ] as const;
 
-function readPathway() {
+type PathwayContext = {
+  slug: string;
+  title: string;
+  statuses: string[];
+};
+
+function readPathway(): PathwayContext {
   const select = document.querySelector<HTMLSelectElement>(".video-studio-sourcebar select");
+  const statuses = [...document.querySelectorAll<HTMLElement>(".video-studio-sourcebar .video-source-status strong")]
+    .map((item) => item.textContent?.trim() || "")
+    .filter(Boolean);
   return {
     slug: select?.value || "",
-    title: select?.selectedOptions?.[0]?.textContent?.replace(/\s·\sno audio$/, "")?.trim() || "Pathway"
+    title: select?.selectedOptions?.[0]?.textContent?.replace(/\s·\sno audio$/, "")?.trim() || "Pathway",
+    statuses
   };
 }
 
@@ -26,6 +36,7 @@ export function VideoStudioWorkflow({ aiReady }: { aiReady: boolean }) {
   const [stage, setStage] = useState(0);
   const [pathwaySlug, setPathwaySlug] = useState("");
   const [pathwayTitle, setPathwayTitle] = useState("Pathway");
+  const [statuses, setStatuses] = useState<string[]>([]);
   const [syncing, setSyncing] = useState(false);
   const [syncNonce, setSyncNonce] = useState(0);
 
@@ -37,10 +48,16 @@ export function VideoStudioWorkflow({ aiReady }: { aiReady: boolean }) {
       const pathway = readPathway();
       setPathwaySlug(pathway.slug);
       setPathwayTitle(pathway.title);
+      setStatuses(pathway.statuses);
     };
     sync();
     document.addEventListener("change", sync, true);
-    return () => document.removeEventListener("change", sync, true);
+    const observer = new MutationObserver(sync);
+    observer.observe(root, { subtree: true, childList: true, characterData: true });
+    return () => {
+      document.removeEventListener("change", sync, true);
+      observer.disconnect();
+    };
   }, []);
 
   useEffect(() => {
@@ -70,7 +87,19 @@ export function VideoStudioWorkflow({ aiReady }: { aiReady: boolean }) {
 
   if (!page) return null;
 
-  const nav = createPortal(<nav className="video-workflow-nav" aria-label="Video Studio workflow">{STEPS.map(([label, description], index) => <button type="button" key={label} className={stage === index ? "is-active" : ""} onClick={() => setStage(index)}><i>{index + 1}</i><span><strong>{label}</strong><span>{description}</span></span></button>)}</nav>, page);
+  const nav = createPortal(<>
+    <nav className="video-workflow-nav video-workflow-nav-v2" aria-label="Video Studio workflow">
+      {STEPS.map(([label, description], index) => <button type="button" key={label} className={stage === index ? "is-active" : ""} onClick={() => setStage(index)}>
+        <i>{index + 1}</i>
+        <span><strong>{label}</strong><span>{description}</span></span>
+      </button>)}
+    </nav>
+    {stage > 0 ? <div className="video-workflow-context" aria-label="Current video project">
+      <div><span>Current project</span><strong>{pathwayTitle}</strong></div>
+      <p>{statuses.length ? statuses.join(" · ") : "Project state saved across every stage."}</p>
+    </div> : null}
+  </>, page);
+
   const extras = createPortal(<>
     {stage === 4 ? <>
       {syncing ? <div className="admin-notice video-workflow-sync"><Loader2 size={15} className="spin"/> Indexing Video Studio project, renders, and thumbnail into the Pathway folder…</div> : null}
