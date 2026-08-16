@@ -62,20 +62,44 @@ const SURFACES: SurfaceDefinition[] = [
     quickPrompts: ["What should I do next here?", "What is stalled?", "Find related production work"]
   },
   {
+    key: "creative-studio",
+    label: "Creative Studio",
+    section: "Publishing",
+    match: (pathname) => pathname === "/admin/creative-studio" || pathname.startsWith("/admin/creative-studio/"),
+    capabilities: ["Read persistent Single, Carousel, and Story production state", "Detect existing Pathway and intent combinations before suggesting duplicates", "Track autosaved creative work through Ready without losing project context"],
+    quickPrompts: ["What already exists for this Pathway?", "What is incomplete in Creative Studio?", "Which finished creatives still need scheduling?"]
+  },
+  {
+    key: "creative-library",
+    label: "Creative Library",
+    section: "Publishing",
+    match: (pathname) => pathname === "/admin/creative-library" || pathname.startsWith("/admin/creative-library/"),
+    capabilities: ["Read persistent Creative Projects across statuses and formats", "Find related Pathway work before creating another project", "Surface Ready work that has not been scheduled"],
+    quickPrompts: ["Do we already have something like this?", "Show me Ready projects that are not scheduled", "What should I continue instead of starting over?"]
+  },
+  {
     key: "carousel-studio",
-    label: "Carousel Studio",
+    label: "Legacy Carousel Studio",
     section: "Publishing",
     match: (pathname) => pathname === "/admin/carousel-studio" || pathname.startsWith("/admin/carousel-studio/"),
-    capabilities: ["Find Pathways missing carousel assets", "Generate canonical topic packs", "Keep doctrine checking in the production gate"],
-    quickPrompts: ["Which Pathway needs carousels?", "Create a safe carousel plan", "Scan carousel coverage"]
+    capabilities: ["Understand legacy carousel work", "Find the corresponding persistent Creative Studio workflow", "Keep doctrine checking in the production gate"],
+    quickPrompts: ["What is the new workflow for this?", "Which Pathway needs carousels?", "Scan carousel coverage"]
   },
   {
     key: "assets",
     label: "Pathway Assets",
     section: "Publishing",
     match: (pathname) => pathname === "/admin/assets" || pathname.startsWith("/admin/assets/"),
-    capabilities: ["Review media coverage", "Find missing Pathway assets", "Connect assets to registered production work"],
-    quickPrompts: ["What assets are missing?", "What should be produced next?", "Scan Pathway assets"]
+    capabilities: ["Review rendered media coverage", "Find missing Pathway assets", "Distinguish rendered assets from editable Creative Projects"],
+    quickPrompts: ["What assets are missing?", "Which assets came from Creative Projects?", "What should be produced next?"]
+  },
+  {
+    key: "publishing",
+    label: "Publishing",
+    section: "Distribution",
+    match: (pathname) => pathname === "/admin/publishing" || pathname.startsWith("/admin/publishing/"),
+    capabilities: ["Read Ready, Scheduled, Publishing, Published, Failed, and Manual Finish state", "Surface the queue and unscheduled Ready projects", "Explain failed publication attempts without hiding them"],
+    quickPrompts: ["What is next to publish?", "Which finished creatives are not scheduled?", "What failed and needs attention?"]
   },
   {
     key: "content-calendar",
@@ -106,7 +130,7 @@ const SURFACES: SurfaceDefinition[] = [
     label: "Channel Publishing",
     section: "Distribution",
     match: (pathname) => pathname === "/admin/publish" || pathname.startsWith("/admin/publish/"),
-    capabilities: ["Inspect production readiness", "Surface work waiting for review", "Keep live publishing locked behind explicit controls"],
+    capabilities: ["Inspect legacy channel publishing readiness", "Surface work waiting for review", "Keep live publishing locked behind explicit controls"],
     quickPrompts: ["What is ready for review?", "What is still blocked?", "Scan publishing readiness"]
   },
   {

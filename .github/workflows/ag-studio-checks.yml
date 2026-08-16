@@ -5,9 +5,17 @@ on:
     paths:
       - 'app/studio/**'
       - 'app/output/**'
+      - 'app/admin/**'
       - 'app/api/studio/**'
+      - 'app/api/admin/**'
+      - 'app/api/cron/**'
       - 'src/studio/**'
-      - 'supabase/migrations/**ag_studio**'
+      - 'src/creative-*.ts'
+      - 'src/creative-*.tsx'
+      - 'src/sol-*.ts'
+      - 'src/sol-*.tsx'
+      - 'supabase/migrations/**'
+      - 'supabase/rollback/**'
       - 'tests/studio-*.test.ts'
       - '.github/workflows/ag-studio-checks.yml'
   workflow_dispatch:
@@ -15,14 +23,16 @@ on:
 jobs:
   validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
-      - run: npm ci
+      # This repository currently has no package-lock.json, so npm ci and
+      # setup-node's npm cache both fail before tests begin. Keep CI usable
+      # until a lockfile is intentionally committed.
+      - run: npm install --no-audit --no-fund
       - run: npm test
       - run: npm run typecheck
       - run: npm run build

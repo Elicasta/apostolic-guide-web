@@ -1,5 +1,6 @@
 import "server-only";
 import type { SolAdminSurface } from "./sol-admin-context";
+import { getCreativeProductionSnapshot } from "./creative-project-server";
 import { createSolAgentApproval, type SolAgentApproval } from "./sol-agent-memory";
 import { hasExplicitSolIntent } from "./sol-agent-policy";
 import { cancelSolRunV3, retrySolRun } from "./sol-run-recovery";
@@ -18,6 +19,7 @@ import type { SolMode } from "./sol-operator-engine";
 export type SolAgentToolName =
   | "get_workspace_status"
   | "get_current_screen"
+  | "list_creative_projects"
   | "scan_workspace"
   | "list_proposals"
   | "list_runs"
@@ -49,7 +51,7 @@ export const SOL_AGENT_TOOLS = [
   {
     type: "function",
     name: "get_workspace_status",
-    description: "Read the current Sol operating state, KPIs, coverage, active work, failed work, and review queue. Use this before making claims about Studio status.",
+    description: "Read the current Sol operating state, KPIs, coverage, Creative Project production state, active work, failed work, and review queue. Use this before making claims about Studio status.",
     strict: true,
     parameters: EMPTY_OBJECT
   },
@@ -57,6 +59,13 @@ export const SOL_AGENT_TOOLS = [
     type: "function",
     name: "get_current_screen",
     description: "Read trusted server-authored context for the admin screen the user is currently viewing.",
+    strict: true,
+    parameters: EMPTY_OBJECT
+  },
+  {
+    type: "function",
+    name: "list_creative_projects",
+    description: "Read persistent Creative Project production state, including Draft/Ready/Scheduled/Published counts, Ready projects that are not scheduled, and failed publication attempts. Use this before suggesting duplicate creative work or claiming something still needs to be scheduled.",
     strict: true,
     parameters: EMPTY_OBJECT
   },
@@ -201,8 +210,12 @@ function currentStatus(snapshot: SolOperatorSnapshot) {
 
 export async function executeSolAgentTool(name: SolAgentToolName, rawArgs: unknown, context: ToolContext): Promise<SolAgentToolResult> {
   const args = record(rawArgs);
-  if (name === "get_workspace_status") return { ok: true, message: "Workspace status loaded.", data: currentStatus(await getSolOperatorSnapshot()) };
+  if (name === "get_workspace_status") {
+    const [snapshot, creativeProduction] = await Promise.all([getSolOperatorSnapshot(), getCreativeProductionSnapshot()]);
+    return { ok: true, message: "Workspace status loaded.", data: { ...currentStatus(snapshot), creativeProduction } };
+  }
   if (name === "get_current_screen") return { ok: true, message: `Current screen: ${context.surface.label}.`, data: { ...context.surface } };
+  if (name === "list_creative_projects") return { ok: true, message: "Creative Project production state loaded.", data: await getCreativeProductionSnapshot() };
   if (name === "scan_workspace") {
     await scanSolOperator(context.actorUserId);
     const next = await getSolOperatorSnapshot();
