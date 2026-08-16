@@ -164,15 +164,15 @@ export function creativeProjectUpdatePayload(input: {
 
 export async function getCreativeProductionSnapshot() {
   const service = createServiceClient();
-  if (!service) return { configured: false, counts: {}, unscheduledReady: [], recentFailed: [] };
+  if (!service) return { configured: false, counts: {}, recentProjects: [], unscheduledReady: [], scheduled: [], recentFailed: [] };
   const [projects, publications] = await Promise.all([
     service.from("studio_creative_projects")
-      .select("id,title,pathway_slug,intent,format,frame_count,status,updated_at")
+      .select("id,title,pathway_slug,pathway_collection,intent,format,frame_count,status,state_version,unified_caption,scripture_references,tags,created_at,updated_at,published_at")
       .neq("status", "archived")
       .order("updated_at", { ascending: false })
       .limit(200),
     service.from("pathway_publications")
-      .select("id,creative_project_id,status,scheduled_for,error_message,updated_at")
+      .select("id,creative_project_id,platform,status,publication_mode,scheduled_for,published_at,error_message,attempt_count,updated_at")
       .not("creative_project_id", "is", null)
       .order("updated_at", { ascending: false })
       .limit(250)
@@ -180,24 +180,53 @@ export async function getCreativeProductionSnapshot() {
   if (projects.error) throw new Error(projects.error.message);
   if (publications.error) throw new Error(publications.error.message);
   const rows = projects.data ?? [];
+  const publicationRows = publications.data ?? [];
   const counts = rows.reduce<Record<string, number>>((acc, row) => {
     acc[row.status] = (acc[row.status] ?? 0) + 1;
     return acc;
   }, {});
-  const activeProjectIds = new Set((publications.data ?? [])
-    .filter((row) => ["scheduled", "publishing", "published", "needs_manual_finish"].includes(row.status))
+  const activeProjectIds = new Set(publicationRows
+    .filter((row) => ["scheduled", "publishing", "needs_manual_finish"].includes(row.status))
     .map((row) => row.creative_project_id)
     .filter(Boolean));
+  const publicationByProject = new Map<string, typeof publicationRows>();
+  for (const row of publicationRows) {
+    if (!row.creative_project_id) continue;
+    const key = String(row.creative_project_id);
+    publicationByProject.set(key, [...(publicationByProject.get(key) ?? []), row]);
+  }
   return {
     configured: true,
     counts,
+    recentProjects: rows.slice(0, 40).map((row) => ({
+      id: row.id,
+      title: row.title,
+      pathwaySlug: row.pathway_slug,
+      pathwayCollection: row.pathway_collection,
+      intent: row.intent,
+      format: row.format,
+      frameCount: row.frame_count,
+      status: row.status,
+      stateVersion: row.state_version,
+      unifiedCaptionComplete: Boolean(String(row.unified_caption || "").trim()),
+      scriptureReferences: Array.isArray(row.scripture_references) ? row.scripture_references : [],
+      tags: Array.isArray(row.tags) ? row.tags : [],
+      publicationCount: publicationByProject.get(String(row.id))?.length ?? 0,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+      publishedAt: row.published_at
+    })),
     unscheduledReady: rows
       .filter((row) => row.status === "ready" && !activeProjectIds.has(row.id))
-      .slice(0, 12)
-      .map((row) => ({ id: row.id, title: row.title, pathwaySlug: row.pathway_slug, intent: row.intent, format: row.format, frameCount: row.frame_count, updatedAt: row.updated_at })),
-    recentFailed: (publications.data ?? [])
+      .slice(0, 20)
+      .map((row) => ({ id: row.id, title: row.title, pathwaySlug: row.pathway_slug, intent: row.intent, format: row.format, frameCount: row.frame_count, stateVersion: row.state_version, updatedAt: row.updated_at })),
+    scheduled: publicationRows
+      .filter((row) => ["scheduled", "publishing", "needs_manual_finish"].includes(row.status))
+      .slice(0, 30)
+      .map((row) => ({ publicationId: row.id, projectId: row.creative_project_id, platform: row.platform, status: row.status, publicationMode: row.publication_mode, scheduledFor: row.scheduled_for, attemptCount: row.attempt_count, updatedAt: row.updated_at })),
+    recentFailed: publicationRows
       .filter((row) => row.status === "failed")
-      .slice(0, 10)
-      .map((row) => ({ publicationId: row.id, projectId: row.creative_project_id, error: row.error_message, updatedAt: row.updated_at }))
+      .slice(0, 20)
+      .map((row) => ({ publicationId: row.id, projectId: row.creative_project_id, platform: row.platform, error: row.error_message, attemptCount: row.attempt_count, updatedAt: row.updated_at }))
   };
 }
