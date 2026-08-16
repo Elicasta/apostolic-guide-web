@@ -1,6 +1,7 @@
 import "server-only";
 import type { SolAdminSurface } from "./sol-admin-context";
 import { createSolAgentApproval, type SolAgentApproval } from "./sol-agent-memory";
+import { hasExplicitSolIntent } from "./sol-agent-policy";
 import { cancelSolRunV3, retrySolRun } from "./sol-run-recovery";
 import { isTrustedAutoRunnableProposal } from "./sol-trusted-policy";
 import {
@@ -159,14 +160,6 @@ function stringArray(value: unknown) {
 function proposalSummary(proposal: SolProposal) {
   const scope = proposal.pathwaySlugs.length ? ` for ${proposal.pathwaySlugs.join(", ")}` : "";
   return `${proposal.title}${scope}. Risk: ${proposal.risk.replaceAll("_", " ")}.`;
-}
-
-export function hasExplicitSolIntent(message: string, action: "mode" | "dismiss" | "cancel" | "retry") {
-  const text = message.toLowerCase();
-  if (action === "mode") return /\b(turn|switch|set|enable|disable|off|watch|assist|trusted|autopilot)\b/.test(text);
-  if (action === "dismiss") return /\b(dismiss|remove|skip|ignore)\b/.test(text);
-  if (action === "cancel") return /\b(cancel|stop|kill|abort)\b/.test(text);
-  return /\b(retry|recover|try again|resume)\b/.test(text);
 }
 
 async function requestApproval(context: ToolContext, input: {
