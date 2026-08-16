@@ -12,8 +12,8 @@ export default async function SolOperatorPage() {
   const canOperate = permission.access.state === "allowed" && hasStudioPermission(permission.access.role, "manage_content");
   return <>
     <div className="studio-page-heading sol-workspace-heading">
-      <div><span className="eyebrow">Studio operations</span><h1>Sol Content Operator</h1><p className="admin-lede">AI interprets the work. Deterministic scans supply the facts. Registered recipes perform approved actions and stop at review gates.</p></div>
-      <span className="studio-role-badge">Phase 1 · Controlled execution</span>
+      <div><span className="eyebrow">Studio operations</span><h1>Sol Admin Operator</h1><p className="admin-lede">Sol now works across Studio with current-screen context. Watch observes, Assist runs approved recipes, and Trusted can auto-run allowlisted safe drafts while every review and external-effect gate stays locked.</p></div>
+      <span className="studio-role-badge">Phase 2 · Controlled autonomy</span>
     </div>
     <SolOperatorWorkspace initialSnapshot={snapshot} canOperate={canOperate}/>
   </>;
