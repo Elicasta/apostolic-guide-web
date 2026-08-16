@@ -27,6 +27,7 @@ async function tableCheck(label: string, schema: string, table: string): Promise
 }
 
 export async function getPublishingHealth(): Promise<PublishingHealth> {
+  const service = createServiceClient();
   const checks = await Promise.all([
     tableCheck("Creative Projects", "public", "studio_creative_projects"),
     tableCheck("Creative revisions", "public", "studio_creative_project_revisions"),
@@ -53,6 +54,22 @@ export async function getPublishingHealth(): Promise<PublishingHealth> {
       ok: false,
       detail: error instanceof Error ? error.message : "Instagram publishing status could not be checked."
     });
+  }
+
+  if (service) {
+    const syncState = await service.from("social_connection_status")
+      .select("last_error,last_verified_at,updated_at")
+      .eq("platform", "instagram")
+      .maybeSingle();
+    const lastError = typeof syncState.data?.last_error === "string" ? syncState.data.last_error.trim() : "";
+    checks.push({
+      key: "instagram-feed-sync",
+      label: "Instagram calendar sync",
+      ok: !syncState.error && !lastError,
+      detail: syncState.error ? syncState.error.message : lastError || "No sync error is recorded."
+    });
+  } else {
+    checks.push({ key: "instagram-feed-sync", label: "Instagram calendar sync", ok: false, detail: "Supabase service access is not configured." });
   }
 
   checks.push({
