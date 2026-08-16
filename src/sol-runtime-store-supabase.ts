@@ -1,6 +1,7 @@
 import "server-only";
-import type { SolRunStatus, SolTaskStatus } from "./sol-core/types/runtime";
+import type { SolApprovalType, SolRunStatus, SolTaskStatus } from "./sol-core/types/runtime";
 import type {
+  SolRuntimeArtifactInput,
   SolRuntimeAttemptRecord,
   SolRuntimeRunRecord,
   SolRuntimeStore,
@@ -24,6 +25,8 @@ function taskFromRow(row: Record<string, unknown>): SolRuntimeTaskRecord {
     input: obj(row.input),
     output: obj(row.output),
     dependsOn: Array.isArray(row.depends_on) ? row.depends_on.map(String) : [],
+    condition: row.condition ? obj(row.condition) : null,
+    foreach: row.foreach ? obj(row.foreach) : null,
     permission: String(row.permission) as SolRuntimeTaskRecord["permission"],
     environment: String(row.environment) as SolRuntimeTaskRecord["environment"],
     idempotencyKey: row.idempotency_key ? String(row.idempotency_key) : null,
@@ -158,6 +161,22 @@ export class SupabaseSolRuntimeStore implements SolRuntimeStore {
     return Boolean(result.data);
   }
 
+  async skipTask(taskId: string, workerId: string, reason: string) {
+    const service = serviceOrThrow();
+    const result = await service.from("sol_runtime_tasks").update({
+      status: "skipped",
+      output: { skipped: true, reason },
+      completed_at: new Date().toISOString(),
+      heartbeat_at: null,
+      lease_expires_at: null,
+      worker_id: null,
+      error_code: null,
+      error_message: null
+    }).eq("id", taskId).eq("worker_id", workerId).eq("status", "running").select("id").maybeSingle();
+    if (result.error) throw result.error;
+    return Boolean(result.data);
+  }
+
   async scheduleRetry(taskId: string, workerId: string, input: { nextRetryAt: string; errorCode: string; errorMessage: string }) {
     const service = serviceOrThrow();
     const result = await service.from("sol_runtime_tasks").update({
@@ -188,18 +207,24 @@ export class SupabaseSolRuntimeStore implements SolRuntimeStore {
     return Boolean(result.data);
   }
 
-  async waitForApproval(task: SolRuntimeTaskRecord, input: { type: SolRuntimeTaskRecord["approvalType"] extends infer _T ? import("./sol-core/types/runtime").SolApprovalType : never; requestedAction: string }) {
+  async waitForApproval(task: SolRuntimeTaskRecord, input: { type: SolApprovalType; requestedAction: string }) {
     const service = serviceOrThrow();
     const existing = await service.from("sol_runtime_approvals").select("id").eq("task_id", task.id).eq("status", "pending").maybeSingle();
     if (existing.error) throw existing.error;
     let approvalId = existing.data?.id ? String(existing.data.id) : "";
     if (!approvalId) {
+      let artifactIds: string[] = [];
+      if (input.type === "review") {
+        const artifacts = await service.from("sol_runtime_artifacts").select("id").eq("run_id", task.runId).order("created_at", { ascending: true });
+        if (artifacts.error) throw artifacts.error;
+        artifactIds = (artifacts.data ?? []).map((item) => String(item.id));
+      }
       const inserted = await service.from("sol_runtime_approvals").insert({
         run_id: task.runId,
         task_id: task.id,
         type: input.type,
         requested_action: input.requestedAction,
-        artifact_ids: [],
+        artifact_ids: artifactIds,
         status: "pending"
       }).select("id").single();
       if (inserted.error) throw inserted.error;
@@ -207,13 +232,42 @@ export class SupabaseSolRuntimeStore implements SolRuntimeStore {
     }
     const updated = await service.from("sol_runtime_tasks").update({
       status: "waiting_for_approval",
-      output: { approvalId },
+      output: { ...task.output, approvalId },
       heartbeat_at: null,
       lease_expires_at: null,
       worker_id: null
     }).eq("id", task.id).eq("worker_id", task.workerId).eq("status", "running");
     if (updated.error) throw updated.error;
     return approvalId;
+  }
+
+  async recordArtifact(input: SolRuntimeArtifactInput) {
+    const service = serviceOrThrow();
+    const result = await service.from("sol_runtime_artifacts").insert({
+      run_id: input.runId,
+      task_id: input.taskId,
+      type: input.type,
+      title: input.title,
+      storage_type: input.storageType,
+      location: input.location,
+      metadata: input.metadata ?? {},
+      verification_status: input.verificationStatus ?? "pending"
+    }).select("id").single();
+    if (result.error) throw result.error;
+    return String(result.data.id);
+  }
+
+  async recordObservation(input: { runId: string; taskId?: string | null; source: string; kind: string; payload: Record<string, unknown> }) {
+    const service = serviceOrThrow();
+    const result = await service.from("sol_runtime_observations").insert({
+      run_id: input.runId,
+      task_id: input.taskId ?? null,
+      source: input.source,
+      kind: input.kind,
+      payload: input.payload
+    }).select("id").single();
+    if (result.error) throw result.error;
+    return String(result.data.id);
   }
 
   async unblockTasks(runId: string) {
