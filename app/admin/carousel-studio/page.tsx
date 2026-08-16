@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { FolderOpen, Layers3 } from "lucide-react";
 import { getStudioPermission } from "@/auth";
+import { CarouselWorkflowStages } from "@/carousel-workflow-stages";
 import { CreativeLibraryClient } from "@/creative-library-client";
 import { CreativeStudioClient } from "@/creative-studio-client";
 import { CreativeTemplateSystem } from "@/creative-template-system";
@@ -28,6 +29,7 @@ export default async function AdminCarouselStudioPage({ searchParams }: { search
     {libraryView ? <CreativeLibraryClient/> : <>
       <CreativeStudioClient pathways={pathways} initialProjectId={query.project ?? null} aiReady={Boolean(process.env.OPENAI_API_KEY?.trim())}/>
       <CreativeTemplateSystem projectId={query.project ?? null}/>
+      <CarouselWorkflowStages projectId={query.project ?? null}/>
     </>}
   </section>;
 }
