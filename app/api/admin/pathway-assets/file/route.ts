@@ -40,19 +40,18 @@ export async function GET(request: Request) {
       }
     });
   }
+  if (!result.stream) return new NextResponse("Not found", { status: 404 });
 
   const fallbackMime = asset.data.metadata && typeof asset.data.metadata === "object" && typeof asset.data.metadata.mimeType === "string"
     ? asset.data.metadata.mimeType
     : "application/octet-stream";
-  return new NextResponse(result.stream, {
-    status: 200,
-    headers: {
-      "Content-Type": result.blob.contentType || fallbackMime,
-      "Content-Length": result.blob.size ? String(result.blob.size) : "",
-      "Content-Disposition": "inline",
-      "X-Content-Type-Options": "nosniff",
-      ETag: result.blob.etag,
-      "Cache-Control": "private, no-cache"
-    }
+  const headers = new Headers({
+    "Content-Type": result.blob.contentType || fallbackMime,
+    "Content-Disposition": "inline",
+    "X-Content-Type-Options": "nosniff",
+    ETag: result.blob.etag,
+    "Cache-Control": "private, no-cache"
   });
+  if (result.blob.size) headers.set("Content-Length", String(result.blob.size));
+  return new NextResponse(result.stream, { status: 200, headers });
 }
