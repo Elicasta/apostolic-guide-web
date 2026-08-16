@@ -1,0 +1,119 @@
+/* Creative Studio control behavior.
+   These selectors intentionally drive both the visible preview and the hidden
+   render stage from the persisted select values. If a control is visible, it
+   changes the actual render. */
+
+.creative-studio-shell:has(.creative-visual-controls label:first-child select option[value="street-theology"]:checked) .creative-frame-preview{
+  background:#10202a;
+  color:#f5f7f4;
+  border-color:#263a44;
+}
+.creative-studio-shell:has(.creative-visual-controls label:first-child select option[value="street-theology"]:checked) .creative-frame-preview:before{
+  background:#a12d3d;
+  width:9px;
+}
+.creative-studio-shell:has(.creative-visual-controls label:first-child select option[value="street-theology"]:checked) .creative-frame-preview:after{
+  background:#15566a;
+  opacity:.38;
+  width:230px;
+  height:230px;
+  right:-105px;
+  top:-105px;
+}
+.creative-studio-shell:has(.creative-visual-controls label:first-child select option[value="street-theology"]:checked) .creative-preview-eyebrow{
+  color:#f1a0ab;
+}
+.creative-studio-shell:has(.creative-visual-controls label:first-child select option[value="street-theology"]:checked) .creative-preview-scripture{
+  color:#9ed2dc;
+}
+.creative-studio-shell:has(.creative-visual-controls label:first-child select option[value="street-theology"]:checked) .creative-preview-copy blockquote{
+  border-left-color:#e55467;
+  color:#f5f7f4;
+}
+.creative-studio-shell:has(.creative-visual-controls label:first-child select option[value="street-theology"]:checked) .creative-preview-cta{
+  border-top-color:#40545e;
+}
+
+.creative-studio-shell:has(.creative-visual-controls label:first-child select option[value="verse-connection"]:checked) .creative-frame-preview{
+  background:#eaf2f3;
+  color:#10202a;
+  border-color:#c6dadd;
+}
+.creative-studio-shell:has(.creative-visual-controls label:first-child select option[value="verse-connection"]:checked) .creative-frame-preview:before{
+  background:#15566a;
+  width:8px;
+}
+.creative-studio-shell:has(.creative-visual-controls label:first-child select option[value="verse-connection"]:checked) .creative-frame-preview:after{
+  background:#fff;
+  opacity:.74;
+  width:220px;
+  height:220px;
+  right:-105px;
+  top:-105px;
+}
+.creative-studio-shell:has(.creative-visual-controls label:first-child select option[value="verse-connection"]:checked) .creative-preview-eyebrow{
+  color:#15566a;
+}
+.creative-studio-shell:has(.creative-visual-controls label:first-child select option[value="verse-connection"]:checked) .creative-preview-scripture{
+  display:inline-flex;
+  width:max-content;
+  max-width:100%;
+  padding:7px 9px;
+  border-radius:6px;
+  background:#fff;
+  color:#a12d3d;
+  box-shadow:0 3px 12px rgba(16,32,42,.06);
+}
+.creative-studio-shell:has(.creative-visual-controls label:first-child select option[value="verse-connection"]:checked) .creative-preview-copy blockquote{
+  background:rgba(255,255,255,.68);
+  padding:12px 14px;
+  border-left-color:#15566a;
+}
+
+.creative-studio-shell:has(.creative-visual-controls label:nth-child(2) select option[value="center"]:checked) .creative-frame-preview{
+  text-align:center;
+  align-items:center;
+}
+.creative-studio-shell:has(.creative-visual-controls label:nth-child(2) select option[value="center"]:checked) .creative-preview-copy{
+  width:100%;
+}
+.creative-studio-shell:has(.creative-visual-controls label:nth-child(2) select option[value="center"]:checked) .creative-preview-copy h2{
+  max-width:100%;
+  margin-left:auto;
+  margin-right:auto;
+}
+.creative-studio-shell:has(.creative-visual-controls label:nth-child(2) select option[value="center"]:checked) .creative-preview-scripture{
+  margin-left:auto;
+  margin-right:auto;
+}
+.creative-studio-shell:has(.creative-visual-controls label:nth-child(2) select option[value="center"]:checked) .creative-preview-copy blockquote{
+  border-left:0;
+  border-top:3px solid #a12d3d;
+  padding:11px 0 0;
+}
+
+.creative-studio-shell:has(.creative-visual-controls label:nth-child(2) select option[value="right"]:checked) .creative-frame-preview{
+  text-align:right;
+  align-items:flex-end;
+}
+.creative-studio-shell:has(.creative-visual-controls label:nth-child(2) select option[value="right"]:checked) .creative-preview-copy{
+  width:100%;
+}
+.creative-studio-shell:has(.creative-visual-controls label:nth-child(2) select option[value="right"]:checked) .creative-preview-copy h2{
+  max-width:100%;
+  margin-left:auto;
+}
+.creative-studio-shell:has(.creative-visual-controls label:nth-child(2) select option[value="right"]:checked) .creative-preview-scripture{
+  margin-left:auto;
+}
+.creative-studio-shell:has(.creative-visual-controls label:nth-child(2) select option[value="right"]:checked) .creative-preview-copy blockquote{
+  border-left:0;
+  border-right:3px solid #a12d3d;
+  padding-left:0;
+  padding-right:11px;
+}
+
+@media (max-width:760px){
+  .creative-visual-controls{grid-template-columns:1fr 1fr}
+  .creative-visual-controls select{min-height:44px}
+}
