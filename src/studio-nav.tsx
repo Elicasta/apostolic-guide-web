@@ -33,7 +33,6 @@ export const studioNavSections: Array<{ label: string; items: Array<{ href: stri
   ]},
   { label: "Publish", items: [
     { href: "/admin/publishing", label: "Publishing", icon: Send, permission: "view_distribution" },
-    { href: "/admin/threads-studio", label: "Threads Studio", icon: Send, permission: "view_distribution" },
     { href: "/admin/broadcasts", label: "Broadcasts", icon: Mail, permission: "view_distribution" },
     { href: "/admin/social", label: "Social Automations", icon: Instagram, permission: "view_distribution" },
     { href: "/admin/comment-guide", label: "Comment Guide", icon: Bot, permission: "view_distribution" },
