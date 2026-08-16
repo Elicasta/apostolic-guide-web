@@ -1,3 +1,5 @@
+import { deriveSolRunStatus } from "./sol-core/runtime/state-machine";
+import type { SolRunStatus, SolTaskStatus } from "./sol-core/types/runtime";
 import { createServiceClient } from "./supabase";
 
 type Service = NonNullable<ReturnType<typeof createServiceClient>>;
@@ -30,6 +32,34 @@ async function appendRuntimeEvent(service: Service, input: {
     details: input.details ?? {}
   });
   if (result.error) throw result.error;
+}
+
+async function reconcileRuntimeRunFromTasks(service: Service, runId: string) {
+  const [runResult, tasksResult] = await Promise.all([
+    service.from("sol_runtime_runs").select("status").eq("id", runId).single(),
+    service.from("sol_runtime_tasks").select("status").eq("run_id", runId)
+  ]);
+  if (runResult.error) throw runResult.error;
+  if (tasksResult.error) throw tasksResult.error;
+
+  const current = String(runResult.data.status) as SolRunStatus;
+  const statuses = (tasksResult.data ?? []).map((task) => String(task.status) as SolTaskStatus);
+  const next = deriveSolRunStatus(current, statuses);
+  if (next === current) return next;
+
+  const terminal = ["completed", "failed", "stalled", "cancelled", "superseded"].includes(next);
+  const update = await service.from("sol_runtime_runs").update({
+    status: next,
+    completed_at: terminal ? new Date().toISOString() : null
+  }).eq("id", runId);
+  if (update.error) throw update.error;
+  await appendRuntimeEvent(service, {
+    runId,
+    eventType: next === "completed" ? "run.completed" : next === "failed" ? "run.failed" : `run.${next}`,
+    message: `Run is ${next.replaceAll("_", " ")}.`,
+    details: { previousStatus: current, source: "review_resolution" }
+  });
+  return next;
 }
 
 export type SolRuntimeReviewView = {
@@ -274,10 +304,21 @@ export async function resolveSolRuntimeReview(input: {
   if (!approvalUpdate.data) throw new Error("That SOL review changed before your decision was saved.");
 
   if (input.decision === "approved") {
-    const task = await service.from("sol_runtime_tasks").update({ status: "completed", output: { approved: true, reviewId: input.reviewId }, completed_at: now }).eq("id", review.taskId).eq("status", "waiting_for_approval");
+    const task = await service.from("sol_runtime_tasks").update({
+      status: "completed",
+      output: { approved: true, reviewId: input.reviewId },
+      completed_at: now,
+      heartbeat_at: null,
+      lease_expires_at: null,
+      worker_id: null
+    }).eq("id", review.taskId).eq("status", "waiting_for_approval").select("id").maybeSingle();
     if (task.error) throw task.error;
-    const run = await service.from("sol_runtime_runs").update({ status: "completed", output: { reviewId: input.reviewId, approved: true }, completed_at: now }).eq("id", review.runId);
-    if (run.error) throw run.error;
+    if (!task.data) throw new Error("The review task changed before approval could be applied.");
+
+    const unblock = await service.rpc("sol_runtime_unblock_tasks", { p_run_id: review.runId });
+    if (unblock.error) throw unblock.error;
+    await reconcileRuntimeRunFromTasks(service, review.runId);
+
     if (review.run.legacyRunId) {
       const legacy = await service.from("sol_operator_runs").select("steps,proposal_id,result").eq("id", review.run.legacyRunId).maybeSingle();
       if (legacy.error) throw legacy.error;
@@ -291,12 +332,13 @@ export async function resolveSolRuntimeReview(input: {
   } else if (input.decision === "changes_requested") {
     const reviewTask = await service.from("sol_runtime_tasks").update({ status: "repairing", output: { reviewId: input.reviewId, changesRequested: true, note: input.note?.trim() || null } }).eq("id", review.taskId);
     if (reviewTask.error) throw reviewTask.error;
-    const existingRepair = await service.from("sol_runtime_tasks").select("id").eq("run_id", review.runId).eq("task_key", "repair_after_review").maybeSingle();
+    const repairTaskKey = `repair_after_review_${input.reviewId.replaceAll("-", "").slice(0, 12)}`;
+    const existingRepair = await service.from("sol_runtime_tasks").select("id").eq("run_id", review.runId).eq("task_key", repairTaskKey).maybeSingle();
     if (existingRepair.error) throw existingRepair.error;
     if (!existingRepair.data) {
       const repair = await service.from("sol_runtime_tasks").insert({
         run_id: review.runId,
-        task_key: "repair_after_review",
+        task_key: repairTaskKey,
         name: "Repair requested artifact",
         workflow_name: "brain.repair_from_review",
         status: "stalled",
@@ -318,7 +360,7 @@ export async function resolveSolRuntimeReview(input: {
       const result = await service.from("sol_operator_runs").update({ status: "stalled", current_step: "review", result: { ...object(legacy.data?.result), reviewId: input.reviewId, reviewStatus: "changes_requested", reviewNote: input.note?.trim() || null }, completed_at: null, error: "Changes requested. SOL Runtime is waiting for a repair plan." }).eq("id", review.run.legacyRunId);
       if (result.error) throw result.error;
     }
-    await appendRuntimeEvent(service, { runId: review.runId, taskId: review.taskId, eventType: "repair.created", message: "Review requested changes. Repair planning is required before more execution.", details: { reviewId: input.reviewId, note: input.note?.trim() || null } });
+    await appendRuntimeEvent(service, { runId: review.runId, taskId: review.taskId, eventType: "repair.created", message: "Review requested changes. Repair planning is required before more execution.", details: { reviewId: input.reviewId, note: input.note?.trim() || null, repairTaskKey } });
   } else {
     const task = await service.from("sol_runtime_tasks").update({ status: "cancelled", output: { reviewId: input.reviewId, rejected: true }, completed_at: now }).eq("id", review.taskId);
     if (task.error) throw task.error;
