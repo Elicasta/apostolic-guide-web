@@ -51,6 +51,13 @@ export function assetSearchText(asset: {
   ].join(" ").toLowerCase();
 }
 
+export function assetMatchesQuery(asset: Parameters<typeof assetSearchText>[0], query: string) {
+  const terms = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  if (!terms.length) return true;
+  const haystack = assetSearchText(asset);
+  return terms.every((term) => haystack.includes(term));
+}
+
 export function parseAssetTagInput(value: string) {
   return normalizeAssetTags(value.split(","));
 }
