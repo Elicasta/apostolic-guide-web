@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   humanPathwayAssetBytes,
+  PATHWAY_ASSET_MAX_UPLOAD_BYTES,
+  PATHWAY_ASSET_STORAGE_PROVIDER,
   pathwayAssetClientFingerprint,
   pathwayAssetIngestStudio,
   pathwayAssetIngestType,
@@ -33,7 +35,13 @@ test("client fingerprints are stable for the same browser file identity", () => 
   assert.equal(pathwayAssetClientFingerprint(input), pathwayAssetClientFingerprint(input));
 });
 
+test("Vercel Blob is the source-master provider with a 20 GB application ceiling", () => {
+  assert.equal(PATHWAY_ASSET_STORAGE_PROVIDER, "vercel_blob");
+  assert.equal(PATHWAY_ASSET_MAX_UPLOAD_BYTES, 20 * 1024 * 1024 * 1024);
+});
+
 test("human byte labels scale through gigabytes", () => {
   assert.equal(humanPathwayAssetBytes(1024), "1.00 KB");
   assert.equal(humanPathwayAssetBytes(1024 * 1024 * 1024), "1.00 GB");
+  assert.equal(humanPathwayAssetBytes(20 * 1024 * 1024 * 1024), "20.0 GB");
 });
