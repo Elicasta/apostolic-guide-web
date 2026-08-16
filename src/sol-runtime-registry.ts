@@ -1,4 +1,5 @@
 import "server-only";
+import { apostolicAudioToYoutubeTool } from "./apostolic-sol/tools/audio-to-youtube";
 import { apostolicCampaignConceptTool, apostolicCampaignCopyTool, apostolicCarouselDeckTool, apostolicDoctrineCheckTool } from "./apostolic-sol/tools/content";
 import { apostolicCampaignCreateDraftTool, apostolicCampaignFinalizeTool, apostolicCarouselRenderTool, apostolicEmailDraftTool, apostolicKeywordAutomationDraftTool, apostolicSocialDraftTool, apostolicValidateLinksTool } from "./apostolic-sol/tools/campaign-store";
 import { apostolicCampaignRepairTool } from "./apostolic-sol/tools/repair";
@@ -62,6 +63,7 @@ export function getSolRuntimeToolRegistry() {
       .register(apostolicSocialDraftTool)
       .register(apostolicEmailDraftTool)
       .register(apostolicVideoPrepareTool)
+      .register(apostolicAudioToYoutubeTool)
       .register(apostolicKeywordAutomationDraftTool)
       .register(apostolicValidateLinksTool)
       .register(apostolicCampaignFinalizeTool)
