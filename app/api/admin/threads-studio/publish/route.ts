@@ -60,7 +60,7 @@ export async function POST(request: Request) {
       }
 
       if (recordId) {
-        await service.from("studio_content_calendar_items").upsert({
+        const calendarValues = {
           title: parsed.data.body.slice(0,80),
           content_type: "thread",
           platform: "threads",
@@ -71,7 +71,16 @@ export async function POST(request: Request) {
           source_ref: recordId,
           metadata: { threads_post_id: recordId, category: parsed.data.category, doctrine_status: parsed.data.doctrineStatus, external_post_id: published.id, permalink: published.permalink },
           updated_at: now
-        }, { onConflict: "source,source_ref" });
+        };
+        const existingCalendar = await service.from("studio_content_calendar_items").select("id").eq("source", "threads-studio").eq("source_ref", recordId).limit(1);
+        if (!existingCalendar.error) {
+          const calendar = existingCalendar.data?.length
+            ? await service.from("studio_content_calendar_items").update(calendarValues).eq("source", "threads-studio").eq("source_ref", recordId)
+            : await service.from("studio_content_calendar_items").insert(calendarValues);
+          if (calendar.error) console.error("Threads calendar sync failed after publish", calendar.error.message);
+        } else {
+          console.error("Threads calendar lookup failed after publish", existingCalendar.error.message);
+        }
       }
     }
     return NextResponse.json({ ok: true, id: published.id, permalink: published.permalink, recordId });
