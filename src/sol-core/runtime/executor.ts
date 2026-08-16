@@ -16,6 +16,10 @@ function errorRecord(error: unknown) {
   return { code: "UNKNOWN", message: String(error || "SOL tool failed.") };
 }
 
+function approvalGranted(task: SolRuntimeTaskRecord) {
+  return task.output.approvalGranted === true;
+}
+
 export class SolRuntimeExecutor {
   private readonly leaseSeconds: number;
   private readonly heartbeatMs: number;
@@ -40,7 +44,25 @@ export class SolRuntimeExecutor {
       await this.store.failTask(task.id, this.options.workerId, { status: "stalled", errorCode: "RUN_NOT_EXECUTABLE", errorMessage: `Parent run is ${run.status}.` });
       return;
     }
+
+    const granted = approvalGranted(task);
+    if (task.approvalType && !granted) {
+      const approvalId = await this.store.waitForApproval(task, { type: task.approvalType, requestedAction: `${task.name} requires ${task.approvalType} approval.` });
+      await this.store.emit({ runId: task.runId, taskId: task.id, eventType: "approval.requested", message: `${task.name} is waiting for approval.`, details: { approvalId, type: task.approvalType } });
+      await this.reconcileRun(task.runId);
+      return;
+    }
+
     if (!task.toolName) {
+      if (task.approvalType && granted && task.workflowName === "runtime.review") {
+        const output = { ...task.output, approved: true };
+        const completed = await this.store.completeTask(task.id, this.options.workerId, output);
+        if (!completed) throw new Error("Review gate lease was lost before approval completion could be persisted.");
+        await this.store.emit({ runId: task.runId, taskId: task.id, eventType: "task.completed", message: `${task.name} approval gate completed.`, details: { approvalType: task.approvalType } });
+        await this.store.unblockTasks(task.runId);
+        await this.reconcileRun(task.runId);
+        return;
+      }
       await this.store.failTask(task.id, this.options.workerId, { status: "stalled", errorCode: "WORKFLOW_EXPANSION_REQUIRED", errorMessage: "Nested workflow execution is not available in this runtime worker yet." });
       await this.reconcileRun(task.runId);
       return;
@@ -70,15 +92,17 @@ export class SolRuntimeExecutor {
 
     const workflowAllowlisted = this.options.workflowAllowlisted?.(run.workflowKey, run.workflowVersion) ?? false;
     const permission = evaluateSolPermission({ mode: run.mode, permission: task.permission, environment: run.environment, workflowAllowlisted });
-    const approvalType = task.approvalType ?? (["publish", "deploy", "delete", "financial", "security"].includes(task.permission) ? task.permission as "publish" | "deploy" | "delete" | "financial" | "security" : null);
+    const permissionApprovalType = ["publish", "deploy", "delete", "financial", "security"].includes(task.permission)
+      ? task.permission as "publish" | "deploy" | "delete" | "financial" | "security"
+      : null;
     if (permission === "deny") {
       await this.store.failTask(task.id, this.options.workerId, { status: "failed", errorCode: "PERMISSION_DENIED", errorMessage: `${run.mode} mode does not allow ${task.permission} execution.` });
       await this.store.emit({ runId: task.runId, taskId: task.id, eventType: "task.denied", message: "Runtime permission policy denied execution.", details: { mode: run.mode, permission: task.permission } });
       await this.reconcileRun(task.runId);
       return;
     }
-    if (permission === "approval_required" || approvalType) {
-      const type = approvalType ?? "review";
+    if ((permission === "approval_required" || permissionApprovalType) && !granted) {
+      const type = permissionApprovalType ?? "review";
       const approvalId = await this.store.waitForApproval(task, { type, requestedAction: `${task.name} requires ${type} approval.` });
       await this.store.emit({ runId: task.runId, taskId: task.id, eventType: "approval.requested", message: `${task.name} is waiting for approval.`, details: { approvalId, type } });
       await this.reconcileRun(task.runId);
