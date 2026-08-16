@@ -1,6 +1,7 @@
 import { setTimeout as wait } from "node:timers/promises";
 import "server-only";
 import { executeScheduledPublication } from "./scheduled-publishing";
+import { instagramGraphBase } from "./instagram-api";
 import { getSocialPublishingCredentialValues } from "./social-publishing-integrations";
 import { createServiceClient } from "./supabase";
 
@@ -65,8 +66,7 @@ async function publishCreativeInstagram(metadata: CreativeMetadata) {
   if (format === "single" && mediaUrls.length !== 1) throw new Error("A Single Post must contain exactly one rendered image.");
   if (format === "carousel" && mediaUrls.length < 2) throw new Error("A Carousel must contain at least two rendered images.");
 
-  const version = /^v\d+\.\d+$/.test(credentials.graphVersion || "") ? credentials.graphVersion : "v24.0";
-  const base = `https://graph.facebook.com/${version}`;
+  const base = instagramGraphBase(credentials.graphVersion);
   const caption = String(metadata.caption || "").slice(0, 2200);
 
   if (format === "single") {
