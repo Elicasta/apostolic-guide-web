@@ -12,7 +12,7 @@ type ChatLine = { id: string; role: "user" | "sol"; text: string };
 const MODE_COPY: Record<SolMode, string> = {
   watch: "Finds gaps and reports them. Nothing runs.",
   assist: "Runs only work you approve. Publishing stays locked.",
-  trusted: "Reserved for proven recipes. Phase 1 still stops at review."
+  trusted: "Auto-runs allowlisted safe drafts. Review and external effects stay locked."
 };
 
 function statusLabel(status: string) {
@@ -115,7 +115,7 @@ function OperatorPanel({ initialSnapshot, canOperate, embedded = false, onClose 
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
-  const [chat, setChat] = useState<ChatLine[]>([{ id: "welcome", role: "sol", text: "I can scan the workspace, explain what is missing, and run approved recipes. I will stop before publishing or activating anything." }]);
+  const [chat, setChat] = useState<ChatLine[]>([{ id: "welcome", role: "sol", text: "I can scan Studio, explain what is missing, and run registered recipes. Trusted mode can auto-run safe drafts, but I still stop before publishing, activation, enrollment, or outbound messaging." }]);
 
   const load = useCallback(async () => {
     try { setSnapshot(await request()); setError(""); } catch (reason) { setError(reason instanceof Error ? reason.message : "Sol could not load."); }
@@ -154,7 +154,7 @@ function OperatorPanel({ initialSnapshot, canOperate, embedded = false, onClose 
     const userLine = { id: crypto.randomUUID(), role: "user" as const, text };
     setChat((lines) => [...lines, userLine]); setMessage(""); setBusy("chat"); setError("");
     try {
-      const response = await fetch("/api/admin/sol", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "chat", message: text }) });
+      const response = await fetch("/api/admin/sol", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "chat", message: text, context: { pathname: "/admin/sol" } }) });
       const data = await response.json().catch(() => ({})) as ApiResponse;
       if (!response.ok) throw new Error(data.error || "Sol could not interpret that request.");
       if (data.snapshot) setSnapshot(data.snapshot);
@@ -165,16 +165,16 @@ function OperatorPanel({ initialSnapshot, canOperate, embedded = false, onClose 
 
   if (!snapshot) return <section className={`sol-panel${embedded ? " is-embedded" : ""}`}><div className="sol-loading"><SolRobotAvatar state="thinking"/><Loader2 className="spin" size={18}/><span>Reading Studio state…</span></div></section>;
 
-  return <section className={`sol-panel${embedded ? " is-embedded" : ""}`} aria-label="Sol Content Operator">
+  return <section className={`sol-panel${embedded ? " is-embedded" : ""}`} aria-label="Sol Admin Operator">
     <header className="sol-panel-head">
-      <div className="sol-head-identity"><SolRobotAvatar state={robotState}/><span><strong>Sol</strong><small>Content Operator · Phase 1</small></span></div>
+      <div className="sol-head-identity"><SolRobotAvatar state={robotState}/><span><strong>Sol</strong><small>Admin Operator · Phase 2</small></span></div>
       <div className="sol-head-actions">
         <button type="button" className={`sol-master-toggle${snapshot.settings.enabled ? " is-on" : ""}`} disabled={!canOperate || busy === "settings"} onClick={() => void act("settings", { action: "update_settings", enabled: !snapshot.settings.enabled, mode: snapshot.settings.mode, weeklyTargets: snapshot.settings.weeklyTargets })} aria-pressed={snapshot.settings.enabled}><i/><span>{snapshot.settings.enabled ? "On" : "Off"}</span></button>
         {!embedded && onClose ? <button type="button" className="sol-icon-button" onClick={onClose} aria-label="Close Sol"><X size={18}/></button> : null}
       </div>
     </header>
     <SolStatus snapshot={snapshot}/>
-    {!snapshot.dbReady ? <div className="sol-alert"><CircleAlert size={16}/><div><strong>Sol database is not ready.</strong><p>Apply the Phase 1 migration before turning the operator on.</p></div></div> : null}
+    {!snapshot.dbReady ? <div className="sol-alert"><CircleAlert size={16}/><div><strong>Sol database is not ready.</strong><p>Apply the Sol operator migration before turning the operator on.</p></div></div> : null}
     {error ? <div className="sol-alert is-error"><CircleAlert size={16}/><span>{error}</span></div> : null}
     <nav className="sol-tabs" aria-label="Sol sections">
       <button type="button" onClick={() => setTab("today")} className={tab === "today" ? "is-active" : ""}>Today{pending.length ? <span>{pending.length}</span> : null}</button>
@@ -199,13 +199,13 @@ function OperatorPanel({ initialSnapshot, canOperate, embedded = false, onClose 
       {tab === "settings" ? <>
         <div className="sol-section-title"><div><span>Guardrails</span><strong>Operating mode</strong></div><ShieldCheck size={17}/></div>
         <div className="sol-mode-list">{(["watch", "assist", "trusted"] as SolMode[]).map((mode) => <button type="button" key={mode} disabled={!canOperate || Boolean(busy)} className={snapshot.settings.mode === mode ? "is-active" : ""} onClick={() => void act("settings", { action: "update_settings", enabled: true, mode, weeklyTargets: snapshot.settings.weeklyTargets })}><i>{snapshot.settings.mode === mode ? <Check size={13}/> : null}</i><span><strong>{mode}</strong><small>{MODE_COPY[mode]}</small></span></button>)}</div>
-        <div className="sol-hard-locks"><strong>Phase 1 hard locks</strong><span><ShieldCheck size={14}/> No live publishing</span><span><ShieldCheck size={14}/> No automation activation</span><span><ShieldCheck size={14}/> No messages or enrollments</span><span><ShieldCheck size={14}/> No canonical Pathway edits</span></div>
+        <div className="sol-hard-locks"><strong>Hard locks</strong><span><ShieldCheck size={14}/> No live publishing</span><span><ShieldCheck size={14}/> No automation activation</span><span><ShieldCheck size={14}/> No messages or enrollments</span><span><ShieldCheck size={14}/> No canonical Pathway edits</span></div>
       </> : null}
     </div>
     <div className="sol-chat">
       <div className="sol-chat-lines">{chat.slice(-4).map((line) => <p className={`is-${line.role}`} key={line.id}>{line.role === "sol" ? <SolRobotAvatar state={busy === "chat" ? "thinking" : robotState} small/> : null}<span>{line.text}</span></p>)}</div>
       <form onSubmit={sendChat}><MessageSquareText size={15}/><input value={message} onChange={(event) => setMessage(event.target.value)} placeholder={canOperate ? "Ask Sol or approve work…" : "Read-only access"} disabled={!canOperate || Boolean(busy)}/><button type="submit" disabled={!message.trim() || Boolean(busy)} aria-label="Send to Sol">{busy === "chat" ? <Loader2 className="spin" size={15}/> : <Send size={15}/>}</button></form>
-      <small>Sol can run registered recipes only. External effects stay locked.</small>
+      <small>{snapshot.settings.mode === "trusted" ? "Trusted auto-runs safe drafts only. External effects stay locked." : "Sol can run registered recipes only. External effects stay locked."}</small>
     </div>
   </section>;
 }
@@ -223,7 +223,7 @@ export function SolOperatorFloating({ canOperate }: { canOperate: boolean }) {
   const state = !snapshot?.settings.enabled ? "idle" : snapshot.runs.some((run) => run.status === "running" || run.status === "queued") ? "running" : snapshot.proposals.some((proposal) => proposal.status === "pending") ? "attention" : "idle";
   return <div className={`sol-floating${open ? " is-open" : ""}`}>
     {open ? <><button type="button" className="sol-backdrop" onClick={() => setOpen(false)} aria-label="Close Sol"/><OperatorPanel initialSnapshot={snapshot} canOperate={canOperate} onClose={() => setOpen(false)}/></> : null}
-    <button type="button" className="sol-launcher" onClick={() => setOpen(true)} aria-label="Open Sol Content Operator" aria-expanded={open}><SolRobotAvatar state={state}/><span>Ask Sol</span></button>
+    <button type="button" className="sol-launcher" onClick={() => setOpen(true)} aria-label="Open Sol Admin Operator" aria-expanded={open}><SolRobotAvatar state={state}/><span>Ask Sol</span></button>
   </div>;
 }
 
