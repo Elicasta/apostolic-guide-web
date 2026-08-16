@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { SolRuntimeExecutor } from "./sol-core/runtime/executor";
 import type { SolRuntimeTaskRecord } from "./sol-core/runtime/store";
 import { getSolRuntimeToolRegistry, getSolRuntimeVerifierRegistry, isSolRuntimeWorkflowTrusted } from "./sol-runtime-registry";
-import { SupabaseSolRuntimeStore } from "./sol-runtime-store-supabase";
+import { InstrumentedSupabaseSolRuntimeStore } from "./sol-runtime-store-instrumented";
 
 const DEFAULT_CONCURRENCY = 4;
 const DEFAULT_LEASE_SECONDS = 90;
@@ -14,10 +14,11 @@ function concurrencyLimit() {
 }
 
 export async function runSolRuntimeWorker(options?: { maxTasks?: number }) {
-  const store = new SupabaseSolRuntimeStore();
+  const store = new InstrumentedSupabaseSolRuntimeStore();
   const workerId = `sol-runtime:${process.env.VERCEL_REGION || "local"}:${randomUUID()}`;
   const concurrency = concurrencyLimit();
   const maxTasks = Math.max(1, Math.min(options?.maxTasks ?? concurrency * 3, 50));
+  const started = Date.now();
   const recovery = await store.releaseExpiredLeases();
   const tools = getSolRuntimeToolRegistry();
   const verifiers = getSolRuntimeVerifierRegistry();
@@ -41,5 +42,11 @@ export async function runSolRuntimeWorker(options?: { maxTasks?: number }) {
   }
 
   for (const runId of runIds) await executor.reconcileRun(runId);
+  await Promise.all([
+    store.recordMetric({ metricKey: "worker_runs", value: 1, metadata: { workerId, durationMs: Date.now() - started } }),
+    store.recordMetric({ metricKey: "tasks_claimed", value: executed, metadata: { workerId, batches } }),
+    store.recordMetric({ metricKey: "leases_recovered", value: recovery.recovered, metadata: { workerId } }),
+    store.recordMetric({ metricKey: "leases_stalled", value: recovery.stalled, metadata: { workerId } })
+  ]);
   return { workerId, recovery, executed, batches, runIds: [...runIds] };
 }
