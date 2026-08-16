@@ -27,6 +27,7 @@ import {
   humanPathwayAssetBytes,
   humanPathwayAssetDuration,
   isSupportedPathwayAssetMime,
+  PATHWAY_ASSET_ENGINE_MAX_UPLOAD_BYTES,
   PATHWAY_ASSET_HASH_LIMIT_BYTES,
   PATHWAY_ASSET_MAX_UPLOAD_BYTES,
   PATHWAY_ASSET_TUS_CHUNK_BYTES,
@@ -190,7 +191,7 @@ export function PathwayAssetIngestRoom({
     const rejected: string[] = [];
     for (const file of files) {
       if (!isSupportedPathwayAssetMime(file.type)) { rejected.push(`${file.name}: unsupported type`); continue; }
-      if (file.size > PATHWAY_ASSET_MAX_UPLOAD_BYTES) { rejected.push(`${file.name}: over 1 GB`); continue; }
+      if (file.size > PATHWAY_ASSET_MAX_UPLOAD_BYTES) { rejected.push(`${file.name}: over ${humanPathwayAssetBytes(PATHWAY_ASSET_MAX_UPLOAD_BYTES)}`); continue; }
       if (queueRef.current.some((item) => item.file.name === file.name && item.file.size === file.size && item.file.lastModified === file.lastModified && item.status !== "cancelled")) continue;
       accepted.push({ id: crypto.randomUUID(), file, status: "ready", progress: 0, bytesUploaded: 0, speed: 0, eta: 0 });
     }
@@ -278,23 +279,42 @@ export function PathwayAssetIngestRoom({
       const auth = await ensureTusUpload(item, prepared);
       patchItem(id, { sessionId: String(session.id), tusUrl: auth.tusUrl, actualStudio: session.studio, duplicateTitle, meta, status: "uploading", bytesUploaded: auth.offset, progress: item.file.size ? auth.offset / item.file.size : 0 });
       let offset = auth.offset;
+      let signature = auth.signature;
       let lastServerUpdate = offset;
 
       while (offset < item.file.size) {
         const controller = new AbortController();
         controllers.current.set(id, controller);
         const chunk = item.file.slice(offset, Math.min(offset + PATHWAY_ASSET_TUS_CHUNK_BYTES, item.file.size));
-        const response = await fetch(auth.tusUrl, {
+        const patchChunk = () => fetch(auth.tusUrl, {
           method: "PATCH",
           headers: {
             "Tus-Resumable": "1.0.0",
             "Upload-Offset": String(offset),
             "Content-Type": "application/offset+octet-stream",
-            "x-signature": auth.signature
+            "x-signature": signature
           },
           body: chunk,
           signal: controller.signal
         });
+        let response = await patchChunk();
+        if (response.status === 401 || response.status === 403) {
+          const renewed = await postAction({ action: "renew", sessionId: session.id });
+          signature = String(renewed.signature || "");
+          if (!signature) throw new Error("Upload authorization could not be renewed.");
+          response = await patchChunk();
+        }
+        if (response.status === 409) {
+          const head = await fetch(auth.tusUrl, { method: "HEAD", headers: { "Tus-Resumable": "1.0.0", "x-signature": signature } });
+          if (head.ok) {
+            const serverOffset = Number(head.headers.get("Upload-Offset") || offset);
+            if (Number.isFinite(serverOffset) && serverOffset >= offset && serverOffset <= item.file.size) {
+              offset = serverOffset;
+              patchItem(id, { status: "uploading", bytesUploaded: offset, progress: offset / item.file.size });
+              continue;
+            }
+          }
+        }
         if (!response.ok) throw new Error(`Transfer interrupted (${response.status}). Press Resume to continue.`);
         offset = Number(response.headers.get("Upload-Offset") || (offset + chunk.size));
         const elapsed = Math.max((performance.now() - startedAt) / 1000, .1);
@@ -364,9 +384,9 @@ export function PathwayAssetIngestRoom({
       <div>
         <span className="section-kicker">Pathway Assets · Ingest Dock</span>
         <h1>Drop the master files.<br/><em>The Studio takes it from here.</em></h1>
-        <p>Large video, audio, images, reference PDFs, and project archives go straight into the Pathway source of truth. Transfers resume instead of restarting, every file is traced, and final assets land back in the library ready for production.</p>
+        <p>Video, audio, images, reference PDFs, and project archives go straight into the Pathway source of truth. Transfers resume instead of restarting, every file is traced, and final assets land back in the library ready for production.</p>
       </div>
-      <div className="pathway-ingest-hero-orbit" aria-hidden="true"><UploadCloud size={34}/><span>1 GB</span><small>per source</small></div>
+      <div className="pathway-ingest-hero-orbit" aria-hidden="true"><UploadCloud size={34}/><span>{humanPathwayAssetBytes(PATHWAY_ASSET_MAX_UPLOAD_BYTES)}</span><small>live cap</small></div>
     </header>
 
     <section className="pathway-ingest-controls admin-card">
@@ -384,7 +404,7 @@ export function PathwayAssetIngestRoom({
     >
       <input ref={inputRef} type="file" hidden multiple accept={ACCEPT} onChange={(event) => { void addFiles(Array.from(event.target.files || [])); event.target.value = ""; }}/>
       <div className="pathway-ingest-drop-icon"><UploadCloud size={30}/></div>
-      <div><strong>Drop masters here</strong><p>MP4, MOV, WebM, WAV, MP3, PNG, JPG, WebP, PDF, ZIP · up to 1 GB each</p><small>Video and audio automatically route to Video Production. Images and references honor the selected lane.</small></div>
+      <div><strong>Drop masters here</strong><p>MP4, MOV, WebM, WAV, MP3, PNG, JPG, WebP, PDF, ZIP · up to {humanPathwayAssetBytes(PATHWAY_ASSET_MAX_UPLOAD_BYTES)} each</p><small>Video and audio auto-route to Video Production. The resumable engine is already built for {humanPathwayAssetBytes(PATHWAY_ASSET_ENGINE_MAX_UPLOAD_BYTES)} sources once Storage capacity is upgraded.</small></div>
       <button type="button" className="button primary" onClick={() => inputRef.current?.click()}>Choose files</button>
     </section>
 
@@ -413,10 +433,10 @@ export function PathwayAssetIngestRoom({
             {item.status === "uploading" ? <button type="button" title="Pause" onClick={() => void pauseUpload(item)}><Pause size={15}/></button> : null}
             {["ready", "paused", "failed"].includes(item.status) ? <button type="button" title={item.status === "ready" ? "Start" : "Resume"} onClick={() => void startUpload(item.id)}>{item.status === "failed" ? <RotateCcw size={15}/> : <Play size={15}/>}</button> : null}
             {!(["complete", "cancelled"].includes(item.status)) ? <button type="button" title="Cancel" className="danger" onClick={() => void cancelUpload(item)}><Trash2 size={15}/></button> : null}
-            {item.status === "complete" && item.assetId ? <Link href={`/admin/pathway-assets/${item.assetId}`} title="Open asset"><Sparkles size={15}/></Link> : null}
+            {item.status === "complete" && item.assetId ? <Link href={`/admin/pathway-assets/${item.assetId}`} title="Open source master"><Sparkles size={15}/></Link> : null}
           </div>
         </article>;
-      })}</div> : <div className="studio-empty-state compact"><UploadCloud size={28}/><strong>Ingest dock is clear</strong><p>Add source masters above. Nothing is proxied through the Next.js server, so large transfers stay fast and recoverable.</p></div>}
+      })}</div> : <div className="studio-empty-state compact"><UploadCloud size={28}/><strong>Ingest dock is clear</strong><p>Add source masters above. Nothing is proxied through the Next.js server, so transfers stay fast and recoverable.</p></div>}
     </section>
 
     {recovery.length ? <section className="admin-card pathway-ingest-recovery"><div className="pathway-ingest-section-head"><div><span className="section-kicker">Recovery bay</span><h2>Interrupted sessions</h2></div><button type="button" className="button" onClick={() => void refreshRecovery()}><RotateCcw size={14}/> Refresh</button></div><p>Reselect the same file in the drop zone and the Studio will find its session, HEAD the TUS upload, and continue from the last stored offset.</p><div>{recovery.map((session) => <article key={session.id}><div>{iconFor(session.mime_type)}<span><strong>{session.file_name}</strong><small>{session.status} · {humanPathwayAssetBytes(Number(session.bytes_uploaded || 0))} of {humanPathwayAssetBytes(Number(session.file_size || 0))}</small></span></div><b>{Math.round((Number(session.bytes_uploaded || 0) / Math.max(Number(session.file_size || 1), 1)) * 100)}%</b></article>)}</div></section> : null}
