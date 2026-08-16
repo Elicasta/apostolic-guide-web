@@ -7,7 +7,8 @@ import { createServiceClient } from "@/supabase";
 
 const assetTypes = [
   "carousel-deck","carousel-slide","single-post","story-set","story-frame","thumbnail",
-  "generated-image","uploaded-image","caption","video-project","video-render","video-thumbnail","other"
+  "generated-image","uploaded-image","caption","video-project","video-render","video-thumbnail",
+  "uploaded-video","source-audio","source-document","source-archive","other"
 ] as const;
 const studios = ["carousel","video"] as const;
 const statuses = ["draft","review","approved","ready","published","archived"] as const;
@@ -44,6 +45,13 @@ const patchSchema = z.object({
 }).refine((value) => Object.keys(value).some((key) => key !== "id"), { message: "No asset changes supplied." });
 
 async function signedPreview(service: NonNullable<ReturnType<typeof createServiceClient>>, row: Record<string, unknown>) {
+  const metadata = row.metadata && typeof row.metadata === "object" && !Array.isArray(row.metadata)
+    ? row.metadata as Record<string, unknown>
+    : {};
+  const mime = typeof metadata.mimeType === "string"
+    ? metadata.mimeType
+    : typeof metadata.mime === "string" ? metadata.mime : "";
+  if (mime && !mime.startsWith("image/")) return { ...row, preview_url: null };
   const bucket = typeof row.storage_bucket === "string" ? row.storage_bucket : null;
   const path = typeof row.storage_path === "string" ? row.storage_path : null;
   if (!bucket || !path) return { ...row, preview_url: row.public_url ?? null };
