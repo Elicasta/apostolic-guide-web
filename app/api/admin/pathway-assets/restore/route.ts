@@ -62,6 +62,20 @@ export async function POST(request: Request) {
     .single();
   if (saved.error) return NextResponse.json({ error: saved.error.message }, { status: 500 });
 
+  const audit = await service.rpc("record_studio_audit", {
+    p_actor_user_id: access.user.id,
+    p_action: "pathway_asset.version_restore",
+    p_resource_type: "pathway_asset",
+    p_resource_id: parsed.data.assetId,
+    p_metadata: {
+      pathwaySlug: currentResult.data.pathway_slug,
+      restoredFromVersion: parsed.data.version,
+      preservedVersion: currentVersion,
+      newVersion: currentVersion + 1
+    }
+  });
+  if (audit.error) console.error("pathway asset restore audit failed", audit.error.message);
+
   return NextResponse.json({
     asset: saved.data,
     restoredFromVersion: parsed.data.version,
