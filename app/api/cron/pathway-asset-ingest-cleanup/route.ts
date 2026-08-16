@@ -1,4 +1,6 @@
+import { del } from "@vercel/blob";
 import { NextResponse } from "next/server";
+import { PATHWAY_ASSET_STORAGE_PROVIDER } from "@/pathway-asset-ingest";
 import { createServiceClient } from "@/supabase";
 
 export const runtime = "nodejs";
@@ -25,6 +27,11 @@ export async function GET(request: Request) {
 
   let removed = 0;
   for (const session of expired.data ?? []) {
+    if (!session.storage_path) continue;
+    if (session.storage_bucket === PATHWAY_ASSET_STORAGE_PROVIDER) {
+      try { await del(session.storage_path); removed += 1; } catch (error) { console.warn("stale Blob cleanup failed", error); }
+      continue;
+    }
     const storage = await service.storage.from(session.storage_bucket).remove([session.storage_path]);
     if (!storage.error) removed += 1;
   }
