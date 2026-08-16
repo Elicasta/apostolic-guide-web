@@ -1,6 +1,6 @@
 "use client";
 
-import { Archive, FileImage, Layers3, Loader2, Plus, Search } from "lucide-react";
+import { Archive, FileImage, Layers3, Loader2, Plus, RefreshCw, Search } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { CREATIVE_FORMAT_LABELS, CREATIVE_INTENT_LABELS, type CreativeFormat, type CreativeIntent, type CreativeStatus } from "@/creative-project";
@@ -39,6 +39,13 @@ function statusLabel(status: string) {
   return status.replaceAll("_", " ").replace(/\b\w/g, (value) => value.toUpperCase());
 }
 
+function libraryErrorMessage(message: string) {
+  if (message.includes("studio_creative_projects") || message.toLowerCase().includes("schema cache")) {
+    return "Creative Projects storage is unavailable. Publishing now has a runtime preflight that identifies the missing database dependency.";
+  }
+  return message;
+}
+
 export function CreativeLibraryClient() {
   const router = useRouter();
   const [projects, setProjects] = useState<Project[]>([]);
@@ -48,6 +55,7 @@ export function CreativeLibraryClient() {
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setDebouncedQuery(query.trim()), 250);
@@ -72,7 +80,7 @@ export function CreativeLibraryClient() {
       .catch((reason) => { if (!cancelled) setError(reason instanceof Error ? reason.message : "Creative Library could not be loaded."); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [status, format, debouncedQuery]);
+  }, [status, format, debouncedQuery, reloadKey]);
 
   const counts = useMemo(() => projects.reduce<Record<string, number>>((acc, project) => {
     acc[project.status] = (acc[project.status] ?? 0) + 1;
@@ -99,7 +107,7 @@ export function CreativeLibraryClient() {
       <select value={format} onChange={(event) => setFormat(event.target.value)}>{FORMAT_OPTIONS.map((option) => <option key={option.value || "all"} value={option.value}>{option.label}</option>)}</select>
     </div>
 
-    {error ? <div className="creative-error-banner">{error}</div> : null}
+    {error ? <div className="creative-error-banner"><span>{libraryErrorMessage(error)}</span><button type="button" className="creative-small-button" onClick={() => setReloadKey((value) => value + 1)}><RefreshCw size={14}/> Retry</button></div> : null}
     {loading ? <div className="creative-empty"><Loader2 className="spin"/> Loading Creative Library...</div> : projects.length ? <div className="creative-library-table" role="table">
       <div className="creative-library-row is-head" role="row"><span>Preview</span><span>Project</span><span>Format</span><span>Pathway</span><span>Status</span><span>Edited</span></div>
       {projects.map((project) => {
@@ -113,6 +121,6 @@ export function CreativeLibraryClient() {
           <span>{new Date(project.updatedAt).toLocaleString()}</span>
         </button>;
       })}
-    </div> : <div className="creative-empty"><Layers3 size={24}/><strong>No Creative Projects match this view.</strong><span>Create one or clear the filters.</span></div>}
+    </div> : !error ? <div className="creative-empty"><Layers3 size={24}/><strong>No Creative Projects match this view.</strong><span>Create one or clear the filters.</span></div> : null}
   </section>;
 }
