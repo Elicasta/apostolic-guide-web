@@ -155,6 +155,34 @@ test("approval gate stops execution before the tool side effect", async () => {
   assert.deepEqual(store.approvals, ["approval_1"]);
 });
 
+test("an approved gated tool executes without asking for approval twice", async () => {
+  let executed = 0;
+  const currentTask = task({ approvalType: "review", output: { approvalGranted: true, approvalId: "approval_1" } });
+  const store = new MemoryStore(run({ mode: "trusted" }), [currentTask]);
+  const tools = new SolToolRegistry().register(readTool(async (input) => { executed += 1; return { ok: true, data: input }; }));
+  const executor = new SolRuntimeExecutor(store, tools, new SolVerifierRegistry(), { workerId: "worker_1" });
+  await executor.executeClaimedTask(currentTask);
+  assert.equal(executed, 1);
+  assert.equal(currentTask.status, "completed");
+  assert.equal(store.approvals.length, 0);
+  assert.equal(store.run.status, "completed");
+});
+
+test("an approved pure review gate completes without a fake tool", async () => {
+  const currentTask = task({
+    toolName: null,
+    workflowName: "runtime.review",
+    approvalType: "review",
+    output: { approvalGranted: true, approvalId: "approval_1" }
+  });
+  const store = new MemoryStore(run({ mode: "trusted" }), [currentTask]);
+  const executor = new SolRuntimeExecutor(store, new SolToolRegistry(), new SolVerifierRegistry(), { workerId: "worker_1" });
+  await executor.executeClaimedTask(currentTask);
+  assert.equal(currentTask.status, "completed");
+  assert.equal(store.approvals.length, 0);
+  assert.equal(store.run.status, "completed");
+});
+
 test("retryable tool failure schedules deterministic retry", async () => {
   const currentTask = task({ attemptCount: 2, maxAttempts: 3 });
   const store = new MemoryStore(run(), [currentTask]);
