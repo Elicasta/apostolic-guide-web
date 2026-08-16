@@ -108,13 +108,14 @@ export async function POST(request: Request) {
 
   try {
     const enrichment = parsePathwayAssetEnrichment(extractText(await response.json()));
-    await service.rpc("record_studio_audit", {
+    const audit = await service.rpc("record_studio_audit", {
       p_actor_user_id: access.user.id,
       p_action: "pathway_asset.enrich_suggest",
       p_resource_type: "pathway_asset",
       p_resource_id: asset.id,
       p_metadata: { pathwaySlug: asset.pathway_slug, model, confidence: enrichment.confidence }
-    }).catch(() => null);
+    });
+    if (audit.error) console.error("pathway asset enrichment audit failed", audit.error.message);
     return NextResponse.json({ enrichment, model });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Sol metadata could not be parsed." }, { status: 502 });
