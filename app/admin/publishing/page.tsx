@@ -130,7 +130,7 @@ export default async function AdminPublishingPage({ searchParams }: { searchPara
   }).filter((item) => item.youtubeRender || item.verticalRender || item.publishingKit || item.publications.length || item.socialClips.length);
 
   const failed = health.checks.filter((check) => !check.ok);
-  const initialView = query.view === "video" ? "video" as const : "creative" as const;
+  const initialView = query.view === "video" ? "video" as const : query.view === "calendar" ? "calendar" as const : "creative" as const;
 
   return <>
     <section className="master-publishing-health">
