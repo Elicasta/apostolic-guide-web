@@ -12,7 +12,7 @@ export function ThreadsSingleComposer(){
   const [status,setStatus]=useState<"pass"|"warning"|"blocked">();
   const [notes,setNotes]=useState("");
   const [busy,setBusy]=useState<string>();
-  const [message,setMessage]=useState("Generate one post or write it manually, run Theology check, then send the approved draft to Master Publishing.");
+  const [message,setMessage]=useState("Generate one post or write it manually, run Theology check, then send the approved draft to Publishing.");
 
   async function generate(){
     if(!prompt.trim()) return setMessage("Add a direction for the post first.");
@@ -51,8 +51,10 @@ export function ThreadsSingleComposer(){
       const r=await fetch("/api/admin/threads-studio/ready",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({allowWarnings:status==="warning",items:[{body:body.trim(),category,doctrineStatus:status,mirrorToX:false}]})});
       const d=await r.json();
       if(!r.ok) throw new Error(d.error||"Could not send this Thread to Publishing.");
-      setMessage("Ready. Opening Master Publishing…");
-      window.location.assign("/admin/publishing?view=threads");
+      const readyId=Array.isArray(d.posts)&&d.posts[0]?.id?String(d.posts[0].id):"";
+      if(!readyId) throw new Error("Thread was saved, but its publishing ID was not returned.");
+      setMessage("Ready. Opening Publishing…");
+      window.location.assign(`/admin/publishing?view=threads&threadId=${encodeURIComponent(readyId)}`);
     }catch(e){setMessage(e instanceof Error?e.message:"Could not send this Thread to Publishing.");setBusy(undefined);}
   }
 
