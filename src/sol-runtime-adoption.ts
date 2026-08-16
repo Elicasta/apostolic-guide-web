@@ -52,7 +52,7 @@ export async function adoptLegacyWaitingReviews(limit = 40) {
     if (!SOL_RECIPE_STEPS[recipe]) continue;
     const definition = SOL_RECIPE_STEPS[recipe];
     const current = Array.isArray(run.steps) ? run.steps as Array<Record<string, unknown>> : definition.map((step) => ({ ...step, status: "pending" }));
-    const steps = current.map((step) => String(step.key) === "review" ? { ...step, status: "waiting_for_approval", detail: "Adopted into SOL Runtime review." } : step);
+    const steps = current.map((step) => String(step.key) === "review" ? { ...step, status: "waiting_for_approval", detail: "Adopted into SOL Runtime review. Previous execution state is preserved, but verification must be re-established." } : step);
     const progress = solProgress(steps.filter((step) => step.status === "completed").length, steps.length);
     const artifact = artifactForRun(run);
     run.steps = steps;
@@ -61,7 +61,7 @@ export async function adoptLegacyWaitingReviews(limit = 40) {
     run.result = result;
     const runtime = await createLegacyRuntimeReview({
       legacyRun: run,
-      artifact: { ...artifact, storageType: "database", verificationStatus: "passed" },
+      artifact: { ...artifact, storageType: "database", verificationStatus: "pending" },
       requestedAction: `Review ${artifact.title}`
     });
     const updated = await service.from("sol_operator_runs").update({
