@@ -137,7 +137,7 @@ export function ThreadsPublishingClient({ connected, canPublish, initialSelected
       <div><strong>{readyPosts.length}</strong><span>Ready</span></div>
       <div><strong>{scheduledCount}</strong><span>Scheduled</span></div>
       <div><strong>{publishedCount}</strong><span>Published</span></div>
-      <Link href="/admin/publishing/threads-studio"><MessageCircle size={15}/> Threads Studio</Link>
+      <Link href="/admin/threads-studio"><MessageCircle size={15}/> Threads Studio</Link>
     </div>
 
     {!connected ? <div className="master-threads-connection-note"><Settings size={16}/><div><strong>Threads is not connected for direct posting.</strong><span>You can still schedule approved copy. Connect the account before Publish Now will work.</span></div><Link href="/admin/setup#social-publishing">Connections</Link></div> : null}
@@ -159,6 +159,6 @@ export function ThreadsPublishingClient({ connected, canPublish, initialSelected
         <div className="master-thread-action-block"><div><strong>Schedule</strong><span>Place it on the shared publishing calendar.</span></div><input type="datetime-local" value={scheduleLocal} onChange={(event) => setScheduleLocal(event.target.value)}/><button className="button" type="button" disabled={!canPublish || Boolean(busy)} onClick={() => void schedule()}>{busy === "schedule" ? <Loader2 className="spin" size={15}/> : <CalendarDays size={15}/>} Add to calendar</button></div>
         <p className="master-thread-status">{message}</p>
       </section>
-    </div> : <div className="master-threads-empty"><MessageCircle size={25}/><strong>No Threads waiting for Publishing.</strong><span>Create a single post or approve a weekly batch in Threads Studio. Ready copy will appear here automatically.</span><Link className="button button-primary" href="/admin/publishing/threads-studio">Open Threads Studio</Link><p>{message}</p></div>}
+    </div> : <div className="master-threads-empty"><MessageCircle size={25}/><strong>No Threads waiting for Publishing.</strong><span>Create a single post or approve a weekly batch in Threads Studio. Ready copy will appear here automatically.</span><Link className="button button-primary" href="/admin/threads-studio">Open Threads Studio</Link><p>{message}</p></div>}
   </section>;
 }
