@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getAdminAccess } from "@/auth";
-import { getSolRuntimeReview, resolveSolRuntimeReview } from "@/sol-runtime-review";
+import { resolveSolRuntimeApproval } from "@/sol-runtime-approval";
+import { getSolRuntimeReview } from "@/sol-runtime-review";
 import { hasStudioPermission } from "@/studio-permissions";
 
 export const runtime = "nodejs";
@@ -38,7 +39,7 @@ export async function POST(request: Request, context: { params: Promise<{ review
   if (!parsed.success) return NextResponse.json({ error: "Invalid review decision." }, { status: 400 });
   const { reviewId } = await context.params;
   try {
-    const review = await resolveSolRuntimeReview({ reviewId, userId: current.user.id, decision: parsed.data.decision, note: parsed.data.note });
+    const review = await resolveSolRuntimeApproval({ reviewId, userId: current.user.id, decision: parsed.data.decision, note: parsed.data.note });
     return NextResponse.json({ ok: true, review });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to resolve SOL review.";
