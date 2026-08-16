@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getStudioPermission } from "@/auth";
 import { CreativeStudioClient } from "@/creative-studio-client";
+import { CreativeTemplateSystem } from "@/creative-template-system";
 import { allPathways } from "@/pathway-catalog";
 
 export default async function AdminCreativeStudioPage({ searchParams }: { searchParams: Promise<{ project?: string }> }) {
@@ -14,5 +15,8 @@ export default async function AdminCreativeStudioPage({ searchParams }: { search
     summary: pathway.summary,
     steps: pathway.steps.map((step) => ({ reference: step.reference, title: step.title, explanation: step.explanation }))
   }));
-  return <CreativeStudioClient pathways={pathways} initialProjectId={query.project ?? null} aiReady={Boolean(process.env.OPENAI_API_KEY?.trim())}/>;
+  return <>
+    <CreativeStudioClient pathways={pathways} initialProjectId={query.project ?? null} aiReady={Boolean(process.env.OPENAI_API_KEY?.trim())}/>
+    <CreativeTemplateSystem projectId={query.project ?? null}/>
+  </>;
 }
