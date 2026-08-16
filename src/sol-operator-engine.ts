@@ -61,7 +61,7 @@ export type SolOperatorAnalysis = {
 
 export const SOL_RECIPE_LABELS: Record<SolRecipeKey, string> = {
   audio_to_youtube: "Pathway audio to YouTube",
-  carousel_topic_pack: "Pathway carousel topic pack",
+  carousel_topic_pack: "Legacy carousel topic pack",
   journey_automation_draft: "Journey and automation draft"
 };
 
@@ -73,12 +73,14 @@ export const SOL_RECIPE_STEPS: Record<SolRecipeKey, SolPlanStep[]> = {
     { key: "queue_render", label: "Queue the YouTube render", gate: "automatic" },
     { key: "review", label: "Stop for finished-video and publishing approval", gate: "review" }
   ],
+  // Kept only so historical runs remain readable. New scans never create this
+  // recipe because it writes loose pathway_assets instead of Creative Projects.
   carousel_topic_pack: [
-    { key: "build_topics", label: "Build five topics from the canonical Pathway steps", gate: "automatic" },
-    { key: "generate_decks", label: "Generate each mobile carousel plan", gate: "automatic" },
-    { key: "theology_check", label: "Check every slide against the Pathway and doctrine policy", gate: "theology" },
-    { key: "save_drafts", label: "Save reviewable carousel assets", gate: "automatic" },
-    { key: "review", label: "Stop before export or publishing", gate: "review" }
+    { key: "build_topics", label: "Legacy carousel planning", gate: "review" },
+    { key: "generate_decks", label: "Legacy executor disabled for new work", gate: "review" },
+    { key: "theology_check", label: "Legacy doctrine check", gate: "theology" },
+    { key: "save_drafts", label: "Legacy asset save", gate: "review" },
+    { key: "review", label: "Historical run only", gate: "review" }
   ],
   journey_automation_draft: [
     { key: "verify_keyword", label: "Verify the Pathway keyword and destination", gate: "automatic" },
@@ -88,14 +90,6 @@ export const SOL_RECIPE_STEPS: Record<SolRecipeKey, SolPlanStep[]> = {
     { key: "review", label: "Stop before activation", gate: "review" }
   ]
 };
-
-function topicPack(pathway: SolPathwayObservation): SolTopic[] {
-  return pathway.steps.slice(0, 5).map((step) => ({
-    title: step.title,
-    reference: step.reference,
-    prompt: `Create a concise Scripture-first carousel showing how ${step.reference} supports “${step.title}” inside the ${pathway.title} Pathway. Stay inside the canonical Pathway wording and lead naturally into the full study.`
-  }));
-}
 
 function campaignRank(status: string | null) {
   if (status === "active") return 0;
@@ -140,29 +134,10 @@ export function buildSolOperatorAnalysis(input: {
     });
   }
 
-  const carouselCandidate = input.pathways
-    .filter((pathway) => pathway.carouselAssets === 0 && !pathway.activeRecipes.includes("carousel_topic_pack") && campaignRank(pathway.campaignStatus) < 9)
-    .sort((a, b) => campaignRank(a.campaignStatus) - campaignRank(b.campaignStatus) || Number(b.audioReady) - Number(a.audioReady))[0];
-  if (carouselCandidate) {
-    const topics = topicPack(carouselCandidate);
-    proposals.push({
-      proposalKey: `carousel-topic-pack:${carouselCandidate.slug}`,
-      recipeKey: "carousel_topic_pack",
-      title: `Create ${topics.length} ${carouselCandidate.title} carousel topics`,
-      summary: `Sol found no carousel assets for ${carouselCandidate.title}. The five canonical Pathway steps can become a connected series without inventing a second content outline.`,
-      priority: carouselCandidate.campaignStatus === "active" ? "high" : "medium",
-      risk: "review_required",
-      pathwaySlugs: [carouselCandidate.slug],
-      evidence: [
-        { label: "Canonical steps", value: carouselCandidate.steps.length, state: "ready" },
-        { label: "Existing carousel assets", value: carouselCandidate.carouselAssets, state: "missing" },
-        { label: "Campaign", value: carouselCandidate.campaignStatus ?? "not started", state: "info" }
-      ],
-      plan: SOL_RECIPE_STEPS.carousel_topic_pack,
-      suggestedConstraints: ["Run doctrine checks on every deck", "Save drafts only", "Do not repeat the same hook structure"],
-      inputs: { slug: carouselCandidate.slug, title: carouselCandidate.title, topics }
-    });
-  }
+  // Do not emit carousel_topic_pack. That executor predates persistent Creative
+  // Projects and writes disconnected pathway_assets. Creative work must now
+  // begin in Creative Studio so autosave, revisions, renders, publishing state,
+  // and Sol memory all point to one source-of-truth object.
 
   const automationCandidates = input.pathways.filter((pathway) =>
     Boolean(pathway.primaryKeyword)
