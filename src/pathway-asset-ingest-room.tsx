@@ -1,5 +1,6 @@
 "use client";
 
+import { upload } from "@vercel/blob/client";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -14,8 +15,6 @@ import {
   Gauge,
   Image as ImageIcon,
   Loader2,
-  Pause,
-  Play,
   RotateCcw,
   ShieldCheck,
   Sparkles,
@@ -27,10 +26,8 @@ import {
   humanPathwayAssetBytes,
   humanPathwayAssetDuration,
   isSupportedPathwayAssetMime,
-  PATHWAY_ASSET_ENGINE_MAX_UPLOAD_BYTES,
   PATHWAY_ASSET_HASH_LIMIT_BYTES,
   PATHWAY_ASSET_MAX_UPLOAD_BYTES,
-  PATHWAY_ASSET_TUS_CHUNK_BYTES,
   pathwayAssetClientFingerprint,
   pathwayAssetDisplayKind,
   pathwayAssetIngestStudio,
@@ -39,7 +36,7 @@ import {
 } from "@/pathway-asset-ingest";
 
 type PathwayOption = { slug: string; title: string; summary: string; collection: string };
-type QueueStatus = "ready" | "preparing" | "uploading" | "paused" | "finalizing" | "complete" | "failed" | "cancelled";
+type QueueStatus = "ready" | "preparing" | "uploading" | "finalizing" | "complete" | "failed" | "cancelled";
 type MediaMeta = { width?: number; height?: number; duration?: number };
 type QueueItem = {
   id: string;
@@ -50,7 +47,6 @@ type QueueItem = {
   speed: number;
   eta: number;
   sessionId?: string;
-  tusUrl?: string;
   actualStudio?: PathwayAssetIngestStudio;
   error?: string;
   duplicateTitle?: string;
@@ -74,7 +70,7 @@ type RecoverySession = {
 
 const ACCEPT = [
   "image/png", "image/jpeg", "image/webp",
-  "video/mp4", "video/quicktime", "video/webm",
+  "video/mp4", "video/quicktime", "video/x-m4v", "video/webm", "video/mpeg", "video/x-msvideo",
   "audio/mpeg", "audio/wav", "audio/x-wav", "audio/mp4",
   "application/pdf", "application/zip"
 ].join(",");
@@ -86,17 +82,6 @@ function iconFor(mime: string) {
   if (kind === "document") return <FileText size={20}/>;
   if (kind === "archive") return <FileArchive size={20}/>;
   return <ImageIcon size={20}/>;
-}
-
-function utf8Base64(value: string) {
-  const bytes = new TextEncoder().encode(value);
-  let binary = "";
-  for (const byte of bytes) binary += String.fromCharCode(byte);
-  return btoa(binary);
-}
-
-function tusMetadata(values: Record<string, string>) {
-  return Object.entries(values).map(([key, value]) => `${key} ${utf8Base64(value)}`).join(",");
 }
 
 async function sha256ForFile(file: File) {
@@ -123,7 +108,11 @@ async function inspectFile(file: File): Promise<MediaMeta> {
       media.preload = "metadata";
       media.onloadedmetadata = () => {
         const video = media as HTMLVideoElement;
-        resolve({ duration: media.duration, width: kind === "video" ? video.videoWidth : undefined, height: kind === "video" ? video.videoHeight : undefined });
+        resolve({
+          duration: media.duration,
+          width: kind === "video" ? video.videoWidth : undefined,
+          height: kind === "video" ? video.videoHeight : undefined
+        });
         URL.revokeObjectURL(url);
       };
       media.onerror = () => { resolve({}); URL.revokeObjectURL(url); };
@@ -202,52 +191,13 @@ export function PathwayAssetIngestRoom({
     if (rejected.length) setMessage(rejected.join(" · "));
   }
 
-  async function ensureTusUpload(item: QueueItem, prepared: Record<string, any>) {
-    const signature = String(prepared.signature || "");
-    const endpoint = String(prepared.endpoint || "");
-    const session = prepared.session as Record<string, any>;
-    let tusUrl = String(session.tus_url || item.tusUrl || "");
-    let offset = 0;
-
-    if (tusUrl) {
-      const head = await fetch(tusUrl, { method: "HEAD", headers: { "Tus-Resumable": "1.0.0", "x-signature": signature } });
-      if (head.ok) offset = Number(head.headers.get("Upload-Offset") || 0);
-      else tusUrl = "";
-    }
-
-    if (!tusUrl) {
-      const created = await fetch(endpoint, {
-        method: "POST",
-        headers: {
-          "Tus-Resumable": "1.0.0",
-          "Upload-Length": String(item.file.size),
-          "Upload-Metadata": tusMetadata({
-            bucketName: String(session.storage_bucket),
-            objectName: String(session.storage_path),
-            contentType: item.file.type,
-            cacheControl: "31536000",
-            metadata: JSON.stringify({ pathwaySlug, ingestSessionId: session.id })
-          }),
-          "x-signature": signature,
-          "x-upsert": "false"
-        }
-      });
-      if (!created.ok) throw new Error(`Could not start resumable transfer (${created.status}).`);
-      tusUrl = created.headers.get("Location") || "";
-      if (!tusUrl) throw new Error("Storage did not return a resumable upload URL.");
-      await postAction({ action: "attach", sessionId: session.id, tusUrl });
-    }
-
-    return { tusUrl, offset, signature };
-  }
-
   async function finalize(sessionId: string) {
     let lastError: Error | null = null;
-    for (let attempt = 0; attempt < 4; attempt += 1) {
+    for (let attempt = 0; attempt < 5; attempt += 1) {
       try { return await postAction({ action: "finalize", sessionId }); }
       catch (error) {
         lastError = error instanceof Error ? error : new Error("Finalization failed.");
-        await new Promise((resolve) => setTimeout(resolve, 600 * (attempt + 1)));
+        await new Promise((resolve) => setTimeout(resolve, 650 * (attempt + 1)));
       }
     }
     throw lastError || new Error("Finalization failed.");
@@ -256,7 +206,7 @@ export function PathwayAssetIngestRoom({
   async function startUpload(id: string) {
     const item = queueRef.current.find((entry) => entry.id === id);
     if (!item || ["uploading", "preparing", "finalizing", "complete", "cancelled"].includes(item.status)) return;
-    patchItem(id, { status: "preparing", error: undefined });
+    patchItem(id, { status: "preparing", error: undefined, progress: 0, bytesUploaded: 0, speed: 0, eta: 0, sessionId: undefined });
     const startedAt = performance.now();
     try {
       const fingerprint = pathwayAssetClientFingerprint({ name: item.file.name, size: item.file.size, lastModified: item.file.lastModified, mimeType: item.file.type });
@@ -274,63 +224,54 @@ export function PathwayAssetIngestRoom({
         sha256,
         mediaMetadata: meta
       });
-      const session = prepared.session as Record<string, any>;
+      const session = prepared.session as Record<string, unknown>;
+      const sessionId = String(session.id || "");
+      const pathname = String(prepared.pathname || session.storage_path || "");
+      if (!sessionId || !pathname) throw new Error("Upload session was prepared without a Blob destination.");
       const duplicateTitle = prepared.duplicateAsset?.title ? String(prepared.duplicateAsset.title) : undefined;
-      const auth = await ensureTusUpload(item, prepared);
-      patchItem(id, { sessionId: String(session.id), tusUrl: auth.tusUrl, actualStudio: session.studio, duplicateTitle, meta, status: "uploading", bytesUploaded: auth.offset, progress: item.file.size ? auth.offset / item.file.size : 0 });
-      let offset = auth.offset;
-      let signature = auth.signature;
-      let lastServerUpdate = offset;
+      const controller = new AbortController();
+      controllers.current.set(id, controller);
+      patchItem(id, {
+        sessionId,
+        actualStudio: session.studio === "video" ? "video" : "carousel",
+        duplicateTitle,
+        meta,
+        status: "uploading"
+      });
 
-      while (offset < item.file.size) {
-        const controller = new AbortController();
-        controllers.current.set(id, controller);
-        const chunk = item.file.slice(offset, Math.min(offset + PATHWAY_ASSET_TUS_CHUNK_BYTES, item.file.size));
-        const patchChunk = () => fetch(auth.tusUrl, {
-          method: "PATCH",
-          headers: {
-            "Tus-Resumable": "1.0.0",
-            "Upload-Offset": String(offset),
-            "Content-Type": "application/offset+octet-stream",
-            "x-signature": signature
-          },
-          body: chunk,
-          signal: controller.signal
-        });
-        let response = await patchChunk();
-        if (response.status === 401 || response.status === 403) {
-          const renewed = await postAction({ action: "renew", sessionId: session.id });
-          signature = String(renewed.signature || "");
-          if (!signature) throw new Error("Upload authorization could not be renewed.");
-          response = await patchChunk();
+      await upload(pathname, item.file, {
+        access: "private",
+        handleUploadUrl: "/api/admin/pathway-assets/ingest-upload",
+        clientPayload: JSON.stringify({ sessionId }),
+        contentType: item.file.type,
+        multipart: true,
+        abortSignal: controller.signal,
+        onUploadProgress: ({ loaded, total, percentage }) => {
+          const elapsed = Math.max((performance.now() - startedAt) / 1000, .1);
+          const speed = loaded / elapsed;
+          const remaining = Math.max(total - loaded, 0);
+          patchItem(id, {
+            status: "uploading",
+            bytesUploaded: loaded,
+            progress: Math.max(0, Math.min(percentage / 100, 1)),
+            speed,
+            eta: speed > 0 ? remaining / speed : 0
+          });
         }
-        if (response.status === 409) {
-          const head = await fetch(auth.tusUrl, { method: "HEAD", headers: { "Tus-Resumable": "1.0.0", "x-signature": signature } });
-          if (head.ok) {
-            const serverOffset = Number(head.headers.get("Upload-Offset") || offset);
-            if (Number.isFinite(serverOffset) && serverOffset >= offset && serverOffset <= item.file.size) {
-              offset = serverOffset;
-              patchItem(id, { status: "uploading", bytesUploaded: offset, progress: offset / item.file.size });
-              continue;
-            }
-          }
-        }
-        if (!response.ok) throw new Error(`Transfer interrupted (${response.status}). Press Resume to continue.`);
-        offset = Number(response.headers.get("Upload-Offset") || (offset + chunk.size));
-        const elapsed = Math.max((performance.now() - startedAt) / 1000, .1);
-        const speed = Math.max((offset - auth.offset) / elapsed, 0);
-        const remaining = Math.max(item.file.size - offset, 0);
-        patchItem(id, { status: "uploading", bytesUploaded: offset, progress: offset / item.file.size, speed, eta: speed > 0 ? remaining / speed : 0 });
-        if (offset - lastServerUpdate >= PATHWAY_ASSET_TUS_CHUNK_BYTES * 4 || offset === item.file.size) {
-          lastServerUpdate = offset;
-          void postAction({ action: "progress", sessionId: session.id, bytesUploaded: offset }).catch(() => undefined);
-        }
-      }
+      });
 
       controllers.current.delete(id);
+      void postAction({ action: "progress", sessionId, bytesUploaded: item.file.size }).catch(() => undefined);
       patchItem(id, { status: "finalizing", progress: 1, bytesUploaded: item.file.size, eta: 0 });
-      const result = await finalize(String(session.id));
-      patchItem(id, { status: "complete", assetId: String(result.assetId || result.asset?.id || ""), progress: 1, bytesUploaded: item.file.size, speed: 0, eta: 0 });
+      const result = await finalize(sessionId);
+      patchItem(id, {
+        status: "complete",
+        assetId: String(result.assetId || result.asset?.id || ""),
+        progress: 1,
+        bytesUploaded: item.file.size,
+        speed: 0,
+        eta: 0
+      });
       void refreshRecovery();
     } catch (error) {
       controllers.current.delete(id);
@@ -339,59 +280,65 @@ export function PathwayAssetIngestRoom({
       const text = error instanceof Error ? error.message : "Upload failed.";
       patchItem(id, { status: "failed", error: text, speed: 0, eta: 0 });
       if (current?.sessionId) void postAction({ action: "fail", sessionId: current.sessionId, bytesUploaded: current.bytesUploaded, error: text }).catch(() => undefined);
+      void refreshRecovery();
     }
   }
 
-  async function pauseUpload(item: QueueItem) {
-    controllers.current.get(item.id)?.abort();
-    controllers.current.delete(item.id);
-    patchItem(item.id, { status: "paused", speed: 0, eta: 0 });
-    if (item.sessionId) await postAction({ action: "pause", sessionId: item.sessionId, bytesUploaded: item.bytesUploaded }).catch(() => undefined);
-  }
-
-  async function cancelUpload(item: QueueItem) {
-    controllers.current.get(item.id)?.abort();
-    controllers.current.delete(item.id);
+  async function cancelItem(id: string) {
+    const item = queueRef.current.find((entry) => entry.id === id);
+    if (!item) return;
+    controllers.current.get(id)?.abort();
+    controllers.current.delete(id);
+    patchItem(id, { status: "cancelled", speed: 0, eta: 0 });
     if (item.sessionId) await postAction({ action: "cancel", sessionId: item.sessionId }).catch(() => undefined);
-    patchItem(item.id, { status: "cancelled", speed: 0, eta: 0 });
     void refreshRecovery();
   }
 
-  async function startAll() {
-    const pending = queueRef.current.filter((item) => ["ready", "paused", "failed"].includes(item.status)).map((item) => item.id);
-    if (!pending.length) return;
+  async function runReady() {
+    if (runningAll) return;
     setRunningAll(true);
-    let cursor = 0;
-    const worker = async () => {
-      while (cursor < pending.length) {
-        const id = pending[cursor++];
-        await startUpload(id);
-      }
-    };
-    await Promise.all([worker(), worker()]);
-    setRunningAll(false);
+    try {
+      const ids = queueRef.current.filter((item) => item.status === "ready" || item.status === "failed").map((item) => item.id);
+      let cursor = 0;
+      const worker = async () => {
+        while (cursor < ids.length) {
+          const current = ids[cursor];
+          cursor += 1;
+          await startUpload(current);
+        }
+      };
+      await Promise.all([worker(), worker()]);
+    } finally {
+      setRunningAll(false);
+    }
+  }
+
+  function removeItem(id: string) {
+    const item = queueRef.current.find((entry) => entry.id === id);
+    if (item && ["uploading", "preparing", "finalizing"].includes(item.status)) return;
+    setQueue((current) => current.filter((entry) => entry.id !== id));
   }
 
   if (!pathway) return null;
 
   return <main className="admin-page pathway-ingest-room">
     <div className="pathway-ingest-topline">
-      <Link href="/admin/assets" className="button"><ArrowLeft size={15}/> Asset Library</Link>
-      <span><ShieldCheck size={14}/> Private source storage · resumable TUS · 6 MB chunks</span>
+      <Link href="/admin/assets" className="button"><ArrowLeft size={15}/> Pathway Assets</Link>
+      <span><ShieldCheck size={14}/> Browser → Vercel Blob · app server never proxies upload bytes</span>
     </div>
 
     <header className="pathway-ingest-hero">
       <div>
-        <span className="section-kicker">Pathway Assets · Ingest Dock</span>
-        <h1>Drop the master files.<br/><em>The Studio takes it from here.</em></h1>
-        <p>Video, audio, images, reference PDFs, and project archives go straight into the Pathway source of truth. Transfers resume instead of restarting, every file is traced, and final assets land back in the library ready for production.</p>
+        <span className="section-kicker">Source media ingest</span>
+        <h1>Bring the <em>master file</em> into the Pathway.</h1>
+        <p>Drop original images, long-form video, audio, reference PDFs, and project archives. Large files upload directly to the existing private Vercel Blob store with multipart transfer, automatic part retries, live progress, cancellation, and server-side verification before the DAM registers the source master.</p>
       </div>
-      <div className="pathway-ingest-hero-orbit" aria-hidden="true"><UploadCloud size={34}/><span>{humanPathwayAssetBytes(PATHWAY_ASSET_MAX_UPLOAD_BYTES)}</span><small>live cap</small></div>
+      <div className="pathway-ingest-hero-orbit"><UploadCloud size={30}/><span>20 GB</span><small>per source</small></div>
     </header>
 
-    <section className="pathway-ingest-controls admin-card">
-      <label><span>Pathway</span><select value={pathwaySlug} onChange={(event) => setPathwaySlug(event.target.value)}>{pathways.map((item) => <option value={item.slug} key={item.slug}>{item.title}</option>)}</select></label>
-      <div><span>Default destination</span><div className="pathway-ingest-lanes"><button type="button" className={studio === "carousel" ? "is-active" : ""} onClick={() => setStudio("carousel")}><ImageIcon size={15}/> Carousel + Social</button><button type="button" className={studio === "video" ? "is-active" : ""} onClick={() => setStudio("video")}><Film size={15}/> Video Production</button></div></div>
+    <section className="admin-card pathway-ingest-controls">
+      <label><span>Pathway</span><select value={pathwaySlug} onChange={(event) => setPathwaySlug(event.target.value)}>{pathways.map((item) => <option key={item.slug} value={item.slug}>{item.title}</option>)}</select></label>
+      <div><span>Primary production lane</span><div className="pathway-ingest-lanes"><button type="button" className={studio === "carousel" ? "is-active" : ""} onClick={() => setStudio("carousel")}><ImageIcon size={15}/> Carousel + Social</button><button type="button" className={studio === "video" ? "is-active" : ""} onClick={() => setStudio("video")}><Film size={15}/> Video Production</button></div></div>
       <p><strong>{pathway.title}</strong><span>{pathway.summary}</span></p>
     </section>
 
@@ -402,43 +349,57 @@ export function PathwayAssetIngestRoom({
       onDragLeave={(event) => { event.preventDefault(); if (event.currentTarget === event.target) setDragging(false); }}
       onDrop={(event) => { event.preventDefault(); setDragging(false); void addFiles(Array.from(event.dataTransfer.files)); }}
     >
-      <input ref={inputRef} type="file" hidden multiple accept={ACCEPT} onChange={(event) => { void addFiles(Array.from(event.target.files || [])); event.target.value = ""; }}/>
-      <div className="pathway-ingest-drop-icon"><UploadCloud size={30}/></div>
-      <div><strong>Drop masters here</strong><p>MP4, MOV, WebM, WAV, MP3, PNG, JPG, WebP, PDF, ZIP · up to {humanPathwayAssetBytes(PATHWAY_ASSET_MAX_UPLOAD_BYTES)} each</p><small>Video and audio auto-route to Video Production. The resumable engine is already built for {humanPathwayAssetBytes(PATHWAY_ASSET_ENGINE_MAX_UPLOAD_BYTES)} sources once Storage capacity is upgraded.</small></div>
-      <button type="button" className="button primary" onClick={() => inputRef.current?.click()}>Choose files</button>
+      <div className="pathway-ingest-drop-icon"><UploadCloud size={27}/></div>
+      <div><strong>Drop source masters here</strong><p>Images · MP4/MOV/WebM · MP3/WAV · PDF · ZIP</p><small>Up to {humanPathwayAssetBytes(PATHWAY_ASSET_MAX_UPLOAD_BYTES)} each. Multipart Blob transfer is used automatically.</small></div>
+      <div><button type="button" className="button primary" onClick={() => inputRef.current?.click()}>Choose files</button><input ref={inputRef} hidden multiple type="file" accept={ACCEPT} onChange={(event) => { void addFiles(Array.from(event.target.files ?? [])); event.currentTarget.value = ""; }}/></div>
     </section>
 
     <section className="pathway-ingest-stats">
-      <article><span>Queue</span><strong>{totals.files}</strong><small>{humanPathwayAssetBytes(totals.bytes)}</small></article>
-      <article><span>Active</span><strong>{totals.active}</strong><small>2 concurrent max</small></article>
-      <article><span>Filed</span><strong>{totals.complete}</strong><small>library assets</small></article>
-      <article><span>Recovery</span><strong>{recovery.length}</strong><small>24-hour sessions</small></article>
+      <article><span>Queue</span><strong>{totals.files}</strong><small>files</small></article>
+      <article><span>Payload</span><strong>{humanPathwayAssetBytes(totals.bytes)}</strong><small>selected</small></article>
+      <article><span>Active</span><strong>{totals.active}</strong><small>transfers</small></article>
+      <article><span>Registered</span><strong>{totals.complete}</strong><small>masters</small></article>
     </section>
 
-    {message ? <div className="admin-notice pathway-ingest-notice"><CircleAlert size={16}/><span>{message}</span><button type="button" onClick={() => setMessage("")}><X size={14}/></button></div> : null}
+    {message ? <div className="notice pathway-ingest-notice"><CircleAlert size={16}/>{message}<button type="button" onClick={() => setMessage("")}><X size={14}/></button></div> : null}
 
     <section className="admin-card pathway-ingest-queue-card">
-      <div className="pathway-ingest-section-head"><div><span className="section-kicker">Transfer queue</span><h2>Source masters</h2></div><button type="button" className="button primary" disabled={runningAll || !queue.some((item) => ["ready", "paused", "failed"].includes(item.status))} onClick={() => void startAll()}>{runningAll ? <Loader2 className="spin" size={15}/> : <Play size={15}/>} Start queue</button></div>
-      {queue.length ? <div className="pathway-ingest-queue">{queue.map((item) => {
-        const kind = pathwayAssetDisplayKind(item.file.type);
-        const routedStudio = item.actualStudio || pathwayAssetIngestStudio(item.file.type, studio);
-        return <article className={`pathway-ingest-row is-${item.status}`} key={item.id}>
-          <div className="pathway-ingest-file-icon">{item.status === "complete" ? <Check size={20}/> : iconFor(item.file.type)}</div>
-          <div className="pathway-ingest-file-main">
-            <div className="pathway-ingest-file-head"><div><strong>{item.file.name}</strong><span>{kind} · {humanPathwayAssetBytes(item.file.size)} · {routedStudio === "video" ? "Video Production" : "Carousel + Social"}{item.meta?.duration ? ` · ${humanPathwayAssetDuration(item.meta.duration)}` : ""}{item.meta?.width && item.meta?.height ? ` · ${item.meta.width}×${item.meta.height}` : ""}</span></div><b>{Math.round(item.progress * 100)}%</b></div>
-            <div className="pathway-ingest-progress"><i style={{ width: `${Math.max(0, Math.min(item.progress * 100, 100))}%` }}/></div>
-            <div className="pathway-ingest-file-foot"><span className={`status is-${item.status}`}>{item.status}</span>{item.speed > 0 ? <span><Gauge size={12}/> {humanPathwayAssetBytes(item.speed)}/s</span> : null}{item.eta > 0 ? <span><Clock3 size={12}/> {humanPathwayAssetDuration(item.eta)} left</span> : null}{item.duplicateTitle ? <span className="duplicate"><CircleAlert size={12}/> same hash already exists: {item.duplicateTitle}</span> : null}{item.error ? <span className="error">{item.error}</span> : null}</div>
-          </div>
-          <div className="pathway-ingest-row-actions">
-            {item.status === "uploading" ? <button type="button" title="Pause" onClick={() => void pauseUpload(item)}><Pause size={15}/></button> : null}
-            {["ready", "paused", "failed"].includes(item.status) ? <button type="button" title={item.status === "ready" ? "Start" : "Resume"} onClick={() => void startUpload(item.id)}>{item.status === "failed" ? <RotateCcw size={15}/> : <Play size={15}/>}</button> : null}
-            {!(["complete", "cancelled"].includes(item.status)) ? <button type="button" title="Cancel" className="danger" onClick={() => void cancelUpload(item)}><Trash2 size={15}/></button> : null}
-            {item.status === "complete" && item.assetId ? <Link href={`/admin/pathway-assets/${item.assetId}`} title="Open source master"><Sparkles size={15}/></Link> : null}
-          </div>
-        </article>;
-      })}</div> : <div className="studio-empty-state compact"><UploadCloud size={28}/><strong>Ingest dock is clear</strong><p>Add source masters above. Nothing is proxied through the Next.js server, so transfers stay fast and recoverable.</p></div>}
+      <div className="pathway-ingest-section-head"><div><span className="section-kicker">Transfer queue</span><h2>Direct Blob uploads</h2></div><button type="button" className="button primary" disabled={runningAll || !queue.some((item) => item.status === "ready" || item.status === "failed")} onClick={() => void runReady()}>{runningAll ? <Loader2 size={15} className="spin"/> : <Sparkles size={15}/>} Upload ready</button></div>
+      <div className="pathway-ingest-queue">
+        {queue.length === 0 ? <div className="empty-state"><UploadCloud size={25}/><strong>No source files queued.</strong><span>Drop media above to start.</span></div> : queue.map((item) => {
+          const kind = pathwayAssetMediaKind(item.file.type);
+          const active = ["preparing", "uploading", "finalizing"].includes(item.status);
+          return <article className={`pathway-ingest-row is-${item.status}`} key={item.id}>
+            <div className="pathway-ingest-file-icon">{iconFor(item.file.type)}</div>
+            <div className="pathway-ingest-file-main">
+              <div className="pathway-ingest-file-head"><div><strong>{item.file.name}</strong><span>{pathwayAssetDisplayKind(item.file.type)} · {humanPathwayAssetBytes(item.file.size)}{item.actualStudio ? ` · ${item.actualStudio === "video" ? "Video Production" : "Carousel + Social"}` : ""}</span></div><b>{Math.round(item.progress * 100)}%</b></div>
+              <div className="pathway-ingest-progress"><i style={{ width: `${Math.max(0, Math.min(item.progress * 100, 100))}%` }}/></div>
+              <div className="pathway-ingest-file-foot">
+                <span className={`status is-${item.status}`}>{item.status}</span>
+                {item.speed > 0 && item.status === "uploading" ? <span><Gauge size={12}/>{humanPathwayAssetBytes(item.speed)}/s</span> : null}
+                {item.eta > 0 && item.status === "uploading" ? <span><Clock3 size={12}/>{Math.ceil(item.eta)}s left</span> : null}
+                {item.meta?.duration ? <span>{humanPathwayAssetDuration(item.meta.duration)}</span> : null}
+                {item.meta?.width && item.meta?.height ? <span>{item.meta.width}×{item.meta.height}</span> : null}
+                {item.duplicateTitle ? <span className="duplicate">Exact hash already exists: {item.duplicateTitle}</span> : null}
+                {item.error ? <span className="error">{item.error}</span> : null}
+                {kind === "video" || kind === "audio" ? <span>Auto-routed to Video Production</span> : null}
+              </div>
+            </div>
+            <div className="pathway-ingest-row-actions">
+              {(item.status === "ready" || item.status === "failed") ? <button type="button" title={item.status === "failed" ? "Retry upload" : "Upload"} onClick={() => void startUpload(item.id)}>{item.status === "failed" ? <RotateCcw size={15}/> : <UploadCloud size={15}/>}</button> : null}
+              {active ? <button type="button" className="danger" title="Cancel transfer" onClick={() => void cancelItem(item.id)}><X size={15}/></button> : null}
+              {item.status === "complete" && item.assetId ? <Link title="Open registered asset" href={`/admin/pathway-assets/${item.assetId}`}><Check size={15}/></Link> : null}
+              {!active ? <button type="button" className="danger" title="Remove from queue" onClick={() => removeItem(item.id)}><Trash2 size={15}/></button> : null}
+            </div>
+          </article>;
+        })}
+      </div>
     </section>
 
-    {recovery.length ? <section className="admin-card pathway-ingest-recovery"><div className="pathway-ingest-section-head"><div><span className="section-kicker">Recovery bay</span><h2>Interrupted sessions</h2></div><button type="button" className="button" onClick={() => void refreshRecovery()}><RotateCcw size={14}/> Refresh</button></div><p>Reselect the same file in the drop zone and the Studio will find its session, HEAD the TUS upload, and continue from the last stored offset.</p><div>{recovery.map((session) => <article key={session.id}><div>{iconFor(session.mime_type)}<span><strong>{session.file_name}</strong><small>{session.status} · {humanPathwayAssetBytes(Number(session.bytes_uploaded || 0))} of {humanPathwayAssetBytes(Number(session.file_size || 0))}</small></span></div><b>{Math.round((Number(session.bytes_uploaded || 0) / Math.max(Number(session.file_size || 1), 1)) * 100)}%</b></article>)}</div></section> : null}
+    <section className="admin-card pathway-ingest-recovery">
+      <div className="pathway-ingest-section-head"><div><span className="section-kicker">Transfer ledger</span><h2>Recent unfinished sessions</h2></div><button type="button" className="button" onClick={() => void refreshRecovery()}><RotateCcw size={14}/> Refresh</button></div>
+      <p>Vercel Blob multipart uploads retry failed parts during the active transfer. If the browser closes, the server ledger preserves what happened so stale uploads can be cleaned safely; reselect the original file to start a fresh transfer.</p>
+      <div>{recovery.length === 0 ? <span className="muted">No unfinished sessions for this Pathway.</span> : recovery.map((session) => <article key={session.id}><div>{iconFor(session.mime_type)}<span><strong>{session.file_name}</strong><small>{session.status} · {humanPathwayAssetBytes(Number(session.bytes_uploaded || 0))} / {humanPathwayAssetBytes(Number(session.file_size || 0))}</small></span></div><b>{new Date(session.updated_at).toLocaleString()}</b></article>)}</div>
+    </section>
   </main>;
 }
