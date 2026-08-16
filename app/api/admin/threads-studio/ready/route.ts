@@ -71,6 +71,7 @@ export async function POST(request: Request) {
       doctrine_status: item.doctrineStatus ?? null,
       status: "ready",
       scheduled_for: null,
+      published_at: null,
       x_status: item.mirrorToX ? "mirror-later" : "off",
       source_title: item.sourceTitle ?? null,
       source_url: item.sourceUrl ?? null,
@@ -93,27 +94,6 @@ export async function POST(request: Request) {
     }
 
     saved.push(row);
-    const rowId = String(row.id);
-    const calendar = await service.from("studio_content_calendar_items").upsert({
-      title: item.body.slice(0, 80),
-      content_type: "thread",
-      platform: "threads",
-      status: "ready",
-      scheduled_for: null,
-      published_at: null,
-      source: "threads-studio",
-      source_ref: rowId,
-      metadata: {
-        threads_post_id: rowId,
-        category: item.category,
-        doctrine_status: item.doctrineStatus ?? null,
-        mirror_to_x: item.mirrorToX,
-        source_title: item.sourceTitle ?? null,
-        source_url: item.sourceUrl ?? null
-      },
-      updated_at: now
-    }, { onConflict: "source,source_ref" });
-    if (calendar.error) return NextResponse.json({ error: calendar.error.message }, { status: 500 });
   }
 
   await service.from("studio_threads_batches").update({ status: "approved", updated_at: now }).eq("id", batchId);
