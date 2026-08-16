@@ -47,14 +47,9 @@ test("a stale or unchecked script cannot be queued for video production", () => 
   assert.equal(analysis.proposals.some((item) => item.recipeKey === "audio_to_youtube"), false);
 });
 
-test("the carousel proposal derives five topics from the canonical Pathway steps", () => {
-  const analysis = buildSolOperatorAnalysis({ pathways: [pathway()], weeklyTargets: {}, weeklyActuals: {} });
-  const proposal = analysis.proposals.find((item) => item.recipeKey === "carousel_topic_pack");
-  assert.ok(proposal);
-  const topics = proposal.inputs.topics as Array<{ title: string; reference: string; prompt: string }>;
-  assert.equal(topics.length, 5);
-  assert.equal(topics[0]?.reference, "Deuteronomy 6:4");
-  assert.match(topics[4]?.prompt ?? "", /God Is One Pathway/);
+test("legacy loose carousel topic packs are never proposed", () => {
+  const analysis = buildSolOperatorAnalysis({ pathways: [pathway({ carouselAssets: 0 })], weeklyTargets: {}, weeklyActuals: {} });
+  assert.equal(analysis.proposals.some((item) => item.recipeKey === "carousel_topic_pack"), false);
 });
 
 test("keyword projects receive disabled automation and draft journey proposals only", () => {
@@ -66,7 +61,7 @@ test("keyword projects receive disabled automation and draft journey proposals o
 });
 
 test("active recipes suppress duplicate work proposals", () => {
-  const analysis = buildSolOperatorAnalysis({ pathways: [pathway({ activeRecipes: ["audio_to_youtube", "carousel_topic_pack", "journey_automation_draft"] })], weeklyTargets: {}, weeklyActuals: {} });
+  const analysis = buildSolOperatorAnalysis({ pathways: [pathway({ activeRecipes: ["audio_to_youtube", "journey_automation_draft"] })], weeklyTargets: {}, weeklyActuals: {} });
   assert.equal(analysis.proposals.length, 0);
 });
 
