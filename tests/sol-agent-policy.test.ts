@@ -2,10 +2,11 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { hasExplicitSolIntent } from "../src/sol-agent-policy";
 
-test("mode mutation needs direct mode language", () => {
+test("mode mutation needs a command instead of a question about the mode", () => {
   assert.equal(hasExplicitSolIntent("switch to trusted mode", "mode"), true);
   assert.equal(hasExplicitSolIntent("turn Sol off", "mode"), true);
-  assert.equal(hasExplicitSolIntent("what does trusted mode do?", "mode"), true);
+  assert.equal(hasExplicitSolIntent("trusted", "mode"), true);
+  assert.equal(hasExplicitSolIntent("what does trusted mode do?", "mode"), false);
   assert.equal(hasExplicitSolIntent("what should I work on?", "mode"), false);
 });
 
