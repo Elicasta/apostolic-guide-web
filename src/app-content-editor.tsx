@@ -32,11 +32,15 @@ export function AppContentEditor({ sources }: { sources: AppContentSource[] }) {
     setState("idle");
     setMessage("");
     const source = sources.find((item) => item.id === id);
-    if (!source) return;
+    if (!source) {
+      setEntityId("");
+      setPayloadText("");
+      return;
+    }
     const nextType = source.entityType ?? entityTypeForKind(source.kind);
     if (nextType) setEntityType(nextType);
-    if (source.entityId) setEntityId(source.entityId);
-    if (source.payload) setPayloadText(JSON.stringify(source.payload, null, 2));
+    setEntityId(source.entityId ?? "");
+    setPayloadText(source.payload ? JSON.stringify(source.payload, null, 2) : "");
   }
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
