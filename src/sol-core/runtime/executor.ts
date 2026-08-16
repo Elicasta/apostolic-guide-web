@@ -2,6 +2,7 @@ import { evaluateSolPermission, environmentAllowsTool } from "../permissions/pol
 import type { SolToolRegistry } from "../tools/registry";
 import type { SolVerifierRegistry } from "../verification/registry";
 import { isSolRuntimeRetryableCode, solRuntimeRetryAt } from "./retry";
+import { deriveSolRunStatus } from "./state-machine";
 import type { SolRuntimeStore, SolRuntimeTaskRecord } from "./store";
 
 export type SolRuntimeExecutorOptions = {
@@ -196,16 +197,7 @@ export class SolRuntimeExecutor {
     if (!run || ["cancelled", "superseded"].includes(run.status)) return;
     const tasks = await this.store.getTasks(runId);
     if (!tasks.length) return;
-    const states = new Set(tasks.map((task) => task.status));
-    let next = run.status;
-    if (states.has("waiting_for_approval")) next = "waiting_for_approval";
-    else if (states.has("repairing")) next = "repairing";
-    else if (states.has("running")) next = "running";
-    else if (states.has("retry_scheduled")) next = "retrying";
-    else if (states.has("queued") || states.has("blocked") || states.has("pending") || states.has("waiting")) next = tasks.some((task) => task.status === "completed") ? "running" : "queued";
-    else if (states.has("stalled")) next = "stalled";
-    else if (states.has("failed")) next = "failed";
-    else if (tasks.every((task) => ["completed", "skipped"].includes(task.status))) next = "completed";
+    const next = deriveSolRunStatus(run.status, tasks.map((task) => task.status));
 
     if (next !== run.status) {
       await this.store.updateRunStatus(runId, next);
