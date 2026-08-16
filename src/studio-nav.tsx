@@ -20,7 +20,7 @@ export const studioNavSections: Array<{ label: string; items: Array<{ href: stri
     { href: "/admin/journeys", label: "Journeys", icon: Route, permission: "view_journeys" }
   ]},
   { label: "Create", items: [
-    { href: "/admin/creative-studio", label: "Creative Studio", icon: Layers3, permission: "manage_content" },
+    { href: "/admin/carousel-studio", label: "Carousel Studio", icon: Layers3, permission: "manage_content" },
     { href: "/admin/audio", label: "Pathway Audio", icon: Headphones, permission: "manage_content" },
     { href: "/admin/video-producer", label: "Video Producer", icon: Sparkles, permission: "manage_content" },
     { href: "/admin/video-studio", label: "Video Studio", icon: Film, permission: "manage_content" }
