@@ -114,6 +114,12 @@
 }
 
 @media (max-width:760px){
+  /* Publishing screenshots showed the desktop Visit Site/New Project actions
+     colliding with the mobile menu. Mobile keeps search, notifications, and the
+     menu; these destinations remain available inside the drawer. */
+  .admin-header .studio-view-site,.admin-header .studio-new-project{display:none!important}
+  .admin-header .studio-header-actions{gap:6px;min-width:0}
+  .admin-header .studio-brand{min-width:0}
   .creative-visual-controls{grid-template-columns:1fr 1fr}
   .creative-visual-controls select{min-height:44px}
   .creative-library-stats,.creative-publishing-stats{grid-template-columns:repeat(2,minmax(0,1fr))}
