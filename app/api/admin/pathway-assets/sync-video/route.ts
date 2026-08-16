@@ -18,11 +18,20 @@ export async function POST(request: Request) {
 
   const [projectResult, rendersResult, kitResult] = await Promise.all([
     service.from("pathway_video_projects").select("id,pathway_slug,audio_content_hash,timeline,style,updated_at").eq("pathway_slug", pathway.slug).maybeSingle(),
-    service.from("pathway_video_renders").select("id,pathway_slug,format,status,output_url,storage_path,error,requested_at,completed_at").eq("pathway_slug", pathway.slug).order("requested_at", { ascending: false }).limit(30),
+    service.from("pathway_video_renders").select("id,pathway_slug,format,status,output_url,storage_path,error,requested_at,completed_at").eq("pathway_slug", pathway.slug).eq("status", "completed").order("requested_at", { ascending: false }).limit(100),
     service.from("pathway_video_publishing_kits").select("thumbnail_background_url,thumbnail_storage_path,metadata,image_model,image_quality,updated_at").eq("pathway_slug", pathway.slug).maybeSingle()
   ]);
   const failed = [projectResult.error, rendersResult.error, kitResult.error].find(Boolean);
   if (failed) return NextResponse.json({ error: failed!.message }, { status: 500 });
+
+  const staleRenderAssets = await service.from("studio_pathway_assets")
+    .delete()
+    .eq("pathway_slug", pathway.slug)
+    .eq("studio", "video")
+    .eq("asset_type", "video-render")
+    .is("storage_path", null)
+    .is("public_url", null);
+  if (staleRenderAssets.error) return NextResponse.json({ error: staleRenderAssets.error.message }, { status: 500 });
 
   const now = new Date().toISOString();
   let parentId: string | null = null;
@@ -31,7 +40,8 @@ export async function POST(request: Request) {
     if (existing.error) return NextResponse.json({ error: existing.error.message }, { status: 500 });
     if (existing.data) {
       parentId = existing.data.id;
-      await service.from("studio_pathway_assets").update({ title: `${pathway.title} · Video Studio`, content: { timeline: projectResult.data.timeline, style: projectResult.data.style, audioContentHash: projectResult.data.audio_content_hash }, source_type: "imported", editable: true, metadata: { videoProjectId: projectResult.data.id }, updated_by: access.user.id, updated_at: now }).eq("id", parentId);
+      const updated = await service.from("studio_pathway_assets").update({ title: `${pathway.title} · Video Studio`, content: { timeline: projectResult.data.timeline, style: projectResult.data.style, audioContentHash: projectResult.data.audio_content_hash }, source_type: "imported", editable: true, metadata: { videoProjectId: projectResult.data.id }, updated_by: access.user.id, updated_at: now }).eq("id", parentId);
+      if (updated.error) return NextResponse.json({ error: updated.error.message }, { status: 500 });
     } else {
       const inserted = await service.from("studio_pathway_assets").insert({ pathway_slug: pathway.slug, studio: "video", asset_type: "video-project", title: `${pathway.title} · Video Studio`, status: "draft", source_type: "imported", editable: true, content: { timeline: projectResult.data.timeline, style: projectResult.data.style, audioContentHash: projectResult.data.audio_content_hash }, metadata: { videoProjectId: projectResult.data.id }, created_by: access.user.id, updated_by: access.user.id, created_at: now, updated_at: now }).select("id").single();
       if (inserted.error) return NextResponse.json({ error: inserted.error.message }, { status: 500 });
@@ -48,7 +58,7 @@ export async function POST(request: Request) {
       asset_type: "video-render",
       parent_asset_id: parentId,
       title: `${pathway.title} · ${String(render.format).toUpperCase()} render`,
-      status: render.status === "completed" ? "ready" : "draft",
+      status: "ready",
       source_type: "rendered",
       editable: false,
       content: { format: render.format, renderStatus: render.status, error: render.error },
@@ -59,8 +69,13 @@ export async function POST(request: Request) {
       updated_by: access.user.id,
       updated_at: now
     };
-    if (existing.data) await service.from("studio_pathway_assets").update(values).eq("id", existing.data.id);
-    else await service.from("studio_pathway_assets").insert({ ...values, created_by: access.user.id, created_at: now });
+    if (existing.data) {
+      const updated = await service.from("studio_pathway_assets").update(values).eq("id", existing.data.id);
+      if (updated.error) return NextResponse.json({ error: updated.error.message }, { status: 500 });
+    } else {
+      const inserted = await service.from("studio_pathway_assets").insert({ ...values, created_by: access.user.id, created_at: now });
+      if (inserted.error) return NextResponse.json({ error: inserted.error.message }, { status: 500 });
+    }
   }
 
   if (kitResult.data?.thumbnail_background_url) {
@@ -84,8 +99,13 @@ export async function POST(request: Request) {
       updated_by: access.user.id,
       updated_at: now
     };
-    if (existing.data) await service.from("studio_pathway_assets").update(values).eq("id", existing.data.id);
-    else await service.from("studio_pathway_assets").insert({ ...values, created_by: access.user.id, created_at: now });
+    if (existing.data) {
+      const updated = await service.from("studio_pathway_assets").update(values).eq("id", existing.data.id);
+      if (updated.error) return NextResponse.json({ error: updated.error.message }, { status: 500 });
+    } else {
+      const inserted = await service.from("studio_pathway_assets").insert({ ...values, created_by: access.user.id, created_at: now });
+      if (inserted.error) return NextResponse.json({ error: inserted.error.message }, { status: 500 });
+    }
   }
 
   return NextResponse.json({ ok: true });
