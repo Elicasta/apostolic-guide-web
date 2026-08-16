@@ -16,10 +16,12 @@ type Source = "creative" | "video" | "threads";
 
 export function UnifiedPublishingWorkspace({
   initialProjectId,
+  initialThreadId,
   initialView = "creative",
   channel
 }: {
   initialProjectId?: string | null;
+  initialThreadId?: string | null;
   initialView?: LegacyView;
   channel: ChannelProps;
 }) {
@@ -77,7 +79,7 @@ export function UnifiedPublishingWorkspace({
     <div className={`master-publishing-panel is-${stage} source-${source}`}>
       {stage === "publish" && source === "creative" ? <CreativePublishingClient initialProjectId={initialProjectId}/> : null}
       {stage === "publish" && source === "video" ? <ChannelPublishing {...channel}/> : null}
-      {stage === "publish" && source === "threads" ? <ThreadsPublishingClient connected={Boolean(threadsCredential?.accountAuthorized)} canPublish={channel.canPublish}/> : null}
+      {stage === "publish" && source === "threads" ? <ThreadsPublishingClient connected={Boolean(threadsCredential?.accountAuthorized)} canPublish={channel.canPublish} initialSelectedId={initialThreadId}/> : null}
       {stage === "calendar" ? <ContentCalendarStudio/> : null}
     </div>
   </section>;
