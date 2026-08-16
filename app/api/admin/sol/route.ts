@@ -12,11 +12,10 @@ import {
 import { executeApprovedSolAgentTool } from "@/sol-agent-tools";
 import { hasStudioPermission } from "@/studio-permissions";
 import { executeSolRuns } from "@/sol-operator-executor";
-import { retrySolRun } from "@/sol-run-recovery";
+import { cancelSolRunV3, retrySolRun } from "@/sol-run-recovery";
 import { runTrustedSolDrafts } from "@/sol-trusted-autopilot";
 import {
   approveSolProposal,
-  cancelSolRun,
   dismissSolProposal,
   getSolOperatorSnapshot,
   scanSolOperator,
@@ -104,7 +103,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: true, snapshot: await getSolOperatorSnapshot() });
     }
     if (body.action === "cancel_run") {
-      await cancelSolRun(body.runId, access.user.id);
+      await cancelSolRunV3(body.runId, access.user.id);
       return NextResponse.json({ ok: true, snapshot: await getSolOperatorSnapshot() });
     }
     if (body.action === "retry_run") {
