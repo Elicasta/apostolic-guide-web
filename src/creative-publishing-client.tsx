@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarDays, Check, Clock3, ExternalLink, Instagram, Layers3, Loader2, Play, RefreshCw, Send, TriangleAlert } from "lucide-react";
+import { ArrowLeft, ArrowRight, CalendarDays, Check, Clock3, Eye, ExternalLink, Heart, Instagram, Layers3, Loader2, MessageCircle, Play, RefreshCw, Send, TriangleAlert } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
@@ -39,8 +39,9 @@ type ProjectBundle = {
   assets: Array<{ frame_id?: string | null; role: string; sort_order: number; asset?: { id: string; title: string; public_url?: string | null; metadata?: Record<string, unknown> } | null }>;
 };
 type Dashboard = { projects: ProjectSummary[]; readyProjects: ProjectSummary[]; publications: Publication[]; counts: Record<string, number> };
-type Tab = "queue" | "calendar" | "history";
 type Mode = "publish_now" | "schedule" | "next_available" | "finish_manually";
+type Step = "select" | "preview" | "publish";
+type ActivityView = "queue" | "history";
 
 async function jsonRequest<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, { ...init, cache: "no-store", headers: { "content-type": "application/json", ...(init?.headers ?? {}) } });
@@ -55,7 +56,7 @@ function projectForPublication(publication: Publication): ProjectSummary | null 
 }
 
 function formatLabel(format: string) {
-  return format === "single" ? "Single" : format === "story" ? "Story" : "Carousel";
+  return format === "single" ? "Single post" : format === "story" ? "Story" : "Carousel";
 }
 
 function statusLabel(status: string) {
@@ -71,7 +72,8 @@ export function CreativePublishingClient({ initialProjectId }: { initialProjectI
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
   const [bundle, setBundle] = useState<ProjectBundle | null>(null);
   const [selectedProjectId, setSelectedProjectId] = useState(initialProjectId ?? "");
-  const [tab, setTab] = useState<Tab>("queue");
+  const [step, setStep] = useState<Step>(initialProjectId ? "preview" : "select");
+  const [activityView, setActivityView] = useState<ActivityView>("queue");
   const [mode, setMode] = useState<Mode>("schedule");
   const [scheduleLocal, setScheduleLocal] = useState(localInputValue(new Date(Date.now() + 60 * 60_000)));
   const [manualReason, setManualReason] = useState("Finish in Instagram for native-only controls or final interactive elements.");
@@ -110,18 +112,7 @@ export function CreativePublishingClient({ initialProjectId }: { initialProjectI
 
   const activePublications = useMemo(() => (dashboard?.publications ?? []).filter((item) => ["scheduled", "publishing", "needs_manual_finish"].includes(item.status)), [dashboard]);
   const history = useMemo(() => (dashboard?.publications ?? []).filter((item) => ["published", "failed", "cancelled"].includes(item.status)), [dashboard]);
-  const calendarGroups = useMemo(() => {
-    const groups = new Map<string, Publication[]>();
-    for (const publication of dashboard?.publications ?? []) {
-      const date = publication.scheduled_for || publication.published_at;
-      if (!date) continue;
-      const key = new Date(date).toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" });
-      const items = groups.get(key) ?? [];
-      items.push(publication);
-      groups.set(key, items);
-    }
-    return Array.from(groups.entries()).slice(0, 30);
-  }, [dashboard]);
+  const eligibleProjects = useMemo(() => (dashboard?.projects ?? []).filter((project) => ["ready", "published", "failed", "needs_manual_finish"].includes(project.status)), [dashboard]);
 
   const renderAssets = useMemo(() => {
     if (!bundle) return [];
@@ -152,10 +143,9 @@ export function CreativePublishingClient({ initialProjectId }: { initialProjectI
         payload.manualFinishReason = manualReason;
         if (scheduleLocal) payload.scheduledFor = new Date(scheduleLocal).toISOString();
       }
-      const data = await jsonRequest<{ publication: Publication }>("/api/admin/creative-publications", { method: "POST", body: JSON.stringify(payload) });
-      setNotice(mode === "publish_now" ? "Publication completed." : mode === "finish_manually" ? "Added to manual-finish queue." : "Publication scheduled.");
+      await jsonRequest<{ publication: Publication }>("/api/admin/creative-publications", { method: "POST", body: JSON.stringify(payload) });
+      setNotice(mode === "publish_now" ? "Published to Instagram." : mode === "finish_manually" ? "Added to the manual-finish queue." : "Added to the publishing calendar.");
       await loadDashboard();
-      if (mode !== "publish_now") setTab("queue");
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Publication could not be created.");
     } finally { setWorking(""); }
@@ -181,58 +171,98 @@ export function CreativePublishingClient({ initialProjectId }: { initialProjectI
     finally { setWorking(""); }
   }
 
-  return <section className="creative-publishing-shell">
-    <div className="creative-page-head">
-      <div><span className="creative-kicker">Distribution · Publishing</span><h1>Creation ends before publishing begins.</h1><p>Choose a finished Creative Project, decide where and when it goes, then keep the attempt visible until it succeeds or is resolved.</p></div>
-      <button type="button" className="creative-secondary" onClick={() => router.push("/admin/creative-library")}><Layers3 size={16}/> Creative Library</button>
-    </div>
+  function chooseProject(value: string) {
+    setSelectedProjectId(value);
+    setNotice("");
+    setStep(value ? "preview" : "select");
+  }
 
-    <div className="creative-publishing-stats">
-      <div><strong>{dashboard?.counts.draft ?? 0}</strong><span>Drafts</span></div>
-      <div><strong>{dashboard?.counts.ready ?? 0}</strong><span>Ready</span></div>
-      <div><strong>{dashboard?.counts.scheduled ?? 0}</strong><span>Scheduled</span></div>
-      <div><strong>{dashboard?.counts.published ?? 0}</strong><span>Published</span></div>
-      <div><strong>{dashboard?.counts.failed ?? 0}</strong><span>Failed</span></div>
+  const firstAsset = renderAssets[0]?.asset?.public_url || null;
+  const destinationLabel = bundle?.project.format === "story" ? "Instagram Story" : "Instagram Feed";
+
+  return <section className="creative-publishing-shell creative-guided-publishing">
+    <div className="creative-page-head">
+      <div><span className="creative-kicker">Distribution · Publishing</span><h1>Preview it. Then publish it.</h1><p>Choose the finished post, see exactly how it is going out, then decide when to send it.</p></div>
+      <button type="button" className="creative-secondary" onClick={() => router.push("/admin/creative-library")}><Layers3 size={16}/> Creative Library</button>
     </div>
 
     {error ? <div className="creative-error-banner"><TriangleAlert size={16}/>{error}</div> : null}
     {notice ? <div className="creative-success-banner"><Check size={16}/>{notice}</div> : null}
 
-    <div className="creative-publisher-grid">
-      <section className="creative-card creative-publisher-composer">
-        <div className="creative-panel-head"><div><strong>Publisher</strong><small>One engine. Format-aware controls.</small></div><Instagram size={18}/></div>
-        <label>Creative Project<select value={selectedProjectId} onChange={(event) => setSelectedProjectId(event.target.value)}><option value="">Select a Ready project</option>{dashboard?.projects.filter((project) => ["ready", "published", "failed", "needs_manual_finish"].includes(project.status)).map((project) => <option value={project.id} key={project.id}>{project.title} · {formatLabel(project.format)}</option>)}</select></label>
-        {bundle ? <>
-          <div className="creative-publisher-project"><div><strong>{bundle.project.title}</strong><span>{bundle.project.pathwayTitle}</span></div><span>{formatLabel(bundle.project.format)}{bundle.project.format !== "single" ? ` · ${bundle.project.frameCount}` : ""}</span></div>
-          <div className={`creative-publisher-media is-${bundle.project.format}`}>{renderAssets.length ? renderAssets.map((link, index) => <div key={link.asset?.id || index}>{link.asset?.public_url ? <img src={link.asset.public_url} alt={link.asset.title || `Creative frame ${index + 1}`}/> : null}<span>{index + 1}</span></div>) : <div className="creative-publisher-no-render">No current renders. Return to Creative Studio and render this project first.</div>}</div>
-          <label>Caption<textarea rows={7} value={caption} onChange={(event) => setCaption(event.target.value)}/></label>
-          <div className="creative-publishing-modes">
-            <button type="button" className={mode === "publish_now" ? "is-active" : ""} onClick={() => setMode("publish_now")}><Play size={15}/><span>{bundle.project.format === "story" ? "Auto Publish" : "Publish Now"}</span></button>
-            <button type="button" className={mode === "schedule" ? "is-active" : ""} onClick={() => setMode("schedule")}><Clock3 size={15}/><span>Schedule</span></button>
-            <button type="button" className={mode === "next_available" ? "is-active" : ""} onClick={() => setMode("next_available")}><CalendarDays size={15}/><span>Next Available Slot</span></button>
-            <button type="button" className={mode === "finish_manually" ? "is-active" : ""} onClick={() => setMode("finish_manually")}><Instagram size={15}/><span>Finish Manually</span></button>
-          </div>
-          {mode === "schedule" || mode === "finish_manually" ? <label>{mode === "finish_manually" ? "Reminder time" : "Schedule time"}<input type="datetime-local" value={scheduleLocal} onChange={(event) => setScheduleLocal(event.target.value)}/></label> : null}
-          {mode === "finish_manually" ? <label>Why manual?<textarea rows={2} value={manualReason} onChange={(event) => setManualReason(event.target.value)}/></label> : null}
-          <button type="button" className="creative-primary creative-publish-button" disabled={Boolean(working) || !renderAssets.length} onClick={() => void schedulePublication()}>{working === "publish" ? <Loader2 size={16} className="spin"/> : <Send size={16}/>} {mode === "publish_now" ? "Publish" : mode === "schedule" ? `Schedule ${formatLabel(bundle.project.format)}` : mode === "next_available" ? "Add to Next Slot" : "Add Manual Finish"}</button>
-        </> : <div className="creative-empty compact"><Send size={20}/><span>Select a Creative Project.</span></div>}
-      </section>
+    <nav className="creative-publish-flow" aria-label="Creative publishing steps">
+      <button type="button" className={step === "select" ? "is-active" : ""} onClick={() => setStep("select")}><span>1</span><div><strong>Select</strong><small>Choose the post</small></div></button>
+      <button type="button" disabled={!bundle} className={step === "preview" ? "is-active" : ""} onClick={() => setStep("preview")}><span>2</span><div><strong>Preview</strong><small>See what goes out</small></div></button>
+      <button type="button" disabled={!bundle || !renderAssets.length} className={step === "publish" ? "is-active" : ""} onClick={() => setStep("publish")}><span>3</span><div><strong>Publish</strong><small>Choose when</small></div></button>
+    </nav>
 
-      <section className="creative-card creative-publishing-board">
-        <div className="creative-tabs"><button type="button" className={tab === "queue" ? "is-active" : ""} onClick={() => setTab("queue")}>Queue</button><button type="button" className={tab === "calendar" ? "is-active" : ""} onClick={() => setTab("calendar")}>Calendar</button><button type="button" className={tab === "history" ? "is-active" : ""} onClick={() => setTab("history")}>History</button></div>
-        {loading ? <div className="creative-empty"><Loader2 className="spin"/> Loading publishing state...</div> : null}
-        {!loading && tab === "queue" ? <div className="creative-queue-list">
-          <div className="creative-list-section-title">UP NEXT</div>
-          {activePublications.length ? activePublications.map((publication, index) => {
-            const source = projectForPublication(publication);
-            return <div className="creative-publication-row" key={publication.id}><span className="creative-queue-number">{index + 1}</span><div><strong>{source?.title || publication.pathway_slug}</strong><small>{source ? `${formatLabel(source.format)}${source.format !== "single" ? ` · ${source.frame_count}` : ""}` : publication.platform}</small></div><div className="creative-pub-time">{publication.scheduled_for ? new Date(publication.scheduled_for).toLocaleString() : statusLabel(publication.status)}</div><i className={`creative-status is-${publication.status}`}>{statusLabel(publication.status)}</i>{publication.status === "needs_manual_finish" ? <button type="button" className="creative-secondary" disabled={working === `manual-${publication.id}`} onClick={() => void finishManual(publication.id)}><Check size={13}/> Mark finished</button> : null}</div>;
-          }) : <p className="creative-muted">Nothing scheduled yet.</p>}
-          <div className="creative-list-section-title">READY, NOT SCHEDULED</div>
-          {dashboard?.readyProjects.length ? dashboard.readyProjects.map((project, index) => <button type="button" className="creative-publication-row is-clickable" key={project.id} onClick={() => { setSelectedProjectId(project.id); window.scrollTo({ top: 0, behavior: "smooth" }); }}><span className="creative-queue-number">{index + 1}</span><div><strong>{project.title}</strong><small>{formatLabel(project.format)}{project.format !== "single" ? ` · ${project.frame_count}` : ""}</small></div><div className="creative-pub-time">Ready</div><i className="creative-status is-ready">Ready</i></button>) : <p className="creative-muted">No unscheduled Ready projects.</p>}
-        </div> : null}
-        {!loading && tab === "calendar" ? <div className="creative-calendar-list">{calendarGroups.length ? calendarGroups.map(([day, publications]) => <div className="creative-calendar-day" key={day}><strong>{day}</strong><div>{publications.map((publication) => { const source = projectForPublication(publication); const date = publication.scheduled_for || publication.published_at; return <div className="creative-calendar-item" key={publication.id}><time>{date ? new Date(date).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : ""}</time><div><strong>{source?.title || publication.pathway_slug}</strong><small>{source ? `${formatLabel(source.format)}${source.format !== "single" ? ` · ${source.frame_count}` : ""}` : publication.platform}</small></div><i className={`creative-status is-${publication.status}`}>{statusLabel(publication.status)}</i></div>; })}</div></div>) : <div className="creative-empty compact"><CalendarDays size={20}/> Nothing on the publishing calendar.</div>}</div> : null}
-        {!loading && tab === "history" ? <div className="creative-history-list">{history.length ? history.map((publication) => { const source = projectForPublication(publication); return <div className="creative-history-row" key={publication.id}><div className={`creative-history-icon is-${publication.status}`}>{publication.status === "failed" ? <TriangleAlert size={17}/> : <Check size={17}/>}</div><div><strong>{source?.title || publication.pathway_slug}</strong><small>{formatLabel(source?.format || "single")} · {publication.platform} · {publication.published_at ? new Date(publication.published_at).toLocaleString() : new Date(publication.updated_at).toLocaleString()}</small>{publication.error_message ? <p>{publication.error_message}</p> : null}</div><i className={`creative-status is-${publication.status}`}>{statusLabel(publication.status)}</i><div className="creative-inline-actions">{publication.status === "failed" ? <button type="button" disabled={Boolean(working)} onClick={() => void retry(publication.id)}><RefreshCw size={13}/> Retry</button> : null}{publication.published_url ? <a href={publication.published_url} target="_blank" rel="noreferrer"><ExternalLink size={13}/> Open</a> : null}</div></div>; }) : <div className="creative-empty compact">No publication history yet.</div>}</div> : null}
-      </section>
-    </div>
+    <section className="creative-card creative-guided-card" data-step={step}>
+      {step === "select" ? <div className="creative-guided-select">
+        <div className="creative-guided-heading"><div><span className="creative-kicker">Step 1</span><h2>Which post are you sending?</h2><p>Only finished Creative Projects belong here.</p></div><Layers3 size={22}/></div>
+        <label>Ready Creative Project<select value={selectedProjectId} onChange={(event) => chooseProject(event.target.value)}><option value="">Select a Ready project</option>{eligibleProjects.map((project) => <option value={project.id} key={project.id}>{project.title} · {formatLabel(project.format)}</option>)}</select></label>
+        {loading ? <div className="creative-empty compact"><Loader2 className="spin" size={18}/> Loading Ready posts…</div> : null}
+        {!loading && dashboard?.readyProjects.length ? <div className="creative-ready-picks">{dashboard.readyProjects.slice(0, 8).map((project) => <button type="button" key={project.id} onClick={() => chooseProject(project.id)}><div><strong>{project.title}</strong><small>{formatLabel(project.format)}{project.format !== "single" ? ` · ${project.frame_count} frames` : ""}</small></div><ArrowRight size={15}/></button>)}</div> : null}
+        {!loading && !dashboard?.readyProjects.length ? <div className="creative-empty compact"><Send size={19}/> No Ready Creative Projects yet.</div> : null}
+      </div> : null}
+
+      {step === "preview" && bundle ? <div className="creative-guided-preview">
+        <div className="creative-guided-heading"><div><span className="creative-kicker">Step 2 · Preview</span><h2>This is what is going out.</h2><p><strong>{destinationLabel}</strong> · <span>@apostolicguide</span> · {formatLabel(bundle.project.format)}</p></div><Eye size={22}/></div>
+
+        <div className="creative-preview-layout">
+          <div className={`creative-instagram-preview is-${bundle.project.format}`}>
+            <div className="creative-instagram-preview-head"><span className="creative-instagram-avatar">AG</span><div><strong>apostolicguide</strong><small>{destinationLabel}</small></div><Instagram size={18}/></div>
+            <div className="creative-instagram-preview-media">
+              {firstAsset ? <img src={firstAsset} alt={renderAssets[0]?.asset?.title || bundle.project.title}/> : <div className="creative-publisher-no-render">No current render. Return to Carousel Studio and render this project first.</div>}
+              {renderAssets.length > 1 ? <span className="creative-preview-count">1 / {renderAssets.length}</span> : null}
+            </div>
+            <div className="creative-instagram-preview-actions"><Heart size={19}/><MessageCircle size={19}/><Send size={18}/></div>
+            <p className="creative-instagram-preview-caption"><strong>apostolicguide</strong> {caption || "No caption yet."}</p>
+          </div>
+
+          <div className="creative-preview-details">
+            <div className="creative-destination-card"><Instagram size={20}/><div><span>Destination</span><strong>{destinationLabel}</strong><small>@apostolicguide</small></div><Check size={17}/></div>
+            <div className="creative-preview-project"><span>Post</span><strong>{bundle.project.title}</strong><small>{bundle.project.pathwayTitle} · {formatLabel(bundle.project.format)}{bundle.project.format !== "single" ? ` · ${bundle.project.frameCount} frames` : ""}</small></div>
+            {renderAssets.length > 1 ? <div className="creative-preview-strip">{renderAssets.map((link, index) => link.asset?.public_url ? <img key={link.asset.id || index} src={link.asset.public_url} alt={link.asset.title || `Frame ${index + 1}`}/> : null)}</div> : null}
+            <label>Caption going out<textarea rows={6} value={caption} onChange={(event) => setCaption(event.target.value)}/></label>
+            <button type="button" className="creative-primary creative-preview-continue" disabled={!renderAssets.length} onClick={() => setStep("publish")}><Send size={16}/> Continue to Publish <ArrowRight size={15}/></button>
+          </div>
+        </div>
+      </div> : null}
+
+      {step === "publish" && bundle ? <div className="creative-guided-publish">
+        <div className="creative-guided-heading"><div><span className="creative-kicker">Step 3 · Publish</span><h2>Send this post.</h2><p>The post and destination are locked in. Only choose when it goes out.</p></div><Send size={22}/></div>
+
+        <div className="creative-publish-summary">
+          <div className="creative-publish-thumb">{firstAsset ? <img src={firstAsset} alt=""/> : <Instagram size={22}/>}</div>
+          <div><span>{destinationLabel}</span><strong>{bundle.project.title}</strong><small>@apostolicguide · {formatLabel(bundle.project.format)}</small></div>
+          <button type="button" className="creative-secondary" onClick={() => setStep("preview")}><Eye size={14}/> Preview</button>
+        </div>
+
+        <div className="creative-publishing-modes creative-guided-modes">
+          <button type="button" className={mode === "publish_now" ? "is-active" : ""} onClick={() => setMode("publish_now")}><Play size={15}/><span>Publish Now</span></button>
+          <button type="button" className={mode === "schedule" ? "is-active" : ""} onClick={() => setMode("schedule")}><Clock3 size={15}/><span>Schedule</span></button>
+          <button type="button" className={mode === "next_available" ? "is-active" : ""} onClick={() => setMode("next_available")}><CalendarDays size={15}/><span>Next Available</span></button>
+          <button type="button" className={mode === "finish_manually" ? "is-active" : ""} onClick={() => setMode("finish_manually")}><Instagram size={15}/><span>Finish in Instagram</span></button>
+        </div>
+        {mode === "schedule" || mode === "finish_manually" ? <label>{mode === "finish_manually" ? "Reminder time" : "Schedule time"}<input type="datetime-local" value={scheduleLocal} onChange={(event) => setScheduleLocal(event.target.value)}/></label> : null}
+        {mode === "finish_manually" ? <label>Manual finish note<textarea rows={2} value={manualReason} onChange={(event) => setManualReason(event.target.value)}/></label> : null}
+
+        <div className="creative-final-actions">
+          <button type="button" className="creative-secondary" onClick={() => setStep("preview")}><ArrowLeft size={15}/> Back to Preview</button>
+          <button type="button" className="creative-primary creative-publish-button" disabled={Boolean(working) || !renderAssets.length} onClick={() => void schedulePublication()}>{working === "publish" ? <Loader2 size={16} className="spin"/> : <Send size={16}/>} {mode === "publish_now" ? "Publish to Instagram" : mode === "schedule" ? "Schedule on Instagram" : mode === "next_available" ? "Add to Next Publishing Slot" : "Send to Instagram Finish Queue"}</button>
+        </div>
+      </div> : null}
+    </section>
+
+    <details className="creative-publishing-activity">
+      <summary><span>Publishing activity</span><small>{activePublications.length} active · {history.length} completed</small></summary>
+      <div className="creative-publishing-board">
+        <div className="creative-tabs"><button type="button" className={activityView === "queue" ? "is-active" : ""} onClick={() => setActivityView("queue")}>Queue</button><button type="button" className={activityView === "history" ? "is-active" : ""} onClick={() => setActivityView("history")}>History</button></div>
+        {activityView === "queue" ? <div className="creative-queue-list">{activePublications.length ? activePublications.map((publication, index) => {
+          const source = projectForPublication(publication);
+          return <div className="creative-publication-row" key={publication.id}><span className="creative-queue-number">{index + 1}</span><div><strong>{source?.title || publication.pathway_slug}</strong><small>{source ? formatLabel(source.format) : publication.platform}</small></div><div className="creative-pub-time">{publication.scheduled_for ? new Date(publication.scheduled_for).toLocaleString() : statusLabel(publication.status)}</div><i className={`creative-status is-${publication.status}`}>{statusLabel(publication.status)}</i>{publication.status === "needs_manual_finish" ? <button type="button" className="creative-secondary" disabled={working === `manual-${publication.id}`} onClick={() => void finishManual(publication.id)}><Check size={13}/> Mark finished</button> : null}</div>;
+        }) : <p className="creative-muted">Nothing is waiting in the queue.</p>}</div> : null}
+        {activityView === "history" ? <div className="creative-history-list">{history.length ? history.map((publication) => { const source = projectForPublication(publication); return <div className="creative-history-row" key={publication.id}><div className={`creative-history-icon is-${publication.status}`}>{publication.status === "failed" ? <TriangleAlert size={17}/> : <Check size={17}/>}</div><div><strong>{source?.title || publication.pathway_slug}</strong><small>{formatLabel(source?.format || "single")} · {publication.platform} · {publication.published_at ? new Date(publication.published_at).toLocaleString() : new Date(publication.updated_at).toLocaleString()}</small>{publication.error_message ? <p>{publication.error_message}</p> : null}</div><i className={`creative-status is-${publication.status}`}>{statusLabel(publication.status)}</i><div className="creative-inline-actions">{publication.status === "failed" ? <button type="button" disabled={Boolean(working)} onClick={() => void retry(publication.id)}><RefreshCw size={13}/> Retry</button> : null}{publication.published_url ? <a href={publication.published_url} target="_blank" rel="noreferrer"><ExternalLink size={13}/> Open</a> : null}</div></div>; }) : <div className="creative-empty compact">No publication history yet.</div>}</div> : null}
+      </div>
+    </details>
   </section>;
 }
