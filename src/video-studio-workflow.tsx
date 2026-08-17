@@ -1,8 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { ChevronLeft, ChevronRight, Film, FolderOpen, Loader2, Settings2, Youtube } from "lucide-react";
+import { ChevronLeft, ChevronRight, Film, FolderOpen, Loader2, Send, Settings2, Youtube } from "lucide-react";
 import { PathwayAssetLibrary } from "@/pathway-asset-library";
 
 const STEPS = [
@@ -122,10 +123,13 @@ export function VideoStudioWorkflow({ aiReady }: { aiReady: boolean }) {
       </div>
       <div className="video-review-tabs" role="tablist" aria-label="Review panels">
         <button type="button" role="tab" aria-selected={reviewPanel === "video"} className={reviewPanel === "video" ? "is-active" : ""} onClick={() => setReviewPanel("video")}><Film size={15}/> Video</button>
-        <button type="button" role="tab" aria-selected={reviewPanel === "publishing"} className={reviewPanel === "publishing" ? "is-active" : ""} onClick={() => setReviewPanel("publishing")}><Youtube size={15}/> Publishing</button>
+        <button type="button" role="tab" aria-selected={reviewPanel === "publishing"} className={reviewPanel === "publishing" ? "is-active" : ""} onClick={() => setReviewPanel("publishing")}><Youtube size={15}/> Metadata</button>
         <button type="button" role="tab" aria-selected={reviewPanel === "assets"} className={reviewPanel === "assets" ? "is-active" : ""} onClick={() => setReviewPanel("assets")}><FolderOpen size={15}/> Assets</button>
       </div>
-      {reviewPanel === "publishing" ? <button type="button" className={showAllPublishing ? "video-review-more is-active" : "video-review-more"} onClick={() => setShowAllPublishing((value) => !value)}><Settings2 size={14}/> {showAllPublishing ? "Essentials only" : "More metadata"}</button> : null}
+      <div className="video-review-actions">
+        {reviewPanel === "publishing" ? <button type="button" className={showAllPublishing ? "video-review-more is-active" : "video-review-more"} onClick={() => setShowAllPublishing((value) => !value)}><Settings2 size={14}/> {showAllPublishing ? "Essentials only" : "More metadata"}</button> : null}
+        {pathwaySlug ? <Link className="button primary video-review-publish" href={`/admin/publishing?view=video&pathwaySlug=${encodeURIComponent(pathwaySlug)}`}><Send size={14}/> Publish video</Link> : null}
+      </div>
     </section> : null}
   </>, page);
 
