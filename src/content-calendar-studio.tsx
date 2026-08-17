@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { CalendarDays, Clock3, ExternalLink, Instagram, Loader2, RefreshCw, Send } from "lucide-react";
+import { CalendarDays, Clock3, Heart, Instagram, Loader2, MessageCircle, RefreshCw, Send } from "lucide-react";
 
 type CalendarItem = {
   id: string;
@@ -151,7 +151,7 @@ export function ContentCalendarStudio() {
     </div>
 
     <section className="admin-card calendar-ready-queue">
-      <div className="calendar-section-head"><div><span className="section-kicker">Production queue</span><h2>Ready to Schedule</h2><p>Assets handed off from Carousel Studio, Video Studio, Threads Studio, and other publishing lanes wait here until you give them a real date.</p></div><Clock3 size={25}/></div>
+      <div className="calendar-section-head"><div><span className="section-kicker">Production queue</span><h2>Ready to Schedule</h2><p>Assets handed off from Carousel Studio, Video Studio, Threads Studio, Episodes, and other publishing lanes wait here until you give them a real date.</p></div><Clock3 size={25}/></div>
       {unscheduled.length ? <div className="calendar-ready-list">{unscheduled.slice(0, 30).map((item) => {
         const value = scheduleDrafts[item.id] ?? localInputValue(item.scheduled_for) ?? defaultScheduleValue();
         return <article key={item.id}><div className="calendar-ready-type"><i>{item.platform === "instagram" ? "IG" : item.platform === "threads" ? "TH" : item.platform === "youtube" ? "YT" : item.content_type.slice(0,2).toUpperCase()}</i><div><span>{item.content_type} · {item.status}</span><strong>{item.title}</strong><small>{item.pathway_slug ? `Pathway: ${item.pathway_slug.replaceAll("-", " ")}` : item.source || "Studio"}</small></div></div><div className="calendar-ready-scheduler"><input type="datetime-local" value={value} onChange={(event) => setScheduleDrafts((current) => ({ ...current, [item.id]: event.target.value }))}/><button type="button" className="button primary" disabled={Boolean(busy)} onClick={() => void scheduleItem(item)}>{busy === `item:${item.id}` ? <Loader2 className="spin" size={14}/> : <Send size={14}/>} Schedule</button></div></article>;
@@ -170,11 +170,15 @@ export function ContentCalendarStudio() {
     </section>
 
     <section className="admin-card instagram-feed-calendar">
-      <div className="calendar-section-head"><div><span className="section-kicker">Instagram feed</span><h2>Published on @apostolicguide</h2><p>Published media is imported from Instagram and displayed on the same dates it actually went live.</p></div><Instagram size={25}/></div>
-      {instagramFeed.length ? <div className="instagram-feed-grid">{instagramFeed.slice(0, 18).map((item) => {
+      <div className="calendar-section-head"><div><span className="section-kicker">Instagram feed</span><h2>Published on @apostolicguide</h2><p>A compact view of what actually went live. Tap any image to open the original post.</p></div><Instagram size={25}/></div>
+      {instagramFeed.length ? <div className="instagram-feed-grid">{instagramFeed.slice(0, 24).map((item) => {
         const preview = metadataString(item, "thumbnail_url") || metadataString(item, "media_url");
         const permalink = metadataString(item, "permalink");
-        return <article key={item.id}>{preview ? <img src={preview} alt="" loading="lazy"/> : <div className="instagram-feed-placeholder"><Instagram size={26}/></div>}<div><span>{item.content_type}</span><strong>{item.title}</strong><small>{metadataNumber(item, "like_count")} likes · {metadataNumber(item, "comments_count")} comments</small>{permalink ? <a href={permalink} target="_blank" rel="noreferrer">Open on Instagram <ExternalLink size={13}/></a> : null}</div></article>;
+        const media = preview ? <img src={preview} alt={item.title || "Instagram post"} loading="lazy"/> : <div className="instagram-feed-placeholder"><Instagram size={22}/></div>;
+        return <article key={item.id}>
+          {permalink ? <a className="instagram-feed-media" href={permalink} target="_blank" rel="noreferrer" aria-label={`Open ${item.title} on Instagram`}>{media}</a> : <div className="instagram-feed-media">{media}</div>}
+          <div className="instagram-feed-meta"><strong>{item.title}</strong><span><i><Heart size={13}/>{metadataNumber(item, "like_count")}</i><i><MessageCircle size={13}/>{metadataNumber(item, "comments_count")}</i></span></div>
+        </article>;
       })}</div> : <div className="calendar-empty"><CalendarDays size={28}/><strong>No Instagram feed items synced yet.</strong><span>Use Sync Instagram to pull the current feed into Studio.</span></div>}
     </section>
 
