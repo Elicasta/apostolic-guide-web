@@ -23,6 +23,7 @@ export const maxDuration = 60;
 
 const schema = z.object({ projectId: z.string().uuid() });
 const MAX_RENDER_BYTES = 20 * 1024 * 1024 * 1024;
+const DEFAULT_PUBLIC_CALLBACK_ORIGIN = "https://apostolic-guide-web.vercel.app";
 
 type MusicManifestTrack = {
   id: string;
@@ -31,6 +32,16 @@ type MusicManifestTrack = {
   gainDb: number;
   duckUnderVoice: boolean;
 };
+
+function videoProducerCallbackOrigin(request: Request) {
+  const configured = process.env.VIDEO_PRODUCER_CALLBACK_ORIGIN?.trim().replace(/\/+$/, "");
+  if (configured) return configured;
+  const requestOrigin = new URL(request.url).origin;
+  // Preview deployments may be protected by Vercel before the request reaches
+  // our token-authenticated callback route. Workers therefore report through a
+  // stable public production alias while previews still use the shared render DB.
+  return process.env.VERCEL_ENV === "preview" ? DEFAULT_PUBLIC_CALLBACK_ORIGIN : requestOrigin;
+}
 
 export async function POST(request: Request) {
   const { access, allowed } = await getStudioPermission("manage_content");
@@ -100,6 +111,7 @@ export async function POST(request: Request) {
   if (!githubToken) return NextResponse.json({ error: "Video worker is not connected." }, { status: 503 });
 
   const workerRef = videoProducerWorkerRef();
+  const callbackOrigin = videoProducerCallbackOrigin(request);
   const renderId = randomUUID();
   const manifestPath = `video-producer/manifests/${project.id}/${renderId}.json`;
   const outputPath = `video-producer/renders/${project.id}/${renderId}.mp4`;
@@ -151,7 +163,12 @@ export async function POST(request: Request) {
       output: renderPlan.output,
       sourceRange,
       workerRef,
-      rendererBridge: { callbackTokenHash: callback.hash, manifestPath: manifestBlob.pathname, outputPath }
+      rendererBridge: {
+        callbackTokenHash: callback.hash,
+        callbackOrigin,
+        manifestPath: manifestBlob.pathname,
+        outputPath
+      }
     };
     const created = await service.from("video_producer_renders").insert({
       id: renderId,
@@ -175,7 +192,7 @@ export async function POST(request: Request) {
         source_url: sourceUrl,
         manifest_url: manifestUrl,
         output_upload_url: outputUploadUrl,
-        callback_url: `${new URL(request.url).origin}/api/admin/video-producer/render-callback`,
+        callback_url: `${callbackOrigin}/api/admin/video-producer/render-callback`,
         callback_token: callback.token
       }
     });
