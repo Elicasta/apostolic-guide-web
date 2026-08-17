@@ -1,0 +1,57 @@
+/* Final mobile cleanup for Carousel Studio workflow navigation. */
+.carousel-workflow-mobile{display:none}
+
+@media(max-width:760px){
+  /* The four desktop stage cards were compressing into unreadable D/C/P/P
+     circles on iPhone. Mobile uses one explicit selector instead. */
+  .carousel-studio-master .carousel-workflow-steps{display:none!important}
+  .carousel-studio-master .carousel-workflow-mobile{
+    display:grid;
+    grid-template-columns:auto minmax(0,1fr);
+    align-items:center;
+    gap:10px;
+    width:100%;
+    margin:0;
+    padding:9px 10px;
+    border:1px solid #dfe5e5;
+    border-radius:11px;
+    background:#f7f9f8;
+  }
+  .carousel-studio-master .carousel-workflow-mobile>span{
+    color:#6d7a80;
+    font-size:9px;
+    font-weight:850;
+    letter-spacing:.1em;
+    text-transform:uppercase;
+  }
+  .carousel-studio-master .carousel-workflow-mobile select{
+    width:100%;
+    min-width:0;
+    min-height:40px;
+    border:1px solid #d6dfde;
+    border-radius:9px;
+    background:#fff;
+    color:#10202a;
+    padding:7px 32px 7px 10px;
+    font:inherit;
+    font-size:12px;
+    font-weight:800;
+  }
+
+  .carousel-studio-master .carousel-workflow-current{
+    padding-top:7px!important;
+    justify-content:flex-start!important;
+    flex-wrap:wrap!important;
+  }
+  .carousel-studio-master .carousel-workflow-current>.carousel-publish-shortcut{
+    order:1!important;
+  }
+  .carousel-studio-master .carousel-workflow-current>button:not(.carousel-publish-shortcut){
+    order:2!important;
+  }
+  .carousel-studio-master .carousel-preview-destination,
+  .carousel-studio-master .carousel-handoff-actions{
+    order:3!important;
+    flex:1 0 100%!important;
+  }
+}
