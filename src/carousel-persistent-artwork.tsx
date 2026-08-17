@@ -76,7 +76,6 @@ function OriginalArtwork({ frame, visualStyle, alignment }: { frame: Snapshot; v
   return <div className={`persistent-carousel-artboard carousel-artboard is-${visualStyle} is-${kind} ${frame.format === "story" ? "is-vertical" : "is-portrait"}`}>
     <div className="carousel-artwork" style={artStyle}>
       <div className="carousel-ambient carousel-ambient-red"/>
-      <div className="carousel-ambient carousel-ambient-blue"/>
       <div className="carousel-grain"/>
       <div className="carousel-city"/>
       <img className="carousel-brand-mark" src={logo} alt=""/>
