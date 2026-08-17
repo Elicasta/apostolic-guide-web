@@ -54,6 +54,7 @@ import "./content-calendar-polish.css";
 import "./master-publishing.css";
 import "./master-publishing-guided.css";
 import "./carousel-library-final-polish.css";
+import "./carousel-mobile-workflow-cleanup.css";
 
 export const dynamic = "force-dynamic";
 
