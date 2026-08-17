@@ -52,6 +52,7 @@ import "./carousel-persistent-artwork.css";
 import "./threads-studio-polish.css";
 import "./content-calendar-polish.css";
 import "./master-publishing.css";
+import "./master-publishing-guided.css";
 
 export const dynamic = "force-dynamic";
 
