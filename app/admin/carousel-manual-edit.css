@@ -1,0 +1,55 @@
+.carousel-manual-edit-toggle{
+  margin-left:auto;
+  min-height:42px;
+  border:1px solid #d9e0df;
+  border-radius:11px;
+  background:#fff;
+  color:#10202a;
+  padding:8px 12px;
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  font:inherit;
+  cursor:pointer;
+}
+.carousel-manual-edit-toggle>span{display:grid;gap:1px;text-align:left}
+.carousel-manual-edit-toggle strong{font-size:11px}
+.carousel-manual-edit-toggle small{font-size:9px;color:#748187}
+.carousel-manual-edit-toggle.is-open{background:#10202a;color:#fff;border-color:#10202a}
+.carousel-manual-edit-toggle.is-open small{color:#cbd3d5}
+.carousel-studio-master .creative-studio-shell[data-manual-edit="open"] .creative-editor-panel{
+  outline:2px solid rgba(21,86,106,.12);
+  outline-offset:3px;
+}
+.carousel-studio-master .creative-studio-shell[data-manual-edit="open"] .creative-editor-panel::before{
+  content:"MANUAL EDIT · INDIVIDUAL SLIDE";
+  display:block;
+  margin:0 0 14px;
+  padding:9px 11px;
+  border-radius:9px;
+  background:#eef4f4;
+  color:#15566a;
+  font-size:9px;
+  font-weight:900;
+  letter-spacing:.12em;
+}
+
+@media(max-width:760px){
+  .carousel-manual-edit-toggle{
+    flex:1 0 100%;
+    width:100%;
+    margin:8px 0 0;
+    justify-content:center;
+  }
+  .carousel-manual-edit-toggle>span{display:flex;align-items:baseline;gap:7px}
+  .carousel-studio-master .creative-editor-panel{display:none}
+  .carousel-studio-master .creative-studio-shell[data-manual-edit="open"] .creative-editor-panel{display:block!important}
+  .carousel-studio-master .creative-frame-rail-actions{display:none}
+  .carousel-studio-master .creative-studio-shell[data-manual-edit="open"] .creative-frame-rail-actions{display:flex}
+  .carousel-studio-master .creative-studio-shell[data-manual-edit="open"] .creative-workspace-grid{
+    grid-template-areas:"rail" "preview" "editor";
+  }
+  .carousel-studio-master .creative-studio-shell[data-manual-edit="open"] .creative-frame-rail{grid-area:rail}
+  .carousel-studio-master .creative-studio-shell[data-manual-edit="open"] .creative-preview-panel{grid-area:preview}
+  .carousel-studio-master .creative-studio-shell[data-manual-edit="open"] .creative-editor-panel{grid-area:editor}
+}
