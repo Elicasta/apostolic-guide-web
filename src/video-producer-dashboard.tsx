@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArchiveRestore, ChevronDown, Film, Loader2, Plus, RefreshCw, Smartphone, Trash2 } from "lucide-react";
+import { ArchiveRestore, ChevronDown, FileText, Film, Loader2, Plus, RefreshCw, Smartphone, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import styles from "./video-producer-library.module.css";
@@ -173,6 +173,7 @@ export function VideoProducerDashboard() {
         <div className={styles.actionBar}>
           <div className={styles.primaryActions}>
             <button type="button" className={styles.primaryButton} onClick={() => router.push("/admin/video-producer/new?mode=podcast")}><Plus size={14}/><Film size={14}/> Podcast</button>
+            <button type="button" className={styles.secondaryButton} onClick={() => router.push("/admin/video-producer/episodes")}><Plus size={14}/><FileText size={14}/> Episode script</button>
             <button type="button" className={styles.secondaryButton} onClick={() => router.push("/admin/video-producer/new?mode=reels")}><Plus size={14}/><Smartphone size={14}/> Reel</button>
           </div>
           <Link className={styles.utilityLink} href="/admin/video-producer/recovery"><ArchiveRestore size={13}/> Recovery</Link>
@@ -182,7 +183,7 @@ export function VideoProducerDashboard() {
 
         <section className={styles.section}>
           <div className={styles.sectionHead}><div className={styles.sectionTitle}><h2>In production</h2><span className={styles.count}>{active.length}</span></div></div>
-          {loading && !roots.length ? <div className={styles.empty}>Loading projects…</div> : active.length ? <div className={styles.list}>{active.map((project) => projectRow(project))}</div> : <div className={styles.empty}>Nothing waiting on you. Start a Podcast or Reel above.</div>}
+          {loading && !roots.length ? <div className={styles.empty}>Loading projects…</div> : active.length ? <div className={styles.list}>{active.map((project) => projectRow(project))}</div> : <div className={styles.empty}>Nothing waiting on you. Start a Podcast, Episode Script, or Reel above.</div>}
         </section>
 
         {done.length ? (
