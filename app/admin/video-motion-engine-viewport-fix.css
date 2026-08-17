@@ -1,0 +1,54 @@
+/* Motion Engine viewport correction.
+   The V1 canvas originally widened .motion-canvas-world to N x the viewport and
+   then sized each scene as a percentage of that strip. Percentage padding on
+   each scene also resolved against the widened strip, which pushed the actual
+   illustration and copy outside the visible canvas, especially on mobile.
+
+   Keep the deterministic scene plan, SVG draw system, audio timing, and active
+   scene state unchanged. The viewport itself is now a stable 100% canvas and
+   only the active scene participates in layout. This also prevents accumulated
+   flex-width rounding from exposing adjacent scenes at 9:16 / 1:1 sizes. */
+.apostolic-motion-canvas .motion-canvas-world {
+  width: 100% !important;
+  transform: none !important;
+  transform-origin: center center;
+}
+
+.apostolic-motion-canvas .motion-world-scene {
+  position: absolute;
+  inset: 0;
+  width: 100% !important;
+  height: 100%;
+  box-sizing: border-box;
+  flex: 0 0 100% !important;
+  display: none;
+  opacity: 0;
+}
+
+.apostolic-motion-canvas .motion-world-scene.is-active {
+  display: grid;
+  opacity: 1;
+  animation: apostolicMotionSceneIn 420ms cubic-bezier(.22,.78,.2,1) both;
+}
+
+/* The illustration itself still animates from audio time through the SVG
+   progress contract. This entrance is only the camera handoff between scenes. */
+@keyframes apostolicMotionSceneIn {
+  from { opacity: .18; transform: translate3d(0,8px,0) scale(.992); }
+  to { opacity: 1; transform: translate3d(0,0,0) scale(1); }
+}
+
+/* Keep the connective thread in the viewport rather than in the old wide strip. */
+.apostolic-motion-canvas .motion-world-thread {
+  left: 4%;
+  right: 4%;
+  width: auto;
+}
+
+/* iOS/Safari can otherwise retain a stale flex paint layer after an audio seek. */
+@supports (-webkit-touch-callout: none) {
+  .apostolic-motion-canvas .motion-world-scene.is-active {
+    -webkit-transform: translateZ(0);
+    backface-visibility: hidden;
+  }
+}
