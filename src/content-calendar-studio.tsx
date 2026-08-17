@@ -170,14 +170,14 @@ export function ContentCalendarStudio() {
     </section>
 
     <section className="admin-card instagram-feed-calendar">
-      <div className="calendar-section-head"><div><span className="section-kicker">Instagram feed</span><h2>Published on @apostolicguide</h2><p>A compact view of what actually went live. Tap any image to open the original post.</p></div><Instagram size={25}/></div>
+      <div className="calendar-section-head"><div><span className="section-kicker">Instagram feed</span><h2>Published on @apostolicguide</h2><p>Three-column 4:5 feed. Tap a post itself to open it on Instagram.</p></div><Instagram size={25}/></div>
       {instagramFeed.length ? <div className="instagram-feed-grid">{instagramFeed.slice(0, 24).map((item) => {
         const preview = metadataString(item, "thumbnail_url") || metadataString(item, "media_url");
         const permalink = metadataString(item, "permalink");
         const media = preview ? <img src={preview} alt={item.title || "Instagram post"} loading="lazy"/> : <div className="instagram-feed-placeholder"><Instagram size={22}/></div>;
+        const engagement = <span className="instagram-feed-engagement"><i><Heart size={13}/>{metadataNumber(item, "like_count")}</i><i><MessageCircle size={13}/>{metadataNumber(item, "comments_count")}</i></span>;
         return <article key={item.id}>
-          {permalink ? <a className="instagram-feed-media" href={permalink} target="_blank" rel="noreferrer" aria-label={`Open ${item.title} on Instagram`}>{media}</a> : <div className="instagram-feed-media">{media}</div>}
-          <div className="instagram-feed-meta"><strong>{item.title}</strong><span><i><Heart size={13}/>{metadataNumber(item, "like_count")}</i><i><MessageCircle size={13}/>{metadataNumber(item, "comments_count")}</i></span></div>
+          {permalink ? <a className="instagram-feed-media" href={permalink} target="_blank" rel="noreferrer" aria-label={`Open ${item.title} on Instagram`}>{media}{engagement}</a> : <div className="instagram-feed-media">{media}{engagement}</div>}
         </article>;
       })}</div> : <div className="calendar-empty"><CalendarDays size={28}/><strong>No Instagram feed items synced yet.</strong><span>Use Sync Instagram to pull the current feed into Studio.</span></div>}
     </section>
