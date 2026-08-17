@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getStudioPermission } from "@/auth";
 import { CREATIVE_FORMATS, CREATIVE_INTENTS } from "@/creative-project";
 import { creativeProjectFromRow, creativeProjectUpdatePayload, loadCreativeProject } from "@/creative-project-server";
+import { privateBlobReadUrl } from "@/private-blob";
 import { createServiceClient } from "@/supabase";
 
 const autosaveSchema = z.object({
@@ -17,6 +18,25 @@ const autosaveSchema = z.object({
   cta: z.string().max(2000).default(""),
   tags: z.array(z.string().trim().min(1).max(50)).max(30).default([])
 });
+
+async function withPrivatePreviewUrls(links: unknown[]) {
+  return Promise.all(links.map(async (linkValue) => {
+    const link = linkValue && typeof linkValue === "object" ? linkValue as Record<string, unknown> : {};
+    const rawAsset = link.asset;
+    const asset = Array.isArray(rawAsset) ? rawAsset[0] : rawAsset;
+    if (!asset || typeof asset !== "object") return link;
+    const row = asset as Record<string, unknown>;
+    const storageBucket = String(row.storage_bucket || "");
+    const storagePath = String(row.storage_path || "");
+    const isPrivateBlob = storageBucket === "vercel_blob" && storagePath && (row.metadata as Record<string, unknown> | null)?.blobAccess === "private";
+    if (!isPrivateBlob) return { ...link, asset: { ...row, preview_url: row.public_url || null } };
+    try {
+      return { ...link, asset: { ...row, preview_url: await privateBlobReadUrl(storagePath) } };
+    } catch {
+      return { ...link, asset: { ...row, preview_url: null } };
+    }
+  }));
+}
 
 export async function GET(_request: Request, context: { params: Promise<{ projectId: string }> }) {
   const { access, allowed } = await getStudioPermission("manage_content");
@@ -45,7 +65,8 @@ export async function GET(_request: Request, context: { params: Promise<{ projec
   ]);
   const error = revisions.error || links.error || publications.error;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ project, revisions: revisions.data ?? [], assets: links.data ?? [], publications: publications.data ?? [] });
+  const assets = await withPrivatePreviewUrls((links.data ?? []) as unknown[]);
+  return NextResponse.json({ project, revisions: revisions.data ?? [], assets, publications: publications.data ?? [] });
 }
 
 export async function PATCH(request: Request, context: { params: Promise<{ projectId: string }> }) {
