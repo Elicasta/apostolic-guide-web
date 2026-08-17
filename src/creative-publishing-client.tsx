@@ -36,7 +36,7 @@ type ProjectBundle = {
     unifiedCaption: string;
     editorState: { frames: Array<{ id: string; order: number; headline: string; caption: string }> };
   };
-  assets: Array<{ frame_id?: string | null; role: string; sort_order: number; asset?: { id: string; title: string; public_url?: string | null; metadata?: Record<string, unknown> } | null }>;
+  assets: Array<{ frame_id?: string | null; role: string; sort_order: number; asset?: { id: string; title: string; public_url?: string | null; preview_url?: string | null; metadata?: Record<string, unknown> } | null }>;
 };
 type Dashboard = { projects: ProjectSummary[]; readyProjects: ProjectSummary[]; publications: Publication[]; counts: Record<string, number> };
 type Mode = "publish_now" | "schedule" | "next_available" | "finish_manually";
@@ -65,6 +65,10 @@ function statusLabel(status: string) {
 
 function localInputValue(date: Date) {
   return new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
+}
+
+function assetUrl(link: ProjectBundle["assets"][number] | undefined) {
+  return link?.asset?.preview_url || link?.asset?.public_url || null;
 }
 
 export function CreativePublishingClient({ initialProjectId }: { initialProjectId?: string | null }) {
@@ -110,6 +114,15 @@ export function CreativePublishingClient({ initialProjectId }: { initialProjectI
     return () => { cancelled = true; };
   }, [selectedProjectId]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    url.searchParams.set("view", "creative");
+    if (selectedProjectId) url.searchParams.set("projectId", selectedProjectId);
+    else url.searchParams.delete("projectId");
+    window.history.replaceState(window.history.state, "", `${url.pathname}?${url.searchParams.toString()}`);
+  }, [selectedProjectId]);
+
   const activePublications = useMemo(() => (dashboard?.publications ?? []).filter((item) => ["scheduled", "publishing", "needs_manual_finish"].includes(item.status)), [dashboard]);
   const history = useMemo(() => (dashboard?.publications ?? []).filter((item) => ["published", "failed", "cancelled"].includes(item.status)), [dashboard]);
   const eligibleProjects = useMemo(() => (dashboard?.projects ?? []).filter((project) => ["ready", "published", "failed", "needs_manual_finish"].includes(project.status)), [dashboard]);
@@ -117,7 +130,7 @@ export function CreativePublishingClient({ initialProjectId }: { initialProjectI
   const renderAssets = useMemo(() => {
     if (!bundle) return [];
     return bundle.assets
-      .filter((link) => ["cover", "render"].includes(link.role) && link.asset?.public_url)
+      .filter((link) => ["cover", "render"].includes(link.role) && Boolean(assetUrl(link)))
       .sort((a, b) => a.sort_order - b.sort_order)
       .reduce<Array<typeof bundle.assets[number]>>((acc, link) => {
         if (!acc.some((existing) => existing.frame_id === link.frame_id)) acc.push(link);
@@ -177,12 +190,12 @@ export function CreativePublishingClient({ initialProjectId }: { initialProjectI
     setStep(value ? "preview" : "select");
   }
 
-  const firstAsset = renderAssets[0]?.asset?.public_url || null;
+  const firstAsset = assetUrl(renderAssets[0]);
   const destinationLabel = bundle?.project.format === "story" ? "Instagram Story" : "Instagram Feed";
 
   return <section className="creative-publishing-shell creative-guided-publishing">
     <div className="creative-page-head">
-      <div><span className="creative-kicker">Distribution · Publishing</span><h1>Preview it. Then publish it.</h1><p>Choose the finished post, see exactly how it is going out, then decide when to send it.</p></div>
+      <div><span className="creative-kicker">Distribution · Publishing</span><h1>Preview it. Then publish it.</h1><p>Ready posts are saved here. Reload, leave Safari, or come back later and the same project can be reopened with fresh media previews.</p></div>
       <button type="button" className="creative-secondary" onClick={() => router.push("/admin/creative-library")}><Layers3 size={16}/> Creative Library</button>
     </div>
 
@@ -190,18 +203,18 @@ export function CreativePublishingClient({ initialProjectId }: { initialProjectI
     {notice ? <div className="creative-success-banner"><Check size={16}/>{notice}</div> : null}
 
     <nav className="creative-publish-flow" aria-label="Creative publishing steps">
-      <button type="button" className={step === "select" ? "is-active" : ""} onClick={() => setStep("select")}><span>1</span><div><strong>Select</strong><small>Choose the post</small></div></button>
+      <button type="button" className={step === "select" ? "is-active" : ""} onClick={() => setStep("select")}><span>1</span><div><strong>Ready</strong><small>Saved for publishing</small></div></button>
       <button type="button" disabled={!bundle} className={step === "preview" ? "is-active" : ""} onClick={() => setStep("preview")}><span>2</span><div><strong>Preview</strong><small>See what goes out</small></div></button>
       <button type="button" disabled={!bundle || !renderAssets.length} className={step === "publish" ? "is-active" : ""} onClick={() => setStep("publish")}><span>3</span><div><strong>Publish</strong><small>Choose when</small></div></button>
     </nav>
 
     <section className="creative-card creative-guided-card" data-step={step}>
       {step === "select" ? <div className="creative-guided-select">
-        <div className="creative-guided-heading"><div><span className="creative-kicker">Step 1</span><h2>Which post are you sending?</h2><p>Only finished Creative Projects belong here.</p></div><Layers3 size={22}/></div>
-        <label>Ready Creative Project<select value={selectedProjectId} onChange={(event) => chooseProject(event.target.value)}><option value="">Select a Ready project</option>{eligibleProjects.map((project) => <option value={project.id} key={project.id}>{project.title} · {formatLabel(project.format)}</option>)}</select></label>
-        {loading ? <div className="creative-empty compact"><Loader2 className="spin" size={18}/> Loading Ready posts…</div> : null}
-        {!loading && dashboard?.readyProjects.length ? <div className="creative-ready-picks">{dashboard.readyProjects.slice(0, 8).map((project) => <button type="button" key={project.id} onClick={() => chooseProject(project.id)}><div><strong>{project.title}</strong><small>{formatLabel(project.format)}{project.format !== "single" ? ` · ${project.frame_count} frames` : ""}</small></div><ArrowRight size={15}/></button>)}</div> : null}
-        {!loading && !dashboard?.readyProjects.length ? <div className="creative-empty compact"><Send size={19}/> No Ready Creative Projects yet.</div> : null}
+        <div className="creative-guided-heading"><div><span className="creative-kicker">Ready for Publish</span><h2>Saved publishing drafts.</h2><p>These are finished Creative Projects waiting for a publishing decision. They stay here until you schedule, publish, or move them back to editing.</p></div><Layers3 size={22}/></div>
+        <label>Ready for Publish<select value={selectedProjectId} onChange={(event) => chooseProject(event.target.value)}><option value="">Select a saved project</option>{eligibleProjects.map((project) => <option value={project.id} key={project.id}>{project.title} · {formatLabel(project.format)}</option>)}</select></label>
+        {loading ? <div className="creative-empty compact"><Loader2 className="spin" size={18}/> Loading saved posts…</div> : null}
+        {!loading && dashboard?.readyProjects.length ? <div className="creative-ready-picks">{dashboard.readyProjects.slice(0, 8).map((project) => <button type="button" key={project.id} onClick={() => chooseProject(project.id)}><div><strong>{project.title}</strong><small>Ready for Publish · {formatLabel(project.format)}{project.format !== "single" ? ` · ${project.frame_count} frames` : ""}</small></div><ArrowRight size={15}/></button>)}</div> : null}
+        {!loading && !dashboard?.readyProjects.length ? <div className="creative-empty compact"><Send size={19}/> Nothing is waiting in Ready for Publish.</div> : null}
       </div> : null}
 
       {step === "preview" && bundle ? <div className="creative-guided-preview">
@@ -211,7 +224,7 @@ export function CreativePublishingClient({ initialProjectId }: { initialProjectI
           <div className={`creative-instagram-preview is-${bundle.project.format}`}>
             <div className="creative-instagram-preview-head"><span className="creative-instagram-avatar">AG</span><div><strong>apostolicguide</strong><small>{destinationLabel}</small></div><Instagram size={18}/></div>
             <div className="creative-instagram-preview-media">
-              {firstAsset ? <img src={firstAsset} alt={renderAssets[0]?.asset?.title || bundle.project.title}/> : <div className="creative-publisher-no-render">No current render. Return to Carousel Studio and render this project first.</div>}
+              {firstAsset ? <img src={firstAsset} alt={renderAssets[0]?.asset?.title || bundle.project.title}/> : <div className="creative-publisher-no-render">No current render. Return to Carousel Studio and mark the project Ready again.</div>}
               {renderAssets.length > 1 ? <span className="creative-preview-count">1 / {renderAssets.length}</span> : null}
             </div>
             <div className="creative-instagram-preview-actions"><Heart size={19}/><MessageCircle size={19}/><Send size={18}/></div>
@@ -220,8 +233,8 @@ export function CreativePublishingClient({ initialProjectId }: { initialProjectI
 
           <div className="creative-preview-details">
             <div className="creative-destination-card"><Instagram size={20}/><div><span>Destination</span><strong>{destinationLabel}</strong><small>@apostolicguide</small></div><Check size={17}/></div>
-            <div className="creative-preview-project"><span>Post</span><strong>{bundle.project.title}</strong><small>{bundle.project.pathwayTitle} · {formatLabel(bundle.project.format)}{bundle.project.format !== "single" ? ` · ${bundle.project.frameCount} frames` : ""}</small></div>
-            {renderAssets.length > 1 ? <div className="creative-preview-strip">{renderAssets.map((link, index) => link.asset?.public_url ? <img key={link.asset.id || index} src={link.asset.public_url} alt={link.asset.title || `Frame ${index + 1}`}/> : null)}</div> : null}
+            <div className="creative-preview-project"><span>Saved project</span><strong>{bundle.project.title}</strong><small>{bundle.project.pathwayTitle} · {formatLabel(bundle.project.format)}{bundle.project.format !== "single" ? ` · ${bundle.project.frameCount} frames` : ""}</small></div>
+            {renderAssets.length > 1 ? <div className="creative-preview-strip">{renderAssets.map((link, index) => { const url = assetUrl(link); return url ? <img key={link.asset?.id || index} src={url} alt={link.asset?.title || `Frame ${index + 1}`}/> : null; })}</div> : null}
             <label>Caption going out<textarea rows={6} value={caption} onChange={(event) => setCaption(event.target.value)}/></label>
             <button type="button" className="creative-primary creative-preview-continue" disabled={!renderAssets.length} onClick={() => setStep("publish")}><Send size={16}/> Continue to Publish <ArrowRight size={15}/></button>
           </div>
