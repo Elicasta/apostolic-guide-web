@@ -22,6 +22,7 @@ export const studioNavSections: Array<{ label: string; items: Array<{ href: stri
   { label: "Create", items: [
     { href: "/admin/carousel-studio", label: "Carousel Studio", icon: Layers3, permission: "manage_content" },
     { href: "/admin/threads-studio", label: "Threads Studio", icon: MessageCircle, permission: "view_distribution" },
+    { href: "/admin/episode-studio", label: "Episode Studio", icon: FileText, permission: "manage_content" },
     { href: "/admin/audio", label: "Pathway Audio", icon: Headphones, permission: "manage_content" },
     { href: "/admin/video-producer", label: "Video Producer", icon: Sparkles, permission: "manage_content" },
     { href: "/admin/video-studio", label: "Video Studio", icon: Film, permission: "manage_content" }
