@@ -13,10 +13,6 @@ const STAGES: Array<{ id: CarouselStage; label: string; description: string; ico
   { id: "publish", label: "Publish", description: "Prepare · ready · open Publishing", icon: Send }
 ];
 
-function storageKey(projectId: string) {
-  return `apostolic-guide:carousel-stage:${projectId}`;
-}
-
 function actionButton(label: string) {
   return [...document.querySelectorAll<HTMLButtonElement>(".carousel-studio-master .creative-head-actions button")]
     .find((button) => button.textContent?.trim().toLowerCase().includes(label.toLowerCase())) ?? null;
@@ -46,11 +42,9 @@ export function CarouselWorkflowStages({ projectId }: { projectId?: string | nul
   useEffect(() => {
     if (!projectId) {
       setTarget(null);
+      setStage("design");
       return;
     }
-
-    const stored = window.sessionStorage.getItem(storageKey(projectId));
-    if (stored === "design" || stored === "captions" || stored === "preview" || stored === "publish") setStage(stored);
 
     const sync = () => {
       const shell = document.querySelector<HTMLElement>(".carousel-studio-master .creative-studio-shell");
@@ -71,25 +65,14 @@ export function CarouselWorkflowStages({ projectId }: { projectId?: string | nul
     return () => observer.disconnect();
   }, [historyOpen, projectId, stage]);
 
-  useEffect(() => {
-    if (!projectId) return;
-    window.sessionStorage.setItem(storageKey(projectId), stage);
-    const shell = document.querySelector<HTMLElement>(".carousel-studio-master .creative-studio-shell");
-    if (shell) shell.dataset.carouselStage = stage;
-  }, [projectId, stage]);
-
-  useEffect(() => {
-    const shell = document.querySelector<HTMLElement>(".carousel-studio-master .creative-studio-shell");
-    if (shell) shell.dataset.carouselHistory = historyOpen ? "open" : "closed";
-  }, [historyOpen]);
-
   const current = useMemo(() => STAGES.find((item) => item.id === stage) ?? STAGES[0], [stage]);
 
   function goToStage(next: CarouselStage) {
+    if (next === stage) return;
     setStage(next);
     window.setTimeout(() => {
       document.querySelector<HTMLElement>(`.carousel-studio-master ${stageTarget(next)}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 60);
+    }, 80);
   }
 
   function prepareForPublishing() {
@@ -114,8 +97,8 @@ export function CarouselWorkflowStages({ projectId }: { projectId?: string | nul
     <div className="carousel-workflow" aria-label="Carousel Studio workflow">
       <label className="carousel-workflow-mobile">
         <span>Workflow</span>
-        <select value={stage} onChange={(event) => goToStage(event.target.value as CarouselStage)}>
-          {STAGES.map((item, index) => <option key={item.id} value={item.id}>{index + 1}. {item.label}</option>)}
+        <select value={stage} onChange={(event) => goToStage(event.target.value as CarouselStage)} aria-label="Carousel workflow stage">
+          {STAGES.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
         </select>
       </label>
       <div className="carousel-workflow-steps" role="tablist" aria-label="Creative workflow stages">
