@@ -11,7 +11,7 @@
 }
 .carousel-workflow-steps{
   display:grid;
-  grid-template-columns:repeat(3,minmax(0,1fr));
+  grid-template-columns:repeat(4,minmax(0,1fr));
   gap:8px;
 }
 .carousel-workflow-steps>button{
@@ -96,6 +96,7 @@
   cursor:pointer;
 }
 .carousel-workflow-current>button.is-active{background:#eef2f2;color:#10202a}
+.carousel-preview-destination,.carousel-handoff-actions{flex:1;display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid #e0e6e5;border-radius:12px;background:#f8faf9;color:#10202a}.carousel-preview-destination>span,.carousel-handoff-actions>span{display:grid;gap:2px;min-width:0}.carousel-preview-destination b,.carousel-handoff-actions b{font-size:11px}.carousel-preview-destination small,.carousel-handoff-actions small{font-size:9px;color:#6f7c81;white-space:normal}.carousel-preview-destination button,.carousel-handoff-actions button{margin-left:auto;border:1px solid #d4dddb;border-radius:9px;background:#fff;color:#10202a;min-height:34px;padding:7px 10px;font:inherit;font-size:10px;font-weight:850;cursor:pointer}.carousel-handoff-actions button+button{margin-left:0}.carousel-handoff-actions .is-primary{background:#10202a;color:#fff;border-color:#10202a}.carousel-handoff-actions button:disabled{opacity:.45;cursor:not-allowed}
 
 /* One art-direction system. The five-template picker is canonical, so hide the
    older three-option style select and keep Alignment as the direct control. */
@@ -123,6 +124,20 @@
 .carousel-studio-master .creative-studio-shell[data-carousel-stage="captions"] .creative-head-actions>:nth-child(4),
 .carousel-studio-master .creative-studio-shell[data-carousel-stage="captions"] .creative-head-actions>:nth-child(5){display:none}
 
+/* FINAL PREVIEW */
+.carousel-studio-master .creative-studio-shell[data-carousel-stage="preview"] .creative-editor-panel{display:none}
+.carousel-studio-master .creative-studio-shell[data-carousel-stage="preview"] .creative-workspace-grid{grid-template-columns:190px minmax(0,1fr);grid-template-areas:"preview preview" "rail rail"}
+.carousel-studio-master .creative-studio-shell[data-carousel-stage="preview"] .creative-frame-rail{display:flex;gap:7px;overflow-x:auto;padding:10px;border:1px solid #e0e6e5;border-radius:14px;background:#fff}
+.carousel-studio-master .creative-studio-shell[data-carousel-stage="preview"] .creative-frame-rail>.creative-panel-head,.carousel-studio-master .creative-studio-shell[data-carousel-stage="preview"] .creative-frame-rail-actions{display:none}
+.carousel-studio-master .creative-studio-shell[data-carousel-stage="preview"] .creative-frame-row{min-width:160px}
+.carousel-studio-master .creative-studio-shell[data-carousel-stage="preview"] .creative-lower-grid>section:nth-child(1),
+.carousel-studio-master .creative-studio-shell[data-carousel-stage="preview"] .creative-lower-grid>section:nth-child(3),
+.carousel-studio-master .creative-studio-shell[data-carousel-stage="preview"] .creative-history-card{display:none}
+.carousel-studio-master .creative-studio-shell[data-carousel-stage="preview"] .creative-lower-grid>section:nth-child(2){grid-column:1/-1}
+.carousel-studio-master .creative-studio-shell[data-carousel-stage="preview"] .creative-head-actions>:nth-child(2),
+.carousel-studio-master .creative-studio-shell[data-carousel-stage="preview"] .creative-head-actions>:nth-child(4),
+.carousel-studio-master .creative-studio-shell[data-carousel-stage="preview"] .creative-head-actions>:nth-child(5){display:none}
+
 /* PUBLISH */
 .carousel-studio-master .creative-studio-shell[data-carousel-stage="publish"] .creative-frame-rail,
 .carousel-studio-master .creative-studio-shell[data-carousel-stage="publish"] .creative-editor-panel{display:none}
@@ -143,25 +158,28 @@
 
 @media(max-width:760px){
   .carousel-workflow{margin-top:6px;padding-top:10px}
-  .carousel-workflow-steps{gap:5px}
+  .carousel-workflow-steps{grid-template-columns:repeat(4,minmax(0,1fr));gap:4px}
   .carousel-workflow-steps>button{
-    grid-template-columns:20px 1fr;
-    gap:6px;
-    min-height:48px;
-    padding:7px 8px;
+    grid-template-columns:18px 1fr;
+    gap:5px;
+    min-height:46px;
+    padding:6px;
   }
   .carousel-workflow-steps>button>svg{display:none}
-  .carousel-workflow-number{width:20px;height:20px;font-size:9px}
-  .carousel-workflow-steps strong{font-size:11px}
+  .carousel-workflow-number{width:18px;height:18px;font-size:8px}
+  .carousel-workflow-steps strong{font-size:9.5px}
   .carousel-workflow-steps small{display:none}
-  .carousel-workflow-current{padding-top:6px}
-  .carousel-workflow-current>span{display:flex}
+  .carousel-workflow-current{padding-top:6px;align-items:stretch;flex-wrap:wrap}
+  .carousel-workflow-current>span{display:flex;flex:1 1 auto}
+  .carousel-workflow-current>button{margin-left:0}
+  .carousel-preview-destination,.carousel-handoff-actions{order:3;flex:1 0 100%;align-items:flex-start;flex-wrap:wrap}.carousel-preview-destination>svg{margin-top:2px}.carousel-preview-destination button,.carousel-handoff-actions button{margin-left:0;flex:1 1 auto}.carousel-handoff-actions>span{flex:1 0 100%}
 
-  /* Preview remains the first working object in every stage. */
+  .carousel-studio-master .creative-studio-shell[data-carousel-stage="preview"] .creative-workspace-grid,
   .carousel-studio-master .creative-studio-shell[data-carousel-stage="publish"] .creative-workspace-grid{display:flex;flex-direction:column}
+  .carousel-studio-master .creative-studio-shell[data-carousel-stage="preview"] .creative-frame-rail{width:100%;order:2}
+  .carousel-studio-master .creative-studio-shell[data-carousel-stage="preview"] .creative-preview-panel{order:1}
   .carousel-studio-master .creative-studio-shell[data-carousel-stage="captions"] .creative-editor-panel{padding-top:14px}
 
-  /* Publish should feel like a short checkout step, not another editor. */
   .carousel-studio-master .creative-studio-shell[data-carousel-stage="publish"] .creative-project-head{position:relative;top:auto}
   .carousel-studio-master .creative-studio-shell[data-carousel-stage="publish"] .creative-head-actions{width:100%;justify-content:flex-start}
   .carousel-studio-master .creative-studio-shell[data-carousel-stage="publish"] .creative-head-actions>:nth-child(2),
