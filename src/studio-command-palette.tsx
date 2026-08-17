@@ -34,6 +34,7 @@ const staticCommands: StaticCommand[] = [
   { id: "journeys", label: "Journeys", description: "Open relationship journeys", href: "/admin/journeys", permission: "view_journeys", Icon: Route },
   { id: "website-content", label: "Website content", description: "Open publishing workspace", href: "/admin/content", permission: "view_content", Icon: FileText },
   { id: "app-content", label: "App content", description: "Open shared app content", href: "/admin/app-content", permission: "view_content", Icon: BookOpen },
+  { id: "episode-studio", label: "Episode Studio", description: "Move an episode through Script, Audio, Video, and Publish", href: "/admin/episode-studio", permission: "manage_content", Icon: FileText },
   { id: "publishing", label: "Publishing", description: "Open the master outbound publishing desk", href: "/admin/publishing", permission: "view_distribution", Icon: Send },
   { id: "threads-studio", label: "Threads Studio", description: "Create and theology-check Threads before publishing", href: "/admin/threads-studio", permission: "view_distribution", Icon: MessageCircle },
   { id: "broadcasts", label: "Broadcasts", description: "Create and review email broadcasts", href: "/admin/broadcasts", permission: "view_distribution", Icon: Mail },
