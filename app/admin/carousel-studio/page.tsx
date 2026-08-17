@@ -2,6 +2,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { FolderOpen, Layers3 } from "lucide-react";
 import { getStudioPermission } from "@/auth";
+import { CarouselPersistentArtwork } from "@/carousel-persistent-artwork";
+import { CarouselProjectStarter } from "@/carousel-project-starter";
 import { CarouselWorkflowStages } from "@/carousel-workflow-stages";
 import { CreativeLibraryClient } from "@/creative-library-client";
 import { CreativeStudioClient } from "@/creative-studio-client";
@@ -20,6 +22,7 @@ export default async function AdminCarouselStudioPage({ searchParams }: { search
     summary: pathway.summary,
     steps: pathway.steps.map((step) => ({ reference: step.reference, title: step.title, explanation: step.explanation }))
   }));
+  const aiReady = Boolean(process.env.OPENAI_API_KEY?.trim());
 
   return <section className="creative-hub-shell carousel-studio-master">
     <div className="creative-hub-switch" aria-label="Carousel Studio views">
@@ -27,9 +30,11 @@ export default async function AdminCarouselStudioPage({ searchParams }: { search
       <Link className={libraryView ? "is-active" : ""} href="/admin/carousel-studio?view=library"><FolderOpen size={16}/><span><strong>Library</strong><small>Drafts · Ready · Published</small></span></Link>
     </div>
     {libraryView ? <CreativeLibraryClient/> : <>
-      <CreativeStudioClient pathways={pathways} initialProjectId={query.project ?? null} aiReady={Boolean(process.env.OPENAI_API_KEY?.trim())}/>
+      {!query.project ? <CarouselProjectStarter pathways={pathways} aiReady={aiReady}/> : null}
+      <CreativeStudioClient pathways={pathways} initialProjectId={query.project ?? null} aiReady={aiReady}/>
       <CreativeTemplateSystem projectId={query.project ?? null}/>
       <CarouselWorkflowStages projectId={query.project ?? null}/>
+      {query.project ? <CarouselPersistentArtwork/> : null}
     </>}
   </section>;
 }
