@@ -1,0 +1,160 @@
+/* Final Carousel Studio / Library polish requested during mobile audit. */
+
+/* Keep project context readable. The previous pill styling could expand into
+   large circles on narrow screens when inherited layout rules competed. */
+.carousel-studio-master .creative-context-bar{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:7px;
+  margin:8px 0 14px;
+}
+.carousel-studio-master .creative-context-bar>span{
+  min-width:0;
+  width:auto;
+  height:auto;
+  aspect-ratio:auto;
+  display:flex;
+  align-items:center;
+  gap:5px;
+  padding:8px 10px;
+  border:1px solid #dfe5e5;
+  border-radius:10px;
+  background:#fff;
+  color:#77848a;
+  font-size:9px;
+  font-weight:750;
+  letter-spacing:.08em;
+  line-height:1.2;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.carousel-studio-master .creative-context-bar>span strong{
+  min-width:0;
+  margin-left:0;
+  color:#10202a;
+  font-size:10px;
+  letter-spacing:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+/* Slides become a horizontal pocket above the preview. */
+.carousel-studio-master .creative-workspace-grid{
+  grid-template-columns:1fr;
+  grid-template-areas:
+    "rail"
+    "preview"
+    "editor";
+}
+.carousel-studio-master .creative-frame-rail{
+  grid-area:rail;
+  position:relative;
+  top:auto;
+  max-height:none;
+  width:100%;
+  display:flex;
+  align-items:stretch;
+  gap:7px;
+  overflow-x:auto;
+  padding:10px;
+  border-radius:14px;
+  scrollbar-width:thin;
+}
+.carousel-studio-master .creative-frame-rail>.creative-panel-head{display:none}
+.carousel-studio-master .creative-frame-row{
+  flex:0 0 170px;
+  width:170px;
+  margin:0;
+  align-self:stretch;
+}
+.carousel-studio-master .creative-frame-rail-actions{
+  flex:0 0 auto;
+  align-items:stretch;
+  gap:3px;
+  margin:0 0 0 2px;
+  padding:0 0 0 8px;
+  border-top:0;
+  border-left:1px solid #e5eaea;
+}
+.carousel-studio-master .creative-frame-rail-actions button{min-width:34px}
+.carousel-studio-master .creative-preview-panel{grid-area:preview}
+.carousel-studio-master .creative-editor-panel{grid-area:editor}
+
+/* The final-preview stage keeps the same rail-first mental model. */
+.carousel-studio-master .creative-studio-shell[data-carousel-stage="preview"] .creative-workspace-grid{
+  grid-template-columns:1fr;
+  grid-template-areas:"rail" "preview";
+}
+.carousel-studio-master .creative-studio-shell[data-carousel-stage="preview"] .creative-frame-rail{grid-area:rail}
+.carousel-studio-master .creative-studio-shell[data-carousel-stage="preview"] .creative-preview-panel{grid-area:preview}
+
+/* Make the always-visible Carousel Publish shortcut read as the primary exit. */
+.carousel-workflow-current>.carousel-publish-shortcut{
+  margin-left:auto;
+  min-height:36px;
+  padding:8px 13px;
+  border:1px solid #10202a;
+  border-radius:9px;
+  background:#10202a;
+  color:#fff;
+  font-size:11px;
+  font-weight:850;
+}
+.carousel-workflow-current>.carousel-publish-shortcut:hover{background:#17303d}
+
+/* Library rows gain explicit project actions without making the entire row a
+   nested button. */
+.creative-library-row.has-actions{
+  grid-template-columns:76px 2fr 1fr 1.5fr .8fr 1fr auto;
+  cursor:pointer;
+}
+.creative-library-actions{
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap:5px;
+}
+.creative-library-actions button{
+  width:34px;
+  height:34px;
+  display:grid;
+  place-items:center;
+  border:1px solid #dce3e3;
+  border-radius:9px;
+  background:#fff;
+  color:#536269;
+  cursor:pointer;
+}
+.creative-library-actions button:hover{background:#f2f6f5;color:#10202a}
+.creative-library-actions button.is-delete{border-color:#efd4d8;color:#a12d3d;background:#fff8f8}
+.creative-library-actions button:disabled{opacity:.45;cursor:not-allowed}
+
+@media(max-width:760px){
+  .carousel-studio-master .creative-context-bar{grid-template-columns:repeat(2,minmax(0,1fr));margin-inline:0}
+  .carousel-studio-master .creative-frame-rail{order:1;width:100%}
+  .carousel-studio-master .creative-preview-panel{order:2;width:100%}
+  .carousel-studio-master .creative-editor-panel{order:3;width:100%}
+  .carousel-studio-master .creative-studio-shell[data-carousel-stage="preview"] .creative-frame-rail{order:1!important}
+  .carousel-studio-master .creative-studio-shell[data-carousel-stage="preview"] .creative-preview-panel{order:2!important}
+  .carousel-studio-master .creative-frame-row{flex-basis:150px;width:150px}
+  .carousel-workflow-current>.carousel-publish-shortcut{order:2;margin-left:auto}
+
+  .creative-library-row.is-head{display:none}
+  .creative-library-row.has-actions{
+    position:relative;
+    display:grid;
+    grid-template-columns:88px minmax(0,1fr) auto;
+    gap:10px;
+    padding:12px;
+  }
+  .creative-library-row.has-actions>span:nth-child(3),
+  .creative-library-row.has-actions>span:nth-child(4),
+  .creative-library-row.has-actions>span:nth-child(6){display:none}
+  .creative-library-row.has-actions>span:nth-child(5){align-self:start}
+  .creative-library-actions{
+    grid-column:2/4;
+    justify-content:flex-end;
+    margin-top:-3px;
+  }
+}
