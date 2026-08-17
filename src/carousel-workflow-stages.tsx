@@ -4,13 +4,12 @@ import { Captions, Eye, FileClock, Palette, Send } from "lucide-react";
 import { createPortal } from "react-dom";
 import { useEffect, useMemo, useState } from "react";
 
-type CarouselStage = "design" | "captions" | "preview" | "publish";
+type CarouselStage = "design" | "captions" | "preview";
 
 const STAGES: Array<{ id: CarouselStage; label: string; description: string; icon: typeof Palette }> = [
   { id: "design", label: "Design", description: "Layout · slides · art direction", icon: Palette },
   { id: "captions", label: "Captions", description: "Slide copy · alt text · unified caption", icon: Captions },
-  { id: "preview", label: "Preview", description: "See the finished post before handoff", icon: Eye },
-  { id: "publish", label: "Publish", description: "Prepare · ready · open Publishing", icon: Send }
+  { id: "preview", label: "Preview", description: "See the finished post before handoff", icon: Eye }
 ];
 
 function actionButton(label: string) {
@@ -27,8 +26,6 @@ function currentFormatLabel() {
 
 function stageTarget(stage: CarouselStage) {
   if (stage === "captions") return ".creative-caption-card";
-  if (stage === "preview") return ".creative-frame-rail";
-  if (stage === "publish") return ".carousel-workflow-current";
   return ".creative-frame-rail";
 }
 
@@ -84,11 +81,15 @@ export function CarouselWorkflowStages({ projectId }: { projectId?: string | nul
   }
 
   function publishShortcut() {
+    if (stage !== "preview") {
+      goToStage("preview");
+      return;
+    }
     if (canPublish) {
       openPublishing();
       return;
     }
-    goToStage("publish");
+    prepareForPublishing();
   }
 
   if (!target || !projectId) return null;
@@ -121,8 +122,7 @@ export function CarouselWorkflowStages({ projectId }: { projectId?: string | nul
       </div>
       <div className="carousel-workflow-current">
         <span><strong>{current.label}</strong><small>{current.description}</small></span>
-        {stage === "preview" ? <div className="carousel-preview-destination"><Eye size={15}/><span><b>{format.destination}</b><small>{format.ratio} · review every slide and the final caption</small></span><button type="button" onClick={() => goToStage("publish")}>Continue to Publish</button></div> : null}
-        {stage === "publish" ? <div className="carousel-handoff-actions"><span><b>Final handoff</b><small>Prepare renders the finished assets and marks the project Ready.</small></span><button type="button" onClick={prepareForPublishing}>Prepare</button><button type="button" className="is-primary" disabled={!canPublish} onClick={openPublishing}>Open Publishing</button></div> : null}
+        {stage === "preview" ? <div className="carousel-preview-destination"><Eye size={15}/><span><b>{format.destination}</b><small>{format.ratio} · review every slide and the final caption</small></span><button type="button" onClick={canPublish ? openPublishing : prepareForPublishing}>{canPublish ? "Open Publishing" : "Prepare for Publishing"}</button></div> : null}
         <button type="button" className="carousel-publish-shortcut" onClick={publishShortcut}><Send size={15}/> Publish</button>
         <button type="button" className={historyOpen ? "is-active" : ""} onClick={() => setHistoryOpen((value) => !value)} aria-expanded={historyOpen}>
           <FileClock size={15}/> Versions
