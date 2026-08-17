@@ -2,7 +2,7 @@ import { Film, Images, Smartphone } from "lucide-react";
 import Link from "next/link";
 import styles from "./video-producer-library.module.css";
 
-export type VideoProducerSection = "projects" | "reels" | "graphics";
+export type VideoProducerSection = "projects" | "episodes" | "reels" | "graphics";
 
 const items = [
   { id: "projects" as const, label: "Projects", href: "/admin/video-producer", icon: Film },
