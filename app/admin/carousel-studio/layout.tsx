@@ -1,5 +1,5 @@
 import "../carousel-studio-master.css";
-import "../carousel-studio-workflow.css";
+import "../carousel-final-stability.css";
 
 export default function CarouselStudioLayout({ children }: { children: React.ReactNode }) {
   return children;
