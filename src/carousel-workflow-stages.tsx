@@ -86,6 +86,14 @@ export function CarouselWorkflowStages({ projectId }: { projectId?: string | nul
     actionButton("Publish")?.click();
   }
 
+  function publishShortcut() {
+    if (canPublish) {
+      openPublishing();
+      return;
+    }
+    setStage("publish");
+  }
+
   if (!target || !projectId) return null;
 
   return createPortal(
@@ -112,6 +120,7 @@ export function CarouselWorkflowStages({ projectId }: { projectId?: string | nul
         <span><strong>{current.label}</strong><small>{current.description}</small></span>
         {stage === "preview" ? <div className="carousel-preview-destination"><Eye size={15}/><span><b>{format.destination}</b><small>{format.ratio} · review every slide and the final caption</small></span><button type="button" onClick={() => setStage("publish")}>Continue to Publish</button></div> : null}
         {stage === "publish" ? <div className="carousel-handoff-actions"><span><b>Final handoff</b><small>Prepare renders the finished assets and marks the project Ready.</small></span><button type="button" onClick={prepareForPublishing}>Prepare</button><button type="button" className="is-primary" disabled={!canPublish} onClick={openPublishing}>Open Publishing</button></div> : null}
+        <button type="button" className="carousel-publish-shortcut" onClick={publishShortcut}><Send size={15}/> Publish</button>
         <button type="button" className={historyOpen ? "is-active" : ""} onClick={() => setHistoryOpen((value) => !value)} aria-expanded={historyOpen}>
           <FileClock size={15}/> Versions
         </button>
