@@ -2,10 +2,20 @@ import { setTimeout as wait } from "node:timers/promises";
 import "server-only";
 import { executeScheduledPublication } from "./scheduled-publishing";
 import { instagramGraphBase } from "./instagram-api";
+import { privateBlobReadUrl } from "./private-blob";
 import { getSocialPublishingCredentialValues } from "./social-publishing-integrations";
 import { createServiceClient } from "./supabase";
 
 type GraphResponse = { id?: string; status_code?: string; permalink?: string; error?: { message?: string } };
+type CreativeMedia = {
+  frameId?: string;
+  sortOrder?: number;
+  assetId?: string;
+  url?: string;
+  storageBucket?: string;
+  storagePath?: string;
+  blobAccess?: unknown;
+};
 type CreativeMetadata = {
   source_kind?: string;
   creative_project_id?: string;
@@ -13,7 +23,7 @@ type CreativeMetadata = {
   format?: "single" | "carousel" | "story";
   caption?: string;
   media_urls?: string[];
-  media?: Array<{ frameId?: string; sortOrder?: number; assetId?: string; url?: string }>;
+  media?: CreativeMedia[];
 };
 
 function record(value: unknown) {
@@ -56,10 +66,27 @@ async function permalinkFor(base: string, mediaId: string, accessToken: string) 
   }
 }
 
+async function mediaUrlsForPublication(metadata: CreativeMetadata) {
+  const media = Array.isArray(metadata.media) ? metadata.media : [];
+  if (media.length) {
+    const resolved = await Promise.all(media.map(async (item) => {
+      if (item.storageBucket === "vercel_blob" && item.storagePath && item.blobAccess === "private") {
+        return privateBlobReadUrl(item.storagePath, 45 * 60 * 1000);
+      }
+      return typeof item.url === "string" && /^https:\/\//.test(item.url) ? item.url : null;
+    }));
+    const valid = resolved.filter((value): value is string => typeof value === "string" && /^https:\/\//.test(value));
+    if (valid.length) return valid;
+  }
+  return Array.isArray(metadata.media_urls)
+    ? metadata.media_urls.filter((value): value is string => typeof value === "string" && /^https:\/\//.test(value))
+    : [];
+}
+
 async function publishCreativeInstagram(metadata: CreativeMetadata) {
   const credentials = await getSocialPublishingCredentialValues("instagram") as Record<string, string>;
   if (!credentials.accessToken || !credentials.instagramUserId) throw new Error("Instagram publishing credentials are missing. Open Setup and reconnect Instagram.");
-  const mediaUrls = Array.isArray(metadata.media_urls) ? metadata.media_urls.filter((value): value is string => typeof value === "string" && /^https:\/\//.test(value)) : [];
+  const mediaUrls = await mediaUrlsForPublication(metadata);
   if (!mediaUrls.length) throw new Error("The Creative Project publication has no rendered media URLs.");
   const format = metadata.format;
   if (!format || !["single", "carousel", "story"].includes(format)) throw new Error("The Creative Project publication is missing its format.");
