@@ -13,6 +13,7 @@ export async function POST(_request: Request, context: { params: Promise<{ episo
   if (!result.data) return NextResponse.json({ error: "Episode was not found." }, { status: 404 });
   const episode = result.data;
   if (episode.status !== "approved" && episode.status !== "exported") return NextResponse.json({ error: "Approve the episode after theology review before sending it to Video Producer." }, { status: 409 });
+  if (!episode.audio_url) return NextResponse.json({ error: "Generate the approved Episode Studio audio before creating the video production project." }, { status: 409 });
 
   if (episode.exported_project_id) return NextResponse.json({ projectId: episode.exported_project_id, reused: true });
 
@@ -30,7 +31,7 @@ export async function POST(_request: Request, context: { params: Promise<{ episo
       speakers: episode.speakers,
       approvedScript: episode.script_text,
       theologyReview: episode.theology_review,
-      episodeAudioUrl: episode.audio_url ?? null,
+      episodeAudioUrl: episode.audio_url,
       episodeAudioStoragePath: episode.audio_storage_path ?? null,
       episodeAudioContentHash: episode.audio_content_hash ?? null,
       episodeAudioModel: episode.audio_model ?? null,
