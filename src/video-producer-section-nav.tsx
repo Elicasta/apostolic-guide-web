@@ -1,11 +1,12 @@
-import { Film, Images, Smartphone } from "lucide-react";
+import { FileText, Film, Images, Smartphone } from "lucide-react";
 import Link from "next/link";
 import styles from "./video-producer-library.module.css";
 
-export type VideoProducerSection = "projects" | "reels" | "graphics";
+export type VideoProducerSection = "projects" | "episodes" | "reels" | "graphics";
 
 const items = [
   { id: "projects" as const, label: "Projects", href: "/admin/video-producer", icon: Film },
+  { id: "episodes" as const, label: "Episodes", href: "/admin/video-producer/episodes", icon: FileText },
   { id: "reels" as const, label: "Reels", href: "/admin/video-producer/reels", icon: Smartphone },
   { id: "graphics" as const, label: "Graphics", href: "/admin/video-producer/graphics", icon: Images }
 ];
