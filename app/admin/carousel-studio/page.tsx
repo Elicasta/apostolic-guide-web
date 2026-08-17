@@ -4,7 +4,6 @@ import { FolderOpen, Layers3 } from "lucide-react";
 import { getStudioPermission } from "@/auth";
 import { CarouselPersistentArtwork } from "@/carousel-persistent-artwork";
 import { CarouselProjectStarter } from "@/carousel-project-starter";
-import { CarouselWorkflowStages } from "@/carousel-workflow-stages";
 import { CreativeLibraryClient } from "@/creative-library-client";
 import { CreativeStudioClient } from "@/creative-studio-client";
 import { CreativeTemplateSystem } from "@/creative-template-system";
@@ -33,7 +32,6 @@ export default async function AdminCarouselStudioPage({ searchParams }: { search
       {!query.project ? <CarouselProjectStarter pathways={pathways} aiReady={aiReady}/> : null}
       <CreativeStudioClient pathways={pathways} initialProjectId={query.project ?? null} aiReady={aiReady}/>
       <CreativeTemplateSystem projectId={query.project ?? null}/>
-      <CarouselWorkflowStages projectId={query.project ?? null}/>
       {query.project ? <CarouselPersistentArtwork/> : null}
     </>}
   </section>;
