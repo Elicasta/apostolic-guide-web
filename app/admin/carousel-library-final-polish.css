@@ -132,13 +132,154 @@
 
 @media(max-width:760px){
   .carousel-studio-master .creative-context-bar{grid-template-columns:repeat(2,minmax(0,1fr));margin-inline:0}
-  .carousel-studio-master .creative-frame-rail{order:1;width:100%}
-  .carousel-studio-master .creative-preview-panel{order:2;width:100%}
-  .carousel-studio-master .creative-editor-panel{order:3;width:100%}
-  .carousel-studio-master .creative-studio-shell[data-carousel-stage="preview"] .creative-frame-rail{order:1!important}
-  .carousel-studio-master .creative-studio-shell[data-carousel-stage="preview"] .creative-preview-panel{order:2!important}
-  .carousel-studio-master .creative-frame-row{flex-basis:150px;width:150px}
-  .carousel-workflow-current>.carousel-publish-shortcut{order:2;margin-left:auto}
+
+  /* Final mobile workflow: one quiet segmented control, no floating circles
+     or duplicate current-stage card. */
+  .carousel-studio-master .carousel-workflow{
+    width:100%;
+    margin:6px 0 10px;
+    padding:0;
+    border-top:0;
+  }
+  .carousel-studio-master .carousel-workflow-steps{
+    display:grid!important;
+    grid-template-columns:repeat(4,minmax(0,1fr))!important;
+    gap:4px!important;
+    width:100%;
+    padding:4px;
+    border:1px solid #dfe5e5;
+    border-radius:12px;
+    background:#edf1f0;
+    overflow:hidden;
+  }
+  .carousel-studio-master .carousel-workflow-steps>button{
+    min-width:0!important;
+    width:100%!important;
+    min-height:42px!important;
+    display:flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    padding:8px 4px!important;
+    gap:0!important;
+    border:0!important;
+    border-radius:9px!important;
+    background:transparent!important;
+    box-shadow:none!important;
+    overflow:hidden;
+  }
+  .carousel-studio-master .carousel-workflow-steps>button.is-active{
+    background:#fff!important;
+    color:#10202a!important;
+    box-shadow:0 2px 8px rgba(16,32,42,.08)!important;
+  }
+  .carousel-studio-master .carousel-workflow-number,
+  .carousel-studio-master .carousel-workflow-steps>button>svg,
+  .carousel-studio-master .carousel-workflow-steps small{
+    display:none!important;
+  }
+  .carousel-studio-master .carousel-workflow-steps>button>span:last-child{
+    display:block!important;
+    width:100%;
+    min-width:0;
+    text-align:center;
+  }
+  .carousel-studio-master .carousel-workflow-steps strong{
+    display:block;
+    width:100%;
+    font-size:10px!important;
+    line-height:1.1;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  .carousel-studio-master .carousel-workflow-current{
+    display:flex!important;
+    align-items:center!important;
+    justify-content:flex-end!important;
+    gap:6px!important;
+    width:100%;
+    padding:6px 0 0!important;
+    flex-wrap:nowrap!important;
+  }
+  .carousel-studio-master .carousel-workflow-current>span{
+    display:none!important;
+  }
+  .carousel-studio-master .carousel-workflow-current>button{
+    margin:0!important;
+    min-height:34px;
+    border-radius:9px;
+    white-space:nowrap;
+  }
+  .carousel-studio-master .carousel-workflow-current>.carousel-publish-shortcut{
+    order:2!important;
+    margin-left:0!important;
+    min-height:34px!important;
+    padding:7px 12px!important;
+  }
+  .carousel-studio-master .carousel-preview-destination,
+  .carousel-studio-master .carousel-handoff-actions{
+    order:1!important;
+    flex:1 1 auto!important;
+    min-width:0;
+    padding:8px 10px;
+  }
+
+  /* The real slide picker always comes immediately before the visual preview. */
+  .carousel-studio-master .creative-workspace-grid{
+    display:flex!important;
+    flex-direction:column!important;
+    gap:10px!important;
+  }
+  .carousel-studio-master .creative-frame-rail{
+    display:flex!important;
+    visibility:visible!important;
+    opacity:1!important;
+    order:1!important;
+    width:100%!important;
+    max-width:100%!important;
+    max-height:none!important;
+    position:relative!important;
+    top:auto!important;
+    overflow-x:auto!important;
+    overflow-y:hidden!important;
+    padding:8px!important;
+    gap:6px!important;
+    border:1px solid #dfe5e5!important;
+    border-radius:12px!important;
+    background:#fff!important;
+  }
+  .carousel-studio-master .creative-preview-panel{
+    order:2!important;
+    width:100%!important;
+  }
+  .carousel-studio-master .creative-editor-panel{
+    order:3!important;
+    width:100%!important;
+  }
+  .carousel-studio-master .creative-studio-shell[data-carousel-stage="design"] .creative-frame-rail,
+  .carousel-studio-master .creative-studio-shell[data-carousel-stage="captions"] .creative-frame-rail,
+  .carousel-studio-master .creative-studio-shell[data-carousel-stage="preview"] .creative-frame-rail{
+    display:flex!important;
+    order:1!important;
+  }
+  .carousel-studio-master .creative-studio-shell[data-carousel-stage="design"] .creative-preview-panel,
+  .carousel-studio-master .creative-studio-shell[data-carousel-stage="captions"] .creative-preview-panel,
+  .carousel-studio-master .creative-studio-shell[data-carousel-stage="preview"] .creative-preview-panel{
+    order:2!important;
+  }
+  .carousel-studio-master .creative-frame-row{
+    flex:0 0 148px!important;
+    width:148px!important;
+    min-width:148px!important;
+    padding:8px!important;
+    border-radius:9px!important;
+  }
+  .carousel-studio-master .creative-frame-row strong{font-size:11px!important}
+  .carousel-studio-master .creative-frame-row small{font-size:9px!important}
+  .carousel-studio-master .creative-frame-rail-actions{
+    display:flex!important;
+    flex:0 0 auto!important;
+  }
 
   .creative-library-row.is-head{display:none}
   .creative-library-row.has-actions{
