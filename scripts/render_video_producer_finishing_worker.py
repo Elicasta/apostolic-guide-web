@@ -220,10 +220,12 @@ def build_ffmpeg_v2(manifest, source, ass_file, output_file):
             graph.append("[voice][musicbed]amix=inputs=2:duration=first:dropout_transition=0,alimiter=limit=0.94[aout]")
         audio_output = "aout"
 
+    video_preset = "veryfast" if mode == "reels" else "medium"
+    video_crf = "20" if mode == "reels" else "18"
     command += [
         "-filter_complex", ";".join(graph),
         "-map", "[vout]", "-map", f"[{audio_output}]",
-        "-c:v", "libx264", "-preset", "medium", "-crf", "19" if mode == "reels" else "18",
+        "-c:v", "libx264", "-preset", video_preset, "-crf", video_crf,
         "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-ac", "2",
         "-movflags", "+faststart", "-r", "30", output_file
     ]
