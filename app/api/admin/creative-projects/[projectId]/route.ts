@@ -31,9 +31,10 @@ async function withPrivatePreviewUrls(links: unknown[]) {
     const isPrivateBlob = storageBucket === "vercel_blob" && storagePath && (row.metadata as Record<string, unknown> | null)?.blobAccess === "private";
     if (!isPrivateBlob) return { ...link, asset: { ...row, preview_url: row.public_url || null } };
     try {
-      return { ...link, asset: { ...row, preview_url: await privateBlobReadUrl(storagePath) } };
+      const previewUrl = await privateBlobReadUrl(storagePath);
+      return { ...link, asset: { ...row, public_url: previewUrl, preview_url: previewUrl } };
     } catch {
-      return { ...link, asset: { ...row, preview_url: null } };
+      return { ...link, asset: { ...row, public_url: null, preview_url: null } };
     }
   }));
 }
