@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getStudioPermission } from "@/auth";
 import { CREATIVE_FORMATS, CREATIVE_INTENTS } from "@/creative-project";
+import { currentRenderSet } from "@/creative-publishing";
 import { creativeProjectFromRow, creativeProjectUpdatePayload, loadCreativeProject } from "@/creative-project-server";
 import { privateBlobReadUrl } from "@/private-blob";
 import { createServiceClient } from "@/supabase";
@@ -66,7 +67,22 @@ export async function GET(_request: Request, context: { params: Promise<{ projec
   ]);
   const error = revisions.error || links.error || publications.error;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  const assets = await withPrivatePreviewUrls((links.data ?? []) as unknown[]);
+
+  const rawLinks = (links.data ?? []) as unknown as Array<{
+    frame_id?: string | null;
+    role?: string | null;
+    sort_order?: number | null;
+    created_at?: string | null;
+    asset?: { public_url?: string | null; metadata?: Record<string, unknown> | null } | null;
+  }>;
+  const nonRenderedLinks = rawLinks.filter((link) => !["cover", "render"].includes(String(link.role || "")));
+  const renderedLinks = currentRenderSet(
+    rawLinks.filter((link) => ["cover", "render"].includes(String(link.role || ""))),
+    project.stateVersion,
+    project.editorState.frames.length
+  );
+  const currentLinks = [...nonRenderedLinks, ...renderedLinks].sort((left, right) => Number(left.sort_order ?? 0) - Number(right.sort_order ?? 0));
+  const assets = await withPrivatePreviewUrls(currentLinks as unknown[]);
   return NextResponse.json({ project, revisions: revisions.data ?? [], assets, publications: publications.data ?? [] });
 }
 
