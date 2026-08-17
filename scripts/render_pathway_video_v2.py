@@ -4,6 +4,9 @@
 The expensive ambient light field is rendered once as a static background instead
 of recalculating radial gradients and grain for every frame. The final encode only
 animates the audio spectrum, timeline copy, logo states, and progress treatment.
+
+When project.style.motionEngine is enabled, the same renderer switches to the
+Apostolic Motion Engine scene plan. The legacy visualizer remains the fallback.
 """
 from __future__ import annotations
 
@@ -13,6 +16,7 @@ import subprocess
 import tempfile
 import urllib.request
 
+from render_pathway_motion import make_motion_ass, motion_enabled
 from render_pathway_video import FORMATS, brand_window, cue_list, ffprobe_duration, make_ass, run
 
 ProgressCallback = Callable[[int, str], None]
@@ -100,7 +104,12 @@ def render(payload: dict, output: Path, progress_callback: ProgressCallback | No
         urllib.request.urlretrieve(str(payload["audio_url"]), audio)
         duration = ffprobe_duration(audio)
         timeline_ass = temp / "timeline.ass"
-        make_ass(timeline_ass, payload, duration, spec)
+        using_motion_engine = motion_enabled(payload)
+        if using_motion_engine:
+            _report(progress_callback, 3, "Loading Motion Engine direction")
+            make_motion_ass(timeline_ass, payload, duration, spec)
+        else:
+            make_ass(timeline_ass, payload, duration, spec)
 
         _report(progress_callback, 4, "Building background")
         _build_background(background, spec)
@@ -115,22 +124,35 @@ def render(payload: dict, output: Path, progress_callback: ProgressCallback | No
             hero_enable = f"between(t,{brand_start},{brand_end})"
         progress_y = height - 4
 
-        filter_graph = (
-            f"[0:a]asplit=2[aout][av];"
-            f"[av]showfreqs=s={spec['spectrum_w']}x{spec['spectrum_h']}:mode=bar:ascale=log:fscale=log:"
-            f"win_size=2048:overlap=0.82:colors=0xE7EBEF@0.80,format=rgba,colorkey=black:0.16:0.025[specviz];"
-            f"[1:v]format=rgba[base];"
-            f"[2:v]split=2[ls][lh];[ls]scale={spec['logo_small']}:-1[small];[lh]scale={spec['logo_hero']}:-1[hero];"
-            f"[base][small]overlay={spec['margin']}:{spec['logo_y']}:enable='{small_enable}'[b3];"
-            f"[b3][hero]overlay=(W-w)/2:{spec['hero_y']}:enable='{hero_enable}'[b4];"
-            f"[b4][specviz]overlay=(W-w)/2:{spec['spectrum_y']}[b5];"
-            f"[b5]ass='{timeline_ass}'[b6];"
-            f"[b6]drawbox=x=0:y={progress_y}:w={width}:h=4:color=0x537BA4@0.42:t=fill,"
-            f"drawbox=x=0:y={progress_y}:w='{width}*t/{duration}':h=4:color=0x8B2431@0.96:t=fill,"
-            f"fps=30[v]"
-        )
+        if using_motion_engine:
+            filter_graph = (
+                f"[0:a]anull[aout];"
+                f"[1:v]format=rgba[base];"
+                f"[2:v]split=2[ls][lh];[ls]scale={spec['logo_small']}:-1[small];[lh]scale={spec['logo_hero']}:-1[hero];"
+                f"[base][small]overlay={spec['margin']}:{spec['logo_y']}:enable='{small_enable}'[b3];"
+                f"[b3][hero]overlay=(W-w)/2:{spec['hero_y']}:enable='{hero_enable}'[b4];"
+                f"[b4]ass='{timeline_ass}'[b6];"
+                f"[b6]drawbox=x=0:y={progress_y}:w={width}:h=4:color=0x537BA4@0.30:t=fill,"
+                f"drawbox=x=0:y={progress_y}:w='{width}*t/{duration}':h=4:color=0x8B2431@0.96:t=fill,"
+                f"fps=30[v]"
+            )
+        else:
+            filter_graph = (
+                f"[0:a]asplit=2[aout][av];"
+                f"[av]showfreqs=s={spec['spectrum_w']}x{spec['spectrum_h']}:mode=bar:ascale=log:fscale=log:"
+                f"win_size=2048:overlap=0.82:colors=0xE7EBEF@0.80,format=rgba,colorkey=black:0.16:0.025[specviz];"
+                f"[1:v]format=rgba[base];"
+                f"[2:v]split=2[ls][lh];[ls]scale={spec['logo_small']}:-1[small];[lh]scale={spec['logo_hero']}:-1[hero];"
+                f"[base][small]overlay={spec['margin']}:{spec['logo_y']}:enable='{small_enable}'[b3];"
+                f"[b3][hero]overlay=(W-w)/2:{spec['hero_y']}:enable='{hero_enable}'[b4];"
+                f"[b4][specviz]overlay=(W-w)/2:{spec['spectrum_y']}[b5];"
+                f"[b5]ass='{timeline_ass}'[b6];"
+                f"[b6]drawbox=x=0:y={progress_y}:w={width}:h=4:color=0x537BA4@0.42:t=fill,"
+                f"drawbox=x=0:y={progress_y}:w='{width}*t/{duration}':h=4:color=0x8B2431@0.96:t=fill,"
+                f"fps=30[v]"
+            )
 
-        _report(progress_callback, 7, "Starting encoder")
+        _report(progress_callback, 7, "Starting Motion Engine encoder" if using_motion_engine else "Starting encoder")
         command = [
             "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
             "-i", str(audio),
