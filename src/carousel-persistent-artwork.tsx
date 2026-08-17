@@ -35,27 +35,39 @@ function fitClass(text: string) {
   return "fit-sm";
 }
 
+function snapshotFromNode(source: HTMLElement, target: HTMLElement, total: number, fallbackOrder: number): Snapshot {
+  const eyebrow = source.querySelector<HTMLElement>(":scope > .creative-preview-eyebrow")?.textContent?.trim() || "Apostolic Guide";
+  const numberMatch = eyebrow.match(/(?:·|\s)(\d{1,2})$/);
+  const pathway = eyebrow.replace(/\s*·\s*\d{1,2}\s*$/, "").trim() || "Apostolic Guide";
+  const format = source.classList.contains("is-story") ? "story" : source.classList.contains("is-single") ? "single" : "carousel";
+  return {
+    node: target,
+    order: Number(numberMatch?.[1] || fallbackOrder),
+    total,
+    pathway,
+    title: source.querySelector<HTMLElement>(":scope > .creative-preview-copy > h2")?.textContent?.trim() || "Untitled frame",
+    scripture: source.querySelector<HTMLElement>(":scope > .creative-preview-copy > .creative-preview-scripture")?.textContent?.trim() || "",
+    body: source.querySelector<HTMLElement>(":scope > .creative-preview-copy > p")?.textContent?.trim() || "",
+    overlay: source.querySelector<HTMLElement>(":scope > .creative-preview-copy > blockquote")?.textContent?.trim() || "",
+    cta: source.querySelector<HTMLElement>(":scope > .creative-preview-cta")?.textContent?.trim() || "",
+    format
+  };
+}
+
 function readSnapshots(root: HTMLElement): Snapshot[] {
-  const hidden = [...root.querySelectorAll<HTMLElement>(".creative-render-stage > .creative-frame-preview")];
-  const total = Math.max(1, hidden.length);
-  return [...root.querySelectorAll<HTMLElement>(".creative-frame-preview")].map((node, index) => {
-    const eyebrow = node.querySelector<HTMLElement>(":scope > .creative-preview-eyebrow")?.textContent?.trim() || "Apostolic Guide";
-    const numberMatch = eyebrow.match(/(?:·|\s)(\d{1,2})$/);
-    const pathway = eyebrow.replace(/\s*·\s*\d{1,2}\s*$/, "").trim() || "Apostolic Guide";
-    const format = node.classList.contains("is-story") ? "story" : node.classList.contains("is-single") ? "single" : "carousel";
-    return {
-      node,
-      order: Number(numberMatch?.[1] || (index % total) + 1),
-      total,
-      pathway,
-      title: node.querySelector<HTMLElement>(":scope > .creative-preview-copy > h2")?.textContent?.trim() || "Untitled frame",
-      scripture: node.querySelector<HTMLElement>(":scope > .creative-preview-copy > .creative-preview-scripture")?.textContent?.trim() || "",
-      body: node.querySelector<HTMLElement>(":scope > .creative-preview-copy > p")?.textContent?.trim() || "",
-      overlay: node.querySelector<HTMLElement>(":scope > .creative-preview-copy > blockquote")?.textContent?.trim() || "",
-      cta: node.querySelector<HTMLElement>(":scope > .creative-preview-cta")?.textContent?.trim() || "",
-      format
-    };
-  });
+  const hiddenNodes = [...root.querySelectorAll<HTMLElement>(".creative-render-stage > .creative-frame-preview")];
+  const total = Math.max(1, hiddenNodes.length);
+  const hiddenSnapshots = hiddenNodes.map((node, index) => snapshotFromNode(node, node, total, index + 1));
+
+  const visibleNode = root.querySelector<HTMLElement>(".creative-preview-panel .creative-frame-preview");
+  const railRows = [...root.querySelectorAll<HTMLElement>(".creative-frame-row")];
+  const activeIndex = Math.max(0, railRows.findIndex((row) => row.classList.contains("is-active")));
+  const selectedSource = hiddenNodes[activeIndex] || visibleNode;
+  const visibleSnapshot = visibleNode && selectedSource
+    ? snapshotFromNode(selectedSource, visibleNode, total, activeIndex + 1)
+    : null;
+
+  return visibleSnapshot ? [visibleSnapshot, ...hiddenSnapshots] : hiddenSnapshots;
 }
 
 function OriginalArtwork({ frame, visualStyle, alignment }: { frame: Snapshot; visualStyle: VisualStyle; alignment: "left" | "center" | "right" }) {
@@ -119,17 +131,19 @@ export function CarouselPersistentArtwork() {
           setAlignment(nextAlignment);
           return nextSignature;
         });
-      }, 25);
+      }, 20);
     };
     sync();
     document.addEventListener("change", sync, true);
     document.addEventListener("input", sync, true);
+    document.addEventListener("click", sync, true);
     const observer = new MutationObserver(sync);
     observer.observe(current, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ["data-creative-template", "class"] });
     return () => {
       window.clearTimeout(scheduled);
       document.removeEventListener("change", sync, true);
       document.removeEventListener("input", sync, true);
+      document.removeEventListener("click", sync, true);
       observer.disconnect();
     };
   }, []);
