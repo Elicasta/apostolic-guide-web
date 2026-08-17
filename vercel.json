@@ -1,6 +1,11 @@
 {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
   "regions": ["iad1"],
+  "github": {
+    "autoJobCancelation": true
+  },
+  "ignoreCommand": "node scripts/vercel-ignore-build.mjs",
   "crons": [
     {
       "path": "/api/cron/publishing",
