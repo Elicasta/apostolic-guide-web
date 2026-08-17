@@ -4,10 +4,12 @@ import test from "node:test";
 
 const lane = readFileSync("src/episode-studio-lane.tsx", "utf8");
 const nav = readFileSync("src/studio-nav.tsx", "utf8");
+const palette = readFileSync("src/studio-command-palette.tsx", "utf8");
 const legacy = readFileSync("app/admin/video-producer/episodes/page.tsx", "utf8");
 
 test("Episode Studio is a dedicated top-level Script to Publish lane", () => {
   assert.match(nav, /href: "\/admin\/episode-studio"/);
+  assert.match(palette, /label: "Episode Studio"/);
   for (const stage of ["Script", "Audio", "Video", "Publish"]) assert.match(lane, new RegExp(`label: "${stage}"`));
   assert.match(lane, /Generate audio/);
   assert.match(lane, /Create video project/);
