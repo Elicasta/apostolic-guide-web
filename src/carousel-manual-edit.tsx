@@ -11,24 +11,45 @@ export function CarouselManualEdit() {
   const [slideLabel, setSlideLabel] = useState("Slide 1");
 
   useEffect(() => {
-    const current = document.querySelector<HTMLElement>(".carousel-studio-master .creative-studio-shell");
-    if (!current) return;
-    setRoot(current);
-    setTarget(current.querySelector<HTMLElement>(".creative-context-bar"));
+    const master = document.querySelector<HTMLElement>(".carousel-studio-master");
+    if (!master) return;
 
-    const syncSlide = () => {
-      const rows = [...current.querySelectorAll<HTMLElement>(".creative-frame-row")];
-      const index = rows.findIndex((row) => row.classList.contains("is-active"));
-      const total = rows.length;
-      setSlideLabel(`${current.querySelector(".creative-frame-preview.is-story") ? "Frame" : "Slide"} ${Math.max(0, index) + 1}${total ? ` of ${total}` : ""}`);
+    let currentRoot: HTMLElement | null = null;
+    let slideObserver: MutationObserver | null = null;
+
+    const bindProject = () => {
+      const nextRoot = master.querySelector<HTMLElement>(".creative-studio-shell");
+      const nextTarget = nextRoot?.querySelector<HTMLElement>(".creative-head-actions") ?? null;
+      if (!nextRoot || !nextTarget) return;
+
+      setRoot(nextRoot);
+      setTarget(nextTarget);
+
+      if (currentRoot === nextRoot) return;
+      slideObserver?.disconnect();
+      currentRoot = nextRoot;
+
+      const syncSlide = () => {
+        const rows = [...nextRoot.querySelectorAll<HTMLElement>(".creative-frame-row")];
+        const index = rows.findIndex((row) => row.classList.contains("is-active"));
+        const total = rows.length;
+        const noun = nextRoot.querySelector(".creative-frame-preview.is-story") ? "Frame" : "Slide";
+        setSlideLabel(`${noun} ${Math.max(0, index) + 1}${total ? ` of ${total}` : ""}`);
+      };
+
+      syncSlide();
+      slideObserver = new MutationObserver(syncSlide);
+      slideObserver.observe(nextRoot, { subtree: true, attributes: true, attributeFilter: ["class"] });
     };
 
-    syncSlide();
-    const observer = new MutationObserver(syncSlide);
-    observer.observe(current, { subtree: true, attributes: true, attributeFilter: ["class"] });
+    bindProject();
+    const projectObserver = new MutationObserver(bindProject);
+    projectObserver.observe(master, { childList: true, subtree: true });
+
     return () => {
-      delete current.dataset.manualEdit;
-      observer.disconnect();
+      if (currentRoot) delete currentRoot.dataset.manualEdit;
+      slideObserver?.disconnect();
+      projectObserver.disconnect();
     };
   }, []);
 
