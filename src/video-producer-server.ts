@@ -38,9 +38,10 @@ export function videoProducerPlanFingerprint(value: unknown) {
 }
 
 export function videoProducerWorkerRef() {
-  return process.env.VIDEO_PRODUCER_WORKER_REF?.trim()
-    || process.env.VERCEL_GIT_COMMIT_REF?.trim()
-    || "main";
+  // Rendering must use a ref that contains the stable worker workflow. A Vercel
+  // preview branch may change UI code without containing a runnable worker, so
+  // never infer the renderer ref from VERCEL_GIT_COMMIT_REF.
+  return process.env.VIDEO_PRODUCER_WORKER_REF?.trim() || "main";
 }
 
 export function videoProducerOpenAIKey() {
