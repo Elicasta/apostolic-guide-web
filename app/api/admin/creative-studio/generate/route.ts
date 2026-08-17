@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getStudioPermission } from "@/auth";
+import { CAROUSEL_PROJECT_MODES, carouselModeDirection, type CarouselProjectMode } from "@/carousel-project-modes";
 import { createCreativeCheckpoint, creativeProjectFromRow, creativeProjectUpdatePayload, loadCreativeProject } from "@/creative-project-server";
 import { pathwayBySlug } from "@/pathway-catalog";
 import { createServiceClient } from "@/supabase";
@@ -102,6 +103,10 @@ function formatDirection(format: string, exactCount: number | null) {
     : "Choose the smallest number of 4:5 Carousel slides needed to communicate the message correctly, normally 4 to 10. Do not default to eight and do not pad the sequence.";
 }
 
+function projectMode(value: unknown): CarouselProjectMode | null {
+  return typeof value === "string" && CAROUSEL_PROJECT_MODES.includes(value as CarouselProjectMode) ? value as CarouselProjectMode : null;
+}
+
 export async function POST(request: Request) {
   const { access, allowed } = await getStudioPermission("manage_content");
   if (!allowed || access.state !== "allowed" || !access.user) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -118,6 +123,10 @@ export async function POST(request: Request) {
     if (["scheduled", "publishing"].includes(project.status)) return NextResponse.json({ error: "Unschedule this project before changing its creative structure." }, { status: 409 });
     const pathway = pathwayBySlug(project.pathwaySlug);
     if (!pathway) return NextResponse.json({ error: "Pathway source was not found." }, { status: 404 });
+    const generatedText = project.editorState.generatedText ?? {};
+    const carouselMode = projectMode(generatedText.carouselMode);
+    const savedTopic = typeof generatedText.topic === "string" ? generatedText.topic.trim().slice(0, 3000) : "";
+    const userDirection = parsed.data.instruction.trim() || savedTopic || "Use the project context and make the strongest version.";
     const target = project.format === "single" ? 1 : parsed.data.action === "regenerate_frame" ? 1 : parsed.data.targetFrameCount ?? null;
     const minItems = target ?? (project.format === "story" ? 3 : 4);
     const maxItems = target ?? (project.format === "story" ? 8 : 10);
@@ -126,7 +135,7 @@ export async function POST(request: Request) {
     if (parsed.data.action === "regenerate_frame" && !activeFrame) return NextResponse.json({ error: "Frame not found." }, { status: 404 });
 
     const actionDirection = parsed.data.action === "generate"
-      ? "Build the creative from the source and project intent."
+      ? "Build the creative from the source, saved topic, and project purpose."
       : parsed.data.action === "restructure"
         ? `Restructure the existing sequence according to the user's instruction. Preserve the argument, but do not preserve a weak structure merely because it already exists.\nEXISTING SEQUENCE:\n${existingFrames}`
         : `Rewrite only the selected frame so it fits the surrounding sequence. Return exactly one frame.\nSELECTED FRAME:\n${JSON.stringify(activeFrame)}\nFULL SEQUENCE FOR CONTEXT:\n${existingFrames}`;
@@ -148,23 +157,25 @@ export async function POST(request: Request) {
         input: [
           { role: "developer", content: [{ type: "input_text", text: [
             "You are Sol, the Scripture-first creative director inside Apostolic Guide.",
-            "The Creative Project is already persistent. Never change its Pathway, intent, or format unless the user explicitly requested a structural conversion elsewhere.",
+            "The Creative Project is already persistent. Never change its Pathway, purpose, or format unless the user explicitly requested a structural conversion elsewhere.",
             `PROJECT: ${project.title}`,
             `INTENT: ${project.intent}`,
             `FORMAT: ${project.format}`,
+            carouselMode ? `CREATIVE PURPOSE: ${carouselMode}\n${carouselModeDirection(carouselMode)}` : "",
+            savedTopic ? `SAVED TOPIC / ANGLE: ${savedTopic}` : "",
             intentDirection(project.intent),
             formatDirection(project.format, target),
             actionDirection,
             "CONTENT RULES:",
-            "Use the supplied Pathway as the controlling doctrinal/content source.",
+            "The selected Pathway is the controlling doctrinal and Scripture source. The user's topic or angle controls emphasis inside that boundary.",
             "Do not invent verse quotations. The source supplies references and teaching points, not full verse wording.",
-            "Do not introduce a doctrinal angle that changes the selected content intent.",
+            "Do not introduce a doctrinal angle that changes the selected purpose.",
             "One frame should do one job. Headlines should be short enough for mobile. Body copy should normally be 1–3 short sentences.",
             "Use scripture as a reference field. Supporting notes are editor notes, not public-facing copy.",
-            "The last frame of a sequence should normally close the thread or give the next action. Do not add a CTA when the intent does not need one.",
+            "The last frame of a sequence should normally close the thread or give the next action. Do not add a CTA when the purpose does not need one.",
             "Do not use filler frames to reach a familiar social-media count."
-          ].join("\n") }] },
-          { role: "user", content: [{ type: "input_text", text: [pathwayContext, `USER DIRECTION: ${parsed.data.instruction || "Use the project context and make the strongest version."}`].join("\n\n") }] }
+          ].filter(Boolean).join("\n") }] },
+          { role: "user", content: [{ type: "input_text", text: [pathwayContext, `USER DIRECTION: ${userDirection}`].join("\n\n") }] }
         ]
       })
     });
@@ -196,7 +207,17 @@ export async function POST(request: Request) {
         altText: ""
       }));
     }
-    const editorState = { ...project.editorState, frames, generatedText: { ...(project.editorState.generatedText ?? {}), lastRationale: output.rationale, lastAction: parsed.data.action, lastInstruction: parsed.data.instruction, model } };
+    const editorState = {
+      ...project.editorState,
+      frames,
+      generatedText: {
+        ...generatedText,
+        lastRationale: output.rationale,
+        lastAction: parsed.data.action,
+        lastInstruction: userDirection,
+        model
+      }
+    };
     const payload = creativeProjectUpdatePayload({
       title: project.title,
       pathwaySlug: project.pathwaySlug,
