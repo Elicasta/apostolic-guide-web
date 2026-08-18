@@ -4,6 +4,7 @@ import "../carousel-final-stability.css";
 import "../carousel-manual-edit.css";
 import "../carousel-single-sol-art.css";
 import "../carousel-mobile-edit-v2.css";
+import "../carousel-manual-restore.css";
 
 export const viewport: Viewport = {
   width: "device-width",
