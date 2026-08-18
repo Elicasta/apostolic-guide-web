@@ -1,0 +1,139 @@
+/* Mobile Carousel editing v2.
+   Manual Edit becomes a preview-first editing surface instead of forcing a long
+   scroll through the full project editor. This file is loaded last on the route. */
+
+.carousel-manual-design-controls{
+  order:-100;
+  display:grid;
+  gap:12px;
+  margin:0 0 16px;
+  padding:15px;
+  border:1px solid #dce3e2;
+  border-radius:15px;
+  background:#f8faf9;
+}
+.carousel-manual-design-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.carousel-manual-design-heading>div{display:flex;align-items:center;gap:8px;min-width:0}
+.carousel-manual-design-heading>div>span{display:grid;gap:2px;min-width:0}
+.carousel-manual-design-heading strong{font-size:13px;color:#10202a}
+.carousel-manual-design-heading small{font-size:9px;color:#76848a;font-weight:650}
+.carousel-manual-design-heading>button{min-height:34px;border:1px solid #d9e0df;border-radius:9px;background:#fff;color:#536269;padding:7px 10px;display:inline-flex;align-items:center;gap:6px;font:inherit;font-size:10px;font-weight:800}
+.carousel-manual-design-error{margin:0;padding:9px 10px;border-radius:9px;background:#fff0f1;color:#a12d3d;font-size:10px;font-weight:700;line-height:1.4}
+.carousel-manual-design-controls details{border-top:1px solid #e1e7e5;padding-top:10px}
+.carousel-manual-design-controls details:first-of-type{border-top:0;padding-top:0}
+.carousel-manual-design-controls summary{cursor:pointer;color:#10202a;font-size:11px;font-weight:900;letter-spacing:.02em}
+.carousel-manual-design-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+.carousel-manual-design-range,.carousel-manual-design-field{display:grid!important;gap:7px!important;min-width:0}
+.carousel-manual-design-range>span,.carousel-manual-design-field>span{display:flex;align-items:center;justify-content:space-between;gap:8px;color:#64737a;font-size:10px;font-weight:800}
+.carousel-manual-design-range b{color:#10202a;font-size:10px}
+.carousel-manual-design-range input[type=range]{width:100%;accent-color:#15566a}
+.carousel-manual-design-field select{width:100%;min-height:42px;border:1px solid #d7dfde;border-radius:10px;background:#fff;color:#10202a;padding:0 10px;font:inherit}
+.carousel-manual-color>div{display:grid;grid-template-columns:44px 1fr auto;align-items:center;gap:8px}
+.carousel-manual-color input[type=color]{width:44px!important;height:42px!important;padding:3px!important;border:1px solid #d7dfde!important;border-radius:9px!important;background:#fff!important}
+.carousel-manual-color code{min-width:0;padding:8px;border-radius:8px;background:#eef2f1;color:#10202a;font-size:10px;text-align:center}
+.carousel-manual-color button,.carousel-manual-apply-all{min-height:38px;border:1px solid #d7dfde;border-radius:9px;background:#fff;color:#15566a;padding:8px 10px;font:inherit;font-size:10px;font-weight:850}
+.carousel-manual-texture-panel{display:grid;gap:10px;margin-top:12px}
+.carousel-manual-texture-panel>p{margin:0;color:#748187;font-size:10px;line-height:1.45}
+.carousel-manual-apply-all{justify-self:start}
+
+@media(max-width:760px){
+  /* The existing library already has a real draft-delete action. Keep it
+     visible on the card instead of hiding the Actions column on mobile. */
+  .carousel-studio-master .creative-library-row.has-actions{
+    padding-bottom:54px!important;
+  }
+  .carousel-studio-master .creative-library-actions{
+    display:flex!important;
+    position:absolute!important;
+    right:12px!important;
+    bottom:10px!important;
+    grid-column:auto!important;
+    justify-content:flex-end!important;
+    gap:6px!important;
+    margin:0!important;
+    z-index:3;
+  }
+  .carousel-studio-master .creative-library-actions button{
+    display:grid!important;
+    place-items:center!important;
+    width:34px!important;
+    height:34px!important;
+    min-width:34px!important;
+    padding:0!important;
+  }
+  .carousel-studio-master .creative-library-actions button.is-delete{
+    width:auto!important;
+    min-width:74px!important;
+    grid-auto-flow:column!important;
+    gap:6px!important;
+    padding:0 10px!important;
+  }
+  .carousel-studio-master .creative-library-actions button.is-delete::after{
+    content:"Delete";
+    font-size:10px;
+    font-weight:850;
+  }
+
+  /* Single posts do not have a sequence to restructure. The mobile focus
+     controller marks the Structure card hidden and this guarantees it stays out. */
+  .carousel-studio-master .creative-card[hidden]{display:none!important}
+
+  /* Manual Edit keeps the preview pinned while the controls move underneath.
+     The preview compacts enough to leave a usable editing area on an iPhone. */
+  .carousel-studio-master .creative-studio-shell[data-manual-edit="open"] .creative-workspace-grid{
+    display:flex!important;
+    flex-direction:column!important;
+    gap:10px!important;
+    overflow:visible!important;
+  }
+  .carousel-studio-master .creative-studio-shell[data-manual-edit="open"] .creative-preview-panel{
+    order:2!important;
+    position:sticky!important;
+    top:calc(env(safe-area-inset-top) + 96px)!important;
+    z-index:48!important;
+    width:100%!important;
+    padding:10px!important;
+    border-radius:14px!important;
+    background:rgba(255,255,255,.96)!important;
+    box-shadow:0 12px 34px rgba(13,29,43,.13)!important;
+    backdrop-filter:blur(16px);
+    -webkit-backdrop-filter:blur(16px);
+  }
+  .carousel-studio-master .creative-studio-shell[data-manual-edit="open"] .creative-preview-panel>.creative-panel-head{
+    margin-bottom:7px!important;
+  }
+  .carousel-studio-master .creative-studio-shell[data-manual-edit="open"] .creative-preview-panel .creative-frame-preview{
+    width:min(68vw,280px)!important;
+    max-width:280px!important;
+    margin:0 auto!important;
+  }
+  .carousel-studio-master .creative-studio-shell[data-manual-edit="open"] .creative-preview-panel .creative-visual-controls,
+  .carousel-studio-master .creative-studio-shell[data-manual-edit="open"] .creative-preview-panel .creative-template-system,
+  .carousel-studio-master .creative-studio-shell[data-manual-edit="open"] .creative-preview-panel .single-art-director{
+    display:none!important;
+  }
+  .carousel-studio-master .creative-studio-shell[data-manual-edit="open"] .creative-editor-panel{
+    order:3!important;
+    display:flex!important;
+    flex-direction:column!important;
+    width:100%!important;
+    padding:14px!important;
+    overflow:visible!important;
+  }
+  .carousel-studio-master .creative-studio-shell[data-manual-edit="open"] .creative-editor-panel::before{
+    order:-120;
+  }
+  .carousel-studio-master .creative-studio-shell[data-manual-edit="open"] .carousel-manual-design-controls{
+    display:grid!important;
+    order:-110!important;
+    scroll-margin-top:calc(env(safe-area-inset-top) + 500px);
+  }
+  .carousel-studio-master .creative-studio-shell[data-manual-edit="open"] .creative-form-grid{
+    order:0;
+  }
+  .carousel-studio-master .creative-studio-shell[data-manual-edit="open"] .creative-caption-card{
+    order:1;
+  }
+  .carousel-manual-design-grid{grid-template-columns:1fr}
+  .carousel-manual-color>div{grid-template-columns:44px minmax(0,1fr) auto}
+}
