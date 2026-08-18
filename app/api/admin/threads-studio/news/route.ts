@@ -3,47 +3,66 @@ import { z } from "zod";
 import { getStudioPermission } from "@/auth";
 
 export const runtime = "nodejs";
-export const maxDuration = 120;
+export const maxDuration = 30;
 
 const requestSchema = z.object({
-  focus: z.string().trim().max(500).optional().default("major humanitarian events, natural disasters, public tragedies, and situations where a brief prayerful response would be appropriate"),
-  count: z.number().int().min(1).max(5).optional().default(3)
+  focus: z.string().trim().max(500).optional().default("church, missions, persecution, humanitarian crises, natural disasters, public tragedy, and events where a brief prayerful response could be appropriate"),
+  count: z.number().int().min(1).max(8).optional().default(5)
 });
 
-const RESPONSE_SCHEMA = {
-  type: "object", additionalProperties: false,
-  required: ["items"],
-  properties: {
-    items: { type: "array", minItems: 0, maxItems: 5, items: {
-      type: "object", additionalProperties: false,
-      required: ["headline","eventSummary","sourceTitle","sourceUrl","draft","whyAppropriate"],
-      properties: {
-        headline: { type: "string", maxLength: 180 },
-        eventSummary: { type: "string", maxLength: 500 },
-        sourceTitle: { type: "string", maxLength: 220 },
-        sourceUrl: { type: "string", maxLength: 1000 },
-        draft: { type: "string", maxLength: 500 },
-        whyAppropriate: { type: "string", maxLength: 300 }
-      }
-    }}
-  }
-} as const;
+type NewsItem = { headline: string; eventSummary: string; sourceTitle: string; sourceUrl: string; publishedAt?: string };
 
-function extractResponseText(value: unknown) {
-  const response = value && typeof value === "object" ? value as Record<string, unknown> : {};
-  if (typeof response.output_text === "string") return response.output_text;
-  if (!Array.isArray(response.output)) return "";
-  for (const item of response.output) {
-    if (!item || typeof item !== "object") continue;
-    const content = (item as Record<string, unknown>).content;
-    if (!Array.isArray(content)) continue;
-    for (const part of content) {
-      if (!part || typeof part !== "object") continue;
-      const record = part as Record<string, unknown>;
-      if (record.type === "output_text" && typeof record.text === "string") return record.text;
-    }
+const SOURCES = [
+  { title: "The Christian Post", url: "https://www.christianpost.com/rss" },
+  { title: "Christianity Today", url: "https://www.christianitytoday.com/news/" }
+] as const;
+
+function decode(value: string) {
+  return value
+    .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&amp;/g, "&").replace(/&quot;/g, "\"").replace(/&#39;|&apos;/g, "'")
+    .replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/\s+/g, " ").trim();
+}
+
+function absoluteUrl(value: string, base: string) {
+  try { return new URL(value, base).toString(); } catch { return ""; }
+}
+
+function parseRss(xml: string, sourceTitle: string, base: string): NewsItem[] {
+  const items: NewsItem[] = [];
+  for (const match of xml.matchAll(/<item\b[^>]*>([\s\S]*?)<\/item>/gi)) {
+    const block = match[1];
+    const field = (name: string) => decode(block.match(new RegExp(`<${name}[^>]*>([\\s\\S]*?)<\\/${name}>`, "i"))?.[1] || "");
+    const headline = field("title");
+    const sourceUrl = absoluteUrl(field("link"), base);
+    if (!headline || !sourceUrl) continue;
+    items.push({ headline, eventSummary: field("description").slice(0, 650), sourceTitle, sourceUrl, publishedAt: field("pubDate") || undefined });
   }
-  return "";
+  return items;
+}
+
+function parseChristianityToday(html: string): NewsItem[] {
+  const items: NewsItem[] = [];
+  const seen = new Set<string>();
+  const anchorPattern = /<a\b[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi;
+  for (const match of html.matchAll(anchorPattern)) {
+    const sourceUrl = absoluteUrl(match[1], "https://www.christianitytoday.com/news/");
+    if (!sourceUrl.startsWith("https://www.christianitytoday.com/") || !sourceUrl.includes("/")) continue;
+    const headline = decode(match[2]);
+    if (headline.length < 24 || headline.length > 190 || seen.has(sourceUrl)) continue;
+    if (/sign up|subscribe|view all|read more|christianity today/i.test(headline)) continue;
+    seen.add(sourceUrl);
+    items.push({ headline, eventSummary: "Open the source to review the full report before drafting a response.", sourceTitle: "Christianity Today", sourceUrl });
+    if (items.length >= 12) break;
+  }
+  return items;
+}
+
+function score(item: NewsItem, focus: string) {
+  const terms = focus.toLowerCase().split(/[^a-z0-9]+/).filter((term) => term.length > 3);
+  const haystack = `${item.headline} ${item.eventSummary}`.toLowerCase();
+  return terms.reduce((total, term) => total + (haystack.includes(term) ? 1 : 0), 0);
 }
 
 export async function POST(request: Request) {
@@ -51,35 +70,26 @@ export async function POST(request: Request) {
   if (!allowed || access.state !== "allowed" || !access.user) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const parsed = requestSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Invalid news scan request." }, { status: 400 });
-  const apiKey = process.env.OPENAI_API_KEY?.trim();
-  if (!apiKey) return NextResponse.json({ error: "OPENAI_API_KEY is not configured." }, { status: 503 });
-  const model = process.env.OPENAI_THREADS_MODEL?.trim() || "gpt-5.6-sol";
 
-  const response = await fetch("https://api.openai.com/v1/responses", {
-    method: "POST",
-    headers: { authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
-    body: JSON.stringify({
-      model,
-      reasoning: { effort: "medium" },
-      tools: [{ type: "web_search" }],
-      text: { verbosity: "low", format: { type: "json_schema", name: "apostolic_guide_prayer_news", strict: true, schema: RESPONSE_SCHEMA } },
-      input: [
-        { role: "developer", content: [{ type: "input_text", text: [
-          "Find only recent, well-sourced events where a church/ministry account could responsibly offer prayer, compassion, or support.",
-          "Prefer major humanitarian events, natural disasters, loss of life, displacement, or broadly relevant public tragedy. Avoid partisan commentary, rumor, outrage bait, celebrity gossip, and speculative breaking news.",
-          "Use reputable primary authorities or major established news organizations. Return a direct source URL for every item.",
-          "Draft a short Apostolic Guide Threads post that is compassionate, sober, non-exploitative, and prayerful. Do not force theology into tragedy. Do not assign blame. Do not imply facts beyond the source.",
-          "If there is nothing appropriate enough to post, return an empty list.",
-          `Return at most ${parsed.data.count} items.`
-        ].join("\n") }] },
-        { role: "user", content: [{ type: "input_text", text: `SCAN FOCUS: ${parsed.data.focus}` }] }
-      ]
-    })
-  });
-  if (!response.ok) return NextResponse.json({ error: `News scan failed (${response.status}).`, detail: (await response.text().catch(() => "")).slice(0,1200) }, { status: 502 });
-  const result = await response.json();
-  const text = extractResponseText(result);
-  if (!text) return NextResponse.json({ error: "News scan returned no structured output." }, { status: 502 });
-  try { return NextResponse.json({ ...JSON.parse(text), model }); }
-  catch { return NextResponse.json({ error: "News scan returned invalid structured output." }, { status: 502 }); }
+  const results = await Promise.allSettled(SOURCES.map(async (source) => {
+    const response = await fetch(source.url, {
+      cache: "no-store",
+      headers: { "user-agent": "ApostolicGuideStudio/1.0", accept: "application/rss+xml, application/xml, text/html;q=0.9" },
+      signal: AbortSignal.timeout(9000)
+    });
+    if (!response.ok) throw new Error(`${source.title} returned ${response.status}.`);
+    const text = await response.text();
+    return text.includes("<item") ? parseRss(text, source.title, source.url) : source.title === "Christianity Today" ? parseChristianityToday(text) : [];
+  }));
+
+  const items = results.flatMap((result) => result.status === "fulfilled" ? result.value : []);
+  const unique = [...new Map(items.map((item) => [item.sourceUrl, item])).values()]
+    .sort((a, b) => score(b, parsed.data.focus) - score(a, parsed.data.focus))
+    .slice(0, parsed.data.count);
+  const sourceErrors = results.flatMap((result, index) => result.status === "rejected" ? [`${SOURCES[index].title}: ${result.reason instanceof Error ? result.reason.message : "unavailable"}`] : []);
+
+  if (!unique.length && sourceErrors.length === SOURCES.length) {
+    return NextResponse.json({ error: "Christian news sources are temporarily unavailable.", sourceErrors }, { status: 502 });
+  }
+  return NextResponse.json({ items: unique, sources: SOURCES.map((source) => source.title), sourceErrors });
 }

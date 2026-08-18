@@ -77,7 +77,7 @@ export async function POST(request: Request) {
     if (active.data?.length) return NextResponse.json({ error: "This project already has an active Instagram publication. Finish or resolve it before adding another." }, { status: 409 });
 
     const links = await service.from("studio_creative_project_assets")
-      .select("frame_id,role,sort_order,created_at,asset:studio_pathway_assets(id,public_url,metadata,title,asset_type)")
+      .select("frame_id,role,sort_order,created_at,asset:studio_pathway_assets(id,public_url,storage_bucket,storage_path,metadata,title,asset_type)")
       .eq("project_id", project.id)
       .in("role", ["cover", "render"])
       .order("created_at", { ascending: false });
@@ -110,8 +110,17 @@ export async function POST(request: Request) {
     if (parsed.data.mode === "finish_manually") scheduledFor = parsed.data.scheduledFor ? new Date(parsed.data.scheduledFor).toISOString() : null;
 
     const media = renderSet.map((link) => {
-      const asset = link.asset as { id?: string; public_url?: string | null; title?: string } | null;
-      return { frameId: link.frame_id, sortOrder: link.sort_order, assetId: asset?.id, url: asset?.public_url, title: asset?.title };
+      const asset = link.asset as { id?: string; public_url?: string | null; storage_bucket?: string | null; storage_path?: string | null; metadata?: Record<string, unknown> | null; title?: string } | null;
+      return {
+        frameId: link.frame_id,
+        sortOrder: link.sort_order,
+        assetId: asset?.id,
+        url: asset?.public_url,
+        storageBucket: asset?.storage_bucket,
+        storagePath: asset?.storage_path,
+        blobAccess: asset?.metadata?.blobAccess,
+        title: asset?.title
+      };
     });
     const status = publicationStatusForMode(parsed.data.mode);
     const caption = parsed.data.caption ?? project.unifiedCaption;

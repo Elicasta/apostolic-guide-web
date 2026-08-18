@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { formatProducerTime } from "@/video-producer";
 import type { VideoProducerReelCandidate } from "@/video-producer-ai";
 import { VideoProducerReelsLibrary } from "@/video-producer-reels-library";
-import styles from "./video-producer-sequential.module.css";
+import styles from "./video-producer-library.module.css";
 
 type ProjectDetail = {
   project?: {
@@ -59,30 +59,32 @@ export function VideoProducerReelsHandoff({ projectId }: { projectId: string }) 
   }
 
   return (
-    <div className={styles.flow} style={{ paddingTop: 0 }}>
-      <div className={styles.flowShell}>
-        <VideoProducerReelsLibrary parentProjectId={projectId} embedded/>
-        <section className={styles.workspace} style={{ marginTop: 16 }} aria-label="Create reels from podcast">
-          <header className={styles.workspaceHeader}>
-            <div className={styles.workspaceHeaderRow}>
-              <div><div className={styles.eyebrow}>Add to the package</div><h2>Find more Reels</h2><p>Sol finds self-contained moments in the same raw recording. Choosing one creates a child Reel, keeps it attached to this Podcast, and opens its Produce step.</p></div>
-              <span className={styles.statusPill}><Smartphone size={12}/> {candidates.length ? `${candidates.length} found` : "Optional"}</span>
-            </div>
-          </header>
-          <div className={styles.workspaceBody}>
-            {error ? <div className={`${styles.notice} ${styles.warning}`} style={{ marginBottom: 12 }}>{error}</div> : null}
-            <button className={styles.buttonSecondary} disabled={Boolean(busy)} onClick={() => void findReels()}>{busy === "find" ? <Loader2 size={14} className={styles.spin}/> : <Sparkles size={14}/>} {candidates.length ? "Regenerate candidates" : "Find reels"}</button>
-            {candidates.length ? <div className={styles.decisionList} style={{ marginTop: 14 }}>{candidates.map((candidate) => (
-              <div className={styles.panel} key={candidate.id} style={{ padding: 14 }}>
-                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-                  <div style={{ flex: "1 1 360px", minWidth: 0 }}><div className={styles.eyebrow}>{formatProducerTime(candidate.start)}–{formatProducerTime(candidate.end)} · {candidate.score}/100</div><h3 style={{ margin: "6px 0 0", fontSize: 14 }}>{candidate.title}</h3><p className={styles.panelText} style={{ marginTop: 5 }}>{candidate.hook}</p></div>
-                  <button className={styles.buttonSecondary} disabled={Boolean(busy)} onClick={() => void createReel(candidate)}>{busy === candidate.id ? <Loader2 size={14} className={styles.spin}/> : <Scissors size={14}/>} Create reel</button>
-                </div>
+    <div className={styles.shell} style={{ padding: "0 20px 48px" }}>
+      <VideoProducerReelsLibrary parentProjectId={projectId} embedded/>
+
+      <details className={styles.candidateDetails}>
+        <summary>
+          <span className={styles.candidateSummary}>
+            <Smartphone size={16}/>
+            <span><strong>Find more Reels</strong><small>Optional · Sol scans this Podcast for self-contained moments</small></span>
+          </span>
+          <span className={styles.count}>{candidates.length || 0}</span>
+        </summary>
+        <div className={styles.candidateBody}>
+          {error ? <div className={styles.error}>{error}</div> : null}
+          <button className={styles.secondaryButton} disabled={Boolean(busy)} onClick={() => void findReels()}>{busy === "find" ? <Loader2 size={14} className={styles.spin}/> : <Sparkles size={14}/>} {candidates.length ? "Regenerate candidates" : "Find reels"}</button>
+          {candidates.length ? <div className={styles.candidateList}>{candidates.map((candidate) => (
+            <div className={styles.candidateRow} key={candidate.id}>
+              <div className={styles.candidateCopy}>
+                <small>{formatProducerTime(candidate.start)}–{formatProducerTime(candidate.end)} · {candidate.score}/100</small>
+                <strong>{candidate.title}</strong>
+                <p>{candidate.hook}</p>
               </div>
-            ))}</div> : null}
-          </div>
-        </section>
-      </div>
+              <button className={styles.rowAction} disabled={Boolean(busy)} onClick={() => void createReel(candidate)}>{busy === candidate.id ? <Loader2 size={13} className={styles.spin}/> : <Scissors size={13}/>} Create</button>
+            </div>
+          ))}</div> : null}
+        </div>
+      </details>
     </div>
   );
 }

@@ -1,0 +1,176 @@
+.carousel-manual-edit-toggle{
+  margin-left:0;
+  min-height:42px;
+  border:1px solid #d9e0df;
+  border-radius:11px;
+  background:#fff;
+  color:#10202a;
+  padding:8px 12px;
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  font:inherit;
+  cursor:pointer;
+}
+.carousel-manual-edit-toggle>span{display:grid;gap:1px;text-align:left}
+.carousel-manual-edit-toggle strong{font-size:11px}
+.carousel-manual-edit-toggle small{font-size:9px;color:#748187}
+.carousel-manual-edit-toggle.is-open{background:#10202a;color:#fff;border-color:#10202a}
+.carousel-manual-edit-toggle.is-open small{color:#cbd3d5}
+.carousel-studio-master .creative-studio-shell[data-manual-edit="open"] .creative-editor-panel{
+  outline:2px solid rgba(21,86,106,.12);
+  outline-offset:3px;
+}
+.carousel-studio-master .creative-studio-shell[data-manual-edit="open"] .creative-editor-panel::before{
+  content:"MANUAL EDIT · INDIVIDUAL SLIDE";
+  display:block;
+  margin:0 0 14px;
+  padding:9px 11px;
+  border-radius:9px;
+  background:#eef4f4;
+  color:#15566a;
+  font-size:9px;
+  font-weight:900;
+  letter-spacing:.12em;
+}
+
+/* Per-slide manual design controls. Hidden until Manual Edit is intentionally opened. */
+.carousel-manual-design-controls{display:none}
+.carousel-studio-master .creative-studio-shell[data-manual-edit="open"] .carousel-manual-design-controls{
+  display:grid;
+  gap:10px;
+  margin-top:18px;
+  padding-top:18px;
+  border-top:1px solid #e2e8e7;
+}
+.carousel-manual-design-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.carousel-manual-design-heading>div{display:flex;align-items:center;gap:9px;color:#10202a}
+.carousel-manual-design-heading>div>span{display:grid;gap:2px}
+.carousel-manual-design-heading strong{font-size:13px}
+.carousel-manual-design-heading small{color:#7a878c;font-size:9px;font-weight:600}
+.carousel-manual-design-heading>button,.carousel-manual-color button,.carousel-manual-apply-all{
+  min-height:34px;
+  border:1px solid #d9e0df;
+  border-radius:9px;
+  background:#fff;
+  color:#15566a;
+  padding:7px 10px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  font:inherit;
+  font-size:10px;
+  font-weight:800;
+  cursor:pointer;
+}
+.carousel-manual-design-controls details{border:1px solid #dfe6e4;border-radius:12px;background:#fbfcfb;overflow:hidden}
+.carousel-manual-design-controls summary{list-style:none;cursor:pointer;padding:11px 13px;color:#10202a;font-size:11px;font-weight:850;display:flex;align-items:center;justify-content:space-between}
+.carousel-manual-design-controls summary::-webkit-details-marker{display:none}
+.carousel-manual-design-controls summary::after{content:"+";font-size:17px;line-height:1;color:#718086}
+.carousel-manual-design-controls details[open] summary::after{content:"−"}
+.carousel-manual-design-controls details[open] summary{border-bottom:1px solid #e5eae9;background:#f3f7f6}
+.carousel-manual-design-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:13px}
+.carousel-manual-design-range,.carousel-manual-design-field{display:grid;gap:7px;min-width:0;color:#58666d;font-size:10px;font-weight:800}
+.carousel-manual-design-range>span{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.carousel-manual-design-range b{color:#10202a;font-size:9px;font-weight:850}
+.carousel-manual-design-range input[type="range"]{width:100%;accent-color:#15566a}
+.carousel-manual-design-field select{width:100%;min-height:40px;border:1px solid #d7dfde;border-radius:9px;background:#fff;color:#10202a;padding:0 9px;font:inherit;font-size:11px;font-weight:700}
+.carousel-manual-color>div{display:grid;grid-template-columns:42px minmax(0,1fr) auto;align-items:center;gap:8px}
+.carousel-manual-color input[type="color"]{width:42px;height:38px;padding:3px;border:1px solid #d7dfde;border-radius:9px;background:#fff}
+.carousel-manual-color code{min-width:0;overflow:hidden;text-overflow:ellipsis;color:#43535a;font-size:9px}
+.carousel-manual-color button{min-height:34px;padding:6px 8px}
+.carousel-manual-texture-panel{display:grid;gap:10px;padding:13px}
+.carousel-manual-texture-panel>p{margin:0;color:#78858b;font-size:9px;line-height:1.45}
+.carousel-manual-apply-all{justify-self:start}
+
+/* Manual typography overrides remain isolated to the selected slide. */
+.persistent-carousel-artboard[data-manual-text-color="true"] .carousel-copy>strong,
+.persistent-carousel-artboard[data-manual-text-color="true"] .carousel-copy>p,
+.persistent-carousel-artboard[data-manual-text-color="true"] .carousel-copy>em{
+  color:var(--manual-text-color)!important;
+}
+
+/* Restored texture library. The amount slider drives --texture-strength from 0 to .70. */
+.persistent-carousel-artboard[data-texture] .carousel-paper-wear{
+  opacity:var(--texture-strength,.34)!important;
+  mix-blend-mode:overlay;
+}
+.persistent-carousel-artboard[data-texture] .carousel-grain{
+  opacity:var(--texture-strength,.34)!important;
+}
+.persistent-carousel-artboard[data-texture="none"] .carousel-paper-wear,
+.persistent-carousel-artboard[data-texture="none"] .carousel-grain{opacity:0!important}
+.persistent-carousel-artboard[data-texture="ag-navy-paper"] .carousel-paper-wear,
+.persistent-carousel-artboard[data-texture="paper-soft"] .carousel-paper-wear{
+  background-image:repeating-linear-gradient(0deg,rgba(255,255,255,.035) 0 1px,transparent 1px 5px),repeating-linear-gradient(90deg,rgba(0,0,0,.03) 0 1px,transparent 1px 7px)!important;
+}
+.persistent-carousel-artboard[data-texture="ag-paper-white"] .carousel-paper-wear{
+  background-image:repeating-linear-gradient(0deg,rgba(16,32,42,.05) 0 1px,transparent 1px 6px),repeating-linear-gradient(90deg,rgba(161,45,61,.018) 0 1px,transparent 1px 8px)!important;
+  mix-blend-mode:multiply;
+}
+.persistent-carousel-artboard[data-texture="ag-navy-speckle"] .carousel-paper-wear,
+.persistent-carousel-artboard[data-texture="dust-speckle"] .carousel-paper-wear{
+  background-image:radial-gradient(circle at 12% 18%,rgba(255,255,255,.55) 0 .7px,transparent .9px),radial-gradient(circle at 73% 26%,rgba(255,255,255,.42) 0 .8px,transparent 1px),radial-gradient(circle at 31% 71%,rgba(255,255,255,.38) 0 .6px,transparent .9px),radial-gradient(circle at 88% 82%,rgba(255,255,255,.34) 0 .7px,transparent 1px)!important;
+  background-size:37px 43px,53px 47px,41px 59px,67px 61px!important;
+}
+.persistent-carousel-artboard[data-texture="paper-fibrous"] .carousel-paper-wear{
+  background-image:repeating-linear-gradient(12deg,rgba(16,32,42,.08) 0 .6px,transparent .8px 7px),repeating-linear-gradient(96deg,rgba(255,255,255,.22) 0 .7px,transparent 1px 9px)!important;
+  mix-blend-mode:multiply;
+}
+.persistent-carousel-artboard[data-texture="grit-fine"] .carousel-paper-wear{
+  background-image:radial-gradient(circle,rgba(255,255,255,.3) 0 .55px,transparent .8px)!important;
+  background-size:9px 9px!important;
+}
+.persistent-carousel-artboard[data-texture="grit-heavy"] .carousel-paper-wear{
+  background-image:radial-gradient(circle at 25% 35%,rgba(255,255,255,.45) 0 1px,transparent 1.6px),radial-gradient(circle at 70% 65%,rgba(0,0,0,.34) 0 1.2px,transparent 1.8px)!important;
+  background-size:13px 15px,19px 17px!important;
+}
+.persistent-carousel-artboard[data-texture="concrete-soft"] .carousel-paper-wear{
+  background-image:radial-gradient(ellipse at 18% 22%,rgba(255,255,255,.16),transparent 35%),radial-gradient(ellipse at 76% 68%,rgba(0,0,0,.18),transparent 42%),repeating-linear-gradient(17deg,rgba(255,255,255,.035) 0 2px,transparent 2px 13px)!important;
+}
+.persistent-carousel-artboard[data-texture="fog-soft"] .carousel-paper-wear{
+  background-image:radial-gradient(circle at 50% 34%,rgba(255,255,255,.34),transparent 42%),linear-gradient(180deg,rgba(255,255,255,.08),transparent 58%)!important;
+  mix-blend-mode:screen;
+}
+.persistent-carousel-artboard[data-texture="halftone"] .carousel-paper-wear{
+  background-image:radial-gradient(circle,rgba(16,32,42,.32) 0 1px,transparent 1.15px)!important;
+  background-size:7px 7px!important;
+  mix-blend-mode:multiply;
+}
+.persistent-carousel-artboard[data-texture="newsprint"] .carousel-paper-wear{
+  background-image:repeating-linear-gradient(0deg,rgba(16,32,42,.08) 0 1px,transparent 1px 4px),repeating-linear-gradient(90deg,rgba(16,32,42,.035) 0 1px,transparent 1px 6px)!important;
+  mix-blend-mode:multiply;
+}
+.persistent-carousel-artboard[data-texture="light-leak-red"] .carousel-paper-wear{
+  background-image:radial-gradient(circle at 4% 76%,rgba(161,45,61,.82),transparent 35%),radial-gradient(circle at 92% 12%,rgba(161,45,61,.28),transparent 29%)!important;
+  mix-blend-mode:screen;
+}
+
+@media(max-width:760px){
+  .carousel-manual-edit-toggle{
+    grid-column:1/-1;
+    width:100%!important;
+    min-width:0!important;
+    min-height:46px!important;
+    margin:0!important;
+    justify-content:center!important;
+    border-radius:11px!important;
+  }
+  .carousel-manual-edit-toggle>span{display:flex;align-items:baseline;gap:7px}
+  .carousel-studio-master .creative-editor-panel{display:none}
+  .carousel-studio-master .creative-studio-shell[data-manual-edit="open"] .creative-editor-panel{display:block!important}
+  .carousel-studio-master .creative-frame-rail-actions{display:none}
+  .carousel-studio-master .creative-studio-shell[data-manual-edit="open"] .creative-frame-rail-actions{display:flex}
+  .carousel-studio-master .creative-studio-shell[data-manual-edit="open"] .creative-workspace-grid{
+    grid-template-areas:"rail" "preview" "editor";
+  }
+  .carousel-studio-master .creative-studio-shell[data-manual-edit="open"] .creative-frame-rail{grid-area:rail}
+  .carousel-studio-master .creative-studio-shell[data-manual-edit="open"] .creative-preview-panel{grid-area:preview}
+  .carousel-studio-master .creative-studio-shell[data-manual-edit="open"] .creative-editor-panel{grid-area:editor}
+  .carousel-manual-design-grid{grid-template-columns:1fr 1fr;gap:10px;padding:11px}
+  .carousel-manual-design-controls details{border-radius:11px}
+  .carousel-manual-design-heading{align-items:flex-start}
+  .carousel-manual-design-heading>button{flex:0 0 auto}
+  .carousel-manual-texture-panel{padding:11px}
+}

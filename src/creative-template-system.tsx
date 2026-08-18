@@ -56,35 +56,23 @@ async function requestProject(id: string) {
   return data.project as CreativeProject;
 }
 
-async function persistTemplate(id: string, template: TemplateId) {
-  const current = await requestProject(id);
-  const response = await fetch(`/api/admin/creative-projects/${encodeURIComponent(id)}`, {
-    method: "PATCH",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      expectedStateVersion: current.stateVersion,
-      title: current.title,
-      pathwaySlug: current.pathwaySlug,
-      intent: current.intent,
-      format: current.format,
-      destination: current.destination,
-      editorState: {
-        ...current.editorState,
-        visualSettings: {
-          ...(current.editorState.visualSettings || {}),
-          style: template,
-          template,
-          texture: template === "editorial-white" || template === "verse-connection" ? "ag-paper-white" : template === "cinematic" ? "ag-navy-speckle" : "ag-navy-paper"
-        }
-      },
-      unifiedCaption: current.unifiedCaption,
-      cta: current.cta,
-      tags: current.tags
-    })
-  });
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok || !data.project) throw new Error(data.error || "Template could not be saved.");
-  return data.project as CreativeProject;
+function driveTemplateThroughEditor(template: TemplateId) {
+  const select = document.querySelector<HTMLSelectElement>(".carousel-studio-master .creative-visual-controls > label:first-child select");
+  if (!select) return false;
+
+  if (![...select.options].some((option) => option.value === template)) {
+    const option = document.createElement("option");
+    option.value = template;
+    option.textContent = template;
+    option.dataset.carouselTemplateBridge = "true";
+    select.appendChild(option);
+  }
+
+  const nativeSetter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")?.set;
+  if (nativeSetter) nativeSetter.call(select, template);
+  else select.value = template;
+  select.dispatchEvent(new Event("change", { bubbles: true }));
+  return true;
 }
 
 function TemplatePicker({ selected, disabled, saving, error, onPick }: {
@@ -113,7 +101,7 @@ function TemplatePicker({ selected, disabled, saving, error, onPick }: {
         {saving === template.id ? <Loader2 className="spin" size={14}/> : selected === template.id ? <Check size={14}/> : null}
       </button>)}
     </div>
-    {error ? <p className="is-error">{error}</p> : disabled ? <p>Finish the current autosave before changing art direction.</p> : <p>These are the original Carousel Studio directions, now attached to the persistent Creative Project and its renders.</p>}
+    {error ? <p className="is-error">{error}</p> : disabled ? <p>Saving art direction…</p> : <p>Pick a direction and the preview updates immediately. Carousel Studio autosaves the choice with the project.</p>}
   </section>;
 }
 
@@ -136,7 +124,7 @@ export function CreativeTemplateSystem({ projectId }: { projectId?: string | nul
       setSaveReady(Boolean(indicator?.classList.contains("is-saved")));
     };
     sync();
-    const timer = window.setInterval(sync, 300);
+    const timer = window.setInterval(sync, 250);
     return () => window.clearInterval(timer);
   }, [projectId]);
 
@@ -145,7 +133,7 @@ export function CreativeTemplateSystem({ projectId }: { projectId?: string | nul
     let cancelled = false;
     void requestProject(projectId).then((project) => {
       if (cancelled) return;
-      const template = normalizeTemplate(project.editorState.visualSettings?.template || project.editorState.visualSettings?.style);
+      const template = normalizeTemplate(project.editorState.visualSettings?.style || project.editorState.visualSettings?.template);
       setSelected(template);
       applyTemplateToDom(template);
     }).catch((reason) => { if (!cancelled) setError(reason instanceof Error ? reason.message : "Template state could not be loaded."); });
@@ -154,16 +142,23 @@ export function CreativeTemplateSystem({ projectId }: { projectId?: string | nul
 
   useEffect(() => { if (projectId) applyTemplateToDom(selected); }, [projectId, selected, target]);
 
+  useEffect(() => {
+    if (saving && saveReady) setSaving(null);
+  }, [saveReady, saving]);
+
   const disabled = !saveReady || Boolean(saving);
   const picker = useMemo(() => <TemplatePicker selected={selected} disabled={disabled} saving={saving} error={error} onPick={(template) => {
     if (!projectId || disabled || template === selected) return;
     setSaving(template);
+    setSaveReady(false);
     setError("");
-    void persistTemplate(projectId, template).then(() => {
-      setSelected(template);
-      applyTemplateToDom(template);
-      window.location.reload();
-    }).catch((reason) => setError(reason instanceof Error ? reason.message : "Template could not be saved.")).finally(() => setSaving(null));
+    setSelected(template);
+    applyTemplateToDom(template);
+    if (!driveTemplateThroughEditor(template)) {
+      setError("Carousel editor state could not be reached. Refresh once and try again.");
+      setSaving(null);
+      setSaveReady(true);
+    }
   }}/>, [disabled, error, projectId, saving, selected]);
 
   if (!target || !projectId) return null;

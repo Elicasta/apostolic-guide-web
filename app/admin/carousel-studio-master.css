@@ -1,6 +1,182 @@
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,500&family=Montserrat:wght@400;500;600;700;800;900&display=swap');
+
 /* Carousel Studio is the canonical visual creation workspace. The persistent
    project/editor engine keeps its internal creative-* class names, but the
    product surface is Carousel Studio. */
 .carousel-studio-master .creative-kicker{font-size:0}
 .carousel-studio-master .creative-kicker::after{content:"Carousel Studio";font-size:11px;font-weight:800;letter-spacing:.13em;text-transform:uppercase;color:#a12d3d}
 .carousel-studio-master .creative-page-head .creative-secondary{white-space:nowrap}
+
+/* Keep the workspace visually close to the original Carousel Studio. */
+.carousel-studio-master .creative-hub-switch{max-width:520px;margin-bottom:12px;padding:4px;border-radius:12px;background:#edf1f0}
+.carousel-studio-master .creative-hub-switch a{min-height:48px;border-radius:9px;padding:8px 12px}
+.carousel-studio-master .creative-project-head{margin-bottom:12px}
+.carousel-studio-master .creative-context-bar{margin:8px 0 14px}
+
+/* Preview is the hero. It lives immediately below the project pills. */
+.carousel-studio-master .creative-workspace-grid{
+  display:grid;
+  grid-template-columns:220px minmax(0,1fr);
+  grid-template-areas:
+    "preview preview"
+    "rail editor";
+  gap:16px;
+  align-items:start;
+}
+.carousel-studio-master .creative-preview-panel{grid-area:preview;position:relative;top:auto;padding:20px 22px 18px;border-radius:18px;background:#fff}
+.carousel-studio-master .creative-frame-rail{grid-area:rail}
+.carousel-studio-master .creative-editor-panel{grid-area:editor}
+.carousel-studio-master .creative-preview-panel>.creative-panel-head{max-width:760px;margin:0 auto 12px}
+.carousel-studio-master .creative-frame-preview{width:min(100%,560px);max-width:560px;border:0;border-radius:0;box-shadow:inset 0 0 0 1px rgba(16,32,42,.05),0 20px 60px rgba(0,0,0,.14);padding:7%;container-type:inline-size;isolation:isolate}
+.carousel-studio-master .creative-frame-preview.is-story{width:min(100%,380px);max-width:380px}
+.carousel-studio-master .creative-visual-controls{max-width:760px;margin:16px auto 0;padding-top:14px;border-top:1px solid #e5e9e8}
+.carousel-studio-master .creative-template-system{max-width:760px;margin:14px auto 0}
+.carousel-studio-master .creative-template-grid{grid-template-columns:repeat(5,minmax(0,1fr))}
+.carousel-studio-master .creative-template-grid button{grid-template-columns:24px minmax(0,1fr) auto;padding:8px}
+.carousel-studio-master .creative-template-grid button:last-child:nth-child(odd){grid-column:auto}
+.carousel-studio-master .creative-template-grid button>i{width:24px;height:30px}
+
+/* Restore the actual Carousel Studio art language instead of the generic
+   persistent-editor card treatment. These values come from the original
+   Carousel Studio renderer so preview and hidden render stage stay aligned. */
+.carousel-studio-master .creative-frame-preview::before{
+  content:"";
+  position:absolute;
+  z-index:1;
+  left:-2%;right:-2%;bottom:0;top:auto;
+  width:auto;height:16%;
+  border:0;border-radius:0;
+  background:#02070a;
+  opacity:.30;
+  clip-path:polygon(0 35%,7% 35%,7% 9%,13% 9%,13% 28%,20% 28%,20% 43%,28% 43%,28% 18%,34% 18%,34% 34%,43% 34%,43% 7%,48% 7%,48% 45%,56% 45%,56% 23%,63% 23%,63% 41%,72% 41%,72% 17%,78% 17%,78% 33%,87% 33%,87% 3%,92% 3%,92% 37%,100% 37%,100% 100%,0 100%);
+}
+.carousel-studio-master .creative-frame-preview::after{
+  content:"";
+  position:absolute;
+  z-index:4;
+  right:6.3%;top:5.4%;
+  width:11.5%;height:11.5%;
+  border-radius:0;
+  background-color:transparent;
+  background-repeat:no-repeat;
+  background-size:contain;
+  background-position:center;
+  opacity:1;
+}
+.carousel-studio-master .creative-preview-eyebrow{z-index:5;font-family:Montserrat,Arial,sans-serif;font-size:clamp(9px,1.22cqw,12px);font-weight:700;letter-spacing:.18em}
+.carousel-studio-master .creative-preview-copy{z-index:5;display:grid;gap:2.3cqw}
+.carousel-studio-master .creative-preview-copy h2{font-family:Montserrat,Arial,sans-serif;font-size:clamp(34px,9.6cqw,64px);line-height:.9;letter-spacing:-.055em;margin:0;max-width:92%;text-wrap:balance}
+.carousel-studio-master .creative-preview-copy p{font-family:Montserrat,Arial,sans-serif;font-size:clamp(14px,2.55cqw,21px);line-height:1.38;margin:.25cqw 0 0;text-wrap:balance}
+.carousel-studio-master .creative-preview-scripture{display:inline-flex;width:max-content;max-width:100%;font-family:Montserrat,Arial,sans-serif;font-size:clamp(10px,1.65cqw,14px);font-weight:800;letter-spacing:.1em;padding:1cqw 1.4cqw .9cqw;border-radius:0}
+.carousel-studio-master .creative-preview-copy blockquote{font-family:'Cormorant Garamond',Georgia,serif;font-size:clamp(16px,2.8cqw,23px);line-height:1.25;margin:1.2cqw 0 0;padding-left:1.4cqw}
+.carousel-studio-master .creative-preview-cta{z-index:5;font-family:Montserrat,Arial,sans-serif;font-size:clamp(9px,1.35cqw,12px);font-weight:700;letter-spacing:.12em;text-transform:uppercase;border-top:0;padding-top:0}
+
+/* Street Theology */
+.carousel-studio-master .creative-studio-shell[data-creative-template="street-theology"] .creative-frame-preview{
+  color:#f4f0e9;
+  background-color:#07141e;
+  background-image:
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.86' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.48'/%3E%3C/svg%3E"),
+    radial-gradient(circle at 4% 88%,rgba(153,25,39,.38),transparent 33%),
+    radial-gradient(circle at 92% 9%,rgba(38,82,126,.34),transparent 34%),
+    linear-gradient(180deg,#123044 0%,#0b2231 54%,#07141e 100%);
+  background-blend-mode:soft-light,normal,normal,normal;
+}
+.carousel-studio-master .creative-studio-shell[data-creative-template="street-theology"] .creative-frame-preview::after{background-image:url('/brand/apostolic-guide-mark-reversed.png')}
+.carousel-studio-master .creative-studio-shell[data-creative-template="street-theology"] .creative-preview-eyebrow{color:#db2a40}
+.carousel-studio-master .creative-studio-shell[data-creative-template="street-theology"] .creative-preview-copy h2{font-weight:800;text-transform:uppercase;color:#f4f0e9}
+.carousel-studio-master .creative-studio-shell[data-creative-template="street-theology"] .creative-preview-copy p{color:#c7ccd0;font-weight:500}
+.carousel-studio-master .creative-studio-shell[data-creative-template="street-theology"] .creative-preview-scripture{background:#c61d34;color:#fff}
+.carousel-studio-master .creative-studio-shell[data-creative-template="street-theology"] .creative-preview-copy blockquote{color:#e7eaeb;border-left-color:#db2a40}
+.carousel-studio-master .creative-studio-shell[data-creative-template="street-theology"] .creative-preview-cta{color:#9aa2a8}
+
+/* Brand White Editorial */
+.carousel-studio-master .creative-studio-shell[data-creative-template="editorial-white"] .creative-frame-preview{
+  color:#102334;
+  background-color:#f3f0e9;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.86' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.12'/%3E%3C/svg%3E");
+  background-blend-mode:multiply;
+}
+.carousel-studio-master .creative-studio-shell[data-creative-template="editorial-white"] .creative-frame-preview::before{background:#22313a;opacity:.055}
+.carousel-studio-master .creative-studio-shell[data-creative-template="editorial-white"] .creative-frame-preview::after{background-image:url('/brand/apostolic-guide-mark.png')}
+.carousel-studio-master .creative-studio-shell[data-creative-template="editorial-white"] .creative-preview-eyebrow{color:#a62739}
+.carousel-studio-master .creative-studio-shell[data-creative-template="editorial-white"] .creative-preview-copy h2{font-family:'Cormorant Garamond',Georgia,serif;font-weight:600;letter-spacing:-.04em;text-transform:none;color:#102334}
+.carousel-studio-master .creative-studio-shell[data-creative-template="editorial-white"] .creative-preview-copy p{font-family:'Cormorant Garamond',Georgia,serif;font-size:clamp(17px,3cqw,25px);color:#4a5258;font-weight:500}
+.carousel-studio-master .creative-studio-shell[data-creative-template="editorial-white"] .creative-preview-scripture{padding:0;background:transparent;color:#a62739}
+.carousel-studio-master .creative-studio-shell[data-creative-template="editorial-white"] .creative-preview-copy blockquote{color:#243744;border-left-color:#a62739}
+.carousel-studio-master .creative-studio-shell[data-creative-template="editorial-white"] .creative-preview-cta{color:#6d7377}
+
+/* Cinematic */
+.carousel-studio-master .creative-studio-shell[data-creative-template="cinematic"] .creative-frame-preview{
+  color:#f4f0e9;
+  background-color:#030607;
+  background-image:
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.86' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.36'/%3E%3C/svg%3E"),
+    radial-gradient(circle at 9% 82%,rgba(153,25,39,.35),transparent 34%),
+    radial-gradient(circle at 88% 12%,rgba(38,82,126,.44),transparent 36%),
+    radial-gradient(circle at 50% 34%,#203747 0%,#09131b 56%,#030607 100%);
+  background-blend-mode:soft-light,normal,normal,normal;
+}
+.carousel-studio-master .creative-studio-shell[data-creative-template="cinematic"] .creative-frame-preview::after{background-image:url('/brand/apostolic-guide-mark-reversed.png')}
+.carousel-studio-master .creative-studio-shell[data-creative-template="cinematic"] .creative-preview-eyebrow{color:#a9b2b9}
+.carousel-studio-master .creative-studio-shell[data-creative-template="cinematic"] .creative-preview-copy h2{font-family:'Cormorant Garamond',Georgia,serif;font-weight:500;letter-spacing:-.04em;text-transform:none}
+.carousel-studio-master .creative-studio-shell[data-creative-template="cinematic"] .creative-preview-copy p{font-family:'Cormorant Garamond',Georgia,serif;font-size:clamp(17px,3cqw,25px);color:#b8c0c6}
+.carousel-studio-master .creative-studio-shell[data-creative-template="cinematic"] .creative-preview-scripture{background:#c61d34;color:#fff}
+.carousel-studio-master .creative-studio-shell[data-creative-template="cinematic"] .creative-preview-copy blockquote{color:#d9dfe2;border-left-color:#c61d34}
+.carousel-studio-master .creative-studio-shell[data-creative-template="cinematic"] .creative-preview-cta{color:#9aa2a8}
+
+/* Verse Connection */
+.carousel-studio-master .creative-studio-shell[data-creative-template="verse-connection"] .creative-frame-preview{
+  color:#0b2840;
+  background-color:#f2f1ed;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.86' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.14'/%3E%3C/svg%3E");
+  background-blend-mode:multiply;
+}
+.carousel-studio-master .creative-studio-shell[data-creative-template="verse-connection"] .creative-frame-preview::before{display:none}
+.carousel-studio-master .creative-studio-shell[data-creative-template="verse-connection"] .creative-frame-preview::after{background-image:url('/brand/apostolic-guide-mark.png')}
+.carousel-studio-master .creative-studio-shell[data-creative-template="verse-connection"] .creative-preview-eyebrow{color:#c11d31}
+.carousel-studio-master .creative-studio-shell[data-creative-template="verse-connection"] .creative-preview-copy{justify-items:center;text-align:center;width:100%}
+.carousel-studio-master .creative-studio-shell[data-creative-template="verse-connection"] .creative-preview-copy h2{max-width:100%;font-family:'Bebas Neue',Montserrat,sans-serif;font-weight:400;font-size:clamp(42px,10.5cqw,78px);letter-spacing:.01em;text-transform:uppercase}
+.carousel-studio-master .creative-studio-shell[data-creative-template="verse-connection"] .creative-preview-scripture{margin-inline:auto;padding:0;background:transparent;box-shadow:none;color:#c11d31;font-size:clamp(18px,3.6cqw,30px)}
+.carousel-studio-master .creative-studio-shell[data-creative-template="verse-connection"] .creative-preview-copy p{font-family:Montserrat,Arial,sans-serif;color:#0b2840;font-weight:600;text-align:center}
+.carousel-studio-master .creative-studio-shell[data-creative-template="verse-connection"] .creative-preview-copy blockquote{border-left:0;border-top:3px solid #c11d31;padding:12px 0 0;color:#0b2840}
+.carousel-studio-master .creative-studio-shell[data-creative-template="verse-connection"] .creative-preview-cta{color:#556571}
+
+/* Manifesto */
+.carousel-studio-master .creative-studio-shell[data-creative-template="manifesto"] .creative-frame-preview{
+  color:#f4f0e9;
+  background-color:#07161f;
+  background-image:
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.86' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.34'/%3E%3C/svg%3E"),
+    radial-gradient(circle at 88% 10%,rgba(166,39,57,.20),transparent 34%),
+    linear-gradient(180deg,#102d3d,#092131 60%,#07161f);
+  background-blend-mode:soft-light,normal,normal;
+}
+.carousel-studio-master .creative-studio-shell[data-creative-template="manifesto"] .creative-frame-preview::after{background-image:url('/brand/apostolic-guide-mark-reversed.png')}
+.carousel-studio-master .creative-studio-shell[data-creative-template="manifesto"] .creative-preview-eyebrow{color:#db2a40}
+.carousel-studio-master .creative-studio-shell[data-creative-template="manifesto"] .creative-preview-copy h2{font-family:Montserrat,Arial,sans-serif;font-weight:800;font-size:clamp(34px,8cqw,60px);line-height:1;text-transform:uppercase}
+.carousel-studio-master .creative-studio-shell[data-creative-template="manifesto"] .creative-preview-copy p{color:#c7ccd0;font-style:italic}
+.carousel-studio-master .creative-studio-shell[data-creative-template="manifesto"] .creative-preview-scripture{background:#c61d34;color:#fff}
+.carousel-studio-master .creative-studio-shell[data-creative-template="manifesto"] .creative-preview-cta{color:#9aa2a8}
+
+@media(max-width:900px){
+  .carousel-studio-master .creative-template-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .carousel-studio-master .creative-template-grid button:last-child:nth-child(odd){grid-column:1/-1}
+}
+
+@media(max-width:760px){
+  .carousel-studio-master .creative-hub-switch{margin:0 10px 10px;max-width:none}
+  .carousel-studio-master .creative-hub-switch a{min-height:44px}
+  .carousel-studio-master .creative-workspace-grid{display:flex;flex-direction:column;gap:12px}
+  .carousel-studio-master .creative-preview-panel{order:1;width:100%;padding:14px 12px 16px}
+  .carousel-studio-master .creative-frame-rail{order:2;width:100%}
+  .carousel-studio-master .creative-editor-panel{order:3;width:100%}
+  .carousel-studio-master .creative-frame-preview{width:min(100%,520px);max-width:100%;padding:7%}
+  .carousel-studio-master .creative-frame-preview.is-story{width:min(100%,360px)}
+  .carousel-studio-master .creative-preview-panel>.creative-panel-head{margin-bottom:10px}
+  .carousel-studio-master .creative-visual-controls{margin-top:12px;padding-top:12px}
+  .carousel-studio-master .creative-template-system{margin-top:12px;padding-top:12px}
+  .carousel-studio-master .creative-template-grid{grid-template-columns:1fr 1fr}
+  .carousel-studio-master .creative-template-grid button{grid-template-columns:22px minmax(0,1fr) auto;padding:8px}
+  .carousel-studio-master .creative-template-grid button>i{width:22px;height:28px}
+}

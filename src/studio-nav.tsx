@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { BarChart3, Bell, Bot, BookOpen, FileClock, FileText, Film, FolderOpen, Headphones, HeartPulse, Inbox, Instagram, Layers3, ListFilter, Mail, Menu, Route, Send, Settings, Sparkles, UserCog, Users, X } from "lucide-react";
+import { BarChart3, Bell, Bot, BookOpen, FileClock, FileText, Film, FolderOpen, Headphones, HeartPulse, Inbox, Instagram, Layers3, ListFilter, Mail, Menu, MessageCircle, Route, Send, Settings, Sparkles, UserCog, Users, X } from "lucide-react";
 import { hasStudioPermission, type StudioPermission, type StudioRole } from "@/studio-permissions";
 
 export const studioNavSections: Array<{ label: string; items: Array<{ href: string; label: string; icon: typeof BarChart3; permission: StudioPermission; exact?: boolean }> }> = [
@@ -21,6 +21,8 @@ export const studioNavSections: Array<{ label: string; items: Array<{ href: stri
   ]},
   { label: "Create", items: [
     { href: "/admin/carousel-studio", label: "Carousel Studio", icon: Layers3, permission: "manage_content" },
+    { href: "/admin/threads-studio", label: "Threads Studio", icon: MessageCircle, permission: "view_distribution" },
+    { href: "/admin/episode-studio", label: "Episode Studio", icon: FileText, permission: "manage_content" },
     { href: "/admin/audio", label: "Pathway Audio", icon: Headphones, permission: "manage_content" },
     { href: "/admin/video-producer", label: "Video Producer", icon: Sparkles, permission: "manage_content" },
     { href: "/admin/video-studio", label: "Video Studio", icon: Film, permission: "manage_content" }
@@ -32,8 +34,7 @@ export const studioNavSections: Array<{ label: string; items: Array<{ href: stri
     { href: "/admin/app-content", label: "App Content", icon: BookOpen, permission: "view_content" }
   ]},
   { label: "Publish", items: [
-    { href: "/admin/publishing", label: "Publishing", icon: Send, permission: "view_distribution" },
-    { href: "/admin/threads-studio", label: "Threads Studio", icon: Send, permission: "view_distribution" },
+    { href: "/admin/publishing", label: "Publishing", icon: Send, permission: "view_distribution", exact: true },
     { href: "/admin/broadcasts", label: "Broadcasts", icon: Mail, permission: "view_distribution" },
     { href: "/admin/social", label: "Social Automations", icon: Instagram, permission: "view_distribution" },
     { href: "/admin/comment-guide", label: "Comment Guide", icon: Bot, permission: "view_distribution" },

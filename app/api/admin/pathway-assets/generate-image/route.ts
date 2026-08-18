@@ -13,7 +13,7 @@ const schema = z.object({
   visualStyle: z.enum(["street","editorial","cinematic","verse","manifesto"]).optional().default("editorial"),
   prompt: z.string().trim().min(3).max(4000),
   orientation: z.enum(["portrait","landscape","square"]).optional().default("portrait"),
-  quality: z.enum(["low","medium"]).optional().default("low")
+  quality: z.enum(["low","medium","high"]).optional().default("low")
 });
 
 function extractText(value: unknown) {
@@ -86,6 +86,7 @@ export async function POST(request: Request) {
           "Turn the user's creative request into one precise image-generation prompt that matches the saved Apostolic Guide visual language and any approved reference images supplied.",
           "The image must remain editable downstream, so generate the VISUAL/PHOTOGRAPHIC/ILLUSTRATIVE LAYER ONLY. Do not put readable text, Scripture, logos, typography, UI, borders, watermarks, or captions into the image.",
           "Protect generous negative space for later HTML/CSS typography. Avoid random religious clichés, glowing crosses, crowns, fantasy heaven imagery, orange, neon color, and generic megachurch advertising aesthetics.",
+          "Aim for premium campaign art: typography-aware negative space, clean-but-gritty street texture, editorial restraint, and athletic-ad tension without copying any real brand's marks or exact layouts.",
           `SAVED VISUAL PROFILE:\n${styleProfile}`,
           `REQUESTED STYLE: ${parsed.data.visualStyle}`,
           `OUTPUT: ${parsed.data.creationType} / ${parsed.data.orientation}`
@@ -109,7 +110,7 @@ export async function POST(request: Request) {
       model: imageModel,
       prompt: imagePrompt,
       size,
-      quality: parsed.data.quality,
+      quality: parsed.data.creationType === "single-post" ? "high" : parsed.data.quality,
       output_format: "webp",
       background: "opaque",
       n: 1

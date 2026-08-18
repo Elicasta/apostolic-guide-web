@@ -5,8 +5,8 @@ import { ThreadsPrayerNews } from "@/threads-prayer-news";
 
 export function ThreadsPublishingSuite(){
   return <section className="threads-publishing-suite admin-card">
-    <header className="threads-suite-head"><div><span className="section-kicker">Threads publishing</span><h2>Weekly theology + prayer response</h2><p>Plan serious-but-witty Oneness posts in batches, run theology review, approve the week, and place it on the shared content calendar. Humanitarian prayer drafts stay source-reviewed and separate from theology automation.</p></div><MessageCircle size={28}/></header>
+    <header className="threads-suite-head"><div><span className="section-kicker">Threads production</span><h2>Weekly theology + prayer response</h2><p>Build batches, review every post, and approve the copy here. Approved Threads move to Master Publishing, where final posting and scheduling happen.</p></div><MessageCircle size={28}/></header>
     <div className="threads-suite-grid"><ThreadsWeeklyPlanner/><ThreadsPrayerNews/></div>
-    <footer className="threads-suite-foot"><strong>Future channel mirror</strong><span>X can reuse approved Threads copy later, but no automatic X publishing is enabled in this build.</span></footer>
+    <footer className="threads-suite-foot"><strong>Future channel mirror</strong><span>X can reuse approved Threads copy later. Threads Studio remains the writing and review layer; distribution stays in Master Publishing.</span></footer>
   </section>
 }

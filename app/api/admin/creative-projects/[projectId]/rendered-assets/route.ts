@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getStudioPermission } from "@/auth";
 import { loadCreativeProject } from "@/creative-project-server";
+import { privateBlobReadUrl } from "@/private-blob";
 import { createServiceClient } from "@/supabase";
 
 export const runtime = "nodejs";
@@ -45,7 +46,7 @@ export async function POST(request: Request, context: { params: Promise<{ projec
   const pathname = `creative-projects/${project.pathwaySlug}/${project.id}/renders/v${project.stateVersion}/${String(parsed.data.sortOrder + 1).padStart(2, "0")}-${safeName(parsed.data.title)}.${extension}`;
   let blob: Awaited<ReturnType<typeof put>> | null = null;
   try {
-    blob = await put(pathname, bytes, { access: "public", contentType: mime, addRandomSuffix: true });
+    blob = await put(pathname, bytes, { access: "private", contentType: mime, addRandomSuffix: true });
     const assetType = project.format === "single" ? "single-post" : project.format === "story" ? "story-frame" : "carousel-slide";
     const asset = await service.from("studio_pathway_assets").insert({
       pathway_slug: project.pathwaySlug,
@@ -59,7 +60,7 @@ export async function POST(request: Request, context: { params: Promise<{ projec
       storage_bucket: "vercel_blob",
       storage_path: blob.pathname,
       public_url: blob.url,
-      metadata: { mimeType: mime, bytes: bytes.length, sha256, altText: parsed.data.altText, creativeProjectId: project.id, projectStateVersion: project.stateVersion },
+      metadata: { mimeType: mime, bytes: bytes.length, sha256, altText: parsed.data.altText, creativeProjectId: project.id, projectStateVersion: project.stateVersion, blobAccess: "private" },
       created_by: access.user.id,
       updated_by: access.user.id
     }).select("*").single();
@@ -75,7 +76,8 @@ export async function POST(request: Request, context: { params: Promise<{ projec
       await service.from("studio_pathway_assets").delete().eq("id", asset.data.id);
       throw new Error(linked.error.message);
     }
-    return NextResponse.json({ asset: { ...asset.data, preview_url: blob.url }, link: { projectId: project.id, frameId: parsed.data.frameId, sortOrder: parsed.data.sortOrder } }, { status: 201 });
+    const previewUrl = await privateBlobReadUrl(blob.pathname);
+    return NextResponse.json({ asset: { ...asset.data, preview_url: previewUrl }, link: { projectId: project.id, frameId: parsed.data.frameId, sortOrder: parsed.data.sortOrder } }, { status: 201 });
   } catch (error) {
     if (blob) await del(blob.url).catch(() => undefined);
     return NextResponse.json({ error: error instanceof Error ? error.message : "Rendered asset could not be saved." }, { status: 500 });

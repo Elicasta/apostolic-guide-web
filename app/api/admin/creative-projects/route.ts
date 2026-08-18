@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getStudioPermission } from "@/auth";
+import { CAROUSEL_PROJECT_MODES, type CarouselProjectMode } from "@/carousel-project-modes";
 import {
   CREATIVE_FORMATS,
   CREATIVE_INTENTS,
@@ -20,14 +21,19 @@ const createSchema = z.object({
   format: z.enum(CREATIVE_FORMATS),
   destination: z.string().trim().min(1).max(80).optional().default("instagram"),
   frameCount: z.number().int().min(1).max(20).optional(),
-  tags: z.array(z.string().trim().min(1).max(50)).max(30).optional().default([])
+  tags: z.array(z.string().trim().min(1).max(50)).max(30).optional().default([]),
+  carouselMode: z.enum(CAROUSEL_PROJECT_MODES).optional(),
+  topic: z.string().trim().max(3000).optional().default("")
 });
 
 function safeSearch(value: string) {
   return value.replace(/[%,]/g, " ").replace(/\s+/g, " ").trim().slice(0, 120);
 }
 
-function defaultTemplateForIntent(intent: CreativeIntent) {
+function defaultTemplateForIntent(intent: CreativeIntent, carouselMode?: CarouselProjectMode) {
+  if (carouselMode === "verse-connection") return "verse-connection";
+  if (carouselMode === "word-study") return "editorial-white";
+  if (carouselMode === "app-guide") return "editorial-white";
   if (intent === "teaching" || intent === "objection") return "street-theology";
   if (intent === "scripture") return "verse-connection";
   if (intent === "quote") return "manifesto";
@@ -87,9 +93,9 @@ export async function POST(request: Request) {
     scripture: index > 0 && index < all.length - 1 ? pathway.steps[Math.min(index - 1, pathway.steps.length - 1)]?.reference ?? "" : ""
   }));
   const title = parsed.data.title || `${pathway.title} · ${parsed.data.intent[0].toUpperCase()}${parsed.data.intent.slice(1)} ${parsed.data.format === "single" ? "Single Post" : parsed.data.format === "story" ? "Story" : "Carousel"}`;
-  const template = defaultTemplateForIntent(parsed.data.intent);
+  const template = defaultTemplateForIntent(parsed.data.intent, parsed.data.carouselMode);
   const now = new Date().toISOString();
-  const searchText = [title, pathway.title, pathway.slug, parsed.data.intent, parsed.data.format, ...frames.map((frame) => frame.scripture), ...parsed.data.tags].join(" ");
+  const searchText = [title, pathway.title, pathway.slug, parsed.data.intent, parsed.data.format, parsed.data.carouselMode, parsed.data.topic, ...frames.map((frame) => frame.scripture), ...parsed.data.tags].filter(Boolean).join(" ");
   const created = await service.from("studio_creative_projects").insert({
     title,
     pathway_slug: pathway.slug,
@@ -107,7 +113,11 @@ export async function POST(request: Request) {
         texture: defaultTextureForTemplate(template),
         alignment: template === "editorial-white" || template === "verse-connection" ? "left" : "center"
       },
-      sourceImages: []
+      sourceImages: [],
+      generatedText: {
+        ...(parsed.data.carouselMode ? { carouselMode: parsed.data.carouselMode } : {}),
+        ...(parsed.data.topic ? { topic: parsed.data.topic } : {})
+      }
     },
     tags: parsed.data.tags,
     scripture_references: frames.map((frame) => frame.scripture).filter(Boolean),

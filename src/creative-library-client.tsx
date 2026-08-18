@@ -1,6 +1,6 @@
 "use client";
 
-import { Archive, FileImage, Layers3, Loader2, Plus, RefreshCw, Search } from "lucide-react";
+import { Archive, FileImage, Layers3, Loader2, Pencil, Plus, RefreshCw, Search, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { CREATIVE_FORMAT_LABELS, CREATIVE_INTENT_LABELS, type CreativeFormat, type CreativeIntent, type CreativeStatus } from "@/creative-project";
@@ -56,6 +56,7 @@ export function CreativeLibraryClient() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [reloadKey, setReloadKey] = useState(0);
+  const [busyId, setBusyId] = useState("");
 
   useEffect(() => {
     const timer = window.setTimeout(() => setDebouncedQuery(query.trim()), 250);
@@ -87,10 +88,52 @@ export function CreativeLibraryClient() {
     return acc;
   }, {}), [projects]);
 
+  function openProject(projectId: string) {
+    router.push(`/admin/carousel-studio?project=${projectId}`);
+  }
+
+  async function renameProject(project: Project) {
+    const nextTitle = window.prompt("Rename project", project.title)?.trim();
+    if (!nextTitle || nextTitle === project.title) return;
+    setBusyId(project.id);
+    setError("");
+    try {
+      const response = await fetch(`/api/admin/creative-projects/${project.id}/rename`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ title: nextTitle })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "Project could not be renamed.");
+      setProjects((current) => current.map((item) => item.id === project.id ? { ...item, title: data.project?.title || nextTitle, updatedAt: data.project?.updatedAt || new Date().toISOString() } : item));
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Project could not be renamed.");
+    } finally {
+      setBusyId("");
+    }
+  }
+
+  async function deleteDraft(project: Project) {
+    if (project.status !== "draft") return;
+    if (!window.confirm(`Delete draft “${project.title}”? This removes the editable draft and its revision history.`)) return;
+    setBusyId(project.id);
+    setError("");
+    try {
+      const response = await fetch(`/api/admin/creative-projects/${project.id}/delete`, { method: "DELETE" });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "Draft could not be deleted.");
+      setProjects((current) => current.filter((item) => item.id !== project.id));
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Draft could not be deleted.");
+    } finally {
+      setBusyId("");
+    }
+  }
+
   return <section className="creative-library-shell">
     <div className="creative-page-head">
       <div><span className="creative-kicker">Publishing · Creative Library</span><h1>Your editable work, not an export folder.</h1><p>Every project reopens with its Pathway, intent, format, frames, captions, settings, and history intact.</p></div>
-      <button type="button" className="creative-primary" onClick={() => router.push("/admin/creative-studio")}><Plus size={16}/> New Creative</button>
+      <button type="button" className="creative-primary" onClick={() => router.push("/admin/carousel-studio")}><Plus size={16}/> New Creative</button>
     </div>
 
     <div className="creative-library-stats">
@@ -109,17 +152,28 @@ export function CreativeLibraryClient() {
 
     {error ? <div className="creative-error-banner"><span>{libraryErrorMessage(error)}</span><button type="button" className="creative-small-button" onClick={() => setReloadKey((value) => value + 1)}><RefreshCw size={14}/> Retry</button></div> : null}
     {loading ? <div className="creative-empty"><Loader2 className="spin"/> Loading Creative Library...</div> : projects.length ? <div className="creative-library-table" role="table">
-      <div className="creative-library-row is-head" role="row"><span>Preview</span><span>Project</span><span>Format</span><span>Pathway</span><span>Status</span><span>Edited</span></div>
+      <div className="creative-library-row is-head has-actions" role="row"><span>Preview</span><span>Project</span><span>Format</span><span>Pathway</span><span>Status</span><span>Edited</span><span>Actions</span></div>
       {projects.map((project) => {
         const first = project.editorState.frames[0];
-        return <button type="button" className="creative-library-row" role="row" key={project.id} onClick={() => router.push(`/admin/creative-studio?project=${project.id}`)}>
+        return <div
+          className="creative-library-row has-actions"
+          role="row"
+          tabIndex={0}
+          key={project.id}
+          onClick={() => openProject(project.id)}
+          onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") openProject(project.id); }}
+        >
           <span className={`creative-library-preview is-${project.format}`}><FileImage size={15}/><small>{project.format === "single" ? "1" : project.frameCount}</small></span>
           <span className="creative-library-project"><strong>{project.title}</strong><small>{first?.headline || first?.scripture || CREATIVE_INTENT_LABELS[project.intent]}</small></span>
           <span>{CREATIVE_FORMAT_LABELS[project.format]}{project.format !== "single" ? ` · ${project.frameCount}` : ""}</span>
           <span><strong>{project.pathwayTitle}</strong><small>{project.pathwayCollection}</small></span>
           <span><i className={`creative-status is-${project.status}`}>{statusLabel(project.status)}</i></span>
           <span>{new Date(project.updatedAt).toLocaleString()}</span>
-        </button>;
+          <span className="creative-library-actions" onClick={(event) => event.stopPropagation()}>
+            <button type="button" disabled={busyId === project.id} onClick={() => void renameProject(project)} aria-label={`Rename ${project.title}`} title="Rename"><Pencil size={14}/></button>
+            {project.status === "draft" ? <button type="button" className="is-delete" disabled={busyId === project.id} onClick={() => void deleteDraft(project)} aria-label={`Delete ${project.title}`} title="Delete draft">{busyId === project.id ? <Loader2 size={14} className="spin"/> : <Trash2 size={14}/>}</button> : null}
+          </span>
+        </div>;
       })}
     </div> : !error ? <div className="creative-empty"><Layers3 size={24}/><strong>No Creative Projects match this view.</strong><span>Create one or clear the filters.</span></div> : null}
   </section>;

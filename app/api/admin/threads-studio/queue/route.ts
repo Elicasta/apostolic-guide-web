@@ -39,11 +39,12 @@ export async function POST(request: Request) {
   }
 
   const saved = [] as Array<Record<string, unknown>>;
+  const now = new Date().toISOString();
   for (let index = 0; index < parsed.data.items.length; index += 1) {
     const item = parsed.data.items[index];
     let row;
     if (item.id) {
-      const result = await service.from("studio_threads_posts").update({ body: item.body, category: item.category, status: "scheduled", scheduled_for: item.scheduledFor, x_status: item.mirrorToX ? "mirror-later" : "off", source_title: item.sourceTitle ?? null, source_url: item.sourceUrl ?? null, source_summary: item.sourceSummary ?? null, updated_at: new Date().toISOString() }).eq("id", item.id).select("*").single();
+      const result = await service.from("studio_threads_posts").update({ body: item.body, category: item.category, doctrine_status: item.doctrineStatus ?? null, status: "scheduled", scheduled_for: item.scheduledFor, x_status: item.mirrorToX ? "mirror-later" : "off", source_title: item.sourceTitle ?? null, source_url: item.sourceUrl ?? null, source_summary: item.sourceSummary ?? null, updated_at: now }).eq("id", item.id).select("*").single();
       if (result.error) return NextResponse.json({ error: result.error.message }, { status: 500 });
       row = result.data;
     } else {
@@ -52,8 +53,27 @@ export async function POST(request: Request) {
       row = result.data;
     }
     saved.push(row as Record<string, unknown>);
-    await service.from("studio_content_calendar_items").upsert({ title: item.body.slice(0,80), content_type: "thread", platform: "threads", status: "scheduled", scheduled_for: item.scheduledFor, source: "threads-studio", source_ref: row.id, metadata: { threads_post_id: row.id, category: item.category, mirror_to_x: item.mirrorToX, source_url: item.sourceUrl ?? null }, updated_at: new Date().toISOString() }, { onConflict: "source,source_ref" });
+
+    const rowId = String(row.id);
+    const calendarValues = {
+      title: item.body.slice(0,80),
+      content_type: "thread",
+      platform: "threads",
+      status: "scheduled",
+      scheduled_for: item.scheduledFor,
+      published_at: null,
+      source: "threads-studio",
+      source_ref: rowId,
+      metadata: { threads_post_id: rowId, category: item.category, doctrine_status: item.doctrineStatus ?? null, mirror_to_x: item.mirrorToX, source_url: item.sourceUrl ?? null },
+      updated_at: now
+    };
+    const existingCalendar = await service.from("studio_content_calendar_items").select("id").eq("source", "threads-studio").eq("source_ref", rowId).limit(1);
+    if (existingCalendar.error) return NextResponse.json({ error: existingCalendar.error.message }, { status: 500 });
+    const calendar = existingCalendar.data?.length
+      ? await service.from("studio_content_calendar_items").update(calendarValues).eq("source", "threads-studio").eq("source_ref", rowId)
+      : await service.from("studio_content_calendar_items").insert(calendarValues);
+    if (calendar.error) return NextResponse.json({ error: calendar.error.message }, { status: 500 });
   }
-  await service.from("studio_threads_batches").update({ status: "scheduled", updated_at: new Date().toISOString() }).eq("id", batchId);
+  await service.from("studio_threads_batches").update({ status: "scheduled", updated_at: now }).eq("id", batchId);
   return NextResponse.json({ ok: true, batchId, posts: saved });
 }

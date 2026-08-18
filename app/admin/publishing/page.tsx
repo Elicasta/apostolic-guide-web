@@ -64,7 +64,7 @@ type SocialClipRow = {
   completed_at: string | null;
 };
 
-export default async function AdminPublishingPage({ searchParams }: { searchParams: Promise<{ projectId?: string; view?: string }> }) {
+export default async function AdminPublishingPage({ searchParams }: { searchParams: Promise<{ projectId?: string; threadId?: string; pathwaySlug?: string; view?: string }> }) {
   const [viewPermission, managePermission] = await Promise.all([
     getStudioPermission("view_distribution"),
     getStudioPermission("manage_distribution")
@@ -129,8 +129,10 @@ export default async function AdminPublishingPage({ searchParams }: { searchPara
     };
   }).filter((item) => item.youtubeRender || item.verticalRender || item.publishingKit || item.publications.length || item.socialClips.length);
 
+  if (query.pathwaySlug) packages.sort((left, right) => left.slug === query.pathwaySlug ? -1 : right.slug === query.pathwaySlug ? 1 : 0);
+
   const failed = health.checks.filter((check) => !check.ok);
-  const initialView = query.view === "video" ? "video" as const : query.view === "calendar" ? "calendar" as const : "creative" as const;
+  const initialView = query.view === "video" ? "video" as const : query.view === "threads" ? "threads" as const : query.view === "calendar" ? "calendar" as const : "creative" as const;
 
   return <>
     <section className="master-publishing-health">
@@ -144,6 +146,7 @@ export default async function AdminPublishingPage({ searchParams }: { searchPara
     </section>
     <UnifiedPublishingWorkspace
       initialProjectId={query.projectId ?? null}
+      initialThreadId={query.threadId ?? null}
       initialView={initialView}
       channel={{
         packages,
