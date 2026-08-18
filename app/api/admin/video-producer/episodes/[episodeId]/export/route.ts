@@ -1,6 +1,10 @@
+import { put } from "@vercel/blob";
 import { NextResponse } from "next/server";
 import { getStudioPermission } from "@/auth";
 import { createServiceClient } from "@/supabase";
+
+export const runtime = "nodejs";
+export const maxDuration = 60;
 
 function safeEpisodeFilename(title: string) {
   const stem = title.normalize("NFKD").replace(/[^a-zA-Z0-9]+/g, "-").replace(/^-+|-+$/g, "").toLowerCase().slice(0, 120) || "episode";
@@ -12,6 +16,23 @@ function estimateDurationSeconds(script: string) {
 }
 function episodeTranscript(script: string, duration: number) {
   return { text: script, duration, words: [], segments: [{ text: script, start: 0, end: duration }] };
+}
+async function ensureRenderableAudio(episode: Record<string, unknown>) {
+  const audioUrl = String(episode.audio_url || "").trim();
+  if (!audioUrl) throw new Error("Episode audio is missing.");
+  const response = await fetch(audioUrl, { cache: "no-store" });
+  if (!response.ok) throw new Error(`Episode audio could not be read (${response.status}).`);
+  const audio = Buffer.from(await response.arrayBuffer());
+  if (!audio.length) throw new Error("Episode audio is empty.");
+  const hash = String(episode.audio_content_hash || "audio").slice(0, 24).replace(/[^a-zA-Z0-9_-]/g, "") || "audio";
+  const pathname = `video-producer/sources/episodes/${String(episode.id)}/${hash}.wav`;
+  const blob = await put(pathname, audio, {
+    access: "private",
+    addRandomSuffix: false,
+    allowOverwrite: true,
+    contentType: "audio/wav"
+  });
+  return blob.pathname;
 }
 
 export async function POST(_request: Request, context: { params: Promise<{ episodeId: string }> }) {
@@ -28,11 +49,19 @@ export async function POST(_request: Request, context: { params: Promise<{ episo
   if (!episode.audio_url) return NextResponse.json({ error: "Generate the approved Episode Studio audio before creating the video production project." }, { status: 409 });
   const script = String(episode.script_text || "").trim();
   if (!script) return NextResponse.json({ error: "The approved Episode script is empty." }, { status: 409 });
+
+  let sourceLocator = "";
+  try {
+    sourceLocator = await ensureRenderableAudio(episode as Record<string, unknown>);
+  } catch (error) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Episode audio could not be prepared for Video Producer." }, { status: 502 });
+  }
+
   const duration = estimateDurationSeconds(script);
   const transcript = episodeTranscript(script, duration);
   const projectPatch = {
-    source_provider: "episode-studio",
-    source_locator: episode.audio_storage_path || episode.audio_url,
+    source_provider: "vercel_blob",
+    source_locator: sourceLocator,
     source_filename: safeEpisodeFilename(episode.title),
     source_duration: duration,
     transcript_text: script,
