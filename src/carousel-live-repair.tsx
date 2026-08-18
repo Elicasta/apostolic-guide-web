@@ -19,9 +19,9 @@ function applyManualState() {
   const selects = [...panel.querySelectorAll<HTMLSelectElement>("select")];
   const alignment = (selects.find((select) => ["left", "center", "right"].includes(select.value))?.value || "center") as "left" | "center" | "right";
   const copyY = readNumber(ranges[0], 50);
-  const headlineScale = readNumber(ranges[1], 100) / (Number(ranges[1]?.max || 145) <= 2 ? 1 : 100);
+  const headlineScale = readNumber(ranges[1], 1) / (Number(ranges[1]?.max || 1.45) <= 2 ? 1 : 100);
   const titleWidth = readNumber(ranges[2], 90);
-  const bodyScale = readNumber(ranges[3], 100) / (Number(ranges[3]?.max || 135) <= 2 ? 1 : 100);
+  const bodyScale = readNumber(ranges[3], 1) / (Number(ranges[3]?.max || 1.35) <= 2 ? 1 : 100);
   const bodyWidth = readNumber(ranges[4], 76);
   const copyGapRaw = readNumber(ranges[5], 2.4);
   const copyGap = Number(ranges[5]?.max || 5) > 10 ? copyGapRaw / 10 : copyGapRaw;
@@ -57,6 +57,7 @@ export function CarouselLiveRepair() {
       frame = window.requestAnimationFrame(() => {
         applyManualState();
         window.setTimeout(applyManualState, 30);
+        window.setTimeout(applyManualState, 100);
       });
     };
 
@@ -69,7 +70,7 @@ export function CarouselLiveRepair() {
 
     const master = document.querySelector<HTMLElement>(".carousel-studio-master");
     const observer = master ? new MutationObserver(schedule) : null;
-    observer?.observe(master!, { subtree: true, childList: true, attributes: true, attributeFilter: ["class", "style"] });
+    observer?.observe(master!, { subtree: true, childList: true, attributes: true, attributeFilter: ["class", "data-creative-template"] });
     schedule();
     return () => {
       window.cancelAnimationFrame(frame);
