@@ -5,6 +5,7 @@ import { getStudioPermission } from "@/auth";
 import { CarouselManualEdit } from "@/carousel-manual-edit";
 import { CarouselPersistentArtwork } from "@/carousel-persistent-artwork";
 import { CarouselProjectStarter } from "@/carousel-project-starter";
+import { CarouselStudioMobileFocus } from "@/carousel-studio-mobile-focus";
 import { CreativeLibraryClient } from "@/creative-library-client";
 import { CreativeStudioClient } from "@/creative-studio-client";
 import { CreativeTemplateSystem } from "@/creative-template-system";
@@ -35,6 +36,7 @@ export default async function AdminCarouselStudioPage({ searchParams }: { search
       {query.project ? <CarouselManualEdit/> : null}
       <CreativeTemplateSystem projectId={query.project ?? null}/>
       {query.project ? <CarouselPersistentArtwork/> : null}
+      {query.project ? <CarouselStudioMobileFocus/> : null}
     </>}
   </section>;
 }
