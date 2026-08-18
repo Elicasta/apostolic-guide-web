@@ -27,6 +27,7 @@ export function CarouselStudioMobileFocus() {
   const [root, setRoot] = useState<HTMLElement | null>(null);
   const [host, setHost] = useState<HTMLElement | null>(null);
   const [focus, setFocus] = useState<FocusKey>("structure");
+  const [available, setAvailable] = useState<FocusKey[]>(SECTIONS.map(([key]) => key));
 
   useEffect(() => {
     try {
@@ -39,16 +40,27 @@ export function CarouselStudioMobileFocus() {
       const nextRoot = document.querySelector<HTMLElement>(".carousel-studio-master .creative-studio-shell");
       if (!nextRoot) return false;
 
+      const single = Boolean(nextRoot.querySelector(".creative-frame-preview.is-single"));
       let firstCard: HTMLElement | null = null;
-      let found = 0;
+      const nextAvailable: FocusKey[] = [];
+
       for (const [key, heading] of SECTIONS) {
         const card = findSection(nextRoot, heading);
         if (!card) continue;
+
+        if (key === "structure" && single) {
+          card.hidden = true;
+          delete card.dataset.carouselFocusSection;
+          continue;
+        }
+
+        card.hidden = false;
         card.dataset.carouselFocusSection = key;
         firstCard ||= card;
-        found += 1;
+        nextAvailable.push(key);
       }
-      if (!firstCard || found < 2) return false;
+
+      if (!firstCard || nextAvailable.length < 2) return false;
 
       let mount = nextRoot.querySelector<HTMLElement>("[data-carousel-focus-nav-host]");
       if (!mount) {
@@ -56,8 +68,11 @@ export function CarouselStudioMobileFocus() {
         mount.dataset.carouselFocusNavHost = "true";
         firstCard.before(mount);
       }
+
       setRoot(nextRoot);
       setHost(mount);
+      setAvailable(nextAvailable);
+      setFocus((current) => nextAvailable.includes(current) ? current : nextAvailable[0]);
       return true;
     };
 
@@ -68,16 +83,16 @@ export function CarouselStudioMobileFocus() {
   }, []);
 
   useEffect(() => {
-    if (!root) return;
+    if (!root || !available.includes(focus)) return;
     root.dataset.carouselFocus = focus;
     try { window.localStorage.setItem("carousel-mobile-focus", focus); } catch {}
-  }, [focus, root]);
+  }, [available, focus, root]);
 
   if (!host) return null;
 
   return createPortal(
-    <nav className="carousel-focus-nav" aria-label="Carousel editing sections">
-      {SECTIONS.map(([key, , label]) => <button
+    <nav className="carousel-focus-nav" aria-label="Carousel editing sections" style={{ gridTemplateColumns: `repeat(${Math.max(1, available.length)}, minmax(0,1fr))` }}>
+      {SECTIONS.filter(([key]) => available.includes(key)).map(([key, , label]) => <button
         key={key}
         type="button"
         className={focus === key ? "is-active" : ""}
