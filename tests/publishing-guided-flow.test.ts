@@ -6,7 +6,7 @@ const publisher = readFileSync("src/creative-publishing-client.tsx", "utf8");
 const calendar = readFileSync("src/content-calendar-studio.tsx", "utf8");
 const guidedCss = readFileSync("app/admin/master-publishing-guided.css", "utf8");
 const manualEdit = readFileSync("src/carousel-manual-edit.tsx", "utf8");
-const manualEditCss = readFileSync("app/admin/carousel-manual-edit.css", "utf8");
+const manualInlineCss = readFileSync("app/admin/carousel-manual-inline.css", "utf8");
 const carouselPage = readFileSync("app/admin/carousel-studio/page.tsx", "utf8");
 const carouselLayout = readFileSync("app/admin/carousel-studio/layout.tsx", "utf8");
 const renderedAssetsRoute = readFileSync("app/api/admin/creative-projects/[projectId]/rendered-assets/route.ts", "utf8");
@@ -32,16 +32,17 @@ test("Instagram feed remains a three-column 4:5 image grid with minimal engageme
   assert.doesNotMatch(calendar, /Open on Instagram/);
 });
 
-test("Carousel Manual Edit reuses the persistent individual-slide editor", () => {
+test("Carousel Manual Edit stays attached to Preview with persistent per-slide controls", () => {
   assert.match(carouselPage, /<CarouselManualEdit\/>/);
   assert.match(manualEdit, /Manual Edit/);
   assert.match(manualEdit, /dataset\.manualEdit = "open"/);
-  assert.match(manualEdit, /\.creative-editor-panel/);
+  assert.match(manualEdit, /creative-preview-panel/);
+  assert.match(manualEdit, /carousel-inline-manual-host/);
   assert.match(manualEdit, /\.creative-frame-row/);
-  assert.match(manualEdit, /Edit one slide at a time/);
-  assert.match(manualEditCss, /\[data-manual-edit="open"\] \.creative-editor-panel/);
-  assert.match(manualEditCss, /\[data-manual-edit="open"\] \.creative-frame-rail-actions/);
-  assert.match(carouselLayout, /carousel-manual-edit\.css/);
+  assert.match(manualEdit, /Background texture/);
+  assert.match(manualEdit, /Main font color/);
+  assert.match(manualInlineCss, /creative-frame-preview[\s\S]*position:sticky!important/);
+  assert.match(carouselLayout, /carousel-manual-inline\.css/);
 });
 
 test("Ready creative renders survive Publisher reloads with the exact project selected", () => {
