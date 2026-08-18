@@ -1,0 +1,18 @@
+/* Single-post Sol art generator. This is rendered directly into the Preview panel
+   so React rerenders cannot orphan an imperatively-created portal host. */
+.carousel-studio-master [data-single-art-director-host]{display:none!important}
+.carousel-studio-master .single-art-director:not(.single-sol-director){display:none!important}
+.carousel-studio-master .single-sol-director{display:grid!important;position:relative;z-index:8}
+.carousel-studio-master .single-sol-director .single-art-generate{display:flex;align-items:center;justify-content:center;gap:8px}
+.carousel-studio-master .single-art-loading{margin:0;display:flex;align-items:center;gap:7px;color:#66777d;font-size:10px;font-weight:700}
+.carousel-studio-master .carousel-project-delete{border:1px solid #efd4d8!important;background:#fff7f8!important;color:#a12d3d!important}
+.carousel-studio-master .carousel-project-delete:hover{background:#fbeaec!important}
+.carousel-studio-master .carousel-project-delete-error{width:100%;color:#a12d3d;font-size:10px;font-weight:700;line-height:1.35;text-align:right}
+
+@media(max-width:760px){
+  .carousel-studio-master .single-sol-director{margin-top:12px!important}
+  .carousel-studio-master .single-sol-director .single-art-director-head{gap:8px}
+  .carousel-studio-master .single-sol-director .single-art-mode{grid-template-columns:1fr 1fr}
+  .carousel-studio-master .single-sol-director .single-art-generate{min-height:48px}
+  .carousel-studio-master .carousel-project-delete{display:flex!important;width:100%!important;min-height:46px!important;justify-content:center!important}
+}
