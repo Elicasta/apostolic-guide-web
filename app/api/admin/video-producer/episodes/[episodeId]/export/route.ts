@@ -12,10 +12,42 @@ function safeEpisodeFilename(title: string) {
 }
 function estimateDurationSeconds(script: string) {
   const words = script.trim().split(/\s+/).filter(Boolean).length;
-  return Math.max(1, Math.round((words / 145) * 60));
+  return Math.max(1, (words / 145) * 60);
+}
+function wavDurationSeconds(audio: Buffer) {
+  if (audio.length < 44 || audio.toString("ascii", 0, 4) !== "RIFF" || audio.toString("ascii", 8, 12) !== "WAVE") return null;
+  let offset = 12;
+  let byteRate = 0;
+  let dataSize = 0;
+  while (offset + 8 <= audio.length) {
+    const id = audio.toString("ascii", offset, offset + 4);
+    const size = audio.readUInt32LE(offset + 4);
+    const start = offset + 8;
+    if (id === "fmt " && size >= 12 && start + 12 <= audio.length) byteRate = audio.readUInt32LE(start + 8);
+    if (id === "data") { dataSize = Math.min(size, Math.max(0, audio.length - start)); break; }
+    offset = start + size + (size % 2);
+  }
+  return byteRate > 0 && dataSize > 0 ? dataSize / byteRate : null;
+}
+function spokenText(script: string) {
+  return script
+    .replace(/^\s*[^:\n]{1,60}:\s*/gm, "")
+    .replace(/^\s*\[[^\]]+\]\s*$/gm, "")
+    .replace(/^\s*#{1,6}\s+/gm, "")
+    .replace(/[*_`]/g, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }
 function episodeTranscript(script: string, duration: number) {
-  return { text: script, duration, words: [], segments: [{ text: script, start: 0, end: duration }] };
+  const text = spokenText(script) || script.trim();
+  const tokens = text.split(/\s+/).filter(Boolean);
+  const step = duration / Math.max(1, tokens.length);
+  const words = tokens.map((word, index) => ({
+    word,
+    start: Math.max(0, index * step),
+    end: Math.min(duration, (index + 1) * step)
+  }));
+  return { text, duration, words, segments: [{ text, start: 0, end: duration }] };
 }
 async function ensureRenderableAudio(episode: Record<string, unknown>) {
   const audioUrl = String(episode.audio_url || "").trim();
@@ -32,7 +64,7 @@ async function ensureRenderableAudio(episode: Record<string, unknown>) {
     allowOverwrite: true,
     contentType: "audio/wav"
   });
-  return blob.pathname;
+  return { pathname: blob.pathname, duration: wavDurationSeconds(audio) };
 }
 
 export async function POST(_request: Request, context: { params: Promise<{ episodeId: string }> }) {
@@ -50,21 +82,21 @@ export async function POST(_request: Request, context: { params: Promise<{ episo
   const script = String(episode.script_text || "").trim();
   if (!script) return NextResponse.json({ error: "The approved Episode script is empty." }, { status: 409 });
 
-  let sourceLocator = "";
+  let source: { pathname: string; duration: number | null };
   try {
-    sourceLocator = await ensureRenderableAudio(episode as Record<string, unknown>);
+    source = await ensureRenderableAudio(episode as Record<string, unknown>);
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Episode audio could not be prepared for Video Producer." }, { status: 502 });
   }
 
-  const duration = estimateDurationSeconds(script);
+  const duration = source.duration && Number.isFinite(source.duration) ? source.duration : estimateDurationSeconds(script);
   const transcript = episodeTranscript(script, duration);
   const projectPatch = {
     source_provider: "vercel_blob",
-    source_locator: sourceLocator,
+    source_locator: source.pathname,
     source_filename: safeEpisodeFilename(episode.title),
     source_duration: duration,
-    transcript_text: script,
+    transcript_text: transcript.text,
     transcript,
     pathway_slug: episode.primary_pathway_slug,
     updated_by: access.user.id,
