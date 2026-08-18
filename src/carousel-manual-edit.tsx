@@ -74,7 +74,7 @@ export function CarouselManualEdit() {
   return createPortal(
     <button type="button" className={`carousel-manual-edit-toggle ${open ? "is-open" : ""}`} onClick={toggleManualEdit} aria-pressed={open}>
       {open ? <Check size={16}/> : <SlidersHorizontal size={16}/>}
-      <span><strong>{open ? "Done Editing" : "Manual Edit"}</strong><small>{open ? `${slideLabel} · preview pinned` : "Edit while keeping preview visible"}</small></span>
+      <span><strong>{open ? "Done Editing" : "Manual Edit"}</strong><small>{open ? `${slideLabel} · preview pinned` : "Edit one slide at a time · preview stays visible"}</small></span>
     </button>,
     target
   );
