@@ -110,7 +110,7 @@ export async function POST(request: Request) {
       model: imageModel,
       prompt: imagePrompt,
       size,
-      quality: parsed.data.quality,
+      quality: parsed.data.creationType === "single-post" ? "high" : parsed.data.quality,
       output_format: "webp",
       background: "opaque",
       n: 1
