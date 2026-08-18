@@ -5,12 +5,13 @@ import { Loader2, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
-type ProjectPayload = { project?: { id: string; title: string; status: string }; error?: string };
+type ProjectInfo = { id: string; title: string; status: string };
+type ProjectPayload = { project?: ProjectInfo; error?: string };
 
 export function CarouselProjectDelete() {
   const router = useRouter();
   const [target, setTarget] = useState<HTMLElement | null>(null);
-  const [project, setProject] = useState<ProjectPayload["project"]>(null);
+  const [project, setProject] = useState<ProjectInfo | null>(null);
   const [working, setWorking] = useState(false);
   const [error, setError] = useState("");
 
