@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { FolderOpen, Layers3 } from "lucide-react";
 import { getStudioPermission } from "@/auth";
+import { CarouselLiveRepair } from "@/carousel-live-repair";
 import { CarouselManualEdit } from "@/carousel-manual-edit";
 import { CarouselPersistentArtwork } from "@/carousel-persistent-artwork";
 import { CarouselProjectDelete } from "@/carousel-project-delete";
@@ -41,6 +42,7 @@ export default async function AdminCarouselStudioPage({ searchParams }: { search
       {query.project ? <CarouselSingleArtDirector/> : null}
       {query.project ? <CarouselProjectDelete/> : null}
       {query.project ? <CarouselStudioMobileFocus/> : null}
+      {query.project ? <CarouselLiveRepair/> : null}
     </>}
   </section>;
 }
