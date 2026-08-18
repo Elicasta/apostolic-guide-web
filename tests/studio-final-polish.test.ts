@@ -17,10 +17,11 @@ test("Carousel Manual Edit has a post-render live repair and one offscreen rende
   assert.match(carouselCss, /left:-12000px/);
 });
 
-test("Episode video handoff carries the approved script into Video Producer", () => {
+test("Episode video handoff carries the approved script and a renderable source into Video Producer", () => {
   assert.match(episodeExport, /transcript_text: script/);
   assert.match(episodeExport, /segments: \[\{ text: script, start: 0, end: duration \}\]/);
-  assert.match(episodeExport, /source_provider: "episode-studio"/);
+  assert.match(episodeExport, /source_provider: "vercel_blob"/);
+  assert.match(episodeExport, /video-producer\/sources\/episodes/);
   assert.match(episodeExport, /recommendedStep: "produce"/);
 });
 
