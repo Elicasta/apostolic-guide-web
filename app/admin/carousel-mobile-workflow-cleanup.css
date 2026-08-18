@@ -1,5 +1,14 @@
 /* Final mobile cleanup for Carousel Studio workflow navigation. */
 .carousel-workflow-mobile{display:none}
+.carousel-focus-nav{display:none}
+
+.carousel-studio-master .creative-studio-shell,
+.carousel-studio-master .creative-workspace-grid,
+.carousel-studio-master .creative-preview-panel,
+.carousel-studio-master .creative-frame-preview,
+.carousel-studio-master .carousel-artboard{
+  touch-action:pan-x pan-y pinch-zoom;
+}
 
 @media(max-width:760px){
   /* The four desktop stage cards were compressing into unreadable D/C/P/P
@@ -53,5 +62,53 @@
   .carousel-studio-master .carousel-handoff-actions{
     order:3!important;
     flex:1 0 100%!important;
+  }
+
+  /* Below the preview, show one editing system at a time instead of a long wall. */
+  .carousel-studio-master .carousel-focus-nav{
+    display:grid;
+    grid-template-columns:repeat(4,minmax(0,1fr));
+    gap:5px;
+    position:sticky;
+    top:calc(env(safe-area-inset-top) + 142px);
+    z-index:52;
+    width:100%;
+    margin:16px 0 12px;
+    padding:6px;
+    border:1px solid #d8e0e2;
+    border-radius:17px;
+    background:rgba(244,247,247,.94);
+    box-shadow:0 8px 26px rgba(13,29,43,.08);
+    backdrop-filter:blur(18px);
+    -webkit-backdrop-filter:blur(18px);
+  }
+  .carousel-studio-master .carousel-focus-nav button{
+    min-width:0;
+    min-height:42px;
+    padding:0 5px;
+    border:0;
+    border-radius:11px;
+    background:transparent;
+    color:#64737b;
+    font:inherit;
+    font-size:10px;
+    font-weight:850;
+    line-height:1;
+    white-space:nowrap;
+  }
+  .carousel-studio-master .carousel-focus-nav button.is-active{
+    background:#0d1d2b;
+    color:#fff;
+    box-shadow:0 2px 8px rgba(13,29,43,.16);
+  }
+  .carousel-studio-master .creative-studio-shell [data-carousel-focus-section]{
+    display:none!important;
+    scroll-margin-top:210px;
+  }
+  .carousel-studio-master .creative-studio-shell[data-carousel-focus="structure"] [data-carousel-focus-section="structure"],
+  .carousel-studio-master .creative-studio-shell[data-carousel-focus="caption"] [data-carousel-focus-section="caption"],
+  .carousel-studio-master .creative-studio-shell[data-carousel-focus="settings"] [data-carousel-focus-section="settings"],
+  .carousel-studio-master .creative-studio-shell[data-carousel-focus="versions"] [data-carousel-focus-section="versions"]{
+    display:block!important;
   }
 }
