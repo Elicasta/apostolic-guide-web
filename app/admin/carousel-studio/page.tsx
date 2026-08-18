@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { FolderOpen, Layers3 } from "lucide-react";
 import { getStudioPermission } from "@/auth";
+import { CarouselManualDesignControls } from "@/carousel-manual-design-controls";
 import { CarouselManualEdit } from "@/carousel-manual-edit";
 import { CarouselPersistentArtwork } from "@/carousel-persistent-artwork";
 import { CarouselProjectStarter } from "@/carousel-project-starter";
@@ -34,6 +35,7 @@ export default async function AdminCarouselStudioPage({ searchParams }: { search
       {!query.project ? <CarouselProjectStarter pathways={pathways} aiReady={aiReady}/> : null}
       <CreativeStudioClient pathways={pathways} initialProjectId={query.project ?? null} aiReady={aiReady}/>
       {query.project ? <CarouselManualEdit/> : null}
+      {query.project ? <CarouselManualDesignControls/> : null}
       <CreativeTemplateSystem projectId={query.project ?? null}/>
       {query.project ? <CarouselPersistentArtwork/> : null}
       {query.project ? <CarouselStudioMobileFocus/> : null}
