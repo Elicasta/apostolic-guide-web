@@ -3,18 +3,15 @@ import { getStudioPermission } from "@/auth";
 import { createServiceClient } from "@/supabase";
 
 function safeEpisodeFilename(title: string) {
-  const stem = title
-    .normalize("NFKD")
-    .replace(/[^a-zA-Z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .toLowerCase()
-    .slice(0, 120) || "episode";
+  const stem = title.normalize("NFKD").replace(/[^a-zA-Z0-9]+/g, "-").replace(/^-+|-+$/g, "").toLowerCase().slice(0, 120) || "episode";
   return `${stem}.wav`;
 }
-
 function estimateDurationSeconds(script: string) {
   const words = script.trim().split(/\s+/).filter(Boolean).length;
   return Math.max(1, Math.round((words / 145) * 60));
+}
+function episodeTranscript(script: string, duration: number) {
+  return { text: script, duration, words: [], segments: [{ text: script, start: 0, end: duration }] };
 }
 
 export async function POST(_request: Request, context: { params: Promise<{ episodeId: string }> }) {
@@ -29,40 +26,33 @@ export async function POST(_request: Request, context: { params: Promise<{ episo
   const episode = result.data;
   if (episode.status !== "approved" && episode.status !== "exported") return NextResponse.json({ error: "Approve the episode after theology review before sending it to Video Producer." }, { status: 409 });
   if (!episode.audio_url) return NextResponse.json({ error: "Generate the approved Episode Studio audio before creating the video production project." }, { status: 409 });
-  if (!String(episode.script_text || "").trim()) return NextResponse.json({ error: "The approved Episode script is empty." }, { status: 409 });
-
-  if (episode.exported_project_id) {
-    const existing = await service.from("video_producer_projects")
-      .update({
-        source_provider: "episode-studio",
-        source_locator: episode.audio_storage_path || episode.audio_url,
-        source_filename: safeEpisodeFilename(episode.title),
-        source_duration: estimateDurationSeconds(episode.script_text),
-        transcript_local_text: episode.script_text,
-        transcript_local_duration: estimateDurationSeconds(episode.script_text),
-        pathway_slug: episode.primary_pathway_slug,
-        updated_by: access.user.id,
-        updated_at: new Date().toISOString()
-      })
-      .eq("id", episode.exported_project_id)
-      .select("id")
-      .maybeSingle();
-    if (existing.error) return NextResponse.json({ error: existing.error.message }, { status: 500 });
-    if (existing.data) return NextResponse.json({ projectId: existing.data.id, reused: true, recommendedStep: "produce" });
-  }
-
-  const duration = estimateDurationSeconds(episode.script_text);
-  const created = await service.from("video_producer_projects").insert({
-    title: episode.title,
-    mode: "podcast",
-    pathway_slug: episode.primary_pathway_slug,
-    status: "uploaded",
+  const script = String(episode.script_text || "").trim();
+  if (!script) return NextResponse.json({ error: "The approved Episode script is empty." }, { status: 409 });
+  const duration = estimateDurationSeconds(script);
+  const transcript = episodeTranscript(script, duration);
+  const projectPatch = {
     source_provider: "episode-studio",
     source_locator: episode.audio_storage_path || episode.audio_url,
     source_filename: safeEpisodeFilename(episode.title),
     source_duration: duration,
-    transcript_local_text: episode.script_text,
-    transcript_local_duration: duration,
+    transcript_text: script,
+    transcript,
+    pathway_slug: episode.primary_pathway_slug,
+    updated_by: access.user.id,
+    updated_at: new Date().toISOString()
+  };
+
+  if (episode.exported_project_id) {
+    const existing = await service.from("video_producer_projects").update(projectPatch).eq("id", episode.exported_project_id).select("id").maybeSingle();
+    if (existing.error) return NextResponse.json({ error: existing.error.message }, { status: 500 });
+    if (existing.data) return NextResponse.json({ projectId: existing.data.id, reused: true, recommendedStep: "produce" });
+  }
+
+  const created = await service.from("video_producer_projects").insert({
+    title: episode.title,
+    mode: "podcast",
+    status: "uploaded",
+    ...projectPatch,
     director_metadata: {
       episodeScriptId: episode.id,
       sourceKind: "episode-studio",
@@ -70,7 +60,7 @@ export async function POST(_request: Request, context: { params: Promise<{ episo
       supportingPathwaySlugs: episode.supporting_pathway_slugs,
       episodeFormat: episode.format,
       speakers: episode.speakers,
-      approvedScript: episode.script_text,
+      approvedScript: script,
       theologyReview: episode.theology_review,
       episodeAudioUrl: episode.audio_url,
       episodeAudioStoragePath: episode.audio_storage_path ?? null,
@@ -80,16 +70,11 @@ export async function POST(_request: Request, context: { params: Promise<{ episo
       episodeAudioGeneratedAt: episode.audio_generated_at ?? null,
       handedOffAt: new Date().toISOString()
     },
-    created_by: access.user.id,
-    updated_by: access.user.id
+    created_by: access.user.id
   }).select("id").single();
   if (created.error) return NextResponse.json({ error: created.error.message }, { status: 500 });
 
-  const saved = await service.from("video_producer_episode_scripts").update({
-    status: "exported",
-    exported_project_id: created.data.id,
-    updated_by: access.user.id
-  }).eq("id", episodeId);
+  const saved = await service.from("video_producer_episode_scripts").update({ status: "exported", exported_project_id: created.data.id, updated_by: access.user.id }).eq("id", episodeId);
   if (saved.error) return NextResponse.json({ error: saved.error.message }, { status: 500 });
   return NextResponse.json({ projectId: created.data.id, reused: false, recommendedStep: "produce" });
 }
