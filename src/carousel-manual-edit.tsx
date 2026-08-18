@@ -33,8 +33,9 @@ export function CarouselManualEdit() {
         const rows = [...nextRoot.querySelectorAll<HTMLElement>(".creative-frame-row")];
         const index = rows.findIndex((row) => row.classList.contains("is-active"));
         const total = rows.length;
-        const noun = nextRoot.querySelector(".creative-frame-preview.is-story") ? "Frame" : "Slide";
-        setSlideLabel(`${noun} ${Math.max(0, index) + 1}${total ? ` of ${total}` : ""}`);
+        const preview = nextRoot.querySelector<HTMLElement>(".creative-frame-preview");
+        const noun = preview?.classList.contains("is-story") ? "Frame" : preview?.classList.contains("is-single") ? "Post" : "Slide";
+        setSlideLabel(`${noun} ${Math.max(0, index) + 1}${total > 1 ? ` of ${total}` : ""}`);
       };
 
       syncSlide();
@@ -62,10 +63,10 @@ export function CarouselManualEdit() {
 
     window.setTimeout(() => {
       const destination = next
-        ? root.querySelector<HTMLElement>(".creative-editor-panel")
+        ? root.querySelector<HTMLElement>(".carousel-manual-design-controls") || root.querySelector<HTMLElement>(".creative-editor-panel")
         : root.querySelector<HTMLElement>(".creative-preview-panel");
       destination?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 40);
+    }, 80);
   }
 
   if (!target) return null;
@@ -73,7 +74,7 @@ export function CarouselManualEdit() {
   return createPortal(
     <button type="button" className={`carousel-manual-edit-toggle ${open ? "is-open" : ""}`} onClick={toggleManualEdit} aria-pressed={open}>
       {open ? <Check size={16}/> : <SlidersHorizontal size={16}/>}
-      <span><strong>{open ? "Done Editing" : "Manual Edit"}</strong><small>{open ? `${slideLabel} · autosaving` : "Edit one slide at a time"}</small></span>
+      <span><strong>{open ? "Done Editing" : "Manual Edit"}</strong><small>{open ? `${slideLabel} · preview pinned` : "Edit while keeping preview visible"}</small></span>
     </button>,
     target
   );
