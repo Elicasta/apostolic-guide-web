@@ -2,6 +2,8 @@ import type { Viewport } from "next";
 import "../carousel-studio-master.css";
 import "../carousel-final-stability.css";
 import "../carousel-manual-edit.css";
+import "../carousel-single-sol-art.css";
+import "../carousel-mobile-edit-v2.css";
 
 export const viewport: Viewport = {
   width: "device-width",
