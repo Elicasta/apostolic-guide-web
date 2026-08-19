@@ -4,112 +4,170 @@ import { AdminLiveMetrics } from "@/admin-live-metrics";
 import { getStudioPermission } from "@/auth";
 import { articles } from "@/data";
 import { allPathways } from "@/pathway-catalog";
-import { buildArticleIntelligence, buildPathwayIntelligence } from "@/study-intelligence";
 import { createServiceClient } from "@/supabase";
 
-type EventRow = {
-  event_name: string;
-  page_path: string;
-  referrer_host: string | null;
-  source: string;
-  device_class: string;
-  country_code: string | null;
-  region: string | null;
-  city: string | null;
-  browser: string | null;
-  os: string | null;
-  utm_source: string | null;
-  utm_medium: string | null;
-  utm_campaign: string | null;
-  properties: Record<string, unknown>;
-  session_id: string;
-  anonymous_id: string;
-  person_id: string | null;
-  occurred_at: string;
+type MetricRow = [string, number];
+
+type AnalyticsMetrics = {
+  total_events: number;
+  page_views: number;
+  unique_browsers: number;
+  browser_sessions: number;
+  active_browsers: number;
+  active_sessions: number;
+  app_transition_events: number;
+  app_transition_sessions: number;
+  searches: number;
+  missing_searches: number;
+  article_completions: number;
+  pathway_completions: number;
+  known_pathway_completers: number;
+  first_event: string | null;
+  latest_event: string | null;
 };
 
-function countBy(values: string[]) {
-  return Object.entries(values.reduce<Record<string, number>>((result, value) => {
-    if (value) result[value] = (result[value] ?? 0) + 1;
-    return result;
-  }, {})).sort((a, b) => b[1] - a[1]);
-}
+type PathwayAnalyticsRow = {
+  slug: string;
+  starts: number;
+  audioStarts: number;
+  uniqueSessions: number;
+  observedSteps: number;
+  reachedFinalStep: number;
+  completions: number;
+  readingCompletions: number;
+  audioCompletions: number;
+  knownCompleters: number;
+  completionRate: number;
+  averageProgress: number;
+  appTransitions: number;
+};
+
+type ArticleAnalyticsRow = {
+  slug: string;
+  opens: number;
+  uniqueSessions: number;
+  completions: number;
+  completionRate: number;
+  appTransitions: number;
+};
+
+type AnalyticsSnapshot = {
+  metrics: AnalyticsMetrics;
+  eventCounts: MetricRow[];
+  topPages: MetricRow[];
+  trafficSources: MetricRow[];
+  devices: MetricRow[];
+  countries: MetricRow[];
+  cities: MetricRow[];
+  browsers: MetricRow[];
+  operatingSystems: MetricRow[];
+  campaigns: MetricRow[];
+  mediums: MetricRow[];
+  searches: MetricRow[];
+  missingSearches: MetricRow[];
+  appOrigins: MetricRow[];
+  pathways: PathwayAnalyticsRow[];
+  articles: ArticleAnalyticsRow[];
+};
+
+const emptyMetrics: AnalyticsMetrics = {
+  total_events: 0,
+  page_views: 0,
+  unique_browsers: 0,
+  browser_sessions: 0,
+  active_browsers: 0,
+  active_sessions: 0,
+  app_transition_events: 0,
+  app_transition_sessions: 0,
+  searches: 0,
+  missing_searches: 0,
+  article_completions: 0,
+  pathway_completions: 0,
+  known_pathway_completers: 0,
+  first_event: null,
+  latest_event: null
+};
+
+const emptySnapshot: AnalyticsSnapshot = {
+  metrics: emptyMetrics,
+  eventCounts: [],
+  topPages: [],
+  trafficSources: [],
+  devices: [],
+  countries: [],
+  cities: [],
+  browsers: [],
+  operatingSystems: [],
+  campaigns: [],
+  mediums: [],
+  searches: [],
+  missingSearches: [],
+  appOrigins: [],
+  pathways: [],
+  articles: []
+};
 
 function percent(part: number, total: number) {
-  return total ? `${Math.round((part / total) * 100)}%` : "0%";
+  return total ? `${Math.min(100, Math.round((part / total) * 100))}%` : "0%";
 }
 
-function sourceLabel(event: EventRow) {
-  if (event.utm_source) return event.utm_source;
-  if (event.referrer_host) return event.referrer_host.replace(/^www\./, "");
-  return "Direct / unknown";
+function asSnapshot(value: unknown): AnalyticsSnapshot {
+  if (!value || typeof value !== "object") return emptySnapshot;
+  const snapshot = value as Partial<AnalyticsSnapshot>;
+  return {
+    metrics: { ...emptyMetrics, ...(snapshot.metrics ?? {}) },
+    eventCounts: snapshot.eventCounts ?? [],
+    topPages: snapshot.topPages ?? [],
+    trafficSources: snapshot.trafficSources ?? [],
+    devices: snapshot.devices ?? [],
+    countries: snapshot.countries ?? [],
+    cities: snapshot.cities ?? [],
+    browsers: snapshot.browsers ?? [],
+    operatingSystems: snapshot.operatingSystems ?? [],
+    campaigns: snapshot.campaigns ?? [],
+    mediums: snapshot.mediums ?? [],
+    searches: snapshot.searches ?? [],
+    missingSearches: snapshot.missingSearches ?? [],
+    appOrigins: snapshot.appOrigins ?? [],
+    pathways: snapshot.pathways ?? [],
+    articles: snapshot.articles ?? []
+  };
 }
 
 export default async function AdminAnalyticsPage() {
   const { access, allowed } = await getStudioPermission("view_analytics");
   if (!allowed || access.state !== "allowed") redirect("/admin");
+
   const service = createServiceClient();
-  let events: EventRow[] = [];
+  let snapshot = emptySnapshot;
   let subscriberCount = 0;
   let loadError = "";
 
   if (service) {
-    const [eventsResult, subscribersResult] = await Promise.all([
-      service.schema("analytics").from("events")
-        .select("event_name,page_path,referrer_host,source,device_class,country_code,region,city,browser,os,utm_source,utm_medium,utm_campaign,properties,session_id,anonymous_id,person_id,occurred_at")
-        .order("occurred_at", { ascending: false })
-        .limit(10000),
+    const [snapshotResult, subscribersResult] = await Promise.all([
+      service.schema("analytics").rpc("dashboard_snapshot"),
       service.from("email_subscribers")
         .select("id", { head: true, count: "exact" })
         .eq("status", "subscribed")
     ]);
 
-    events = eventsResult.data ?? [];
+    snapshot = asSnapshot(snapshotResult.data);
     subscriberCount = subscribersResult.count ?? 0;
-    if (eventsResult.error) loadError = `${eventsResult.error.code}: ${eventsResult.error.message}`;
+    if (snapshotResult.error) loadError = `${snapshotResult.error.code}: ${snapshotResult.error.message}`;
     if (subscribersResult.error && !loadError) loadError = `${subscribersResult.error.code}: ${subscribersResult.error.message}`;
   } else {
     loadError = "Supabase service credentials are not configured in this environment.";
   }
 
-  const pageViews = events.filter((event) => event.event_name === "page_viewed");
-  const eventCounts = countBy(events.map((event) => event.event_name));
-  const onlineCutoff = Date.now() - 75_000;
-  const activeVisitors = new Set(
-    events
-      .filter((event) => event.event_name === "presence_heartbeat" && new Date(event.occurred_at).getTime() >= onlineCutoff)
-      .map((event) => event.anonymous_id)
-  ).size;
-  const activeSessions = new Set(
-    events
-      .filter((event) => event.event_name === "presence_heartbeat" && new Date(event.occurred_at).getTime() >= onlineCutoff)
-      .map((event) => event.session_id)
-  ).size;
-
-  const topPages = countBy(pageViews.map((event) => event.page_path.split("?")[0])).slice(0, 12);
-  const searches = countBy(events.filter((event) => event.event_name === "search_submitted").map((event) => String(event.properties?.query ?? ""))).slice(0, 12);
-  const missing = countBy(events.filter((event) => event.event_name === "search_no_results").map((event) => String(event.properties?.query ?? ""))).slice(0, 12);
-  const appOrigins = countBy(events.filter((event) => event.event_name === "app_link_clicked").map((event) => String(event.properties?.origin ?? event.properties?.placement ?? event.page_path))).slice(0, 12);
-  const trafficSources = countBy(pageViews.map(sourceLabel)).slice(0, 12);
-  const devices = countBy(pageViews.map((event) => event.device_class)).slice(0, 8);
-  const countries = countBy(pageViews.map((event) => event.country_code ?? "Unknown")).slice(0, 12);
-  const cities = countBy(pageViews.map((event) => [event.city, event.region, event.country_code].filter(Boolean).join(", ") || "Unknown")).slice(0, 12);
-  const browsers = countBy(pageViews.map((event) => event.browser ?? "Unknown")).slice(0, 8);
-  const operatingSystems = countBy(pageViews.map((event) => event.os ?? "Unknown")).slice(0, 8);
-  const campaigns = countBy(pageViews.map((event) => event.utm_campaign ?? "").filter(Boolean)).slice(0, 12);
-  const mediums = countBy(pageViews.map((event) => event.utm_medium ?? "").filter(Boolean)).slice(0, 12);
-  const uniqueSessions = new Set(pageViews.map((event) => event.session_id)).size;
-  const uniqueVisitors = new Set(pageViews.map((event) => event.anonymous_id)).size;
-  const appTransitions = eventCounts.find(([key]) => key === "app_link_clicked")?.[1] ?? 0;
-  const searchCount = eventCounts.find(([key]) => key === "search_submitted")?.[1] ?? 0;
-  const missingCount = eventCounts.find(([key]) => key === "search_no_results")?.[1] ?? 0;
-  const completedReads = eventCounts.find(([key]) => key === "article_completed")?.[1] ?? 0;
-  const lastEvent = events[0]?.occurred_at;
-  const studyEvents = events.map((event) => ({ event_name: event.event_name, page_path: event.page_path, session_id: event.session_id, anonymous_id: event.anonymous_id, person_id: event.person_id, properties: event.properties ?? {} }));
-  const pathwayIntelligence = buildPathwayIntelligence(studyEvents, allPathways.map((pathway) => ({ slug: pathway.slug, title: pathway.title, stepCount: pathway.steps.length }))).slice(0, 12);
-  const articleIntelligence = buildArticleIntelligence(studyEvents, articles.map((article) => ({ slug: article.slug, title: article.title }))).slice(0, 12);
-  const completedPathwaySessions = pathwayIntelligence.reduce((sum, row) => sum + row.completions, 0);
-  const knownPathwayCompleters = pathwayIntelligence.reduce((sum, row) => sum + row.knownCompleters, 0);
+  const metrics = snapshot.metrics;
+  const pathwayTitles = new Map(allPathways.map((pathway) => [pathway.slug, pathway.title]));
+  const articleTitles = new Map(articles.map((article) => [article.slug, article.title]));
+  const pathwayIntelligence = snapshot.pathways
+    .map((row) => ({ ...row, title: pathwayTitles.get(row.slug) ?? row.slug }))
+    .slice(0, 12);
+  const articleIntelligence = snapshot.articles
+    .map((row) => ({ ...row, title: articleTitles.get(row.slug) ?? row.slug }))
+    .slice(0, 12);
 
   return (
     <>
@@ -117,22 +175,23 @@ export default async function AdminAnalyticsPage() {
       <span className="eyebrow">Product intelligence</span>
       <h1>Analytics</h1>
       <p className="admin-lede">Live first-party usage data from the website. Track visits, discovery, study activity, location, campaigns, and movement into the app.</p>
+      <p className="admin-muted">Dashboard totals are computed from the complete analytics ledger, not a recent-row sample. A unique visitor here means one persistent browser identity. Sessions are browser-session IDs.</p>
 
-      {loadError ? <section className="admin-card"><h2>Tracker status</h2><p><strong>Analytics is not writing yet.</strong></p><p>{loadError}</p><p>Apply the Supabase analytics migrations and confirm the production Supabase service key is configured.</p></section> : null}
+      {loadError ? <section className="admin-card"><h2>Tracker status</h2><p><strong>Analytics reporting is unavailable.</strong></p><p>{loadError}</p><p>Apply the analytics accuracy migration and confirm the production Supabase service key is configured.</p></section> : null}
 
       <div className="metric-grid">
-        <div className="metric"><strong>{activeVisitors}</strong><span>Live now</span></div>
+        <div className="metric"><strong>{metrics.active_browsers}</strong><span>Live now</span></div>
         <div className="metric"><strong>{subscriberCount}</strong><span>Subscribers</span></div>
-        <div className="metric"><strong>{pageViews.length}</strong><span>Page views</span></div>
-        <div className="metric"><strong>{uniqueVisitors}</strong><span>Unique visitors</span></div>
-        <div className="metric"><strong>{uniqueSessions}</strong><span>Sessions</span></div>
-        <div className="metric"><strong>{completedPathwaySessions}</strong><span>Pathway completions</span></div>
-        <div className="metric"><strong>{knownPathwayCompleters}</strong><span>Known completers</span></div>
-        <div className="metric"><strong>{appTransitions}</strong><span>App transitions</span></div>
-        <div className="metric"><strong>{searchCount}</strong><span>Searches</span></div>
-        <div className="metric"><strong>{missingCount}</strong><span>Missing-result searches</span></div>
-        <div className="metric"><strong>{completedReads}</strong><span>Completed article reads</span></div>
-        <div className="metric"><strong>{percent(appTransitions, uniqueSessions)}</strong><span>Session → app rate</span></div>
+        <div className="metric"><strong>{metrics.page_views}</strong><span>Page views</span></div>
+        <div className="metric"><strong>{metrics.unique_browsers}</strong><span>Unique visitors</span></div>
+        <div className="metric"><strong>{metrics.browser_sessions}</strong><span>Sessions</span></div>
+        <div className="metric"><strong>{metrics.pathway_completions}</strong><span>Pathway completions</span></div>
+        <div className="metric"><strong>{metrics.known_pathway_completers}</strong><span>Known completers</span></div>
+        <div className="metric"><strong>{metrics.app_transition_events}</strong><span>App transitions</span></div>
+        <div className="metric"><strong>{metrics.searches}</strong><span>Searches</span></div>
+        <div className="metric"><strong>{metrics.missing_searches}</strong><span>Missing-result searches</span></div>
+        <div className="metric"><strong>{metrics.article_completions}</strong><span>Completed article reads</span></div>
+        <div className="metric"><strong>{percent(metrics.app_transition_sessions, metrics.browser_sessions)}</strong><span>Session → app rate</span></div>
       </div>
 
       <section className="study-intelligence-block">
@@ -154,8 +213,8 @@ export default async function AdminAnalyticsPage() {
         <section className="admin-card">
           <h2>Live presence</h2>
           <table className="admin-table"><tbody>
-            <tr><td>People online</td><td><strong>{activeVisitors}</strong></td></tr>
-            <tr><td>Active browser sessions</td><td><strong>{activeSessions}</strong></td></tr>
+            <tr><td>People online</td><td><strong>{metrics.active_browsers}</strong></td></tr>
+            <tr><td>Active browser sessions</td><td><strong>{metrics.active_sessions}</strong></td></tr>
             <tr><td>Presence window</td><td><strong>Last 75 seconds</strong></td></tr>
             <tr><td>Dashboard refresh</td><td><strong>Every 15 seconds</strong></td></tr>
           </tbody></table>
@@ -164,8 +223,10 @@ export default async function AdminAnalyticsPage() {
         <section className="admin-card">
           <h2>Tracker health</h2>
           <table className="admin-table"><tbody>
-            <tr><td>Events stored</td><td><strong>{events.length}</strong></td></tr>
-            <tr><td>Latest event</td><td><strong>{lastEvent ? new Date(lastEvent).toLocaleString() : "No events received"}</strong></td></tr>
+            <tr><td>Events stored</td><td><strong>{metrics.total_events}</strong></td></tr>
+            <tr><td>Tracking started</td><td><strong>{metrics.first_event ? new Date(metrics.first_event).toLocaleString() : "No events received"}</strong></td></tr>
+            <tr><td>Latest event</td><td><strong>{metrics.latest_event ? new Date(metrics.latest_event).toLocaleString() : "No events received"}</strong></td></tr>
+            <tr><td>Reporting mode</td><td><strong>Exact ledger aggregates</strong></td></tr>
             <tr><td>Event source</td><td><strong>First-party / Supabase</strong></td></tr>
             <tr><td>Private study content</td><td><strong>Excluded</strong></td></tr>
           </tbody></table>
@@ -173,24 +234,24 @@ export default async function AdminAnalyticsPage() {
       </div>
 
       <div className="analytics-grid">
-        <MetricTable title="Top traffic sources" rows={trafficSources} empty="No referrer or campaign data yet." />
-        <MetricTable title="Most used pages" rows={topPages} empty="No page activity yet." />
-        <MetricTable title="Countries" rows={countries} empty="No location data yet." />
-        <MetricTable title="Cities / regions" rows={cities} empty="No city data yet." />
-        <MetricTable title="Devices" rows={devices} empty="No device data yet." />
-        <MetricTable title="Browsers" rows={browsers} empty="No browser data yet." />
-        <MetricTable title="Operating systems" rows={operatingSystems} empty="No OS data yet." />
-        <MetricTable title="Campaigns" rows={campaigns} empty="No UTM campaign traffic yet." />
-        <MetricTable title="UTM mediums" rows={mediums} empty="No UTM medium traffic yet." />
-        <MetricTable title="Top searches" rows={searches} empty="No searches yet." />
-        <MetricTable title="Content gaps" rows={missing} empty="No missing-result searches yet." />
-        <MetricTable title="App conversion origins" rows={appOrigins} empty="No app transitions yet." />
+        <MetricTable title="Top traffic sources" rows={snapshot.trafficSources} empty="No referrer or campaign data yet." />
+        <MetricTable title="Most used pages" rows={snapshot.topPages} empty="No page activity yet." />
+        <MetricTable title="Countries" rows={snapshot.countries} empty="No location data yet." />
+        <MetricTable title="Cities / regions" rows={snapshot.cities} empty="No city data yet." />
+        <MetricTable title="Devices" rows={snapshot.devices} empty="No device data yet." />
+        <MetricTable title="Browsers" rows={snapshot.browsers} empty="No browser data yet." />
+        <MetricTable title="Operating systems" rows={snapshot.operatingSystems} empty="No OS data yet." />
+        <MetricTable title="Campaigns" rows={snapshot.campaigns} empty="No UTM campaign traffic yet." />
+        <MetricTable title="UTM mediums" rows={snapshot.mediums} empty="No UTM medium traffic yet." />
+        <MetricTable title="Top searches" rows={snapshot.searches} empty="No searches yet." />
+        <MetricTable title="Content gaps" rows={snapshot.missingSearches} empty="No missing-result searches yet." />
+        <MetricTable title="App conversion origins" rows={snapshot.appOrigins} empty="No app transitions yet." />
       </div>
     </>
   );
 }
 
-function MetricTable({ title, rows, empty }: { title: string; rows: [string, number][]; empty: string }) {
+function MetricTable({ title, rows, empty }: { title: string; rows: MetricRow[]; empty: string }) {
   return (
     <section className="admin-card">
       <h2>{title}</h2>
