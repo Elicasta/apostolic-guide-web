@@ -11,6 +11,7 @@ import { pathwaySuggestions } from "@/suggestion-data";
 import { scriptures, topicBySlug } from "@/data";
 import { allPathways, pathwayBySlug } from "@/pathway-catalog";
 import { breadcrumbJsonLd, buildSeoMetadata } from "@/seo";
+import { SearchIntentCluster } from "@/search-intent-cluster";
 import { buildAppUrl } from "@/urls";
 
 export const revalidate = 60;
@@ -39,6 +40,7 @@ export default async function PathwayPage({ params }: Props) {
     Promise.resolve(topicBySlug(pathway.topicSlug)),
     getPathwayAudioAsset(pathway.slug)
   ]);
+  const currentPath = `/pathways/${pathway.slug}`;
   const collectionItems = allPathways.filter((item) => item.collection === pathway.collection);
   const currentIndex = collectionItems.findIndex((item) => item.slug === pathway.slug);
   const previous = currentIndex > 0 ? collectionItems[currentIndex - 1] : null;
@@ -47,7 +49,7 @@ export default async function PathwayPage({ params }: Props) {
   const suggestions = pathwaySuggestions(pathway.slug);
   const breadcrumbs = breadcrumbJsonLd([
     { name: "Pathways", path: "/pathways" },
-    { name: pathway.title, path: `/pathways/${pathway.slug}` }
+    { name: pathway.title, path: currentPath }
   ]);
   const appHref = buildAppUrl(`/paths/${pathway.appSlug}`, { origin: `website-pathway-${pathway.slug}` });
 
@@ -102,6 +104,7 @@ export default async function PathwayPage({ params }: Props) {
       </section>
 
       <section className="section section-tight"><div className="shell"><StudyScriptures references={pathwayReferences} /></div></section>
+      <section className="section section-tight"><div className="shell"><SearchIntentCluster currentPath={currentPath} /></div></section>
 
       {(previous || next) && (
         <section className="section section-tight pathway-pagination-section">
@@ -116,7 +119,7 @@ export default async function PathwayPage({ params }: Props) {
         </section>
       )}
 
-      <section className="section section-tight"><div className="shell"><SmartNext currentPath={`/pathways/${pathway.slug}`} candidates={suggestions} eyebrow="Continue the pathway library" heading="Follow the next connected study." /></div></section>
+      <section className="section section-tight"><div className="shell"><SmartNext currentPath={currentPath} candidates={suggestions} eyebrow="Continue the pathway library" heading="Follow the next connected study." /></div></section>
     </>
   );
 }

@@ -9,6 +9,8 @@ import { topicSuggestions } from "@/suggestion-data";
 import { answers, articles, scriptures, topicBySlug, topics } from "@/data";
 import { allPathways } from "@/pathway-catalog";
 import { breadcrumbJsonLd, buildSeoMetadata } from "@/seo";
+import { seoTitleForTopic } from "@/seo-ranking-content";
+import { SearchIntentCluster } from "@/search-intent-cluster";
 import { buildAppUrl } from "@/urls";
 
 export function generateStaticParams() { return topics.map((topic) => ({ slug: topic.slug })); }
@@ -19,7 +21,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const topic = topicBySlug(slug);
   if (!topic) return {};
-  return buildSeoMetadata({ title: topic.title, description: topic.claim, path: `/topics/${slug}` });
+  return buildSeoMetadata({ title: seoTitleForTopic(slug, topic.title), description: topic.claim, path: `/topics/${slug}` });
 }
 
 export default async function TopicPage({ params }: Props) {
@@ -27,6 +29,7 @@ export default async function TopicPage({ params }: Props) {
   const topic = topicBySlug(slug);
   if (!topic) notFound();
 
+  const currentPath = `/topics/${topic.slug}`;
   const topicScriptures = scriptures.filter((item) => item.topicSlugs.includes(topic.slug));
   const topicAnswers = answers.filter((item) => item.topicSlug === topic.slug);
   const topicArticles = articles.filter((item) => item.topicSlug === topic.slug);
@@ -35,7 +38,7 @@ export default async function TopicPage({ params }: Props) {
   const suggestions = topicSuggestions(topic.slug);
   const breadcrumbs = breadcrumbJsonLd([
     { name: "Topics", path: "/topics" },
-    { name: topic.title, path: `/topics/${topic.slug}` }
+    { name: topic.title, path: currentPath }
   ]);
   const appPathwayHref = topicPathway
     ? buildAppUrl(`/paths/${topicPathway.appSlug}`, { origin: `website-topic-${topic.slug}` })
@@ -73,9 +76,10 @@ export default async function TopicPage({ params }: Props) {
       </section>
 
       <section className="section section-tight"><div className="shell"><StudyScriptures references={topic.keyScriptures} /></div></section>
+      <section className="section section-tight"><div className="shell"><SearchIntentCluster currentPath={currentPath} /></div></section>
       {relatedTopics.length > 0 && <section className="section section-tight related-section"><div className="shell"><span className="eyebrow">Keep studying</span><h2 className="related-heading">Related topics</h2><div className="topic-grid topic-grid-two">{relatedTopics.map((item) => <TopicCard topic={item} key={item.slug} />)}</div></div></section>}
       <section className="section section-tight"><div className="shell"><AppBridge origin={`topic-${topic.slug}`} compact /></div></section>
-      <section className="section section-tight"><div className="shell"><SmartNext currentPath={`/topics/${topic.slug}`} candidates={suggestions} /></div></section>
+      <section className="section section-tight"><div className="shell"><SmartNext currentPath={currentPath} candidates={suggestions} /></div></section>
     </>
   );
 }

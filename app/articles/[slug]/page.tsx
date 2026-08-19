@@ -10,6 +10,7 @@ import { articleSuggestions } from "@/suggestion-data";
 import { articleBySlug, articles, topicBySlug } from "@/data";
 import { getDatabaseContent } from "@/database-content";
 import { absoluteWebsiteUrl, breadcrumbJsonLd, buildSeoMetadata, defaultSeoImage } from "@/seo";
+import { SearchIntentCluster } from "@/search-intent-cluster";
 import { canonicalWebsiteUrl } from "@/urls";
 
 type Props = { params: Promise<{ slug: string }> };
@@ -37,6 +38,7 @@ export default async function ArticlePage({ params }: Props) {
   const database = local ? null : await getDatabaseContent("article", slug);
   if (!local && !database) notFound();
 
+  const currentPath = `/articles/${slug}`;
   const title = local?.title ?? database!.title;
   const summary = local?.summary ?? database!.summary;
   const topic = local ? topicBySlug(local.topicSlug) : null;
@@ -59,13 +61,13 @@ export default async function ArticlePage({ params }: Props) {
     image: absoluteWebsiteUrl(defaultSeoImage),
     author: { "@type": "Organization", name: "Apostolic Guide", url: canonicalWebsiteUrl },
     publisher: { "@type": "Organization", name: "Apostolic Guide", url: canonicalWebsiteUrl, logo: { "@type": "ImageObject", url: `${canonicalWebsiteUrl}/icons/icon-512.png` } },
-    mainEntityOfPage: absoluteWebsiteUrl(`/articles/${slug}`),
+    mainEntityOfPage: absoluteWebsiteUrl(currentPath),
     datePublished: local?.publishedAt ?? database?.publishedAt,
     dateModified: database?.updatedAt ?? local?.publishedAt
   };
   const breadcrumbs = breadcrumbJsonLd([
     { name: "Articles", path: "/articles" },
-    { name: title, path: `/articles/${slug}` }
+    { name: title, path: currentPath }
   ]);
 
   return (
@@ -111,9 +113,10 @@ export default async function ArticlePage({ params }: Props) {
             <div id="study-the-scriptures">
               <StudyScriptures references={references} />
             </div>
+            <SearchIntentCluster currentPath={currentPath} />
             <AppBridge compact origin={`article:${slug}`} />
             <SmartNext
-              currentPath={`/articles/${slug}`}
+              currentPath={currentPath}
               candidates={suggestions}
               eyebrow="Continue reading"
               heading="Read the next article."
