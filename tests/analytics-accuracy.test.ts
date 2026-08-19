@@ -50,9 +50,9 @@ test("Analytics V2 separates known Studio and preview traffic from public traffi
   const publicTraffic = source("supabase/migrations/202608190003_analytics_v2_public_traffic.sql");
   const nullFix = source("supabase/migrations/202608190004_analytics_v2_internal_null_fix.sql");
   const liveMetrics = source("supabase/migrations/202608190005_analytics_v2_public_live_metrics.sql");
-  assert.match(publicTraffic, /Internal \/ Studio/);
+  assert.match(publicTraffic, /studio\.apostolicguide\.com/);
   assert.match(publicTraffic, /elicastas-projects\.vercel\.app/);
-  assert.match(nullFix, /coalesce\([\s\S]*is_internal/);
+  assert.match(nullFix, /coalesce\([\s\S]*false[\s\S]*\) as is_internal/);
   assert.match(liveMetrics, /public_page_views/);
   assert.match(liveMetrics, /public_active_browsers/);
   assert.match(liveMetrics, /occurred_at >= now\(\) - interval '75 seconds'/i);
