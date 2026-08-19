@@ -1,4 +1,6 @@
 import { randomUUID } from "node:crypto";
+import { pathwayNarrationHash } from "./pathway-audio";
+import { pathwayBySlug } from "./pathway-catalog";
 import { SOL_RECIPE_STEPS, solProgress, type SolRecipeKey } from "./sol-operator-engine";
 import {
   isTransientSolFailure,
@@ -99,6 +101,117 @@ async function settleProposal(service: Service, proposalId: string | null) {
   if (runs.data.some((item) => ["queued", "running", "retrying"].includes(String(item.status)))) return;
   const failedOnly = runs.data.every((item) => ["failed", "stalled", "cancelled"].includes(String(item.status)));
   await service.from("sol_operator_proposals").update({ status: failedOnly ? "failed" : "completed" }).eq("id", proposalId);
+}
+
+async function pathwayAudioStage(service: Service, run: Record<string, unknown>, context: ExecutionContext) {
+  const inputs = record(run.inputs);
+  const slug = String(inputs.slug || run.pathway_slug || "");
+  const pathway = pathwayBySlug(slug);
+  if (!pathway) throw new Error("Pathway not found.");
+  const sourceHash = pathwayNarrationHash(pathway);
+  const audioHref = `/admin/audio?pathway=${encodeURIComponent(slug)}`;
+
+  await updateStep(service, run, "inspect_source", "running");
+  let [audio, script] = await Promise.all([
+    service.from("pathway_audio_assets").select("audio_url,content_hash").eq("pathway_slug", slug).maybeSingle(),
+    service.from("pathway_audio_scripts").select("source_hash,script_hash,status,checker_status,checked_script_hash").eq("pathway_slug", slug).maybeSingle()
+  ]);
+  if (audio.error) throw audio.error;
+  if (script.error) throw script.error;
+  const alreadyCurrent = Boolean(
+    audio.data?.audio_url
+      && script.data?.source_hash === sourceHash
+      && script.data?.script_hash
+      && script.data.status === "approved"
+      && script.data.checker_status === "passed"
+      && script.data.checked_script_hash === script.data.script_hash
+      && audio.data.content_hash === script.data.script_hash
+  );
+  await updateStep(service, run, "inspect_source", "completed", alreadyCurrent ? "Current approved script and matching audio already exist." : "Audio or narration source needs staging.");
+  if (alreadyCurrent) {
+    await updateStep(service, run, "prepare_script", "completed", "Existing current script reused.");
+    await updateStep(service, run, "theology_gate", "completed", "Existing exact script is approved and passed doctrine review.");
+    await updateStep(service, run, "generate_audio", "completed", "Existing source-aligned audio reused. No generation charge incurred.");
+    await updateStep(service, run, "verify_asset", "completed", "Audio hash matches the approved script.");
+    await finishRun(service, run, {
+      status: "completed",
+      progress: 100,
+      current_step: "verify_asset",
+      result: { slug, href: audioHref, generated: false, alreadyCurrent: true },
+      completed_at: new Date().toISOString(),
+      error: null
+    });
+    return;
+  }
+  if (await cancelled(service, String(run.id))) return;
+
+  await updateStep(service, run, "prepare_script", "running");
+  const scriptNeedsRefresh = !script.data?.script_hash || script.data.source_hash !== sourceHash;
+  if (scriptNeedsRefresh) {
+    await requestJson(context, "/api/admin/pathway-audio/script/generate", { slug });
+    await updateStep(service, run, "prepare_script", "completed", "Narration draft generated from the current canonical Pathway and doctrine-checked.");
+  } else {
+    await updateStep(service, run, "prepare_script", "completed", "Current narration script reused.");
+  }
+  if (await cancelled(service, String(run.id))) return;
+
+  script = await service.from("pathway_audio_scripts")
+    .select("source_hash,script_hash,status,checker_status,checked_script_hash")
+    .eq("pathway_slug", slug)
+    .maybeSingle();
+  if (script.error) throw script.error;
+  const exactScriptReady = Boolean(
+    script.data?.source_hash === sourceHash
+      && script.data?.script_hash
+      && script.data.status === "approved"
+      && script.data.checker_status === "passed"
+      && script.data.checked_script_hash === script.data.script_hash
+  );
+
+  await updateStep(service, run, "theology_gate", "running");
+  if (!exactScriptReady) {
+    const reason = script.data?.checker_status === "passed"
+      ? "Current script passed doctrine review but still needs human approval."
+      : "Current script needs doctrine/editorial review before audio can be generated.";
+    await updateStep(service, run, "theology_gate", "completed", reason);
+    await finishRun(service, run, {
+      status: "waiting_review",
+      progress: run.progress,
+      current_step: "theology_gate",
+      result: {
+        slug,
+        href: audioHref,
+        requiresScriptApproval: true,
+        checkerStatus: script.data?.checker_status ?? null,
+        scriptStatus: script.data?.status ?? null,
+        publishingBlocked: true
+      },
+      completed_at: new Date().toISOString(),
+      error: null
+    });
+    return;
+  }
+  await updateStep(service, run, "theology_gate", "completed", "Exact current script is approved and passed doctrine review.");
+  if (await cancelled(service, String(run.id))) return;
+
+  await updateStep(service, run, "generate_audio", "running");
+  const generated = await requestJson(context, "/api/admin/pathway-audio/generate", { slug, force: false });
+  await updateStep(service, run, "generate_audio", "completed", generated.generated === false ? "Existing matching audio reused." : "Pathway audio rendered, mastered, and saved.");
+  if (await cancelled(service, String(run.id))) return;
+
+  await updateStep(service, run, "verify_asset", "running");
+  audio = await service.from("pathway_audio_assets").select("audio_url,content_hash").eq("pathway_slug", slug).maybeSingle();
+  if (audio.error) throw audio.error;
+  if (!audio.data?.audio_url || audio.data.content_hash !== script.data?.script_hash) throw new Error("Saved audio did not verify against the approved script hash.");
+  await updateStep(service, run, "verify_asset", "completed", "Saved audio is source-aligned and matches the approved script hash.");
+  await finishRun(service, run, {
+    status: "completed",
+    progress: 100,
+    current_step: "verify_asset",
+    result: { slug, href: audioHref, audioUrl: audio.data.audio_url, generated: generated.generated !== false, publishingBlocked: true },
+    completed_at: new Date().toISOString(),
+    error: null
+  });
 }
 
 async function audioToYoutube(service: Service, run: Record<string, unknown>, context: ExecutionContext) {
@@ -298,7 +411,8 @@ export async function executeSolRun(runId: string, context: ExecutionContext) {
     run.worker_id = workerId;
     await appendEvent(service, run, "run.started", { recipe_key: run.recipe_key, pathway_slug: run.pathway_slug, attempt_count: attemptCount, worker_id: workerId });
     const recipe = String(run.recipe_key) as SolRecipeKey;
-    if (recipe === "audio_to_youtube") await audioToYoutube(service, run, context);
+    if (recipe === "pathway_audio_stage") await pathwayAudioStage(service, run, context);
+    else if (recipe === "audio_to_youtube") await audioToYoutube(service, run, context);
     else if (recipe === "carousel_topic_pack") await carouselTopicPack(service, run, context);
     else await journeyAutomationDraft(service, run);
     const final = await loadRun(service, runId);
