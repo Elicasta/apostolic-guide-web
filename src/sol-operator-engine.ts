@@ -1,5 +1,5 @@
 export type SolMode = "watch" | "assist" | "trusted";
-export type SolRecipeKey = "audio_to_youtube" | "carousel_topic_pack" | "journey_automation_draft";
+export type SolRecipeKey = "pathway_audio_stage" | "audio_to_youtube" | "carousel_topic_pack" | "journey_automation_draft";
 export type SolProposalPriority = "urgent" | "high" | "medium" | "low";
 export type SolProposalRisk = "safe_draft" | "review_required" | "external_effect";
 export type SolProposalStatus = "pending" | "approved" | "running" | "completed" | "dismissed" | "failed" | "expired";
@@ -20,6 +20,7 @@ export type SolPathwayObservation = {
   destinationUrl: string;
   automationLinked: boolean;
   audioReady: boolean;
+  scriptCurrent: boolean;
   scriptApproved: boolean;
   theologyPassed: boolean;
   audioMatchesScript: boolean;
@@ -60,12 +61,20 @@ export type SolOperatorAnalysis = {
 };
 
 export const SOL_RECIPE_LABELS: Record<SolRecipeKey, string> = {
+  pathway_audio_stage: "Pathway audio staging",
   audio_to_youtube: "Pathway audio to YouTube",
   carousel_topic_pack: "Legacy carousel topic pack",
   journey_automation_draft: "Journey and automation draft"
 };
 
 export const SOL_RECIPE_STEPS: Record<SolRecipeKey, SolPlanStep[]> = {
+  pathway_audio_stage: [
+    { key: "inspect_source", label: "Inspect the canonical Pathway, narration script, doctrine verdict, and saved audio", gate: "automatic" },
+    { key: "prepare_script", label: "Generate or reuse a narration script for the current Pathway source", gate: "automatic" },
+    { key: "theology_gate", label: "Require the exact current script to pass doctrine review and be approved", gate: "theology" },
+    { key: "generate_audio", label: "Render, master, and save audio from the approved current script", gate: "automatic" },
+    { key: "verify_asset", label: "Verify the saved audio hash matches the approved script", gate: "automatic" }
+  ],
   audio_to_youtube: [
     { key: "validate_source", label: "Verify approved script, theology check, and matching audio", gate: "theology" },
     { key: "analyze_video", label: "Build the timed Pathway video project", gate: "automatic" },
@@ -105,8 +114,36 @@ export function buildSolOperatorAnalysis(input: {
   weeklyActuals: Record<string, number>;
 }): SolOperatorAnalysis {
   const proposals: SolProposalDraft[] = [];
+
+  const audioStageCandidates = input.pathways.filter((pathway) =>
+    (!pathway.audioReady || !pathway.audioMatchesScript || !pathway.scriptCurrent)
+    && !pathway.activeRecipes.includes("pathway_audio_stage")
+  ).slice(0, 5);
+  if (audioStageCandidates.length) {
+    const stale = audioStageCandidates.filter((item) => item.audioReady && (!item.audioMatchesScript || !item.scriptCurrent)).length;
+    const missing = audioStageCandidates.filter((item) => !item.audioReady).length;
+    proposals.push({
+      proposalKey: `pathway-audio-stage:${audioStageCandidates.map((item) => item.slug).join(",")}`,
+      recipeKey: "pathway_audio_stage",
+      title: `Stage ${audioStageCandidates.length} ${audioStageCandidates.length === 1 ? "Pathway audio" : "Pathway audios"}`,
+      summary: "These Pathways are missing current source-aligned audio. Sol can prepare the narration, stop at the doctrine/approval gate when needed, then render and verify audio without publishing anything.",
+      priority: stale > 0 ? "high" : "medium",
+      risk: "safe_draft",
+      pathwaySlugs: audioStageCandidates.map((item) => item.slug),
+      evidence: [
+        { label: "Missing audio", value: missing, state: missing ? "missing" : "ready" },
+        { label: "Stale audio", value: stale, state: stale ? "blocked" : "ready" },
+        { label: "Current approved scripts", value: audioStageCandidates.filter((item) => item.scriptCurrent && item.scriptApproved && item.theologyPassed).length, state: "info" }
+      ],
+      plan: SOL_RECIPE_STEPS.pathway_audio_stage,
+      suggestedConstraints: ["Use the current canonical Pathway source", "Never bypass script approval or the doctrine gate", "Do not publish externally"],
+      inputs: { pathways: audioStageCandidates.map((item) => ({ slug: item.slug, title: item.title })) }
+    });
+  }
+
   const audioCandidates = input.pathways.filter((pathway) =>
     pathway.audioReady
+    && pathway.scriptCurrent
     && pathway.scriptApproved
     && pathway.theologyPassed
     && pathway.audioMatchesScript
@@ -177,7 +214,7 @@ export function buildSolOperatorAnalysis(input: {
     kpis: kpiDefinitions.map(({ key, label }) => ({ key, label, target: Math.max(0, Number(input.weeklyTargets[key]) || 0), actual: Math.max(0, Number(input.weeklyActuals[key]) || 0) })),
     coverage: {
       pathways: input.pathways.length,
-      audioReady: input.pathways.filter((item) => item.audioReady).length,
+      audioReady: input.pathways.filter((item) => item.audioReady && item.scriptCurrent && item.audioMatchesScript).length,
       youtubePublished: input.pathways.filter((item) => item.youtubePublished).length,
       carouselPublished: input.pathways.filter((item) => item.carouselPublished > 0).length,
       automationsLinked: input.pathways.filter((item) => item.automationLinked).length
