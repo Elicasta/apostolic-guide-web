@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, Check, ExternalLink, MoreVertical, PlusSquare, Share2, Smartphone } from "lucide-react";
+import { trackEvent } from "./analytics";
 import { appUrl } from "./urls";
 
 type Platform = "ios" | "android" | "desktop";
@@ -16,6 +17,16 @@ function safeDestination(value: string | null) {
   } catch {
     return appUrl;
   }
+}
+
+function appHandoffProperties(target: string, handoff: string) {
+  const url = new URL(target);
+  return {
+    target: `${url.pathname}${url.search}`,
+    placement: url.searchParams.get("placement"),
+    origin: url.searchParams.get("origin"),
+    handoff
+  };
 }
 
 function detectPlatform(): Platform {
@@ -36,6 +47,7 @@ export function AppInstallGuide({ destination }: { destination: string | null })
     setPlatform(detected);
     const seen = window.localStorage.getItem(seenKey) === "1";
     if (seen) {
+      trackEvent("app_link_clicked", appHandoffProperties(target, "returning-auto"));
       window.location.replace(target);
       return;
     }
@@ -44,6 +56,7 @@ export function AppInstallGuide({ destination }: { destination: string | null })
 
   function continueToApp() {
     window.localStorage.setItem(seenKey, "1");
+    trackEvent("app_link_clicked", appHandoffProperties(target, "install-guide-button"));
     window.location.assign(target);
   }
 
