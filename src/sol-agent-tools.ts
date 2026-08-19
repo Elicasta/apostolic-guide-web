@@ -3,6 +3,8 @@ import type { SolAdminSurface } from "./sol-admin-context";
 import { getCreativeProductionSnapshot } from "./creative-project-server";
 import { createSolAgentApproval, type SolAgentApproval } from "./sol-agent-memory";
 import { hasExplicitSolIntent } from "./sol-agent-policy";
+import { getSolManagerContentInventory, getSolManagerPeopleStatus } from "./sol-manager";
+import type { SolManagerContentKind } from "./sol-manager-engine";
 import { cancelSolRunV3, retrySolRun } from "./sol-run-recovery";
 import { isTrustedAutoRunnableProposal } from "./sol-trusted-policy";
 import {
@@ -19,6 +21,8 @@ import type { SolMode } from "./sol-operator-engine";
 export type SolAgentToolName =
   | "get_workspace_status"
   | "get_current_screen"
+  | "get_content_inventory"
+  | "get_people_journey_status"
   | "list_creative_projects"
   | "scan_workspace"
   | "list_proposals"
@@ -64,6 +68,37 @@ export const SOL_AGENT_TOOLS = [
   },
   {
     type: "function",
+    name: "get_content_inventory",
+    description: "Read deterministic Pathway production inventory and exact counts for audio, video/YouTube, carousels, and linked automations. Audio is only counted ready when its script is current, approved, doctrine-passed, and hash-aligned. Use this for questions like how many audios are made, missing, stale, or blocked.",
+    strict: true,
+    parameters: {
+      type: "object",
+      additionalProperties: false,
+      required: ["asset_type", "pathway_slug"],
+      properties: {
+        asset_type: { type: "string", enum: ["all", "audio", "video", "youtube", "carousel", "automation"] },
+        pathway_slug: { type: "string", description: "Canonical Pathway slug, or an empty string for all Pathways." }
+      }
+    }
+  },
+  {
+    type: "function",
+    name: "get_people_journey_status",
+    description: "Read CRM people and stored growth-journey progress. Use this before claiming where a person is in a journey. Never infer spiritual state from comments or prose; report stored journey evidence only.",
+    strict: true,
+    parameters: {
+      type: "object",
+      additionalProperties: false,
+      required: ["person_id", "query", "limit"],
+      properties: {
+        person_id: { type: "string", description: "Exact person ID, or an empty string to search/list people." },
+        query: { type: "string", description: "Name, email, handle, or other people search text, or an empty string." },
+        limit: { type: "integer", minimum: 1, maximum: 10 }
+      }
+    }
+  },
+  {
+    type: "function",
     name: "list_creative_projects",
     description: "Read persistent Creative Project production state, including Draft/Ready/Scheduled/Published counts, Ready projects that are not scheduled, and failed publication attempts. Use this before suggesting duplicate creative work or claiming something still needs to be scheduled.",
     strict: true,
@@ -72,7 +107,7 @@ export const SOL_AGENT_TOOLS = [
   {
     type: "function",
     name: "scan_workspace",
-    description: "Run the deterministic Studio scan that discovers evidence-backed Sol proposals. This reads current state and may create proposal records, but does not publish content.",
+    description: "Run the deterministic Studio scan that discovers evidence-backed Sol proposals, including missing or stale Pathway audio. This reads current state and may create proposal records, but does not publish content.",
     strict: true,
     parameters: EMPTY_OBJECT
   },
@@ -215,6 +250,22 @@ export async function executeSolAgentTool(name: SolAgentToolName, rawArgs: unkno
     return { ok: true, message: "Workspace status loaded.", data: { ...currentStatus(snapshot), creativeProduction } };
   }
   if (name === "get_current_screen") return { ok: true, message: `Current screen: ${context.surface.label}.`, data: { ...context.surface } };
+  if (name === "get_content_inventory") {
+    const rawKind = String(args.asset_type || "all");
+    const kind: SolManagerContentKind = ["all", "audio", "video", "youtube", "carousel", "automation"].includes(rawKind)
+      ? rawKind as SolManagerContentKind
+      : "all";
+    const inventory = await getSolManagerContentInventory({ kind, pathwaySlug: String(args.pathway_slug || "") });
+    return { ok: true, message: "Content inventory loaded.", data: inventory as unknown as Record<string, unknown> };
+  }
+  if (name === "get_people_journey_status") {
+    const people = await getSolManagerPeopleStatus({
+      personId: String(args.person_id || ""),
+      query: String(args.query || ""),
+      limit: Number(args.limit) || 10
+    });
+    return { ok: true, message: "People journey status loaded.", data: people as unknown as Record<string, unknown> };
+  }
   if (name === "list_creative_projects") return { ok: true, message: "Creative Project production state loaded.", data: await getCreativeProductionSnapshot() };
   if (name === "scan_workspace") {
     await scanSolOperator(context.actorUserId);
