@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getStudioPermission } from "@/auth";
+import { ApostolicMotionPilot } from "@/apostolic-motion-pilot";
 import { allPathways } from "@/pathway-catalog";
 import { PathwayVideoStudio } from "@/pathway-video-studio";
 import { VideoStudioWorkflow } from "@/video-studio-workflow";
@@ -159,6 +160,7 @@ export default async function AdminVideoStudioPage() {
   const aiReady = Boolean(process.env.OPENAI_API_KEY?.trim());
 
   return <>
+    <ApostolicMotionPilot pathways={pathways} databaseReady={databaseReady} rendererReady={rendererReady}/>
     <PathwayVideoStudio pathways={pathways} databaseReady={databaseReady} rendererReady={rendererReady}/>
     <VideoStudioWorkflow aiReady={aiReady}/>
   </>;
