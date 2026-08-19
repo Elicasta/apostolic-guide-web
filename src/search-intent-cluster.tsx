@@ -1,21 +1,21 @@
 import Link from "next/link";
 import { ArrowRight, Search } from "lucide-react";
 
-type ClusterLink = {
+export type ClusterLink = {
   href: string;
   title: string;
   description: string;
   kind: string;
 };
 
-type SearchIntentCluster = {
+export type SearchIntentClusterDefinition = {
   heading: string;
   intro: string;
   paths: string[];
   links: ClusterLink[];
 };
 
-const clusters: SearchIntentCluster[] = [
+export const searchIntentClusters: SearchIntentClusterDefinition[] = [
   {
     heading: "Questions about the deity of Jesus",
     intro: "Follow the connected passages and questions that define who Jesus is without separating his deity from his genuine humanity.",
@@ -139,9 +139,14 @@ function normalizePath(path: string) {
   return withoutQuery !== "/" ? withoutQuery.replace(/\/$/, "") : withoutQuery;
 }
 
+export function searchIntentClusterForPath(path: string) {
+  const normalized = normalizePath(path);
+  return searchIntentClusters.find((item) => item.paths.includes(normalized)) ?? null;
+}
+
 export function SearchIntentCluster({ currentPath }: { currentPath: string }) {
   const path = normalizePath(currentPath);
-  const cluster = clusters.find((item) => item.paths.includes(path));
+  const cluster = searchIntentClusterForPath(path);
   if (!cluster) return null;
   const links = cluster.links.filter((item) => normalizePath(item.href) !== path).slice(0, 5);
   if (!links.length) return null;
@@ -158,11 +163,7 @@ export function SearchIntentCluster({ currentPath }: { currentPath: string }) {
       <nav className="smart-next-secondary" aria-label={cluster.heading}>
         {links.map((item) => (
           <Link href={item.href} key={item.href}>
-            <span>
-              <small>{item.kind}</small>
-              <strong>{item.title}</strong>
-              <em>{item.description}</em>
-            </span>
+            <span><small>{item.kind} · {item.description}</small><strong>{item.title}</strong></span>
             <ArrowRight size={16} />
           </Link>
         ))}
