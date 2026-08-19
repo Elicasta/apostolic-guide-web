@@ -35,17 +35,45 @@ type EventPayload = {
 const ANONYMOUS_KEY = "ag_anonymous_id";
 const SESSION_KEY = "ag_session_id";
 const ATTRIBUTION_KEY = "ag_campaign_attribution";
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function validUuid(value: string | null) {
+  return value && UUID_PATTERN.test(value) ? value : null;
+}
+
+function cookieValue(name: string) {
+  const prefix = `${name}=`;
+  for (const part of document.cookie.split(";")) {
+    const value = part.trim();
+    if (!value.startsWith(prefix)) continue;
+    try {
+      return decodeURIComponent(value.slice(prefix.length));
+    } catch {
+      return value.slice(prefix.length);
+    }
+  }
+  return null;
+}
 
 function getAnonymousId() {
-  const stored = window.localStorage.getItem(ANONYMOUS_KEY);
+  const shared = validUuid(cookieValue(ANONYMOUS_KEY));
+  if (shared) {
+    if (window.localStorage.getItem(ANONYMOUS_KEY) !== shared) {
+      window.localStorage.setItem(ANONYMOUS_KEY, shared);
+    }
+    return shared;
+  }
+
+  const stored = validUuid(window.localStorage.getItem(ANONYMOUS_KEY));
   if (stored) return stored;
+
   const value = crypto.randomUUID();
   window.localStorage.setItem(ANONYMOUS_KEY, value);
   return value;
 }
 
 function getSessionId() {
-  const stored = window.sessionStorage.getItem(SESSION_KEY);
+  const stored = validUuid(window.sessionStorage.getItem(SESSION_KEY));
   if (stored) return stored;
   const value = crypto.randomUUID();
   window.sessionStorage.setItem(SESSION_KEY, value);
@@ -54,15 +82,16 @@ function getSessionId() {
 
 function getCampaignAttribution(): EventProperties {
   const search = new URLSearchParams(location.search);
-  const campaign = search.get("utm_campaign");
-  if (campaign) {
-    const attribution: EventProperties = {
-      _utm_source: search.get("utm_source"),
-      _utm_medium: search.get("utm_medium"),
-      _utm_campaign: campaign,
-      _utm_content: search.get("utm_content"),
-      _utm_term: search.get("utm_term")
-    };
+  const attribution: EventProperties = {
+    _utm_source: search.get("utm_source"),
+    _utm_medium: search.get("utm_medium"),
+    _utm_campaign: search.get("utm_campaign"),
+    _utm_content: search.get("utm_content"),
+    _utm_term: search.get("utm_term")
+  };
+  const hasAttribution = Object.values(attribution).some((value) => typeof value === "string" && value.length > 0);
+
+  if (hasAttribution) {
     try { window.sessionStorage.setItem(ATTRIBUTION_KEY, JSON.stringify(attribution)); } catch {}
     return attribution;
   }
