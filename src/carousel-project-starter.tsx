@@ -80,7 +80,7 @@ export function CarouselProjectStarter({ pathways, aiReady }: { pathways: Pathwa
 
   return <section className="carousel-project-starter">
     <div className="carousel-project-starter-head">
-      <div><span>New creative</span><h1>What are we making?</h1><p>Choose the Pathway, purpose, and format. The topic starts with a useful Pathway default, but you can direct the creative before Sol writes anything.</p></div>
+      <div><span>New creative</span><h1>What are we making?</h1><p>Your prompt drives the actual idea. The selected Pathway supplies doctrine and Scripture. Only Pathway Guide intentionally follows the Pathway itself as the outline.</p></div>
     </div>
     <div className="carousel-project-starter-grid">
       <label>Pathway
@@ -99,9 +99,9 @@ export function CarouselProjectStarter({ pathways, aiReady }: { pathways: Pathwa
           {CREATIVE_FORMATS.map((item) => <option value={item} key={item}>{CREATIVE_FORMAT_LABELS[item]}</option>)}
         </select>
       </label>
-      <label className="carousel-project-topic">{format === "carousel" ? "What is this carousel about?" : format === "story" ? "What is this story about?" : "What is this post about?"}
-        <textarea rows={4} value={topic} onChange={(event) => { setTopic(event.target.value); setTopicDirty(true); }} placeholder={pathway ? defaultCarouselTopic(mode, pathway) : "Tell Sol what you want this creative to say."}/>
-        <small>Leave the default, or replace it with your own thought, question, angle, objection, word study, or practical emphasis.</small>
+      <label className="carousel-project-topic">Creative prompt
+        <textarea rows={4} value={topic} onChange={(event) => { setTopic(event.target.value); setTopicDirty(true); }} placeholder={pathway ? defaultCarouselTopic(mode, pathway) : "Tell Sol the thought, question, objection, angle, word study, or practical emphasis you want to create."}/>
+        <small><strong>Prompt = idea.</strong> Pathway = doctrinal boundary + Scripture bank. Sol also checks recent same-Pathway creatives so it does not keep recycling the same hook and sequence.</small>
       </label>
       {format !== "single" ? <div className="carousel-project-count">
         <label><input type="checkbox" checked={overrideCount} onChange={(event) => setOverrideCount(event.target.checked)}/> Choose slide count myself</label>
