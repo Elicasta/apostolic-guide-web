@@ -15,6 +15,12 @@ test("analytics dashboard uses exact database aggregates instead of a capped eve
   assert.match(page, /percent\(metrics\.app_transition_sessions, metrics\.browser_sessions\)/);
 });
 
+test("analytics dashboard excludes retired pathway and article slugs from current-content tables", () => {
+  const page = source("app/admin/analytics/page.tsx");
+  assert.match(page, /snapshot\.pathways\s*\.filter\(\(row\) => pathwayTitles\.has\(row\.slug\)\)/);
+  assert.match(page, /snapshot\.articles\s*\.filter\(\(row\) => articleTitles\.has\(row\.slug\)\)/);
+});
+
 test("analytics reporting migration calculates visitor, session, live, and study metrics from the full ledger", () => {
   const migration = source("supabase/migrations/202608190001_analytics_accuracy_hardening.sql");
   assert.match(migration, /create or replace function analytics\.dashboard_snapshot\(\)/i);
