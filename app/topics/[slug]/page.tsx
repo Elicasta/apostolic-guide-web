@@ -8,6 +8,7 @@ import { SmartNext } from "@/smart-next";
 import { topicSuggestions } from "@/suggestion-data";
 import { answers, articles, scriptures, topicBySlug, topics } from "@/data";
 import { allPathways } from "@/pathway-catalog";
+import { breadcrumbJsonLd, buildSeoMetadata } from "@/seo";
 import { buildAppUrl } from "@/urls";
 
 export function generateStaticParams() { return topics.map((topic) => ({ slug: topic.slug })); }
@@ -18,7 +19,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const topic = topicBySlug(slug);
   if (!topic) return {};
-  return { title: topic.title, description: topic.claim };
+  return buildSeoMetadata({ title: topic.title, description: topic.claim, path: `/topics/${slug}` });
 }
 
 export default async function TopicPage({ params }: Props) {
@@ -32,12 +33,17 @@ export default async function TopicPage({ params }: Props) {
   const topicPathway = allPathways.find((item) => item.topicSlug === topic.slug);
   const relatedTopics = topics.filter((item) => item.slug !== topic.slug && item.category === topic.category).slice(0, 2);
   const suggestions = topicSuggestions(topic.slug);
+  const breadcrumbs = breadcrumbJsonLd([
+    { name: "Topics", path: "/topics" },
+    { name: topic.title, path: `/topics/${topic.slug}` }
+  ]);
   const appPathwayHref = topicPathway
     ? buildAppUrl(`/paths/${topicPathway.appSlug}`, { origin: `website-topic-${topic.slug}` })
     : null;
 
   return (
     <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbs) }} />
       <PageHero eyebrow={topic.category} title={topic.title} text={topic.summary} />
       <section className="section">
         <div className="shell topic-page-grid">

@@ -1,7 +1,8 @@
 import type { MetadataRoute } from "next";
-import { answers, articles, pathways, scriptures, topics } from "@/data";
+import { answers, articles, scriptures, topics } from "@/data";
+import { allPathways } from "@/pathway-catalog";
 import { listDatabaseContent } from "@/database-content";
-import { websiteUrl } from "@/urls";
+import { canonicalWebsiteUrl } from "@/urls";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const databaseItems = await listDatabaseContent();
@@ -34,7 +35,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     if (!section) return [];
     const path = `/${section}/${item.slug}`;
     return localUrls.has(path) ? [] : [{
-      url: `${websiteUrl}${path}`,
+      url: `${canonicalWebsiteUrl}${path}`,
       lastModified: item.updatedAt,
       changeFrequency: "weekly" as const,
       priority: .72
@@ -42,12 +43,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   });
 
   return [
-    ...fixed.map((item) => ({ url: `${websiteUrl}${item.path}`, changeFrequency: item.changeFrequency, priority: item.priority })),
-    ...topics.map((item) => ({ url: `${websiteUrl}/topics/${item.slug}`, changeFrequency: "monthly" as const, priority: .82 })),
-    ...answers.map((item) => ({ url: `${websiteUrl}/answers/${item.slug}`, changeFrequency: "monthly" as const, priority: .8 })),
-    ...articles.map((item) => ({ url: `${websiteUrl}/articles/${item.slug}`, lastModified: item.publishedAt, changeFrequency: "monthly" as const, priority: .76 })),
-    ...scriptures.map((item) => ({ url: `${websiteUrl}/scripture/${item.path}`, changeFrequency: "monthly" as const, priority: .78 })),
-    ...pathways.map((item) => ({ url: `${websiteUrl}/pathways/${item.slug}`, changeFrequency: "monthly" as const, priority: .78 })),
+    ...fixed.map((item) => ({ url: `${canonicalWebsiteUrl}${item.path}`, changeFrequency: item.changeFrequency, priority: item.priority })),
+    ...topics.map((item) => ({ url: `${canonicalWebsiteUrl}/topics/${item.slug}`, changeFrequency: "monthly" as const, priority: .82 })),
+    ...answers.map((item) => ({ url: `${canonicalWebsiteUrl}/answers/${item.slug}`, changeFrequency: "monthly" as const, priority: .8 })),
+    ...articles.map((item) => ({ url: `${canonicalWebsiteUrl}/articles/${item.slug}`, lastModified: item.publishedAt, changeFrequency: "monthly" as const, priority: .76 })),
+    ...scriptures.map((item) => ({ url: `${canonicalWebsiteUrl}/scripture/${item.path}`, changeFrequency: "monthly" as const, priority: .78 })),
+    ...allPathways.map((item) => ({ url: `${canonicalWebsiteUrl}/pathways/${item.slug}`, changeFrequency: "monthly" as const, priority: .8 })),
     ...databasePages
   ];
 }

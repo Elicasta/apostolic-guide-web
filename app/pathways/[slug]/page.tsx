@@ -10,6 +10,7 @@ import { getPathwayAudioAsset } from "@/pathway-audio";
 import { pathwaySuggestions } from "@/suggestion-data";
 import { scriptures, topicBySlug } from "@/data";
 import { allPathways, pathwayBySlug } from "@/pathway-catalog";
+import { breadcrumbJsonLd, buildSeoMetadata } from "@/seo";
 import { buildAppUrl } from "@/urls";
 
 export const revalidate = 60;
@@ -22,7 +23,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const pathway = pathwayBySlug(slug);
   if (!pathway) return {};
-  return { title: pathway.title, description: pathway.summary };
+  return buildSeoMetadata({
+    title: `${pathway.title} Bible Study`,
+    description: pathway.summary,
+    path: `/pathways/${slug}`,
+    type: "article"
+  });
 }
 
 export default async function PathwayPage({ params }: Props) {
@@ -39,10 +45,15 @@ export default async function PathwayPage({ params }: Props) {
   const next = currentIndex < collectionItems.length - 1 ? collectionItems[currentIndex + 1] : null;
   const pathwayReferences = pathway.steps.map((step) => step.reference);
   const suggestions = pathwaySuggestions(pathway.slug);
+  const breadcrumbs = breadcrumbJsonLd([
+    { name: "Pathways", path: "/pathways" },
+    { name: pathway.title, path: `/pathways/${pathway.slug}` }
+  ]);
   const appHref = buildAppUrl(`/paths/${pathway.appSlug}`, { origin: `website-pathway-${pathway.slug}` });
 
   return (
     <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbs) }} />
       <PathwayStudyTracker slug={pathway.slug} stepCount={pathway.steps.length}/>
       <section className="pathway-hero">
         <div className="shell">

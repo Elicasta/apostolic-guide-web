@@ -9,7 +9,7 @@ import { EmailCapture } from "@/email-capture";
 import { GlobalBackNav } from "@/global-back-nav";
 import { ReadingProgress } from "@/reading-progress";
 import { SiteBehavior } from "@/site-behavior";
-import { websiteUrl } from "@/urls";
+import { canonicalWebsiteUrl } from "@/urls";
 import "./globals.css";
 import "./public-routes.css";
 import "./site-v1.css";
@@ -55,23 +55,35 @@ import "./studio-host.css";
 const socialShareImage = "/opengraph-image?v=20260812";
 
 export const metadata: Metadata = {
-  metadataBase: new URL(websiteUrl),
+  metadataBase: new URL(canonicalWebsiteUrl),
   title: { default: "Apostolic Guide | Scripture, Doctrine, and Biblical Answers", template: "%s | Apostolic Guide" },
   description: "Search Scripture, study Apostolic doctrine, follow connected Bible passages, and find clear biblical answers about God, Jesus Christ, salvation, and the apostolic faith.",
   applicationName: "Apostolic Guide",
-  authors: [{ name: "Apostolic Guide", url: websiteUrl }],
+  authors: [{ name: "Apostolic Guide", url: canonicalWebsiteUrl }],
   creator: "Apostolic Guide",
   publisher: "Apostolic Guide",
   category: "Bible study and Christian doctrine",
   robots: { index: true, follow: true, googleBot: { index: true, follow: true, "max-image-preview": "large", "max-snippet": -1, "max-video-preview": -1 } },
-  openGraph: { title: "Apostolic Guide | Know What You Believe. Know Why.", description: "Search Scripture, follow connected passages, and understand Apostolic doctrine from the text itself.", type: "website", siteName: "Apostolic Guide", url: websiteUrl, locale: "en_US", images: [{ url: socialShareImage, width: 1200, height: 630, alt: "Apostolic Guide. Know what you believe. Know why." }] },
+  openGraph: { title: "Apostolic Guide | Know What You Believe. Know Why.", description: "Search Scripture, follow connected passages, and understand Apostolic doctrine from the text itself.", type: "website", siteName: "Apostolic Guide", url: canonicalWebsiteUrl, locale: "en_US", images: [{ url: socialShareImage, width: 1200, height: 630, alt: "Apostolic Guide. Know what you believe. Know why." }] },
   twitter: { card: "summary_large_image", title: "Apostolic Guide | Know What You Believe. Know Why.", description: "Search Scripture, follow connected passages, and understand Apostolic doctrine from the text itself.", images: [socialShareImage] },
   icons: { icon: "/favicon.png", apple: "/icons/icon-192.png" },
   alternates: { types: { "application/rss+xml": "/feed.xml" } }
 };
 
-const organizationJsonLd = { "@context": "https://schema.org", "@type": "Organization", name: "Apostolic Guide", url: websiteUrl, logo: `${websiteUrl}/icons/icon-512.png`, description: "A Scripture-first study platform for Apostolic doctrine, connected Bible passages, and biblical answers." };
-const websiteJsonLd = { "@context": "https://schema.org", "@type": "WebSite", name: "Apostolic Guide", alternateName: "AG", url: websiteUrl, description: "Search Scripture, study Apostolic doctrine, and follow connected biblical passages.", publisher: { "@type": "Organization", name: "Apostolic Guide" }, potentialAction: { "@type": "SearchAction", target: `${websiteUrl}/search?q={search_term_string}`, "query-input": "required name=search_term_string" } };
+const organizationJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  name: "Apostolic Guide",
+  url: canonicalWebsiteUrl,
+  logo: `${canonicalWebsiteUrl}/icons/icon-512.png`,
+  description: "A Scripture-first study platform for Apostolic doctrine, connected Bible passages, and biblical answers.",
+  sameAs: [
+    "https://www.youtube.com/@apostolicguide",
+    "https://www.instagram.com/apostolicguide",
+    "https://www.facebook.com/apostolicguide"
+  ]
+};
+const websiteJsonLd = { "@context": "https://schema.org", "@type": "WebSite", name: "Apostolic Guide", alternateName: "AG", url: canonicalWebsiteUrl, description: "Search Scripture, study Apostolic doctrine, and follow connected biblical passages.", publisher: { "@type": "Organization", name: "Apostolic Guide", url: canonicalWebsiteUrl }, potentialAction: { "@type": "SearchAction", target: `${canonicalWebsiteUrl}/search?q={search_term_string}`, "query-input": "required name=search_term_string" } };
 const surfaceScript = `try{var h=location.hostname.toLowerCase();if(h==='studio.apostolicguide.com'||h.startsWith('studio.'))document.documentElement.classList.add('ag-studio-host');if(h==='live.apostolicguide.com'||h.startsWith('live.'))document.documentElement.classList.add('ag-live-host')}catch(e){}`;
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
