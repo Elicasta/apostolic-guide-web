@@ -163,9 +163,11 @@ export default async function AdminAnalyticsPage() {
   const pathwayTitles = new Map(allPathways.map((pathway) => [pathway.slug, pathway.title]));
   const articleTitles = new Map(articles.map((article) => [article.slug, article.title]));
   const pathwayIntelligence = snapshot.pathways
+    .filter((row) => pathwayTitles.has(row.slug))
     .map((row) => ({ ...row, title: pathwayTitles.get(row.slug) ?? row.slug }))
     .slice(0, 12);
   const articleIntelligence = snapshot.articles
+    .filter((row) => articleTitles.has(row.slug))
     .map((row) => ({ ...row, title: articleTitles.get(row.slug) ?? row.slug }))
     .slice(0, 12);
 
