@@ -10,6 +10,8 @@ import { SmartNext } from "@/smart-next";
 import { answerSuggestions } from "@/suggestion-data";
 import { getDatabaseContent } from "@/database-content";
 import { breadcrumbJsonLd, buildSeoMetadata } from "@/seo";
+import { seoSectionsForAnswer } from "@/seo-ranking-content";
+import { SearchIntentCluster } from "@/search-intent-cluster";
 
 export function generateStaticParams() { return answers.map((answer) => ({ slug: answer.slug })); }
 
@@ -33,9 +35,10 @@ export default async function AnswerPage({ params }: { params: Promise<{ slug: s
   if (!answer && !database) notFound();
   const suggestions = answerSuggestions(slug);
   const pageTitle = answer?.question ?? database!.title;
+  const currentPath = `/answers/${slug}`;
   const breadcrumbs = breadcrumbJsonLd([
     { name: "Answers", path: "/answers" },
-    { name: pageTitle, path: `/answers/${slug}` }
+    { name: pageTitle, path: currentPath }
   ]);
 
   if (!answer && database) {
@@ -51,8 +54,9 @@ export default async function AnswerPage({ params }: { params: Promise<{ slug: s
               <DatabaseDocument body={database.body} />
               <ShareButton title={database.title} contentKey={`answer:${slug}`} />
               <StudyScriptures references={databaseReferences} />
+              <SearchIntentCluster currentPath={currentPath} />
               <AppBridge compact origin={`answer:${slug}`} />
-              <SmartNext currentPath={`/answers/${slug}`} candidates={suggestions} />
+              <SmartNext currentPath={currentPath} candidates={suggestions} />
             </div>
           </div>
         </section>
@@ -63,6 +67,7 @@ export default async function AnswerPage({ params }: { params: Promise<{ slug: s
   const resolvedAnswer = answer!;
   const topic = topicBySlug(resolvedAnswer.topicSlug);
   const linked = resolvedAnswer.scriptures.map((reference) => scriptures.find((entry) => entry.reference === reference || reference.includes(entry.reference.split("–")[0]))).filter(Boolean);
+  const rankingSections = seoSectionsForAnswer(resolvedAnswer.slug);
 
   return (
     <>
@@ -77,7 +82,7 @@ export default async function AnswerPage({ params }: { params: Promise<{ slug: s
           </header>
           <div className="answer-summary" data-reveal><strong>Direct answer</strong><p>{resolvedAnswer.shortAnswer}</p></div>
           <div className="topic-page-grid">
-            <ContentBody sections={resolvedAnswer.sections} />
+            <ContentBody sections={[...resolvedAnswer.sections, ...rankingSections]} />
             <aside>
               <div className="sidebar-card">
                 <h3>Key Scriptures</h3>
@@ -96,8 +101,9 @@ export default async function AnswerPage({ params }: { params: Promise<{ slug: s
             </aside>
           </div>
           <StudyScriptures references={resolvedAnswer.scriptures} />
+          <SearchIntentCluster currentPath={currentPath} />
           <AppBridge compact origin={`answer:${resolvedAnswer.slug}`} />
-          <SmartNext currentPath={`/answers/${resolvedAnswer.slug}`} candidates={suggestions} />
+          <SmartNext currentPath={currentPath} candidates={suggestions} />
         </div>
       </section>
     </>
