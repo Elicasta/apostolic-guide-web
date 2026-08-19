@@ -140,6 +140,39 @@ function activeSlideLabel(root: HTMLElement | null) {
   return `${noun} ${index + 1}${rows.length > 1 ? ` of ${rows.length}` : ""}`;
 }
 
+function clearDesign(board: HTMLElement | null) {
+  if (!board) return;
+  const artwork = board.querySelector<HTMLElement>(".carousel-artwork");
+  const copy = board.querySelector<HTMLElement>(".carousel-copy");
+  [
+    "--copy-y",
+    "--headline-scale",
+    "--title-width",
+    "--body-scale",
+    "--body-width",
+    "--copy-gap",
+    "--copy-align",
+    "--manual-headline-font",
+    "--manual-body-font",
+    "--manual-headline-color",
+    "--manual-body-color"
+  ].forEach((property) => artwork?.style.removeProperty(property));
+  delete board.dataset.manualTypography;
+  delete board.dataset.manualTextColor;
+  delete board.dataset.texture;
+  board.style.removeProperty("--manual-text-color");
+  board.style.removeProperty("--texture-strength");
+  if (!copy) return;
+  copy.style.removeProperty("text-align");
+  copy.style.removeProperty("align-items");
+  copy.style.removeProperty("justify-items");
+  copy.querySelectorAll<HTMLElement>(":scope > strong, :scope > span, :scope > p, :scope > em").forEach((node) => {
+    node.style.removeProperty("font-family");
+    node.style.removeProperty("color");
+    node.style.removeProperty("text-align");
+  });
+}
+
 function applyDesign(board: HTMLElement | null, design: SlideDesign) {
   if (!board) return;
   const artwork = board.querySelector<HTMLElement>(".carousel-artwork");
@@ -187,14 +220,24 @@ function applyDesign(board: HTMLElement | null, design: SlideDesign) {
 }
 
 function applyDesignSet(root: HTMLElement, designs: Record<string, SlideDesign>, frameIds: string[]) {
-  const style = visualStyle(root);
   const renderHosts = [...root.querySelectorAll<HTMLElement>(".creative-render-stage > .creative-frame-preview")];
   frameIds.forEach((frameId, index) => {
-    applyDesign(renderHosts[index]?.querySelector<HTMLElement>(".persistent-carousel-artboard") ?? null, designs[frameId] || defaultDesign(style));
+    const board = renderHosts[index]?.querySelector<HTMLElement>(".persistent-carousel-artboard") ?? null;
+    if (designs[frameId]) applyDesign(board, designs[frameId]);
+    else clearDesign(board);
   });
   const activeIndex = activeSlideIndex(root);
   const activeId = frameIds[activeIndex];
-  applyDesign(root.querySelector<HTMLElement>(".creative-preview-panel .persistent-carousel-artboard"), activeId && designs[activeId] ? designs[activeId] : defaultDesign(style));
+  const visibleBoard = root.querySelector<HTMLElement>(".creative-preview-panel .persistent-carousel-artboard");
+  if (activeId && designs[activeId]) applyDesign(visibleBoard, designs[activeId]);
+  else clearDesign(visibleBoard);
+}
+
+function clearFrameBoards(root: HTMLElement | null, frameIndex: number) {
+  if (!root) return;
+  clearDesign(root.querySelector<HTMLElement>(".creative-preview-panel .persistent-carousel-artboard"));
+  const renderHosts = [...root.querySelectorAll<HTMLElement>(".creative-render-stage > .creative-frame-preview")];
+  clearDesign(renderHosts[frameIndex]?.querySelector<HTMLElement>(".persistent-carousel-artboard") ?? null);
 }
 
 async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
@@ -377,12 +420,9 @@ export function CarouselManualEdit({ projectId: suppliedProjectId = null }: { pr
   function resetCurrent() {
     const index = activeSlideIndex(root);
     const frameId = frameIds[index];
-    const next = defaultDesign(style);
-    setDesign(next);
-    if (!frameId || !projectId) {
-      applyEveryBoard(next, index);
-      return;
-    }
+    setDesign(defaultDesign(style));
+    clearFrameBoards(root, index);
+    if (!frameId || !projectId) return;
     setDesigns((current) => {
       const clone = { ...current };
       delete clone[frameId];
@@ -396,7 +436,6 @@ export function CarouselManualEdit({ projectId: suppliedProjectId = null }: { pr
       setSaveState("error");
       setSaveError(error instanceof Error ? error.message : "Slide styling could not be reset.");
     });
-    applyEveryBoard(next, index);
   }
 
   async function applyTextureToAll() {
