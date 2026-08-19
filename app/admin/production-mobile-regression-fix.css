@@ -1,7 +1,5 @@
 /* Production mobile regression fixes for Carousel Studio and Master Publishing. */
 
-/* Keep the two navigation surfaces above editor/publisher content and make taps
-   deterministic inside horizontally scrollable mobile rails. */
 .carousel-studio-master .creative-hub-switch,
 .carousel-studio-master .creative-frame-rail,
 .master-publishing-switch,
@@ -11,7 +9,7 @@
   isolation:isolate;
 }
 .carousel-studio-master .creative-hub-switch{z-index:38}
-.carousel-studio-master .creative-frame-rail{z-index:8;touch-action:pan-x}
+.carousel-studio-master .creative-frame-rail{z-index:8;touch-action:auto!important}
 .master-publishing-switch{z-index:38}
 .creative-publish-flow{z-index:32}
 .carousel-studio-master .creative-hub-switch a,
@@ -19,7 +17,7 @@
 .master-publishing-switch button,
 .creative-publish-flow button{
   pointer-events:auto!important;
-  touch-action:manipulation;
+  touch-action:manipulation!important;
   -webkit-tap-highlight-color:transparent;
 }
 .carousel-studio-master .creative-frame-row{
@@ -29,9 +27,8 @@
   -webkit-user-select:none;
 }
 
-/* Render from a predictable source canvas. html-to-image runs at 3x, so a
-   360x450 source becomes the canonical 1080x1350 Instagram 4:5 asset and a
-   360x640 source becomes 1080x1920 for Stories. */
+/* Keep the export DOM predictable. A carousel/single source is exactly 4:5,
+   a story source is exactly 9:16. html-to-image then scales this cleanly. */
 .carousel-studio-master .creative-render-stage{
   width:360px!important;
   max-width:360px!important;
@@ -61,8 +58,8 @@
   aspect-ratio:auto!important;
 }
 
-/* The Instagram mockup should display the entire saved render. A malformed or
-   legacy render must never be enlarged and cropped into an unreadable slice. */
+/* Publisher must show the entire saved render. Never crop a 4:5 board into
+   the Instagram shell if an older asset has unexpected source dimensions. */
 .creative-instagram-preview-media{
   width:100%;
   aspect-ratio:4/5;
@@ -87,16 +84,11 @@
 
 @media(max-width:760px){
   .carousel-studio-master .creative-hub-switch,
-  .master-publishing-switch{
-    width:100%;
+  .master-publishing-switch{width:100%}
+  .carousel-studio-master .creative-frame-rail{
+    -webkit-overflow-scrolling:touch;
+    overscroll-behavior-inline:contain;
   }
-  .carousel-studio-master .creative-frame-row{
-    min-height:58px;
-  }
-  .creative-instagram-preview{
-    width:100%!important;
-    max-width:420px!important;
-    min-width:0!important;
-    margin-inline:auto!important;
-  }
+  .carousel-studio-master .creative-frame-row{min-height:58px}
+  .creative-instagram-preview{width:100%!important;max-width:420px!important;min-width:0!important;margin-inline:auto!important}
 }
