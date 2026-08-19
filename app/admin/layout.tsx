@@ -56,6 +56,7 @@ import "./master-publishing-guided.css";
 import "./natural-voice-check.css";
 import "./carousel-library-final-polish.css";
 import "./carousel-mobile-workflow-cleanup.css";
+import "./production-mobile-regression-fix.css";
 
 export const dynamic = "force-dynamic";
 
