@@ -33,16 +33,18 @@ test("Instagram feed remains a three-column 4:5 image grid with minimal engageme
 });
 
 test("Carousel Manual Edit stays attached to Preview with persistent per-slide controls", () => {
-  assert.match(carouselPage, /<CarouselManualEdit\/>/);
+  assert.match(carouselPage, /<CarouselManualEdit projectId=\{projectId\}\/>/);
   assert.match(manualEdit, /Manual Edit/);
   assert.match(manualEdit, /dataset\.manualEdit = "open"/);
   assert.match(manualEdit, /creative-preview-panel/);
   assert.match(manualEdit, /carousel-inline-manual-host/);
   assert.match(manualEdit, /\.creative-frame-row/);
   assert.match(manualEdit, /Background texture/);
-  assert.match(manualEdit, /Main font color/);
+  assert.match(manualEdit, /Typography \+ color/);
+  assert.match(manualEdit, /Choose texture with Sol/);
   assert.match(manualInlineCss, /creative-frame-preview[\s\S]*position:sticky!important/);
   assert.match(carouselLayout, /carousel-manual-inline\.css/);
+  assert.match(carouselLayout, /carousel-capabilities-restore\.css/);
 });
 
 test("Ready creative renders survive Publisher reloads with the exact project selected", () => {
