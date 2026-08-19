@@ -5,6 +5,7 @@ import { getStudioPermission } from "@/auth";
 import { CarouselFreshPublishGuard } from "@/carousel-fresh-publish-guard";
 import { CarouselLiveRepair } from "@/carousel-live-repair";
 import { CarouselManualEdit } from "@/carousel-manual-edit";
+import { CarouselMobileInteractions } from "@/carousel-mobile-interactions";
 import { CarouselPersistentArtwork } from "@/carousel-persistent-artwork";
 import { CarouselProjectDelete } from "@/carousel-project-delete";
 import { CarouselProjectStarter } from "@/carousel-project-starter";
@@ -46,6 +47,7 @@ export default async function AdminCarouselStudioPage({ searchParams }: { search
       {projectId ? <CarouselProjectDelete/> : null}
       {projectId ? <CarouselStudioMobileFocus/> : null}
       {projectId ? <CarouselLiveRepair/> : null}
+      {projectId ? <CarouselMobileInteractions/> : null}
     </>}
   </section>;
 }
