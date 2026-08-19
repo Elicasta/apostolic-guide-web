@@ -99,7 +99,10 @@ export async function POST(request: Request) {
   if (!parsed.success) return NextResponse.json({ error: "Invalid event" }, { status: 400 });
 
   const service = createServiceClient();
-  if (!service) return new NextResponse(null, { status: 204 });
+  if (!service) {
+    console.error("analytics ingestion unavailable", { reason: "missing service credentials" });
+    return NextResponse.json({ error: "Analytics unavailable" }, { status: 503 });
+  }
 
   const deviceClass = parsed.data.viewportWidth
     ? parsed.data.viewportWidth < 700 ? "mobile" : parsed.data.viewportWidth < 1024 ? "tablet" : "desktop"
@@ -109,7 +112,8 @@ export async function POST(request: Request) {
   const url = new URL(parsed.data.path, "https://apostolicguide.com");
   const analytics = service.schema("analytics");
   const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-  const { count } = await analytics.from("events").select("id", { head: true, count: "exact" }).eq("session_id", parsed.data.sessionId).gte("occurred_at", oneHourAgo);
+  const { count, error: rateLimitError } = await analytics.from("events").select("id", { head: true, count: "exact" }).eq("session_id", parsed.data.sessionId).gte("occurred_at", oneHourAgo);
+  if (rateLimitError) console.error("analytics rate-limit lookup failed", { code: rateLimitError.code, message: rateLimitError.message });
   if ((count ?? 0) >= 240) return new NextResponse(null, { status: 204 });
 
   const personId = await resolvePersonId(service, parsed.data.anonymousId, url);
@@ -137,7 +141,11 @@ export async function POST(request: Request) {
     properties
   });
 
+  if (error) {
+    console.error("analytics ingestion failed", { code: error.code, message: error.message });
+    return NextResponse.json({ error: "Analytics write failed" }, { status: 500 });
+  }
+
   if (personId) await service.from("people").update({ last_seen_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("id", personId);
-  if (error) console.error("analytics ingestion failed", { code: error.code, message: error.message });
   return new NextResponse(null, { status: 204 });
 }
