@@ -20,6 +20,7 @@ function pathway(overrides: Partial<SolPathwayObservation> = {}): SolPathwayObse
     destinationUrl: "https://app.apostolicguide.com/paths/god-is-one",
     automationLinked: false,
     audioReady: true,
+    scriptCurrent: true,
     scriptApproved: true,
     theologyPassed: true,
     audioMatchesScript: true,
@@ -33,6 +34,24 @@ function pathway(overrides: Partial<SolPathwayObservation> = {}): SolPathwayObse
   };
 }
 
+test("missing audio becomes a safe staging proposal instead of being ignored", () => {
+  const analysis = buildSolOperatorAnalysis({ pathways: [pathway({ audioReady: false, audioMatchesScript: false })], weeklyTargets: {}, weeklyActuals: {} });
+  const proposal = analysis.proposals.find((item) => item.recipeKey === "pathway_audio_stage");
+  assert.ok(proposal);
+  assert.equal(proposal.risk, "safe_draft");
+  assert.deepEqual(proposal.pathwaySlugs, ["god-is-one"]);
+  assert.ok(proposal.plan.some((step) => step.key === "theology_gate" && step.gate === "theology"));
+  assert.ok(proposal.suggestedConstraints.includes("Do not publish externally"));
+});
+
+test("audio tied to an old canonical Pathway source is staged as stale", () => {
+  const analysis = buildSolOperatorAnalysis({ pathways: [pathway({ scriptCurrent: false })], weeklyTargets: {}, weeklyActuals: {} });
+  const proposal = analysis.proposals.find((item) => item.recipeKey === "pathway_audio_stage");
+  assert.ok(proposal);
+  assert.equal(proposal.evidence.find((item) => item.label === "Stale audio")?.value, 1);
+  assert.equal(analysis.coverage.audioReady, 0);
+});
+
 test("approved audio with a passing exact theology check becomes a YouTube proposal", () => {
   const analysis = buildSolOperatorAnalysis({ pathways: [pathway()], weeklyTargets: {}, weeklyActuals: {} });
   const proposal = analysis.proposals.find((item) => item.recipeKey === "audio_to_youtube");
@@ -43,8 +62,10 @@ test("approved audio with a passing exact theology check becomes a YouTube propo
 });
 
 test("a stale or unchecked script cannot be queued for video production", () => {
-  const analysis = buildSolOperatorAnalysis({ pathways: [pathway({ theologyPassed: false })], weeklyTargets: {}, weeklyActuals: {} });
-  assert.equal(analysis.proposals.some((item) => item.recipeKey === "audio_to_youtube"), false);
+  const unchecked = buildSolOperatorAnalysis({ pathways: [pathway({ theologyPassed: false })], weeklyTargets: {}, weeklyActuals: {} });
+  assert.equal(unchecked.proposals.some((item) => item.recipeKey === "audio_to_youtube"), false);
+  const stale = buildSolOperatorAnalysis({ pathways: [pathway({ scriptCurrent: false })], weeklyTargets: {}, weeklyActuals: {} });
+  assert.equal(stale.proposals.some((item) => item.recipeKey === "audio_to_youtube"), false);
 });
 
 test("legacy loose carousel topic packs are never proposed", () => {
@@ -61,7 +82,7 @@ test("keyword projects receive disabled automation and draft journey proposals o
 });
 
 test("active recipes suppress duplicate work proposals", () => {
-  const analysis = buildSolOperatorAnalysis({ pathways: [pathway({ activeRecipes: ["audio_to_youtube", "journey_automation_draft"] })], weeklyTargets: {}, weeklyActuals: {} });
+  const analysis = buildSolOperatorAnalysis({ pathways: [pathway({ activeRecipes: ["pathway_audio_stage", "audio_to_youtube", "journey_automation_draft"] })], weeklyTargets: {}, weeklyActuals: {} });
   assert.equal(analysis.proposals.length, 0);
 });
 
