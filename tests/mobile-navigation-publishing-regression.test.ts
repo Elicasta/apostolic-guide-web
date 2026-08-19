@@ -4,6 +4,8 @@ import test from "node:test";
 
 const studio = readFileSync("src/creative-studio-client.tsx", "utf8");
 const publishing = readFileSync("src/creative-publishing-client.tsx", "utf8");
+const freshPublish = readFileSync("src/carousel-fresh-publish-guard.tsx", "utf8");
+const carouselPage = readFileSync("app/admin/carousel-studio/page.tsx", "utf8");
 const mobileFix = readFileSync("app/admin/production-mobile-regression-fix.css", "utf8");
 const adminLayout = readFileSync("app/admin/layout.tsx", "utf8");
 const carouselLayout = readFileSync("app/admin/carousel-studio/layout.tsx", "utf8");
@@ -36,6 +38,14 @@ test("the regression layer loads last globally and inside Carousel Studio", () =
   assert.ok(adminLayout.lastIndexOf("production-mobile-regression-fix.css") > adminLayout.lastIndexOf("carousel-mobile-workflow-cleanup.css"));
   assert.match(carouselLayout, /production-mobile-regression-fix\.css/);
   assert.ok(carouselLayout.lastIndexOf("production-mobile-regression-fix.css") > carouselLayout.lastIndexOf("carousel-capabilities-restore.css"));
+});
+
+test("Carousel Publish refreshes saved renders before opening Publisher", () => {
+  assert.match(carouselPage, /<CarouselFreshPublishGuard projectId=\{projectId\}\/>/);
+  assert.match(freshPublish, /renderButton\.click\(\)/);
+  assert.match(freshPublish, /await waitForRender\(root, renderButton\)/);
+  assert.match(freshPublish, /window\.location\.assign\(`\/admin\/publishing\?projectId=\$\{encodeURIComponent\(projectId\)\}`\)/);
+  assert.match(freshPublish, /Refreshing preview…/);
 });
 
 test("Creative Publishing still previews saved rendered assets", () => {
