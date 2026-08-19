@@ -3,11 +3,13 @@ import Link from "next/link";
 import { ArrowRight, Clock3, Route } from "lucide-react";
 import { AppBridge, PageHero } from "@/components";
 import { allPathways, pathwayCollections } from "@/pathway-catalog";
+import { buildSeoMetadata } from "@/seo";
 
-export const metadata: Metadata = {
-  title: "Scripture Pathways",
-  description: "Follow guided sequences of connected Scriptures through Apostolic doctrine and common questions."
-};
+export const metadata: Metadata = buildSeoMetadata({
+  title: "Guided Apostolic Bible Study Pathways",
+  description: "Follow guided sequences of connected Scriptures through Apostolic doctrine, salvation, Jesus Christ, baptism, and common biblical questions.",
+  path: "/pathways"
+});
 
 export default function PathwaysPage() {
   const grouped = pathwayCollections.map((collection) => ({

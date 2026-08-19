@@ -1,10 +1,16 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { answers, topicBySlug } from "@/data";
 import { PageHero, SearchForm } from "@/components";
 import { listDatabaseContent } from "@/database-content";
+import { buildSeoMetadata } from "@/seo";
 
-export const metadata = { title: "Answers", description: "Direct answers to common questions about God, Jesus Christ, salvation, and apostolic doctrine." };
+export const metadata: Metadata = buildSeoMetadata({
+  title: "Apostolic Bible Questions and Answers",
+  description: "Direct biblical answers to common questions about God, Jesus Christ, salvation, baptism, the Holy Ghost, and Apostolic doctrine.",
+  path: "/answers"
+});
 
 export default async function AnswersPage() {
   const databaseAnswers = await listDatabaseContent("answer");
