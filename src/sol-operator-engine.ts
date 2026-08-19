@@ -116,11 +116,11 @@ export function buildSolOperatorAnalysis(input: {
   const proposals: SolProposalDraft[] = [];
 
   const audioStageCandidates = input.pathways.filter((pathway) =>
-    (!pathway.audioReady || !pathway.audioMatchesScript || !pathway.scriptCurrent)
+    (!pathway.audioReady || !pathway.audioMatchesScript || !pathway.scriptCurrent || !pathway.scriptApproved || !pathway.theologyPassed)
     && !pathway.activeRecipes.includes("pathway_audio_stage")
   ).slice(0, 5);
   if (audioStageCandidates.length) {
-    const stale = audioStageCandidates.filter((item) => item.audioReady && (!item.audioMatchesScript || !item.scriptCurrent)).length;
+    const stale = audioStageCandidates.filter((item) => item.audioReady && (!item.audioMatchesScript || !item.scriptCurrent || !item.scriptApproved || !item.theologyPassed)).length;
     const missing = audioStageCandidates.filter((item) => !item.audioReady).length;
     proposals.push({
       proposalKey: `pathway-audio-stage:${audioStageCandidates.map((item) => item.slug).join(",")}`,
@@ -214,7 +214,7 @@ export function buildSolOperatorAnalysis(input: {
     kpis: kpiDefinitions.map(({ key, label }) => ({ key, label, target: Math.max(0, Number(input.weeklyTargets[key]) || 0), actual: Math.max(0, Number(input.weeklyActuals[key]) || 0) })),
     coverage: {
       pathways: input.pathways.length,
-      audioReady: input.pathways.filter((item) => item.audioReady && item.scriptCurrent && item.audioMatchesScript).length,
+      audioReady: input.pathways.filter((item) => item.audioReady && item.scriptCurrent && item.scriptApproved && item.theologyPassed && item.audioMatchesScript).length,
       youtubePublished: input.pathways.filter((item) => item.youtubePublished).length,
       carouselPublished: input.pathways.filter((item) => item.carouselPublished > 0).length,
       automationsLinked: input.pathways.filter((item) => item.automationLinked).length
