@@ -58,6 +58,20 @@ test("Analytics V2 separates known Studio and preview traffic from public traffi
   assert.match(liveMetrics, /occurred_at >= now\(\) - interval '75 seconds'/i);
 });
 
+test("Analytics V2 study, search, app and Pathway funnel metrics use public sessions only", () => {
+  const migration = source("supabase/migrations/202608190006_analytics_v2_public_study_metrics.sql");
+  assert.match(migration, /create or replace function analytics\.public_study_metrics_v2\(\)/i);
+  assert.match(migration, /public_events as \([\s\S]*where not c\.is_internal/);
+  assert.match(migration, /weekly_engaged_study_sessions/);
+  assert.match(migration, /weekly_pathway_start_sessions/);
+  assert.match(migration, /weekly_pathway_completion_sessions/);
+  assert.match(migration, /weekly_app_transition_sessions/);
+  assert.match(migration, /search_success_rate/);
+  assert.match(migration, /'pathwayFunnel'/);
+  assert.match(migration, /jsonb_set\(value, '\{v2,pathwayFunnel\}'/);
+  assert.match(migration, /grant execute on function analytics\.public_study_metrics_v2\(\) to service_role/i);
+});
+
 test("browser identity is shared across Apostolic Guide subdomains and any UTM field can establish attribution", () => {
   const analytics = source("src/analytics.tsx");
   assert.match(analytics, /cookieValue\(ANONYMOUS_KEY\)/);
