@@ -287,8 +287,15 @@ export function CarouselManualEdit({ projectId: suppliedProjectId = null }: { pr
   const [textureInstruction, setTextureInstruction] = useState("Choose the approved Apostolic Guide texture that best supports this slide without reducing readability.");
   const [textureMessage, setTextureMessage] = useState("");
   const saveTimer = useRef<number | null>(null);
+  const designsRef = useRef<Record<string, SlideDesign>>({});
+  const frameIdsRef = useRef<string[]>([]);
+  const openRef = useRef(false);
 
   const projectId = useMemo(() => suppliedProjectId || (typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("project") || "" : ""), [suppliedProjectId]);
+
+  useEffect(() => { designsRef.current = designs; }, [designs]);
+  useEffect(() => { frameIdsRef.current = frameIds; }, [frameIds]);
+  useEffect(() => { openRef.current = open; }, [open]);
 
   const applyEveryBoard = useCallback((next: SlideDesign, frameIndex = activeSlideIndex(root)) => {
     if (!root) return;
@@ -319,6 +326,8 @@ export function CarouselManualEdit({ projectId: suppliedProjectId = null }: { pr
       const nextStyle = visualStyle(nextRoot);
       const nextDesigns: Record<string, SlideDesign> = {};
       payload.designs.forEach((item) => { nextDesigns[item.frameId] = normalizeDesign(item.design, nextStyle); });
+      frameIdsRef.current = ids;
+      designsRef.current = nextDesigns;
       setFrameIds(ids);
       setDesigns(nextDesigns);
       if (nextRoot) syncSelectedDesign(nextRoot, nextDesigns, ids);
@@ -338,6 +347,19 @@ export function CarouselManualEdit({ projectId: suppliedProjectId = null }: { pr
     let currentRoot: HTMLElement | null = null;
     let observer: MutationObserver | null = null;
 
+    const sync = (nextRoot: HTMLElement) => {
+      const currentDesigns = designsRef.current;
+      const currentFrameIds = frameIdsRef.current;
+      const nextStyle = visualStyle(nextRoot);
+      const index = activeSlideIndex(nextRoot);
+      const frameId = currentFrameIds[index];
+      const next = frameId && currentDesigns[frameId] ? currentDesigns[frameId] : defaultDesign(nextStyle);
+      setStyle(nextStyle);
+      setDesign(next);
+      setSlideLabel(activeSlideLabel(nextRoot));
+      window.setTimeout(() => applyDesignSet(nextRoot, currentDesigns, currentFrameIds), 0);
+    };
+
     const bind = () => {
       const nextRoot = master.querySelector<HTMLElement>(".creative-studio-shell");
       const previewPanel = nextRoot?.querySelector<HTMLElement>(".creative-preview-panel");
@@ -353,23 +375,17 @@ export function CarouselManualEdit({ projectId: suppliedProjectId = null }: { pr
       }
       setRoot(nextRoot);
       setTarget(host);
-      setOpen(nextRoot.dataset.manualEdit === "open");
-      setSlideLabel(activeSlideLabel(nextRoot));
-      window.setTimeout(() => applyDesignSet(nextRoot, designs, frameIds), 0);
+      if (openRef.current || nextRoot.dataset.manualEdit === "open") {
+        openRef.current = true;
+        nextRoot.dataset.manualEdit = "open";
+        setOpen(true);
+      }
+      sync(nextRoot);
 
       if (currentRoot === nextRoot) return;
       observer?.disconnect();
       currentRoot = nextRoot;
-      observer = new MutationObserver(() => {
-        const nextStyle = visualStyle(nextRoot);
-        const index = activeSlideIndex(nextRoot);
-        const frameId = frameIds[index];
-        const next = frameId && designs[frameId] ? designs[frameId] : defaultDesign(nextStyle);
-        setStyle(nextStyle);
-        setDesign(next);
-        setSlideLabel(activeSlideLabel(nextRoot));
-        window.setTimeout(() => applyDesignSet(nextRoot, designs, frameIds), 0);
-      });
+      observer = new MutationObserver(() => sync(nextRoot));
       observer.observe(nextRoot, { subtree: true, childList: true, attributes: true, attributeFilter: ["class", "data-creative-template"] });
     };
 
@@ -377,11 +393,10 @@ export function CarouselManualEdit({ projectId: suppliedProjectId = null }: { pr
     const projectObserver = new MutationObserver(bind);
     projectObserver.observe(master, { childList: true, subtree: true });
     return () => {
-      if (currentRoot) delete currentRoot.dataset.manualEdit;
       observer?.disconnect();
       projectObserver.disconnect();
     };
-  }, [designs, frameIds, projectId]);
+  }, [projectId]);
 
   useEffect(() => () => {
     if (saveTimer.current !== null) window.clearTimeout(saveTimer.current);
@@ -409,7 +424,11 @@ export function CarouselManualEdit({ projectId: suppliedProjectId = null }: { pr
     setDesign((current) => {
       const next = { ...current, ...patch };
       if (frameId) {
-        setDesigns((currentDesigns) => ({ ...currentDesigns, [frameId]: next }));
+        setDesigns((currentDesigns) => {
+          const nextDesigns = { ...currentDesigns, [frameId]: next };
+          designsRef.current = nextDesigns;
+          return nextDesigns;
+        });
         scheduleSave(frameId, next);
       }
       window.setTimeout(() => applyEveryBoard(next, index), 0);
@@ -426,6 +445,7 @@ export function CarouselManualEdit({ projectId: suppliedProjectId = null }: { pr
     setDesigns((current) => {
       const clone = { ...current };
       delete clone[frameId];
+      designsRef.current = clone;
       return clone;
     });
     setSaveState("saving");
@@ -455,6 +475,7 @@ export function CarouselManualEdit({ projectId: suppliedProjectId = null }: { pr
           body: JSON.stringify({ frameId, design: next })
         });
       }));
+      designsRef.current = nextDesigns;
       setDesigns(nextDesigns);
       if (root) applyDesignSet(root, nextDesigns, frameIds);
       setSaveState("saved");
@@ -487,10 +508,13 @@ export function CarouselManualEdit({ projectId: suppliedProjectId = null }: { pr
 
   function toggleManualEdit() {
     if (!root) return;
-    const next = !open;
-    setOpen(next);
-    if (next) root.dataset.manualEdit = "open";
-    else delete root.dataset.manualEdit;
+    setOpen((current) => {
+      const next = !current;
+      openRef.current = next;
+      if (next) root.dataset.manualEdit = "open";
+      else delete root.dataset.manualEdit;
+      return next;
+    });
   }
 
   if (!target || !projectId) return null;
