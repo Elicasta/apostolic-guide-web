@@ -83,7 +83,7 @@ function extractResponseText(value: unknown) {
 function intentDirection(intent: string) {
   const directions: Record<string, string> = {
     information: "Explain the topic clearly and progressively. The user should understand the claim by the final frame.",
-    teaching: "Teach the biblical sequence. Use Scripture as the structure rather than isolated slogans.",
+    teaching: "Teach the biblical sequence that serves the requested idea. Scripture is evidence and structure, but do not turn every request into the same Pathway walkthrough.",
     objection: "State the objection fairly, answer the actual tension, and move through the strongest relevant Scripture without dodging the hard text.",
     conversation: "Write for a real conversation. Keep each frame direct, human, and useful when someone is asking a sincere or challenging question.",
     invitation: "Move toward one clear response or next study action without manufacturing urgency.",
@@ -107,6 +107,20 @@ function projectMode(value: unknown): CarouselProjectMode | null {
   return typeof value === "string" && CAROUSEL_PROJECT_MODES.includes(value as CarouselProjectMode) ? value as CarouselProjectMode : null;
 }
 
+function recentCreativeAngles(rows: Array<Record<string, unknown>>) {
+  const fingerprints = rows.flatMap((row) => {
+    const editor = row.editor_state && typeof row.editor_state === "object" && !Array.isArray(row.editor_state) ? row.editor_state as Record<string, unknown> : {};
+    const generated = editor.generatedText && typeof editor.generatedText === "object" && !Array.isArray(editor.generatedText) ? editor.generatedText as Record<string, unknown> : {};
+    const topic = typeof generated.topic === "string" ? generated.topic.trim() : "";
+    const frames = Array.isArray(editor.frames) ? editor.frames as Array<Record<string, unknown>> : [];
+    const headlines = frames.map((frame) => typeof frame.headline === "string" ? frame.headline.trim() : "").filter(Boolean).slice(0, 4);
+    if (!topic && !headlines.length) return [];
+    const title = typeof row.title === "string" ? row.title.trim() : "Previous creative";
+    return [`${title}${topic ? ` | topic: ${topic}` : ""}${headlines.length ? ` | headlines: ${headlines.join(" / ")}` : ""}`];
+  });
+  return fingerprints.slice(0, 8).join("\n");
+}
+
 export async function POST(request: Request) {
   const { access, allowed } = await getStudioPermission("manage_content");
   if (!allowed || access.state !== "allowed" || !access.user) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -126,7 +140,7 @@ export async function POST(request: Request) {
     const generatedText = project.editorState.generatedText ?? {};
     const carouselMode = projectMode(generatedText.carouselMode);
     const savedTopic = typeof generatedText.topic === "string" ? generatedText.topic.trim().slice(0, 3000) : "";
-    const userDirection = parsed.data.instruction.trim() || savedTopic || "Use the project context and make the strongest version.";
+    const userDirection = parsed.data.instruction.trim() || savedTopic || "Use the project context and make the strongest fresh version.";
     const target = project.format === "single" ? 1 : parsed.data.action === "regenerate_frame" ? 1 : parsed.data.targetFrameCount ?? null;
     const minItems = target ?? (project.format === "story" ? 3 : 4);
     const maxItems = target ?? (project.format === "story" ? 8 : 10);
@@ -134,18 +148,29 @@ export async function POST(request: Request) {
     const activeFrame = parsed.data.frameId ? project.editorState.frames.find((frame) => frame.id === parsed.data.frameId) : null;
     if (parsed.data.action === "regenerate_frame" && !activeFrame) return NextResponse.json({ error: "Frame not found." }, { status: 404 });
 
+    const recentResult = await service.from("studio_creative_projects")
+      .select("id,title,editor_state,created_at")
+      .eq("pathway_slug", project.pathwaySlug)
+      .neq("id", project.id)
+      .order("created_at", { ascending: false })
+      .limit(8);
+    const recentAngles = recentResult.error ? "" : recentCreativeAngles((recentResult.data ?? []) as Array<Record<string, unknown>>);
+
     const actionDirection = parsed.data.action === "generate"
-      ? "Build the creative from the source, saved topic, and project purpose."
+      ? "Build a fresh creative thesis from the USER DIRECTION. Use the Pathway to keep the idea biblically grounded, not as a script to paraphrase."
       : parsed.data.action === "restructure"
         ? `Restructure the existing sequence according to the user's instruction. Preserve the argument, but do not preserve a weak structure merely because it already exists.\nEXISTING SEQUENCE:\n${existingFrames}`
         : `Rewrite only the selected frame so it fits the surrounding sequence. Return exactly one frame.\nSELECTED FRAME:\n${JSON.stringify(activeFrame)}\nFULL SEQUENCE FOR CONTEXT:\n${existingFrames}`;
+
+    const pathwayWalkthrough = carouselMode === "pathway";
     const pathwayContext = [
       `PATHWAY: ${pathway.title}`,
       `COLLECTION: ${pathway.collection}`,
       `SUMMARY: ${pathway.summary}`,
-      "CANONICAL SCRIPTURE FLOW:",
+      pathwayWalkthrough ? "CANONICAL SCRIPTURE FLOW — this mode intentionally walks the Pathway:" : "PATHWAY SCRIPTURE BANK — source material and doctrinal guardrail, NOT a required outline:",
       ...pathway.steps.map((step, index) => `${index + 1}. ${step.reference} — ${step.title}: ${step.explanation}`)
     ].join("\n");
+
     const model = process.env.OPENAI_CAROUSEL_MODEL?.trim() || "gpt-5.6-sol";
     const response = await fetch("https://api.openai.com/v1/responses", {
       method: "POST",
@@ -157,7 +182,7 @@ export async function POST(request: Request) {
         input: [
           { role: "developer", content: [{ type: "input_text", text: [
             "You are Sol, the Scripture-first creative director inside Apostolic Guide.",
-            "The Creative Project is already persistent. Never change its Pathway, purpose, or format unless the user explicitly requested a structural conversion elsewhere.",
+            "The Creative Project is persistent. Never change its Pathway, purpose, or format unless the user explicitly requested a structural conversion elsewhere.",
             `PROJECT: ${project.title}`,
             `INTENT: ${project.intent}`,
             `FORMAT: ${project.format}`,
@@ -166,16 +191,27 @@ export async function POST(request: Request) {
             intentDirection(project.intent),
             formatDirection(project.format, target),
             actionDirection,
-            "CONTENT RULES:",
-            "The selected Pathway is the controlling doctrinal and Scripture source. The user's topic or angle controls emphasis inside that boundary.",
+            "CONTENT PRIORITY:",
+            "1. The USER DIRECTION controls the creative thesis, hook, question, emphasis, and audience.",
+            "2. The selected Pathway controls doctrine, Scripture accuracy, and the source bank.",
+            "3. The Pathway is NOT automatically the outline unless the project purpose is Pathway Guide.",
+            pathwayWalkthrough
+              ? "PATHWAY GUIDE EXCEPTION: follow the canonical Scripture progression, but still make the user's requested framing and wording distinct."
+              : "FRESH-ANGLE RULE: do not simply paraphrase the Pathway summary, reuse its step titles as slide headlines, or march through every step in order. Choose only the passages that serve the requested idea and build a new teaching/conversation structure around that idea.",
+            "If the user's prompt is broad, select one specific useful lens instead of retelling the entire doctrine. Possible lenses include a hard question, a misconception, one verse in depth, a contrast, a consequence, a passage connection, a practical application, or a claim/evidence/response sequence.",
+            "Freshness means a different thesis or route through the source material, not merely synonyms. Do not manufacture new doctrine for novelty.",
+            recentAngles ? "Avoid repeating the same hook, thesis, headline sequence, and verse route used in the recent creatives supplied by the user context." : "",
             "Do not invent verse quotations. The source supplies references and teaching points, not full verse wording.",
-            "Do not introduce a doctrinal angle that changes the selected purpose.",
             "One frame should do one job. Headlines should be short enough for mobile. Body copy should normally be 1–3 short sentences.",
-            "Use scripture as a reference field. Supporting notes are editor notes, not public-facing copy.",
+            "Use Scripture as a reference field. Supporting notes are editor notes, not public-facing copy.",
             "The last frame of a sequence should normally close the thread or give the next action. Do not add a CTA when the purpose does not need one.",
             "Do not use filler frames to reach a familiar social-media count."
           ].filter(Boolean).join("\n") }] },
-          { role: "user", content: [{ type: "input_text", text: [pathwayContext, `USER DIRECTION: ${userDirection}`].join("\n\n") }] }
+          { role: "user", content: [{ type: "input_text", text: [
+            `USER DIRECTION — PRIMARY CREATIVE BRIEF:\n${userDirection}`,
+            pathwayContext,
+            recentAngles ? `RECENT CREATIVES FROM THIS PATHWAY — DO NOT CLONE THESE ANGLES:\n${recentAngles}` : "No recent same-Pathway creative fingerprints were available."
+          ].join("\n\n") }] }
         ]
       })
     });

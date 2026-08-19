@@ -65,10 +65,9 @@ export async function POST(request: Request) {
   const solModel = process.env.OPENAI_CAROUSEL_MODEL?.trim() || "gpt-5.6-sol";
   const scripture = pathway.steps.slice(0, 8).map((step) => `${step.reference}: ${step.explanation}`).join("\n");
   const userContent: Array<Record<string, unknown>> = [{ type: "input_text", text: [
-    `PATHWAY: ${pathway.title}`,
-    `PATHWAY SUMMARY: ${pathway.summary}`,
-    `CREATIVE REQUEST: ${parsed.data.prompt}`,
-    `SCRIPTURE CONTEXT:\n${scripture}`,
+    `CREATIVE REQUEST — PRIMARY VISUAL BRIEF:\n${parsed.data.prompt}`,
+    `PATHWAY CONTEXT — theological guardrail, not the composition brief:\n${pathway.title}\n${pathway.summary}`,
+    `SCRIPTURE CONTEXT — use only to avoid visual ideas that contradict the requested doctrine:\n${scripture}`,
     referenceUrls.length ? "The following images are previously approved Apostolic Guide visual references. Match their restraint, hierarchy, texture, photographic/editorial sensibility, and negative-space habits without copying their exact composition." : "No approved image references are saved yet."
   ].join("\n\n") }];
   for (const imageUrl of referenceUrls) userContent.push({ type: "input_image", image_url: imageUrl, detail: "low" });
@@ -83,6 +82,9 @@ export async function POST(request: Request) {
       input: [
         { role: "developer", content: [{ type: "input_text", text: [
           "You are Sol, the visual director for Apostolic Guide.",
+          "The user's CREATIVE REQUEST is the composition driver. The Pathway is supporting theological context and must not force every visual into the same recurring Pathway imagery.",
+          "Invent a fresh visual concept for the specific request. Do not default to depicting the whole doctrine, every verse, a generic Bible, glowing cross, crown, clouds, church stage, or the same symbolic object used in prior Pathway graphics unless the prompt specifically calls for it.",
+          "Use only as much Pathway context as needed to keep the concept faithful to the requested meaning. Fresh visual thinking is encouraged; new doctrine is not.",
           "Turn the user's creative request into one precise image-generation prompt that matches the saved Apostolic Guide visual language and any approved reference images supplied.",
           "The image must remain editable downstream, so generate the VISUAL/PHOTOGRAPHIC/ILLUSTRATIVE LAYER ONLY. Do not put readable text, Scripture, logos, typography, UI, borders, watermarks, or captions into the image.",
           "Protect generous negative space for later HTML/CSS typography. Avoid random religious clichés, glowing crosses, crowns, fantasy heaven imagery, orange, neon color, and generic megachurch advertising aesthetics.",

@@ -18,7 +18,8 @@ export default async function AdminCarouselStudioPage({ searchParams }: { search
   const { access, allowed } = await getStudioPermission("manage_content");
   if (!allowed || access.state !== "allowed") redirect("/admin");
   const query = await searchParams;
-  const libraryView = query.view === "library" && !query.project;
+  const projectId = query.project ?? null;
+  const libraryView = query.view === "library" && !projectId;
   const pathways = allPathways.map((pathway) => ({
     slug: pathway.slug,
     title: pathway.title,
@@ -34,15 +35,15 @@ export default async function AdminCarouselStudioPage({ searchParams }: { search
       <Link className={libraryView ? "is-active" : ""} href="/admin/carousel-studio?view=library"><FolderOpen size={16}/><span><strong>Library</strong><small>Drafts · Ready · Published</small></span></Link>
     </div>
     {libraryView ? <CreativeLibraryClient/> : <>
-      {!query.project ? <CarouselProjectStarter pathways={pathways} aiReady={aiReady}/> : null}
-      <CreativeStudioClient pathways={pathways} initialProjectId={query.project ?? null} aiReady={aiReady}/>
-      {query.project ? <CarouselManualEdit/> : null}
-      <CreativeTemplateSystem projectId={query.project ?? null}/>
-      {query.project ? <CarouselPersistentArtwork/> : null}
-      {query.project ? <CarouselSingleArtDirector/> : null}
-      {query.project ? <CarouselProjectDelete/> : null}
-      {query.project ? <CarouselStudioMobileFocus/> : null}
-      {query.project ? <CarouselLiveRepair/> : null}
+      {!projectId ? <CarouselProjectStarter pathways={pathways} aiReady={aiReady}/> : null}
+      <CreativeStudioClient pathways={pathways} initialProjectId={projectId} aiReady={aiReady}/>
+      {projectId ? <CarouselManualEdit projectId={projectId}/> : null}
+      <CreativeTemplateSystem projectId={projectId}/>
+      {projectId ? <CarouselPersistentArtwork/> : null}
+      {projectId ? <CarouselSingleArtDirector projectId={projectId}/> : null}
+      {projectId ? <CarouselProjectDelete/> : null}
+      {projectId ? <CarouselStudioMobileFocus/> : null}
+      {projectId ? <CarouselLiveRepair/> : null}
     </>}
   </section>;
 }

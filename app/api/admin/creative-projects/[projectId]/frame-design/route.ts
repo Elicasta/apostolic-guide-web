@@ -6,6 +6,7 @@ import { loadCreativeProject } from "@/creative-project-server";
 import { createServiceClient } from "@/supabase";
 
 const textureIds = CAROUSEL_TEXTURES.map((texture) => texture.id) as [string, ...string[]];
+const color = z.string().regex(/^#[0-9a-fA-F]{6}$/).nullable();
 
 const designSchema = z.object({
   copyY: z.number().min(32).max(68),
@@ -15,7 +16,11 @@ const designSchema = z.object({
   bodyWidth: z.number().min(45).max(94),
   copyGap: z.number().min(0.5).max(5),
   alignment: z.enum(["left", "center", "right"]),
-  textColor: z.string().regex(/^#[0-9a-fA-F]{6}$/).nullable(),
+  textColor: color.optional().default(null),
+  headlineFont: z.enum(["Montserrat", "Bebas Neue", "Cormorant Garamond"]).optional(),
+  bodyFont: z.enum(["Montserrat", "Bebas Neue", "Cormorant Garamond"]).optional(),
+  headlineColor: color.optional(),
+  bodyColor: color.optional(),
   texture: z.enum(textureIds),
   textureStrength: z.number().min(0).max(70)
 });

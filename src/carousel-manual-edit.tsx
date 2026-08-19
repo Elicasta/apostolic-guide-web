@@ -1,9 +1,10 @@
 "use client";
 
 import { createPortal } from "react-dom";
-import { Check, Loader2, RotateCcw, SlidersHorizontal, X } from "lucide-react";
+import { Check, Loader2, RotateCcw, SlidersHorizontal, Sparkles, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  AG_CAROUSEL_COLORS,
   CAROUSEL_TEXTURES,
   STYLE_TEXTURE_DEFAULTS,
   type CarouselTextureId,
@@ -11,7 +12,9 @@ import {
 } from "@/carousel-design-rules";
 
 type Alignment = "left" | "center" | "right";
+type FontChoice = "Montserrat" | "Bebas Neue" | "Cormorant Garamond";
 type SaveState = "idle" | "loading" | "saving" | "saved" | "error";
+type BrandColorKey = "paper" | "white" | "ink" | "ink2" | "crimson" | "blue" | "blueSoft";
 
 type SlideDesign = {
   copyY: number;
@@ -22,6 +25,10 @@ type SlideDesign = {
   copyGap: number;
   alignment: Alignment;
   textColor: string | null;
+  headlineFont: FontChoice;
+  bodyFont: FontChoice;
+  headlineColor: string | null;
+  bodyColor: string | null;
   texture: CarouselTextureId;
   textureStrength: number;
 };
@@ -31,13 +38,33 @@ type DesignPayload = {
   designs: Array<{ frameId: string; design: unknown; updatedAt: string }>;
 };
 
-const DARK_TEXT = "#f5f7f4";
-const LIGHT_TEXT = "#10202a";
+type TextureDirection = { texture: CarouselTextureId; strength: number; rationale: string };
+
+const FONT_CHOICES: FontChoice[] = ["Montserrat", "Bebas Neue", "Cormorant Garamond"];
+const BRAND_COLORS: Array<{ key: BrandColorKey; label: string; value: string }> = [
+  { key: "paper", label: "Paper", value: AG_CAROUSEL_COLORS.paper },
+  { key: "white", label: "White", value: AG_CAROUSEL_COLORS.white },
+  { key: "ink", label: "Ink", value: AG_CAROUSEL_COLORS.ink },
+  { key: "ink2", label: "Slate", value: AG_CAROUSEL_COLORS.ink2 },
+  { key: "crimson", label: "Crimson", value: AG_CAROUSEL_COLORS.crimson },
+  { key: "blue", label: "AG Blue", value: AG_CAROUSEL_COLORS.blue },
+  { key: "blueSoft", label: "Blue Soft", value: AG_CAROUSEL_COLORS.blueSoft }
+];
 
 function clamp(value: unknown, min: number, max: number, fallback: number) {
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) return fallback;
   return Math.min(max, Math.max(min, numeric));
+}
+
+function fontStack(font: FontChoice) {
+  if (font === "Bebas Neue") return "'Bebas Neue','Montserrat',Arial,sans-serif";
+  if (font === "Cormorant Garamond") return "'Cormorant Garamond',Georgia,serif";
+  return "'Montserrat',Arial,sans-serif";
+}
+
+function validColor(value: unknown): string | null {
+  return typeof value === "string" && /^#[0-9a-f]{6}$/i.test(value) ? value : null;
 }
 
 function visualStyle(root: HTMLElement | null): CarouselVisualStyle {
@@ -49,12 +76,10 @@ function visualStyle(root: HTMLElement | null): CarouselVisualStyle {
   return "street";
 }
 
-function defaultTextColor(style: CarouselVisualStyle) {
-  return style === "editorial" || style === "verse" ? LIGHT_TEXT : DARK_TEXT;
-}
-
 function defaultDesign(style: CarouselVisualStyle): SlideDesign {
   const texture = STYLE_TEXTURE_DEFAULTS[style];
+  const light = style === "editorial" || style === "verse";
+  const headlineFont: FontChoice = style === "verse" ? "Bebas Neue" : style === "editorial" || style === "cinematic" ? "Cormorant Garamond" : "Montserrat";
   return {
     copyY: 50,
     headlineScale: 1,
@@ -62,8 +87,12 @@ function defaultDesign(style: CarouselVisualStyle): SlideDesign {
     bodyScale: 1,
     bodyWidth: style === "editorial" ? 82 : 76,
     copyGap: 2.4,
-    alignment: style === "editorial" || style === "verse" ? "left" : "center",
+    alignment: light ? "left" : "center",
     textColor: null,
+    headlineFont,
+    bodyFont: "Montserrat",
+    headlineColor: light ? AG_CAROUSEL_COLORS.ink : AG_CAROUSEL_COLORS.paper,
+    bodyColor: light ? AG_CAROUSEL_COLORS.ink2 : AG_CAROUSEL_COLORS.blueSoft,
     texture: texture.texture,
     textureStrength: texture.strength
   };
@@ -74,7 +103,9 @@ function normalizeDesign(raw: unknown, style: CarouselVisualStyle): SlideDesign 
   const parsed = raw && typeof raw === "object" && !Array.isArray(raw) ? raw as Partial<SlideDesign> : {};
   const texture = CAROUSEL_TEXTURES.some((item) => item.id === parsed.texture) ? parsed.texture as CarouselTextureId : fallback.texture;
   const alignment = parsed.alignment === "left" || parsed.alignment === "center" || parsed.alignment === "right" ? parsed.alignment : fallback.alignment;
-  const color = typeof parsed.textColor === "string" && /^#[0-9a-f]{6}$/i.test(parsed.textColor) ? parsed.textColor : null;
+  const legacyColor = validColor(parsed.textColor);
+  const headlineFont = FONT_CHOICES.includes(parsed.headlineFont as FontChoice) ? parsed.headlineFont as FontChoice : fallback.headlineFont;
+  const bodyFont = FONT_CHOICES.includes(parsed.bodyFont as FontChoice) ? parsed.bodyFont as FontChoice : fallback.bodyFont;
   return {
     copyY: clamp(parsed.copyY, 32, 68, fallback.copyY),
     headlineScale: clamp(parsed.headlineScale, .55, 1.45, fallback.headlineScale),
@@ -83,7 +114,11 @@ function normalizeDesign(raw: unknown, style: CarouselVisualStyle): SlideDesign 
     bodyWidth: clamp(parsed.bodyWidth, 45, 94, fallback.bodyWidth),
     copyGap: clamp(parsed.copyGap, .5, 5, fallback.copyGap),
     alignment,
-    textColor: color,
+    textColor: legacyColor,
+    headlineFont,
+    bodyFont,
+    headlineColor: validColor(parsed.headlineColor) || legacyColor || fallback.headlineColor,
+    bodyColor: validColor(parsed.bodyColor) || legacyColor || fallback.bodyColor,
     texture,
     textureStrength: clamp(parsed.textureStrength, 0, 70, fallback.textureStrength)
   };
@@ -105,9 +140,43 @@ function activeSlideLabel(root: HTMLElement | null) {
   return `${noun} ${index + 1}${rows.length > 1 ? ` of ${rows.length}` : ""}`;
 }
 
+function clearDesign(board: HTMLElement | null) {
+  if (!board) return;
+  const artwork = board.querySelector<HTMLElement>(".carousel-artwork");
+  const copy = board.querySelector<HTMLElement>(".carousel-copy");
+  [
+    "--copy-y",
+    "--headline-scale",
+    "--title-width",
+    "--body-scale",
+    "--body-width",
+    "--copy-gap",
+    "--copy-align",
+    "--manual-headline-font",
+    "--manual-body-font",
+    "--manual-headline-color",
+    "--manual-body-color"
+  ].forEach((property) => artwork?.style.removeProperty(property));
+  delete board.dataset.manualTypography;
+  delete board.dataset.manualTextColor;
+  delete board.dataset.texture;
+  board.style.removeProperty("--manual-text-color");
+  board.style.removeProperty("--texture-strength");
+  if (!copy) return;
+  copy.style.removeProperty("text-align");
+  copy.style.removeProperty("align-items");
+  copy.style.removeProperty("justify-items");
+  copy.querySelectorAll<HTMLElement>(":scope > strong, :scope > span, :scope > p, :scope > em").forEach((node) => {
+    node.style.removeProperty("font-family");
+    node.style.removeProperty("color");
+    node.style.removeProperty("text-align");
+  });
+}
+
 function applyDesign(board: HTMLElement | null, design: SlideDesign) {
   if (!board) return;
   const artwork = board.querySelector<HTMLElement>(".carousel-artwork");
+  const copy = board.querySelector<HTMLElement>(".carousel-copy");
   if (artwork) {
     artwork.style.setProperty("--copy-y", `${design.copyY}%`);
     artwork.style.setProperty("--headline-scale", String(design.headlineScale));
@@ -116,9 +185,15 @@ function applyDesign(board: HTMLElement | null, design: SlideDesign) {
     artwork.style.setProperty("--body-width", `${design.bodyWidth}%`);
     artwork.style.setProperty("--copy-gap", `${design.copyGap}cqw`);
     artwork.style.setProperty("--copy-align", design.alignment);
+    artwork.style.setProperty("--manual-headline-font", fontStack(design.headlineFont));
+    artwork.style.setProperty("--manual-body-font", fontStack(design.bodyFont));
+    artwork.style.setProperty("--manual-headline-color", design.headlineColor || "inherit");
+    artwork.style.setProperty("--manual-body-color", design.bodyColor || "inherit");
   }
+  board.dataset.manualTypography = "true";
   board.dataset.texture = design.texture;
   board.style.setProperty("--texture-strength", String(design.textureStrength / 100));
+
   if (design.textColor) {
     board.dataset.manualTextColor = "true";
     board.style.setProperty("--manual-text-color", design.textColor);
@@ -126,6 +201,43 @@ function applyDesign(board: HTMLElement | null, design: SlideDesign) {
     delete board.dataset.manualTextColor;
     board.style.removeProperty("--manual-text-color");
   }
+
+  if (copy) {
+    copy.style.textAlign = design.alignment;
+    copy.style.alignItems = design.alignment === "center" ? "center" : design.alignment === "right" ? "flex-end" : "flex-start";
+    copy.style.justifyItems = design.alignment;
+    copy.querySelectorAll<HTMLElement>(":scope > strong, :scope > span").forEach((node) => {
+      node.style.fontFamily = fontStack(design.headlineFont);
+      if (design.headlineColor) node.style.color = design.headlineColor;
+      node.style.textAlign = design.alignment;
+    });
+    copy.querySelectorAll<HTMLElement>(":scope > p, :scope > em").forEach((node) => {
+      node.style.fontFamily = fontStack(design.bodyFont);
+      if (design.bodyColor) node.style.color = design.bodyColor;
+      node.style.textAlign = design.alignment;
+    });
+  }
+}
+
+function applyDesignSet(root: HTMLElement, designs: Record<string, SlideDesign>, frameIds: string[]) {
+  const renderHosts = [...root.querySelectorAll<HTMLElement>(".creative-render-stage > .creative-frame-preview")];
+  frameIds.forEach((frameId, index) => {
+    const board = renderHosts[index]?.querySelector<HTMLElement>(".persistent-carousel-artboard") ?? null;
+    if (designs[frameId]) applyDesign(board, designs[frameId]);
+    else clearDesign(board);
+  });
+  const activeIndex = activeSlideIndex(root);
+  const activeId = frameIds[activeIndex];
+  const visibleBoard = root.querySelector<HTMLElement>(".creative-preview-panel .persistent-carousel-artboard");
+  if (activeId && designs[activeId]) applyDesign(visibleBoard, designs[activeId]);
+  else clearDesign(visibleBoard);
+}
+
+function clearFrameBoards(root: HTMLElement | null, frameIndex: number) {
+  if (!root) return;
+  clearDesign(root.querySelector<HTMLElement>(".creative-preview-panel .persistent-carousel-artboard"));
+  const renderHosts = [...root.querySelectorAll<HTMLElement>(".creative-render-stage > .creative-frame-preview")];
+  clearDesign(renderHosts[frameIndex]?.querySelector<HTMLElement>(".persistent-carousel-artboard") ?? null);
 }
 
 async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
@@ -149,12 +261,18 @@ function RangeControl({ label, min, max, step, value, suffix = "%", onChange }: 
   onChange: (value: number) => void;
 }) {
   return <label className="carousel-inline-range">
-    <span>{label}<b>{Math.round(value)}{suffix}</b></span>
+    <span>{label}<b>{step < 1 ? value.toFixed(1) : Math.round(value)}{suffix}</b></span>
     <input type="range" min={min} max={max} step={step} value={value} onChange={(event) => onChange(Number(event.target.value))}/>
   </label>;
 }
 
-export function CarouselManualEdit() {
+function BrandPalette({ value, onChange }: { value: string | null; onChange: (value: string) => void }) {
+  return <div className="carousel-inline-palette">
+    {BRAND_COLORS.map((color) => <button type="button" key={color.key} className={value?.toLowerCase() === color.value.toLowerCase() ? "is-active" : ""} title={color.label} aria-label={color.label} onClick={() => onChange(color.value)}><i style={{ background: color.value }}/><span>{color.label}</span></button>)}
+  </div>;
+}
+
+export function CarouselManualEdit({ projectId: suppliedProjectId = null }: { projectId?: string | null } = {}) {
   const [root, setRoot] = useState<HTMLElement | null>(null);
   const [target, setTarget] = useState<HTMLElement | null>(null);
   const [open, setOpen] = useState(false);
@@ -165,21 +283,18 @@ export function CarouselManualEdit() {
   const [style, setStyle] = useState<CarouselVisualStyle>("street");
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [saveError, setSaveError] = useState("");
+  const [textureBusy, setTextureBusy] = useState(false);
+  const [textureInstruction, setTextureInstruction] = useState("Choose the approved Apostolic Guide texture that best supports this slide without reducing readability.");
+  const [textureMessage, setTextureMessage] = useState("");
   const saveTimer = useRef<number | null>(null);
 
-  const projectId = useMemo(() => {
-    if (typeof window === "undefined") return "";
-    return new URLSearchParams(window.location.search).get("project") || "";
-  }, []);
-
-  const currentFrameId = frameIds[activeSlideIndex(root)] || "";
+  const projectId = useMemo(() => suppliedProjectId || (typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("project") || "" : ""), [suppliedProjectId]);
 
   const applyEveryBoard = useCallback((next: SlideDesign, frameIndex = activeSlideIndex(root)) => {
     if (!root) return;
     applyDesign(root.querySelector<HTMLElement>(".creative-preview-panel .persistent-carousel-artboard"), next);
     const renderHosts = [...root.querySelectorAll<HTMLElement>(".creative-render-stage > .creative-frame-preview")];
-    const renderBoard = renderHosts[frameIndex]?.querySelector<HTMLElement>(".persistent-carousel-artboard");
-    applyDesign(renderBoard, next);
+    applyDesign(renderHosts[frameIndex]?.querySelector<HTMLElement>(".persistent-carousel-artboard") ?? null, next);
   }, [root]);
 
   const syncSelectedDesign = useCallback((nextRoot: HTMLElement, nextDesigns: Record<string, SlideDesign>, nextFrameIds: string[]) => {
@@ -190,7 +305,7 @@ export function CarouselManualEdit() {
     setStyle(nextStyle);
     setDesign(next);
     setSlideLabel(activeSlideLabel(nextRoot));
-    window.setTimeout(() => applyDesign(nextRoot.querySelector<HTMLElement>(".creative-preview-panel .persistent-carousel-artboard"), next), 0);
+    window.setTimeout(() => applyDesignSet(nextRoot, nextDesigns, nextFrameIds), 0);
   }, []);
 
   useEffect(() => {
@@ -219,16 +334,14 @@ export function CarouselManualEdit() {
 
   useEffect(() => {
     const master = document.querySelector<HTMLElement>(".carousel-studio-master");
-    if (!master) return;
+    if (!master || !projectId) return;
     let currentRoot: HTMLElement | null = null;
     let observer: MutationObserver | null = null;
 
     const bind = () => {
       const nextRoot = master.querySelector<HTMLElement>(".creative-studio-shell");
-      if (!nextRoot) return;
-      const previewPanel = nextRoot.querySelector<HTMLElement>(".creative-preview-panel");
-      if (!previewPanel) return;
-
+      const previewPanel = nextRoot?.querySelector<HTMLElement>(".creative-preview-panel");
+      if (!nextRoot || !previewPanel) return;
       let host = previewPanel.querySelector<HTMLElement>("[data-carousel-inline-manual-host]");
       if (!host) {
         host = document.createElement("div");
@@ -238,24 +351,24 @@ export function CarouselManualEdit() {
         if (visualControls) visualControls.before(host);
         else previewPanel.append(host);
       }
-
       setRoot(nextRoot);
       setTarget(host);
       setOpen(nextRoot.dataset.manualEdit === "open");
       setSlideLabel(activeSlideLabel(nextRoot));
+      window.setTimeout(() => applyDesignSet(nextRoot, designs, frameIds), 0);
 
       if (currentRoot === nextRoot) return;
       observer?.disconnect();
       currentRoot = nextRoot;
       observer = new MutationObserver(() => {
-        setSlideLabel(activeSlideLabel(nextRoot));
         const nextStyle = visualStyle(nextRoot);
         const index = activeSlideIndex(nextRoot);
         const frameId = frameIds[index];
         const next = frameId && designs[frameId] ? designs[frameId] : defaultDesign(nextStyle);
         setStyle(nextStyle);
         setDesign(next);
-        window.setTimeout(() => applyDesign(nextRoot.querySelector<HTMLElement>(".creative-preview-panel .persistent-carousel-artboard"), next), 0);
+        setSlideLabel(activeSlideLabel(nextRoot));
+        window.setTimeout(() => applyDesignSet(nextRoot, designs, frameIds), 0);
       });
       observer.observe(nextRoot, { subtree: true, childList: true, attributes: true, attributeFilter: ["class", "data-creative-template"] });
     };
@@ -268,7 +381,7 @@ export function CarouselManualEdit() {
       observer?.disconnect();
       projectObserver.disconnect();
     };
-  }, [designs, frameIds]);
+  }, [designs, frameIds, projectId]);
 
   useEffect(() => () => {
     if (saveTimer.current !== null) window.clearTimeout(saveTimer.current);
@@ -307,12 +420,9 @@ export function CarouselManualEdit() {
   function resetCurrent() {
     const index = activeSlideIndex(root);
     const frameId = frameIds[index];
-    const next = defaultDesign(style);
-    setDesign(next);
-    if (!frameId || !projectId) {
-      applyEveryBoard(next, index);
-      return;
-    }
+    setDesign(defaultDesign(style));
+    clearFrameBoards(root, index);
+    if (!frameId || !projectId) return;
     setDesigns((current) => {
       const clone = { ...current };
       delete clone[frameId];
@@ -326,7 +436,6 @@ export function CarouselManualEdit() {
       setSaveState("error");
       setSaveError(error instanceof Error ? error.message : "Slide styling could not be reset.");
     });
-    applyEveryBoard(next, index);
   }
 
   async function applyTextureToAll() {
@@ -347,11 +456,32 @@ export function CarouselManualEdit() {
         });
       }));
       setDesigns(nextDesigns);
-      applyDesign(root?.querySelector<HTMLElement>(".creative-preview-panel .persistent-carousel-artboard") ?? null, design);
+      if (root) applyDesignSet(root, nextDesigns, frameIds);
       setSaveState("saved");
     } catch (error) {
       setSaveState("error");
       setSaveError(error instanceof Error ? error.message : "Texture could not be applied to every slide.");
+    }
+  }
+
+  async function chooseTextureWithSol() {
+    if (!root || textureBusy) return;
+    const copy = root.querySelector<HTMLElement>(".creative-preview-panel .carousel-copy");
+    const title = copy?.querySelector<HTMLElement>(":scope > strong")?.textContent?.trim() || "";
+    const body = copy?.querySelector<HTMLElement>(":scope > p")?.textContent?.trim() || "";
+    setTextureBusy(true);
+    setTextureMessage("Sol is choosing from the approved AG texture library…");
+    try {
+      const data = await requestJson<{ direction: TextureDirection }>("/api/admin/carousel-studio/texture-direct", {
+        method: "POST",
+        body: JSON.stringify({ style, title, body, instruction: textureInstruction })
+      });
+      update({ texture: data.direction.texture, textureStrength: data.direction.strength });
+      setTextureMessage(data.direction.rationale);
+    } catch (error) {
+      setTextureMessage(error instanceof Error ? error.message : "Texture direction failed.");
+    } finally {
+      setTextureBusy(false);
     }
   }
 
@@ -364,14 +494,12 @@ export function CarouselManualEdit() {
   }
 
   if (!target || !projectId) return null;
-
-  const resolvedColor = design.textColor || defaultTextColor(style);
   const texture = CAROUSEL_TEXTURES.find((item) => item.id === design.texture);
 
   return createPortal(<div className={`carousel-inline-manual ${open ? "is-open" : ""}`}>
     <button type="button" className={`carousel-manual-edit-toggle ${open ? "is-open" : ""}`} onClick={toggleManualEdit} aria-pressed={open}>
       {open ? <Check size={16}/> : <SlidersHorizontal size={16}/>}
-      <span><strong>{open ? "Done Editing" : "Manual Edit"}</strong><small>{open ? `${slideLabel} · controls directly under preview` : "Type, color, size, layout + textures"}</small></span>
+      <span><strong>{open ? "Done Editing" : "Manual Edit"}</strong><small>{open ? `${slideLabel} · saved with project` : "Type, fonts, color, layout, texture + AI direction"}</small></span>
     </button>
 
     {open ? <section className="carousel-inline-manual-panel">
@@ -395,7 +523,22 @@ export function CarouselManualEdit() {
           <RangeControl label="Body width" min={45} max={94} step={1} value={design.bodyWidth} onChange={(value) => update({ bodyWidth: value })}/>
           <RangeControl label="Copy gap" min={.5} max={5} step={.1} value={design.copyGap} suffix="" onChange={(value) => update({ copyGap: value })}/>
           <label className="carousel-inline-field"><span>Alignment</span><select value={design.alignment} onChange={(event) => update({ alignment: event.target.value as Alignment })}><option value="left">Left</option><option value="center">Center</option><option value="right">Right</option></select></label>
-          <label className="carousel-inline-field carousel-inline-color"><span>Main font color</span><div><input type="color" value={resolvedColor} onChange={(event) => update({ textColor: event.target.value })}/><code>{resolvedColor.toUpperCase()}</code><button type="button" onClick={() => update({ textColor: null })}>Auto</button></div></label>
+        </div>
+      </details>
+
+      <details open>
+        <summary>Typography + color</summary>
+        <div className="carousel-inline-brand-grid">
+          <section>
+            <div><strong>Headline + references</strong><small>Display layer</small></div>
+            <label className="carousel-inline-field"><span>Font</span><select value={design.headlineFont} onChange={(event) => update({ headlineFont: event.target.value as FontChoice })}>{FONT_CHOICES.map((font) => <option value={font} key={font}>{font}</option>)}</select></label>
+            <BrandPalette value={design.headlineColor} onChange={(value) => update({ headlineColor: value, textColor: null })}/>
+          </section>
+          <section>
+            <div><strong>Body + support</strong><small>Reading layer</small></div>
+            <label className="carousel-inline-field"><span>Font</span><select value={design.bodyFont} onChange={(event) => update({ bodyFont: event.target.value as FontChoice })}>{FONT_CHOICES.map((font) => <option value={font} key={font}>{font}</option>)}</select></label>
+            <BrandPalette value={design.bodyColor} onChange={(value) => update({ bodyColor: value, textColor: null })}/>
+          </section>
         </div>
       </details>
 
@@ -408,6 +551,11 @@ export function CarouselManualEdit() {
           }}>{CAROUSEL_TEXTURES.map((item) => <option key={item.id} value={item.id}>{item.label} · {item.mood}</option>)}</select></label>
           <p>{texture?.description || "Choose a surface treatment."}</p>
           <RangeControl label="Texture amount" min={0} max={70} step={1} value={design.textureStrength} onChange={(value) => update({ textureStrength: value })}/>
+          <div className="carousel-inline-sol-texture">
+            <label className="carousel-inline-field"><span>Sol texture direction</span><textarea rows={2} value={textureInstruction} onChange={(event) => setTextureInstruction(event.target.value)}/></label>
+            <button type="button" disabled={textureBusy || !textureInstruction.trim()} onClick={() => void chooseTextureWithSol()}>{textureBusy ? <Loader2 className="spin" size={14}/> : <Sparkles size={14}/>} Choose texture with Sol</button>
+            {textureMessage ? <small>{textureMessage}</small> : null}
+          </div>
           <button type="button" className="carousel-inline-apply-all" disabled={saveState === "loading" || saveState === "saving"} onClick={() => void applyTextureToAll()}>Use this texture on all slides</button>
         </div>
       </details>
