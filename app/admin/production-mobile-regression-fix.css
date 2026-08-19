@@ -1,0 +1,102 @@
+/* Production mobile regression fixes for Carousel Studio and Master Publishing. */
+
+/* Keep the two navigation surfaces above editor/publisher content and make taps
+   deterministic inside horizontally scrollable mobile rails. */
+.carousel-studio-master .creative-hub-switch,
+.carousel-studio-master .creative-frame-rail,
+.master-publishing-switch,
+.creative-publish-flow{
+  position:relative;
+  pointer-events:auto!important;
+  isolation:isolate;
+}
+.carousel-studio-master .creative-hub-switch{z-index:38}
+.carousel-studio-master .creative-frame-rail{z-index:8;touch-action:pan-x}
+.master-publishing-switch{z-index:38}
+.creative-publish-flow{z-index:32}
+.carousel-studio-master .creative-hub-switch a,
+.carousel-studio-master .creative-frame-row,
+.master-publishing-switch button,
+.creative-publish-flow button{
+  pointer-events:auto!important;
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+.carousel-studio-master .creative-frame-row{
+  position:relative;
+  z-index:2;
+  user-select:none;
+  -webkit-user-select:none;
+}
+
+/* Render from a predictable source canvas. html-to-image runs at 3x, so a
+   360x450 source becomes the canonical 1080x1350 Instagram 4:5 asset and a
+   360x640 source becomes 1080x1920 for Stories. */
+.carousel-studio-master .creative-render-stage{
+  width:360px!important;
+  max-width:360px!important;
+  overflow:visible!important;
+}
+.carousel-studio-master .creative-render-stage>.creative-frame-preview{
+  position:relative!important;
+  left:auto!important;
+  right:auto!important;
+  top:auto!important;
+  bottom:auto!important;
+  max-width:none!important;
+  min-width:0!important;
+  margin:0!important;
+  transform:none!important;
+  overflow:hidden!important;
+}
+.carousel-studio-master .creative-render-stage>.creative-frame-preview.is-single,
+.carousel-studio-master .creative-render-stage>.creative-frame-preview.is-carousel{
+  width:360px!important;
+  height:450px!important;
+  aspect-ratio:auto!important;
+}
+.carousel-studio-master .creative-render-stage>.creative-frame-preview.is-story{
+  width:360px!important;
+  height:640px!important;
+  aspect-ratio:auto!important;
+}
+
+/* The Instagram mockup should display the entire saved render. A malformed or
+   legacy render must never be enlarged and cropped into an unreadable slice. */
+.creative-instagram-preview-media{
+  width:100%;
+  aspect-ratio:4/5;
+  overflow:hidden;
+  display:grid;
+  place-items:center;
+  background:#edf1f0;
+}
+.creative-instagram-preview.is-story .creative-instagram-preview-media{
+  aspect-ratio:9/16;
+}
+.creative-instagram-preview-media>img{
+  display:block;
+  width:100%!important;
+  height:100%!important;
+  max-width:100%!important;
+  max-height:100%!important;
+  aspect-ratio:auto!important;
+  object-fit:contain!important;
+  object-position:center!important;
+}
+
+@media(max-width:760px){
+  .carousel-studio-master .creative-hub-switch,
+  .master-publishing-switch{
+    width:100%;
+  }
+  .carousel-studio-master .creative-frame-row{
+    min-height:58px;
+  }
+  .creative-instagram-preview{
+    width:100%!important;
+    max-width:420px!important;
+    min-width:0!important;
+    margin-inline:auto!important;
+  }
+}
