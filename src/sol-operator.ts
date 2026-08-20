@@ -1,3 +1,4 @@
+import { pathwayNarrationHash } from "./pathway-audio";
 import { allPathways } from "./pathway-catalog";
 import { recordStudioAudit } from "./studio-audit";
 import { createServiceClient } from "./supabase";
@@ -156,28 +157,28 @@ function appDestination(slug: string, appSlug: string) {
 
 async function observe(service: Service, weeklyTargets: Record<string, number>) {
   const since = new Date(Date.now() - 7 * 86_400_000).toISOString();
-  const [profiles, assets, publications, audio, scripts, projects, renders, runs, calendar] = await Promise.all([
+  const [profiles, publications, audio, scripts, projects, renders, runs, calendar, creatives] = await Promise.all([
     service.from("pathway_publishing_profiles").select("pathway_slug,primary_keyword,campaign_status,app_url,social_automation_id"),
-    service.from("pathway_assets").select("id,pathway_slug,type,status,published_at").neq("status", "archived"),
     service.from("pathway_publications").select("pathway_slug,platform,status,published_at"),
     service.from("pathway_audio_assets").select("pathway_slug,content_hash,audio_url"),
-    service.from("pathway_audio_scripts").select("pathway_slug,script_hash,status,checker_status,checked_script_hash"),
+    service.from("pathway_audio_scripts").select("pathway_slug,source_hash,script_hash,status,checker_status,checked_script_hash"),
     service.from("pathway_video_projects").select("pathway_slug,audio_content_hash,timeline"),
     service.from("pathway_video_renders").select("pathway_slug,format,status,requested_at").order("requested_at", { ascending: false }),
-    service.from("sol_operator_runs").select("recipe_key,pathway_slug,status").in("status", ["queued", "running"]),
-    service.from("studio_content_calendar_items").select("content_type,status,published_at").eq("status", "published").gte("published_at", since)
+    service.from("sol_operator_runs").select("recipe_key,pathway_slug,status").in("status", ["queued", "running", "retrying", "waiting_review"]),
+    service.from("studio_content_calendar_items").select("content_type,status,published_at").eq("status", "published").gte("published_at", since),
+    service.from("studio_creative_projects").select("id,pathway_slug,format,status").eq("format", "carousel").neq("status", "archived")
   ]);
-  const failure = [profiles, assets, publications, audio, scripts, projects, renders, runs, calendar].find((item) => item.error);
+  const failure = [profiles, publications, audio, scripts, projects, renders, runs, calendar, creatives].find((item) => item.error);
   if (failure?.error) throw failure.error;
 
   const profileMap = new Map((profiles.data ?? []).map((item) => [String(item.pathway_slug), item]));
   const audioMap = new Map((audio.data ?? []).map((item) => [String(item.pathway_slug), item]));
   const scriptMap = new Map((scripts.data ?? []).map((item) => [String(item.pathway_slug), item]));
   const projectMap = new Map((projects.data ?? []).map((item) => [String(item.pathway_slug), item]));
-  const assetsBySlug = new Map<string, typeof assets.data>();
-  for (const item of assets.data ?? []) assetsBySlug.set(String(item.pathway_slug), [...(assetsBySlug.get(String(item.pathway_slug)) ?? []), item]);
   const publicationsBySlug = new Map<string, typeof publications.data>();
   for (const item of publications.data ?? []) publicationsBySlug.set(String(item.pathway_slug), [...(publicationsBySlug.get(String(item.pathway_slug)) ?? []), item]);
+  const creativesBySlug = new Map<string, typeof creatives.data>();
+  for (const item of creatives.data ?? []) creativesBySlug.set(String(item.pathway_slug), [...(creativesBySlug.get(String(item.pathway_slug)) ?? []), item]);
   const latestYoutubeRender = new Map<string, { status: string }>();
   for (const item of renders.data ?? []) {
     const slug = String(item.pathway_slug);
@@ -193,8 +194,12 @@ async function observe(service: Service, weeklyTargets: Record<string, number>) 
     const profile = profileMap.get(pathway.slug);
     const sourceAudio = audioMap.get(pathway.slug);
     const script = scriptMap.get(pathway.slug);
-    const pathwayAssets = assetsBySlug.get(pathway.slug) ?? [];
     const pathwayPublications = publicationsBySlug.get(pathway.slug) ?? [];
+    const pathwayCreatives = creativesBySlug.get(pathway.slug) ?? [];
+    const sourceCurrent = Boolean(script?.script_hash && script?.source_hash === pathwayNarrationHash(pathway));
+    const scriptApproved = sourceCurrent && script?.status === "approved";
+    const theologyPassed = Boolean(scriptApproved && script?.checker_status === "passed" && script?.checked_script_hash === script?.script_hash);
+    const audioMatchesScript = Boolean(sourceAudio?.audio_url && sourceAudio?.content_hash && sourceAudio.content_hash === script?.script_hash);
     return {
       slug: pathway.slug,
       title: pathway.title,
@@ -205,15 +210,15 @@ async function observe(service: Service, weeklyTargets: Record<string, number>) 
       primaryKeyword: profile?.primary_keyword ? String(profile.primary_keyword) : null,
       destinationUrl: profile?.app_url ? String(profile.app_url) : appDestination(pathway.slug, pathway.appSlug),
       automationLinked: Boolean(profile?.social_automation_id),
-      audioReady: Boolean(sourceAudio?.audio_url),
-      scriptApproved: script?.status === "approved",
-      theologyPassed: script?.checker_status === "passed" && script?.checked_script_hash === script?.script_hash,
-      audioMatchesScript: Boolean(sourceAudio?.content_hash && sourceAudio.content_hash === script?.script_hash),
+      audioReady: Boolean(sourceAudio?.audio_url && scriptApproved && theologyPassed && audioMatchesScript),
+      scriptApproved,
+      theologyPassed,
+      audioMatchesScript,
       videoProjectReady: Array.isArray(projectMap.get(pathway.slug)?.timeline) && (projectMap.get(pathway.slug)?.timeline as unknown[]).length > 0,
       youtubeRenderState: latestYoutubeRender.get(pathway.slug)?.status ?? null,
       youtubePublished: pathwayPublications.some((item) => String(item.platform).toLowerCase() === "youtube" && item.status === "published"),
-      carouselAssets: pathwayAssets.filter((item) => item.type === "carousel").length,
-      carouselPublished: pathwayAssets.filter((item) => item.type === "carousel" && item.status === "published").length,
+      carouselAssets: pathwayCreatives.length,
+      carouselPublished: pathwayCreatives.filter((item) => item.status === "published").length,
       activeRecipes: activeBySlug.get(pathway.slug) ?? []
     };
   });
@@ -336,7 +341,7 @@ export async function approveSolProposal(proposalId: string, constraints: string
   if (result.error) throw result.error;
   if (!result.data) throw new Error("Proposal not found.");
   const proposal = proposalFromRow(result.data as Record<string, unknown>);
-  if (!['pending', 'failed'].includes(proposal.status)) throw new Error("This proposal is no longer waiting for approval.");
+  if (!["pending", "failed"].includes(proposal.status)) throw new Error("This proposal is no longer waiting for approval.");
   const now = new Date().toISOString();
   const approved = await service.from("sol_operator_proposals").update({ status: "approved", approved_by: actorUserId, approved_at: now, approval_constraints: constraints }).eq("id", proposal.id).in("status", ["pending", "failed"]);
   if (approved.error) throw approved.error;
@@ -380,7 +385,7 @@ export async function completeProposalFromRuns(proposalId: string) {
   if (!service) return;
   const runs = await service.from("sol_operator_runs").select("status").eq("proposal_id", proposalId);
   if (runs.error || !runs.data?.length) return;
-  if (runs.data.some((item) => item.status === "queued" || item.status === "running")) return;
+  if (runs.data.some((item) => item.status === "queued" || item.status === "running" || item.status === "retrying")) return;
   const status = runs.data.every((item) => item.status === "failed" || item.status === "cancelled") ? "failed" : "completed";
   await service.from("sol_operator_proposals").update({ status }).eq("id", proposalId);
 }
