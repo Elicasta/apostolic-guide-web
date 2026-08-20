@@ -42,6 +42,24 @@ test("missing or stale audio becomes a Forge safe draft with a human script-appr
   assert.ok(proposal.plan.some((step) => step.key === "theology_gate" && step.gate === "theology"));
 });
 
+test("Forge safe drafts are one Pathway per proposal so concurrency limits remain real", () => {
+  const analysis = buildSolOperatorAnalysis({
+    pathways: [
+      pathway({ slug: "god-is-one", title: "God Is One", audioReady: false, scriptApproved: false, theologyPassed: false, audioMatchesScript: false }),
+      pathway({ slug: "jesus-is-god", title: "Jesus Is God", audioReady: false, scriptApproved: false, theologyPassed: false, audioMatchesScript: false })
+    ],
+    weeklyTargets: {},
+    weeklyActuals: {}
+  });
+  const audio = analysis.proposals.filter((item) => item.recipeKey === "pathway_audio_stage");
+  const carousels = analysis.proposals.filter((item) => item.recipeKey === "forge_carousel_stage");
+  assert.equal(audio.length, 2);
+  assert.equal(carousels.length, 2);
+  assert.deepEqual(audio.map((item) => item.pathwaySlugs.length), [1, 1]);
+  assert.deepEqual(carousels.map((item) => item.pathwaySlugs.length), [1, 1]);
+  assert.equal(new Set(audio.map((item) => item.proposalKey)).size, 2);
+});
+
 test("approved audio with a passing exact theology check becomes a YouTube proposal", () => {
   const analysis = buildSolOperatorAnalysis({ pathways: [pathway()], weeklyTargets: {}, weeklyActuals: {} });
   const proposal = analysis.proposals.find((item) => item.recipeKey === "audio_to_youtube");
