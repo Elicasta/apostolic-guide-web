@@ -10,6 +10,7 @@ import {
   resolveSolAgentApproval
 } from "@/sol-agent-memory";
 import { executeApprovedSolAgentTool } from "@/sol-agent-tools";
+import { getSolAgentTeamSnapshot, runSolManagerCycle } from "@/sol-agent-team";
 import { hasStudioPermission } from "@/studio-permissions";
 import { executeSolRuns } from "@/sol-operator-executor";
 import { cancelSolRunV3, retrySolRun } from "@/sol-run-recovery";
@@ -18,7 +19,6 @@ import {
   approveSolProposal,
   dismissSolProposal,
   getSolOperatorSnapshot,
-  scanSolOperator,
   updateSolSettings
 } from "@/sol-operator";
 
@@ -57,20 +57,21 @@ function executionContext(request: Request) {
 }
 
 async function scanAndRunTrusted(actorUserId: string, request: Request) {
-  await scanSolOperator(actorUserId);
+  const cycle = await runSolManagerCycle(actorUserId);
   const scanned = await getSolOperatorSnapshot();
-  if (!scanned.settings.enabled || scanned.settings.mode !== "trusted") return { runIds: [] as string[] };
-  return runTrustedSolDrafts(executionContext(request));
+  if (!scanned.settings.enabled || scanned.settings.mode !== "trusted") return { runIds: [] as string[], cycle };
+  const trusted = await runTrustedSolDrafts(executionContext(request));
+  return { ...trusted, cycle };
 }
 
 export async function GET(request: Request) {
   const access = await requireAccess();
   if (!access) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const url = new URL(request.url);
-  const snapshot = await getSolOperatorSnapshot();
-  if (url.searchParams.get("agent") !== "1") return NextResponse.json(snapshot);
+  const [snapshot, team] = await Promise.all([getSolOperatorSnapshot(), getSolAgentTeamSnapshot()]);
+  if (url.searchParams.get("agent") !== "1") return NextResponse.json({ ...snapshot, team });
   const pathname = url.searchParams.get("pathname") || "/admin";
-  return NextResponse.json({ snapshot, thread: await getSolAgentThread(access.user.id, pathname), surface: getSolAdminSurface(pathname) });
+  return NextResponse.json({ snapshot, team, thread: await getSolAgentThread(access.user.id, pathname), surface: getSolAdminSurface(pathname) });
 }
 
 export async function POST(request: Request) {
@@ -85,12 +86,14 @@ export async function POST(request: Request) {
   try {
     if (body.action === "update_settings") {
       await updateSolSettings(body, access.user.id);
-      return NextResponse.json({ ok: true, snapshot: await getSolOperatorSnapshot() });
+      const [snapshot, team] = await Promise.all([getSolOperatorSnapshot(), getSolAgentTeamSnapshot()]);
+      return NextResponse.json({ ok: true, snapshot, team });
     }
     if (body.action === "scan") {
       const trusted = await scanAndRunTrusted(access.user.id, request);
       const autoMessage = trusted.runIds.length ? ` Trusted mode safely ran ${trusted.runIds.length} draft ${trusted.runIds.length === 1 ? "job" : "jobs"}.` : "";
-      return NextResponse.json({ ok: true, message: `Workspace scan complete.${autoMessage}`, snapshot: await getSolOperatorSnapshot() });
+      const [snapshot, team] = await Promise.all([getSolOperatorSnapshot(), getSolAgentTeamSnapshot()]);
+      return NextResponse.json({ ok: true, message: `Manager cycle complete.${autoMessage}`, snapshot, team, manager: trusted.cycle });
     }
     if (body.action === "approve") {
       const approved = await approveSolProposal(body.proposalId, body.constraints, access.user.id);
@@ -141,7 +144,8 @@ export async function POST(request: Request) {
       const context = executionContext(request);
       after(() => executeSolRuns(turn.runIds, context));
     }
-    return NextResponse.json({ ok: true, message: turn.message, thread: turn.thread, snapshot: turn.snapshot, surface, agent: { turnId: turn.turnId, toolCount: turn.toolCount } });
+    const team = await getSolAgentTeamSnapshot();
+    return NextResponse.json({ ok: true, message: turn.message, thread: turn.thread, snapshot: turn.snapshot, team, surface, agent: { turnId: turn.turnId, toolCount: turn.toolCount } });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Sol Operator request failed." }, { status: 500 });
   }

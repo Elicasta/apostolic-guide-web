@@ -5,6 +5,10 @@ const message = process.env.VERCEL_GIT_COMMIT_MESSAGE ?? "";
 const previousSha = process.env.VERCEL_GIT_PREVIOUS_SHA ?? "";
 const currentSha = process.env.VERCEL_GIT_COMMIT_SHA ?? "HEAD";
 
+const SKIP_MARKER = /\[(?:skip vercel|vercel skip)\]/i;
+const PREVIEW_MARKER = /\[(?:deploy preview|vercel build|build preview)\]/i;
+const COST_CONTROLLED_BRANCH_PREFIXES = ["edit/"];
+
 function continueBuild(reason) {
   console.log(`[vercel-build] build: ${reason}`);
   process.exit(1);
@@ -15,20 +19,36 @@ function ignoreBuild(reason) {
   process.exit(0);
 }
 
-// Production must always build, even if a commit message is marked to skip previews.
+function isCostControlledBranch(branch) {
+  return COST_CONTROLLED_BRANCH_PREFIXES.some((prefix) => branch.startsWith(prefix));
+}
+
+// Production stays explicit and safe: every main commit deploys.
+// Multi-commit work should happen on an edit/* branch and merge once approved.
 if (ref === "main") {
   continueBuild("production branch");
 }
 
-// AI/code agents can make remote checkpoint commits without paying for a full
-// preview build. The final reviewable commit must omit this marker.
-if (/\[(?:skip vercel|vercel skip)\]/i.test(message)) {
+if (SKIP_MARKER.test(message)) {
   ignoreBuild("commit explicitly marked [skip vercel]");
 }
 
+// edit/* branches are the default lane for large AI-assisted edits.
+// They can receive as many remote commits as needed without paying for a Vercel
+// build each time. Only an explicit final review checkpoint creates a preview.
+if (isCostControlledBranch(ref)) {
+  if (PREVIEW_MARKER.test(message)) {
+    continueBuild("explicit preview checkpoint for cost-controlled edit branch");
+  }
+
+  ignoreBuild(
+    "cost-controlled edit branch; add [deploy preview] only for the final review checkpoint",
+  );
+}
+
 // VERCEL_GIT_PREVIOUS_SHA is populated when an Ignored Build Step is configured.
-// If it is unavailable, fail open and build rather than accidentally suppressing
-// a useful preview.
+// If it is unavailable on a normal feature branch, fail open and build rather
+// than accidentally suppressing a useful preview.
 if (!previousSha) {
   continueBuild("no previous successful deployment SHA available");
 }

@@ -46,6 +46,7 @@ function run(overrides: Partial<SolRun> = {}): SolRun {
 
 test("Trusted auto-run accepts only pending safe-draft recipes on the explicit allowlist", () => {
   assert.equal(isTrustedAutoRunnableProposal(proposal()), true);
+  assert.equal(isTrustedAutoRunnableProposal(proposal({ recipeKey: "pathway_audio_stage" })), true);
   assert.equal(isTrustedAutoRunnableProposal(proposal({ risk: "review_required" })), false);
   assert.equal(isTrustedAutoRunnableProposal(proposal({ risk: "external_effect" })), false);
   assert.equal(isTrustedAutoRunnableProposal(proposal({ status: "approved" })), false);
@@ -79,7 +80,7 @@ test("Trusted selection prefers higher priority safe drafts", () => {
   const candidates = selectTrustedAutoRunCandidates({
     proposals: [
       proposal({ id: "low", priority: "low", proposalKey: "low" }),
-      proposal({ id: "high", priority: "high", proposalKey: "high" }),
+      proposal({ id: "high", priority: "high", proposalKey: "high", recipeKey: "pathway_audio_stage" }),
       proposal({ id: "urgent", priority: "urgent", proposalKey: "urgent" })
     ],
     runs: [],

@@ -1,3 +1,4 @@
+import { pathwayNarrationHash } from "./pathway-audio";
 import { allPathways } from "./pathway-catalog";
 import { recordStudioAudit } from "./studio-audit";
 import { createServiceClient } from "./supabase";
@@ -161,10 +162,10 @@ async function observe(service: Service, weeklyTargets: Record<string, number>) 
     service.from("pathway_assets").select("id,pathway_slug,type,status,published_at").neq("status", "archived"),
     service.from("pathway_publications").select("pathway_slug,platform,status,published_at"),
     service.from("pathway_audio_assets").select("pathway_slug,content_hash,audio_url"),
-    service.from("pathway_audio_scripts").select("pathway_slug,script_hash,status,checker_status,checked_script_hash"),
+    service.from("pathway_audio_scripts").select("pathway_slug,source_hash,script_hash,status,checker_status,checked_script_hash"),
     service.from("pathway_video_projects").select("pathway_slug,audio_content_hash,timeline"),
     service.from("pathway_video_renders").select("pathway_slug,format,status,requested_at").order("requested_at", { ascending: false }),
-    service.from("sol_operator_runs").select("recipe_key,pathway_slug,status").in("status", ["queued", "running"]),
+    service.from("sol_operator_runs").select("recipe_key,pathway_slug,status").in("status", ["queued", "running", "retrying"]),
     service.from("studio_content_calendar_items").select("content_type,status,published_at").eq("status", "published").gte("published_at", since)
   ]);
   const failure = [profiles, assets, publications, audio, scripts, projects, renders, runs, calendar].find((item) => item.error);
@@ -206,6 +207,7 @@ async function observe(service: Service, weeklyTargets: Record<string, number>) 
       destinationUrl: profile?.app_url ? String(profile.app_url) : appDestination(pathway.slug, pathway.appSlug),
       automationLinked: Boolean(profile?.social_automation_id),
       audioReady: Boolean(sourceAudio?.audio_url),
+      scriptCurrent: Boolean(script?.source_hash && script.source_hash === pathwayNarrationHash(pathway)),
       scriptApproved: script?.status === "approved",
       theologyPassed: script?.checker_status === "passed" && script?.checked_script_hash === script?.script_hash,
       audioMatchesScript: Boolean(sourceAudio?.content_hash && sourceAudio.content_hash === script?.script_hash),
@@ -336,7 +338,7 @@ export async function approveSolProposal(proposalId: string, constraints: string
   if (result.error) throw result.error;
   if (!result.data) throw new Error("Proposal not found.");
   const proposal = proposalFromRow(result.data as Record<string, unknown>);
-  if (!['pending', 'failed'].includes(proposal.status)) throw new Error("This proposal is no longer waiting for approval.");
+  if (!["pending", "failed"].includes(proposal.status)) throw new Error("This proposal is no longer waiting for approval.");
   const now = new Date().toISOString();
   const approved = await service.from("sol_operator_proposals").update({ status: "approved", approved_by: actorUserId, approved_at: now, approval_constraints: constraints }).eq("id", proposal.id).in("status", ["pending", "failed"]);
   if (approved.error) throw approved.error;
