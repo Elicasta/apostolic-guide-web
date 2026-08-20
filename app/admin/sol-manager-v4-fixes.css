@@ -1,0 +1,9 @@
+/* Historical tool rows are persisted audit history, not live workers.
+   Live operations already use explicit .is-spinning and .sol-mgr-working states. */
+.sol-mgr-tool svg:first-child {
+  animation: none !important;
+}
+
+.sol-mgr-root .is-spinning {
+  animation: solMgrSpin 0.9s linear infinite !important;
+}
