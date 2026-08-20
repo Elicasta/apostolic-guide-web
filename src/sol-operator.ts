@@ -83,6 +83,8 @@ const DEFAULT_SETTINGS: SolSettings = {
   lastScanAt: null
 };
 
+const CURRENT_RUN_STATUSES: SolRunStatus[] = ["queued", "running", "retrying", "waiting_review", "failed", "stalled"];
+
 type Service = NonNullable<ReturnType<typeof createServiceClient>>;
 
 function record(value: unknown) {
@@ -153,6 +155,34 @@ async function getSettings(service: Service): Promise<SolSettings> {
 
 function appDestination(slug: string, appSlug: string) {
   return `https://app.apostolicguide.com/paths/${appSlug}?source=website&origin=website-pathway-${slug}`;
+}
+
+async function reconcileDuplicateReviewRuns(service: Service) {
+  const result = await service.from("sol_operator_runs")
+    .select("id,recipe_key,pathway_slug,updated_at,result")
+    .eq("status", "waiting_review")
+    .order("updated_at", { ascending: false })
+    .limit(200);
+  if (result.error) throw result.error;
+  const seen = new Set<string>();
+  let superseded = 0;
+  for (const row of result.data ?? []) {
+    const key = `${String(row.recipe_key)}:${String(row.pathway_slug || "workspace")}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      continue;
+    }
+    const previous = record(row.result);
+    const updated = await service.from("sol_operator_runs").update({
+      status: "cancelled",
+      current_step: null,
+      completed_at: new Date().toISOString(),
+      result: { ...previous, superseded: true, supersededReason: "A newer review run owns this recipe and Pathway." }
+    }).eq("id", row.id).eq("status", "waiting_review");
+    if (updated.error) throw updated.error;
+    superseded += 1;
+  }
+  return superseded;
 }
 
 async function observe(service: Service, weeklyTargets: Record<string, number>) {
@@ -241,7 +271,11 @@ async function listProposals(service: Service) {
 }
 
 async function listRuns(service: Service) {
-  const result = await service.from("sol_operator_runs").select("*").order("updated_at", { ascending: false }).limit(40);
+  const result = await service.from("sol_operator_runs")
+    .select("*")
+    .in("status", CURRENT_RUN_STATUSES)
+    .order("updated_at", { ascending: false })
+    .limit(40);
   if (result.error) throw result.error;
   return (result.data ?? []).map((row) => runFromRow(row as Record<string, unknown>));
 }
@@ -249,6 +283,7 @@ async function listRuns(service: Service) {
 export async function scanSolOperator(actorUserId?: string | null) {
   const service = createServiceClient();
   if (!service) throw new Error("Supabase service access is not configured.");
+  const supersededReviewRuns = await reconcileDuplicateReviewRuns(service);
   const settings = await getSettings(service);
   const analysis = await observe(service, settings.weeklyTargets);
   const existingResult = await service.from("sol_operator_proposals").select("id,proposal_key,status").in("status", ["pending", "approved", "running"]);
@@ -287,7 +322,7 @@ export async function scanSolOperator(actorUserId?: string | null) {
   }
   const scannedAt = new Date().toISOString();
   await service.from("sol_operator_settings").update({ last_scan_at: scannedAt }).eq("workspace_key", "apostolic-guide");
-  if (actorUserId) await recordStudioAudit({ actorUserId, action: "sol.scan_completed", resourceType: "sol_operator", metadata: { proposal_count: analysis.proposals.length, scanned_at: scannedAt } });
+  if (actorUserId) await recordStudioAudit({ actorUserId, action: "sol.scan_completed", resourceType: "sol_operator", metadata: { proposal_count: analysis.proposals.length, superseded_review_runs: supersededReviewRuns, scanned_at: scannedAt } });
   return analysis;
 }
 
@@ -375,7 +410,7 @@ export async function dismissSolProposal(proposalId: string, actorUserId: string
 export async function cancelSolRun(runId: string, actorUserId: string) {
   const service = createServiceClient();
   if (!service) throw new Error("Supabase service access is not configured.");
-  const result = await service.from("sol_operator_runs").update({ status: "cancelled", current_step: null, completed_at: new Date().toISOString() }).eq("id", runId).in("status", ["queued", "running"]);
+  const result = await service.from("sol_operator_runs").update({ status: "cancelled", current_step: null, completed_at: new Date().toISOString() }).eq("id", runId).in("status", ["queued", "running", "retrying"]);
   if (result.error) throw result.error;
   await recordStudioAudit({ actorUserId, action: "sol.run_cancelled", resourceType: "sol_run", resourceId: runId });
 }
