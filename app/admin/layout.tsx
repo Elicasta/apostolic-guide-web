@@ -1,3 +1,4 @@
+import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Bell, ExternalLink, Home, LogOut, Plus } from "lucide-react";
@@ -57,8 +58,29 @@ import "./natural-voice-check.css";
 import "./carousel-library-final-polish.css";
 import "./carousel-mobile-workflow-cleanup.css";
 import "./production-mobile-regression-fix.css";
+import "./publishing-mobile-app.css";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "Apostolic Guide Studio",
+  applicationName: "Apostolic Guide Studio",
+  manifest: "/admin/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    title: "AG Studio",
+    statusBarStyle: "black-translucent"
+  },
+  formatDetection: { telephone: false },
+  icons: { apple: "/icons/icon-192.png" }
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#f6f7f7"
+};
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const access = await getAdminAccess();
