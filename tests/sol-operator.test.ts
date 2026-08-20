@@ -43,13 +43,27 @@ test("approved audio with a passing exact theology check becomes a YouTube propo
 });
 
 test("a stale or unchecked script cannot be queued for video production", () => {
-  const analysis = buildSolOperatorAnalysis({ pathways: [pathway({ theologyPassed: false })], weeklyTargets: {}, weeklyActuals: {} });
+  const analysis = buildSolOperatorAnalysis({ pathways: [pathway({ theologyPassed: false, audioReady: false })], weeklyTargets: {}, weeklyActuals: {} });
   assert.equal(analysis.proposals.some((item) => item.recipeKey === "audio_to_youtube"), false);
+});
+
+test("missing persistent carousel work becomes a Forge safe draft", () => {
+  const analysis = buildSolOperatorAnalysis({ pathways: [pathway({ carouselAssets: 0 })], weeklyTargets: {}, weeklyActuals: {} });
+  const proposal = analysis.proposals.find((item) => item.recipeKey === "forge_carousel_stage");
+  assert.ok(proposal);
+  assert.equal(proposal.risk, "safe_draft");
+  assert.ok(proposal.suggestedConstraints.includes("Do not schedule or publish"));
+  assert.ok(proposal.plan.some((step) => step.key === "doctrine_gate" && step.gate === "theology"));
 });
 
 test("legacy loose carousel topic packs are never proposed", () => {
   const analysis = buildSolOperatorAnalysis({ pathways: [pathway({ carouselAssets: 0 })], weeklyTargets: {}, weeklyActuals: {} });
   assert.equal(analysis.proposals.some((item) => item.recipeKey === "carousel_topic_pack"), false);
+});
+
+test("an existing persistent carousel suppresses Forge carousel creation", () => {
+  const analysis = buildSolOperatorAnalysis({ pathways: [pathway({ carouselAssets: 1 })], weeklyTargets: {}, weeklyActuals: {} });
+  assert.equal(analysis.proposals.some((item) => item.recipeKey === "forge_carousel_stage"), false);
 });
 
 test("keyword projects receive disabled automation and draft journey proposals only", () => {
@@ -61,7 +75,7 @@ test("keyword projects receive disabled automation and draft journey proposals o
 });
 
 test("active recipes suppress duplicate work proposals", () => {
-  const analysis = buildSolOperatorAnalysis({ pathways: [pathway({ activeRecipes: ["audio_to_youtube", "journey_automation_draft"] })], weeklyTargets: {}, weeklyActuals: {} });
+  const analysis = buildSolOperatorAnalysis({ pathways: [pathway({ activeRecipes: ["audio_to_youtube", "forge_carousel_stage", "journey_automation_draft"] })], weeklyTargets: {}, weeklyActuals: {} });
   assert.equal(analysis.proposals.length, 0);
 });
 
