@@ -2,6 +2,7 @@ import type { SolProposal, SolRun } from "./sol-operator";
 import type { SolRecipeKey } from "./sol-operator-engine";
 
 const TRUSTED_AUTO_RECIPE_ALLOWLIST = new Set<SolRecipeKey>([
+  "pathway_audio_stage",
   "forge_carousel_stage",
   "journey_automation_draft"
 ]);
