@@ -1,17 +1,25 @@
 import { setTimeout as wait } from "node:timers/promises";
 import { instagramGraphBase } from "./instagram-api";
+import { executeCustomMediaPublication, type CustomMediaPublicationMetadata } from "./custom-media-publishing-server";
 import { normalizePathwayVideoPublishingMetadata } from "./pathway-video-publishing";
 import { getSocialPublishingCredentialValues } from "./social-publishing-integrations";
 import { createServiceClient } from "./supabase";
 
 type PublicationMetadata = {
-  source_kind?: "render" | "clip";
+  source_kind?: "render" | "clip" | "custom_asset";
   render_id?: string;
   clip_id?: string;
+  custom_asset_id?: string;
+  media_format?: "image" | "reel" | "long_form";
+  mime_type?: string;
   requested_privacy?: "private" | "unlisted" | "public";
   caption?: string;
+  description?: string;
   title?: string;
   hashtags?: string[];
+  tags?: string[];
+  alt_text?: string;
+  internal_tags?: string[];
   cover_url?: string | null;
 };
 
@@ -177,13 +185,27 @@ export async function executeScheduledPublication(publicationId: string) {
 
   const metadata = record(claimed.data.metadata) as PublicationMetadata;
   try {
+    if (metadata.source_kind === "custom_asset") {
+      if (!metadata.custom_asset_id || !metadata.media_format) throw new Error("Custom media publication is missing its uploaded asset reference.");
+      return await executeCustomMediaPublication({
+        publicationId: claimed.data.id,
+        pathwaySlug: claimed.data.pathway_slug,
+        platform: claimed.data.platform,
+        metadata: metadata as CustomMediaPublicationMetadata
+      });
+    }
     if (claimed.data.platform === "youtube") return await publishYouTube(claimed.data.id, claimed.data.pathway_slug, metadata);
     if (claimed.data.platform === "instagram") return await publishInstagram(claimed.data.id, claimed.data.pathway_slug, metadata);
     await service.from("pathway_publications").update({ status: "scheduled", error_message: "TikTok Direct Post is not enabled yet.", updated_at: new Date().toISOString() }).eq("id", claimed.data.id);
     return { skipped: true };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Scheduled publishing failed.";
-    await service.from("pathway_publications").update({ status: "failed", error_message: message.slice(0, 1800), updated_at: new Date().toISOString() }).eq("id", claimed.data.id);
+    await Promise.all([
+      service.from("pathway_publications").update({ status: "failed", error_message: message.slice(0, 1800), updated_at: new Date().toISOString() }).eq("id", claimed.data.id),
+      metadata.source_kind === "custom_asset"
+        ? service.from("studio_content_calendar_items").update({ status: "failed", metadata: { ...metadata, error_message: message.slice(0, 1800) }, updated_at: new Date().toISOString() }).eq("source", "custom-media").eq("source_ref", claimed.data.id)
+        : Promise.resolve({ error: null })
+    ]);
     throw error;
   }
 }
