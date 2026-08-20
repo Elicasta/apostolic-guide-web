@@ -48,6 +48,7 @@ test("transient infrastructure failures are retryable but validation failures ar
 test("only context-free safe draft recipes are eligible for background recovery", () => {
   assert.equal(canSolRunRecoverWithoutUser("journey_automation_draft"), true);
   assert.equal(canSolRunRecoverWithoutUser("forge_carousel_stage"), true);
+  assert.equal(canSolRunRecoverWithoutUser("pathway_audio_stage"), true);
   assert.equal(canSolRunRecoverWithoutUser("audio_to_youtube"), false);
   assert.equal(canSolRunRecoverWithoutUser("carousel_topic_pack"), false);
 });
