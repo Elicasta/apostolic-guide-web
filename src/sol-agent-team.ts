@@ -224,8 +224,8 @@ export async function suppressDuplicateReviewWork() {
 }
 
 export async function runSolManagerCycle(actorUserId?: string | null) {
-  const before = await getSolOperatorSnapshot();
-  if (before.settings.enabled) await scanSolOperator(actorUserId ?? undefined);
+  // Observation is always live. Power and mode gate mutation/execution, not intelligence.
+  await scanSolOperator(actorUserId ?? undefined);
   const suppressed = await suppressDuplicateReviewWork();
   const team = await getSolAgentTeamSnapshot();
   return { team, suppressedDuplicateProposals: suppressed };
