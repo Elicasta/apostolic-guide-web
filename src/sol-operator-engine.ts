@@ -126,26 +126,26 @@ export function buildSolOperatorAnalysis(input: {
       && !pathway.activeRecipes.includes("pathway_audio_stage")
       && campaignRank(pathway.campaignStatus) < 9
     )
-    .sort((a, b) => campaignRank(a.campaignStatus) - campaignRank(b.campaignStatus))
-    .slice(0, 2);
+    .sort((a, b) => campaignRank(a.campaignStatus) - campaignRank(b.campaignStatus) || a.title.localeCompare(b.title))
+    .slice(0, 5);
 
-  if (audioStageCandidates.length) {
+  for (const pathway of audioStageCandidates) {
     proposals.push({
-      proposalKey: `forge-audio:${audioStageCandidates.map((item) => item.slug).join(",")}`,
+      proposalKey: `forge-audio:${pathway.slug}`,
       recipeKey: "pathway_audio_stage",
-      title: `Forge ${audioStageCandidates.length} ${audioStageCandidates.length === 1 ? "Pathway audio" : "Pathway audios"}`,
+      title: `Forge ${pathway.title} audio`,
       summary: "Forge can prepare current narration, run the doctrine checker, stop for human script approval when needed, then automatically resume and render verified audio. Nothing is published.",
-      priority: audioStageCandidates.some((item) => item.scriptApproved && item.theologyPassed) ? "high" : "medium",
+      priority: pathway.scriptApproved && pathway.theologyPassed ? "high" : campaignRank(pathway.campaignStatus) <= 1 ? "high" : "medium",
       risk: "safe_draft",
-      pathwaySlugs: audioStageCandidates.map((item) => item.slug),
+      pathwaySlugs: [pathway.slug],
       evidence: [
-        { label: "Audio gaps", value: audioStageCandidates.length, state: "missing" },
-        { label: "Approved scripts ready", value: audioStageCandidates.filter((item) => item.scriptApproved && item.theologyPassed).length, state: "info" },
+        { label: "Audio current", value: pathway.audioReady ? "yes" : "no", state: pathway.audioReady ? "ready" : "missing" },
+        { label: "Approved script", value: pathway.scriptApproved && pathway.theologyPassed ? "ready" : "review needed", state: pathway.scriptApproved && pathway.theologyPassed ? "ready" : "blocked" },
         { label: "Publishing", value: "blocked", state: "info" }
       ],
       plan: SOL_RECIPE_STEPS.pathway_audio_stage,
       suggestedConstraints: ["Use the current canonical Pathway", "Never approve narration automatically", "Require exact doctrine-check evidence", "Do not publish externally"],
-      inputs: { pathways: audioStageCandidates.map((item) => ({ slug: item.slug, title: item.title })) }
+      inputs: { pathways: [{ slug: pathway.slug, title: pathway.title }] }
     });
   }
 
@@ -184,26 +184,26 @@ export function buildSolOperatorAnalysis(input: {
       && !pathway.activeRecipes.includes("forge_carousel_stage")
       && campaignRank(pathway.campaignStatus) < 9
     )
-    .sort((a, b) => campaignRank(a.campaignStatus) - campaignRank(b.campaignStatus))
-    .slice(0, 2);
+    .sort((a, b) => campaignRank(a.campaignStatus) - campaignRank(b.campaignStatus) || a.title.localeCompare(b.title))
+    .slice(0, 5);
 
-  if (carouselCandidates.length) {
+  for (const pathway of carouselCandidates) {
     proposals.push({
-      proposalKey: `forge-carousel:${carouselCandidates.map((item) => item.slug).join(",")}`,
+      proposalKey: `forge-carousel:${pathway.slug}`,
       recipeKey: "forge_carousel_stage",
-      title: `Forge ${carouselCandidates.length} ${carouselCandidates.length === 1 ? "Pathway carousel" : "Pathway carousels"}`,
-      summary: "Forge can generate complete carousel copy, run a canonical Pathway doctrine review, and save persistent Creative Projects. Nothing is scheduled or published.",
-      priority: carouselCandidates.some((item) => campaignRank(item.campaignStatus) <= 1) ? "high" : "medium",
+      title: `Forge ${pathway.title} carousel`,
+      summary: "Forge can generate complete carousel copy, run a canonical Pathway doctrine review, and save a persistent Creative Project. Nothing is scheduled or published.",
+      priority: campaignRank(pathway.campaignStatus) <= 1 ? "high" : "medium",
       risk: "safe_draft",
-      pathwaySlugs: carouselCandidates.map((item) => item.slug),
+      pathwaySlugs: [pathway.slug],
       evidence: [
-        { label: "Missing persistent carousels", value: carouselCandidates.length, state: "missing" },
-        { label: "Canonical Pathways", value: carouselCandidates.length, state: "ready" },
+        { label: "Persistent carousel", value: "missing", state: "missing" },
+        { label: "Canonical Pathway", value: pathway.title, state: "ready" },
         { label: "Publishing", value: "blocked", state: "info" }
       ],
       plan: SOL_RECIPE_STEPS.forge_carousel_stage,
-      suggestedConstraints: ["Use only canonical Pathway doctrine", "Save persistent Creative Projects", "Do not schedule or publish", "Stop for visual/editorial review"],
-      inputs: { pathways: carouselCandidates.map((item) => ({ slug: item.slug, title: item.title })) }
+      suggestedConstraints: ["Use only canonical Pathway doctrine", "Save a persistent Creative Project", "Do not schedule or publish", "Stop for visual/editorial review"],
+      inputs: { pathways: [{ slug: pathway.slug, title: pathway.title }] }
     });
   }
 
