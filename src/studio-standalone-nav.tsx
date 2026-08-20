@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
-import { CalendarDays, House, Layers3, Route, Send } from "lucide-react";
+import { usePathname } from "next/navigation";
+import { House, Layers3, MessageCircleMore, Send, Users } from "lucide-react";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { hasStudioPermission, type StudioPermission, type StudioRole } from "@/studio-permissions";
@@ -13,17 +13,19 @@ type BottomItem = {
   label: string;
   icon: typeof House;
   permission: StudioPermission;
-  active: (pathname: string, calendarView: boolean) => boolean;
+  active: (pathname: string) => boolean;
 };
 
 const createRoutes = ["/admin/app/create", "/admin/carousel-studio", "/admin/threads-studio", "/admin/episode-studio", "/admin/audio", "/admin/video-producer", "/admin/video-studio"];
+const socialRoutes = ["/admin/app/socials", "/admin/social", "/admin/comment-guide", "/admin/analytics"];
+const peopleRoutes = ["/admin/app/people", "/admin/people", "/admin/inbox", "/admin/broadcasts", "/admin/journeys", "/admin/segments", "/admin/notifications"];
 
 const items: BottomItem[] = [
   { href: "/admin/app", label: "Home", icon: House, permission: "view_workspace", active: (pathname) => pathname === "/admin/app" },
   { href: "/admin/app/create", label: "Create", icon: Layers3, permission: "manage_content", active: (pathname) => createRoutes.some((route) => pathname === route || pathname.startsWith(`${route}/`)) },
-  { href: "/admin/publishing", label: "Publish", icon: Send, permission: "view_distribution", active: (pathname, calendarView) => pathname.startsWith("/admin/publishing") && !calendarView },
-  { href: "/admin/publishing?view=calendar", label: "Calendar", icon: CalendarDays, permission: "view_distribution", active: (pathname, calendarView) => pathname.startsWith("/admin/publishing") && calendarView },
-  { href: "/admin/pathways", label: "Library", icon: Route, permission: "view_content", active: (pathname) => pathname.startsWith("/admin/pathways") || pathname.startsWith("/admin/assets") || pathname.startsWith("/admin/content") }
+  { href: "/admin/publishing", label: "Publish", icon: Send, permission: "view_distribution", active: (pathname) => pathname.startsWith("/admin/publishing") },
+  { href: "/admin/app/socials", label: "Socials", icon: MessageCircleMore, permission: "view_distribution", active: (pathname) => socialRoutes.some((route) => pathname === route || pathname.startsWith(`${route}/`)) },
+  { href: "/admin/app/people", label: "People", icon: Users, permission: "view_people", active: (pathname) => peopleRoutes.some((route) => pathname === route || pathname.startsWith(`${route}/`)) }
 ];
 
 function detectStandalone(media: MediaQueryList) {
@@ -33,9 +35,7 @@ function detectStandalone(media: MediaQueryList) {
 
 export function StudioStandaloneBottomNav({ role }: { role: StudioRole }) {
   const pathname = usePathname() || "/admin";
-  const searchParams = useSearchParams();
   const [standalone, setStandalone] = useState(false);
-  const calendarView = pathname.startsWith("/admin/publishing") && searchParams.get("view") === "calendar";
 
   useEffect(() => {
     const media = window.matchMedia("(display-mode: standalone)");
@@ -59,7 +59,7 @@ export function StudioStandaloneBottomNav({ role }: { role: StudioRole }) {
     <nav className="studio-standalone-bottom-nav" aria-label="Studio app navigation">
       {visible.map((item) => {
         const Icon = item.icon;
-        const active = item.active(pathname, calendarView);
+        const active = item.active(pathname);
         return <Link key={item.href} href={item.href} className={active ? "is-active" : ""} aria-current={active ? "page" : undefined}>
           <Icon size={20}/>
           <span>{item.label}</span>

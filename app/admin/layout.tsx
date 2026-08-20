@@ -61,6 +61,7 @@ import "./carousel-mobile-workflow-cleanup.css";
 import "./production-mobile-regression-fix.css";
 import "./publishing-mobile-app.css";
 import "./studio-mobile-spacing-audit.css";
+import "./studio-mobile-social-people.css";
 
 export const dynamic = "force-dynamic";
 
