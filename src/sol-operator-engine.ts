@@ -1,5 +1,5 @@
 export type SolMode = "watch" | "assist" | "trusted";
-export type SolRecipeKey = "audio_to_youtube" | "forge_carousel_stage" | "carousel_topic_pack" | "journey_automation_draft";
+export type SolRecipeKey = "pathway_audio_stage" | "audio_to_youtube" | "forge_carousel_stage" | "carousel_topic_pack" | "journey_automation_draft";
 export type SolProposalPriority = "urgent" | "high" | "medium" | "low";
 export type SolProposalRisk = "safe_draft" | "review_required" | "external_effect";
 export type SolProposalStatus = "pending" | "approved" | "running" | "completed" | "dismissed" | "failed" | "expired";
@@ -60,6 +60,7 @@ export type SolOperatorAnalysis = {
 };
 
 export const SOL_RECIPE_LABELS: Record<SolRecipeKey, string> = {
+  pathway_audio_stage: "Forge Pathway audio staging",
   audio_to_youtube: "Pathway audio to YouTube",
   forge_carousel_stage: "Forge persistent carousel",
   carousel_topic_pack: "Legacy carousel topic pack",
@@ -67,6 +68,13 @@ export const SOL_RECIPE_LABELS: Record<SolRecipeKey, string> = {
 };
 
 export const SOL_RECIPE_STEPS: Record<SolRecipeKey, SolPlanStep[]> = {
+  pathway_audio_stage: [
+    { key: "inspect_source", label: "Inspect canonical Pathway, narration, doctrine verdict, and current audio", gate: "automatic" },
+    { key: "prepare_script", label: "Generate or reuse narration from the current canonical Pathway", gate: "automatic" },
+    { key: "theology_gate", label: "Require the exact narration to pass doctrine review and receive human script approval", gate: "theology" },
+    { key: "generate_audio", label: "Render, master, and save audio from the approved current narration", gate: "automatic" },
+    { key: "verify_asset", label: "Verify the saved audio hash matches the approved narration", gate: "automatic" }
+  ],
   audio_to_youtube: [
     { key: "validate_source", label: "Verify approved script, theology check, and matching audio", gate: "theology" },
     { key: "analyze_video", label: "Build the timed Pathway video project", gate: "automatic" },
@@ -81,7 +89,6 @@ export const SOL_RECIPE_STEPS: Record<SolRecipeKey, SolPlanStep[]> = {
     { key: "save_project", label: "Save a persistent Creative Project with source and doctrine evidence", gate: "automatic" },
     { key: "review", label: "Stop for visual/editorial review before scheduling or publishing", gate: "review" }
   ],
-  // Historical only. New scans use Forge persistent Creative Projects.
   carousel_topic_pack: [
     { key: "build_topics", label: "Legacy carousel planning", gate: "review" },
     { key: "generate_decks", label: "Legacy executor disabled for new work", gate: "review" },
@@ -112,6 +119,36 @@ export function buildSolOperatorAnalysis(input: {
   weeklyActuals: Record<string, number>;
 }): SolOperatorAnalysis {
   const proposals: SolProposalDraft[] = [];
+
+  const audioStageCandidates = input.pathways
+    .filter((pathway) =>
+      !pathway.audioReady
+      && !pathway.activeRecipes.includes("pathway_audio_stage")
+      && campaignRank(pathway.campaignStatus) < 9
+    )
+    .sort((a, b) => campaignRank(a.campaignStatus) - campaignRank(b.campaignStatus))
+    .slice(0, 2);
+
+  if (audioStageCandidates.length) {
+    proposals.push({
+      proposalKey: `forge-audio:${audioStageCandidates.map((item) => item.slug).join(",")}`,
+      recipeKey: "pathway_audio_stage",
+      title: `Forge ${audioStageCandidates.length} ${audioStageCandidates.length === 1 ? "Pathway audio" : "Pathway audios"}`,
+      summary: "Forge can prepare current narration, run the doctrine checker, stop for human script approval when needed, then automatically resume and render verified audio. Nothing is published.",
+      priority: audioStageCandidates.some((item) => item.scriptApproved && item.theologyPassed) ? "high" : "medium",
+      risk: "safe_draft",
+      pathwaySlugs: audioStageCandidates.map((item) => item.slug),
+      evidence: [
+        { label: "Audio gaps", value: audioStageCandidates.length, state: "missing" },
+        { label: "Approved scripts ready", value: audioStageCandidates.filter((item) => item.scriptApproved && item.theologyPassed).length, state: "info" },
+        { label: "Publishing", value: "blocked", state: "info" }
+      ],
+      plan: SOL_RECIPE_STEPS.pathway_audio_stage,
+      suggestedConstraints: ["Use the current canonical Pathway", "Never approve narration automatically", "Require exact doctrine-check evidence", "Do not publish externally"],
+      inputs: { pathways: audioStageCandidates.map((item) => ({ slug: item.slug, title: item.title })) }
+    });
+  }
+
   const audioCandidates = input.pathways.filter((pathway) =>
     pathway.audioReady
     && pathway.scriptApproved
