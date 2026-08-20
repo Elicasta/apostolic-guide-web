@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { resumeApprovedForgeAudioRuns } from "@/forge-audio-production";
-import { renderPendingForgeCarousels } from "@/forge-carousel-render";
+import { drainForgeCarouselRenderQueue } from "@/forge-carousel-render-worker";
 import { executeSolRuns } from "@/sol-operator-executor";
 import { listRunnableSolRunIds, recoverStaleSolRuns } from "@/sol-run-recovery";
 
@@ -17,7 +17,7 @@ export async function GET(request: Request) {
   if (!authorized(request)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const reviewResumed = await resumeApprovedForgeAudioRuns();
-  const carouselArtwork = await renderPendingForgeCarousels(2);
+  const carouselArtwork = await drainForgeCarouselRenderQueue(2);
   const recovery = await recoverStaleSolRuns();
   const runIds = await listRunnableSolRunIds(3, true);
   if (runIds.length) await executeSolRuns(runIds, { origin: new URL(request.url).origin, cookie: "" });
