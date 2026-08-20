@@ -5,7 +5,7 @@ import { Bell, ExternalLink, Home, LogOut, Plus } from "lucide-react";
 import { getAdminAccess } from "@/auth";
 import { StudioMobileNav, StudioNav } from "@/studio-nav";
 import { StudioCommandPalette } from "@/studio-command-palette";
-import { SolAdminJarvis } from "@/sol-admin-jarvis";
+import { SolManagerSidecar } from "@/sol-manager-sidecar";
 import { StudioStandaloneBottomNav } from "@/studio-standalone-nav";
 import { hasStudioPermission, STUDIO_ROLE_LABELS, type StudioRole } from "@/studio-permissions";
 import { getNotificationUnreadCount } from "@/studio-notifications";
@@ -47,6 +47,7 @@ import "./sol-operator.css";
 import "./sol-jarvis.css";
 import "./sol-control.css";
 import "./sol-v4-forge.css";
+import "./sol-manager-v4.css";
 import "./carousel-studio.css";
 import "./creative-studio.css";
 import "./creative-studio-controls.css";
@@ -123,7 +124,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         </div>
       </div>
       <StudioStandaloneBottomNav role={role}/>
-      <SolAdminJarvis canOperate={hasStudioPermission(role, "manage_content")}/>
+      <SolManagerSidecar canOperate={hasStudioPermission(role, "manage_content")}/>
     </div>
   );
 }
