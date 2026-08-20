@@ -3,6 +3,8 @@ import type { SolAdminSurface } from "./sol-admin-context";
 import { getCreativeProductionSnapshot } from "./creative-project-server";
 import { createSolAgentApproval, type SolAgentApproval } from "./sol-agent-memory";
 import { hasExplicitSolIntent } from "./sol-agent-policy";
+import { getSolAgentTeamSnapshot, runSolManagerCycle } from "./sol-agent-team";
+import { dedupeSolCurrentRuns } from "./sol-agent-team-engine";
 import { getSolManagerContentInventory, getSolManagerPeopleStatus } from "./sol-manager";
 import type { SolManagerContentKind } from "./sol-manager-engine";
 import { cancelSolRunV3, retrySolRun } from "./sol-run-recovery";
@@ -11,7 +13,6 @@ import {
   approveSolProposal,
   dismissSolProposal,
   getSolOperatorSnapshot,
-  scanSolOperator,
   updateSolSettings,
   type SolOperatorSnapshot,
   type SolProposal
@@ -55,7 +56,7 @@ export const SOL_AGENT_TOOLS = [
   {
     type: "function",
     name: "get_workspace_status",
-    description: "Read the current Sol operating state, KPIs, coverage, Creative Project production state, active work, failed work, and review queue. Use this before making claims about Studio status.",
+    description: "Read the reconciled Apostolic Guide Manager state: specialist-agent status, priorities, KPIs, content coverage, Creative Project production state, current execution, failures, and review gates. Use this before making claims about what needs attention.",
     strict: true,
     parameters: EMPTY_OBJECT
   },
@@ -69,7 +70,7 @@ export const SOL_AGENT_TOOLS = [
   {
     type: "function",
     name: "get_content_inventory",
-    description: "Read deterministic Pathway production inventory and exact counts for audio, video/YouTube, carousels, and linked automations. Audio is only counted ready when its script is current, approved, doctrine-passed, and hash-aligned. Use this for questions like how many audios are made, missing, stale, or blocked.",
+    description: "Read deterministic Pathway production inventory and exact counts for audio, video/YouTube, carousels, and linked automations. Audio is only counted ready when its script is current, approved, doctrine-passed, and hash-aligned.",
     strict: true,
     parameters: {
       type: "object",
@@ -100,35 +101,35 @@ export const SOL_AGENT_TOOLS = [
   {
     type: "function",
     name: "list_creative_projects",
-    description: "Read persistent Creative Project production state, including Draft/Ready/Scheduled/Published counts, Ready projects that are not scheduled, and failed publication attempts. Use this before suggesting duplicate creative work or claiming something still needs to be scheduled.",
+    description: "Read persistent Creative Project production state, including Draft/Ready/Scheduled/Published counts, ready projects that are not scheduled, and failed publication attempts.",
     strict: true,
     parameters: EMPTY_OBJECT
   },
   {
     type: "function",
     name: "scan_workspace",
-    description: "Run the deterministic Studio scan that discovers evidence-backed Sol proposals, including missing or stale Pathway audio. This reads current state and may create proposal records, but does not publish content.",
+    description: "Run the reconciled manager cycle. It inspects current state, discovers evidence-backed proposals when execution is enabled, suppresses duplicate work already at review, and refreshes specialist priorities. It never publishes content.",
     strict: true,
     parameters: EMPTY_OBJECT
   },
   {
     type: "function",
     name: "list_proposals",
-    description: "List current pending Sol proposals with IDs, risk, pathways, and suggested constraints.",
+    description: "List only current pending Sol proposals after reconciliation, with IDs, risk, pathways, and suggested constraints.",
     strict: true,
     parameters: EMPTY_OBJECT
   },
   {
     type: "function",
     name: "list_runs",
-    description: "List recent Sol runs with progress, errors, review state, and timestamps.",
+    description: "List only current live execution and real attention gates. Completed history and duplicate recipe/pathway runs are hidden from this operational view.",
     strict: true,
     parameters: EMPTY_OBJECT
   },
   {
     type: "function",
     name: "set_mode",
-    description: "Change Sol to Watch, Assist, or Trusted, or turn Sol off. Only use when the user's current message directly asks for this change.",
+    description: "Change execution to Watch, Assist, or Trusted, or turn execution off. Intelligence remains active. Only use when the user's current message directly asks for this change.",
     strict: true,
     parameters: {
       type: "object",
@@ -224,19 +225,21 @@ async function requestApproval(context: ToolContext, input: {
 }
 
 function currentStatus(snapshot: SolOperatorSnapshot) {
+  const currentRuns = dedupeSolCurrentRuns(snapshot.runs);
   const pending = snapshot.proposals.filter((item) => item.status === "pending");
-  const active = snapshot.runs.filter((item) => ["queued", "running", "retrying"].includes(item.status));
-  const failed = snapshot.runs.filter((item) => item.status === "failed" || item.status === "stalled");
-  const review = snapshot.runs.filter((item) => item.status === "waiting_review");
+  const active = currentRuns.filter((item) => ["queued", "running", "retrying"].includes(item.status));
+  const failed = currentRuns.filter((item) => item.status === "failed" || item.status === "stalled");
+  const review = currentRuns.filter((item) => item.status === "waiting_review");
   const behind = snapshot.kpis.filter((item) => item.actual < item.target);
   return {
-    enabled: snapshot.settings.enabled,
-    mode: snapshot.settings.mode,
+    executionEnabled: snapshot.settings.enabled,
+    executionMode: snapshot.settings.enabled ? snapshot.settings.mode : "off",
     lastScanAt: snapshot.settings.lastScanAt,
     pendingProposals: pending.length,
     activeRuns: active.length,
     failedOrStalledRuns: failed.length,
     waitingReview: review.length,
+    hiddenHistoricalRuns: Math.max(0, snapshot.runs.length - currentRuns.length),
     kpisBehind: behind.map((item) => ({ key: item.key, actual: item.actual, target: item.target })),
     coverage: snapshot.coverage,
     generatedAt: snapshot.generatedAt
@@ -245,11 +248,30 @@ function currentStatus(snapshot: SolOperatorSnapshot) {
 
 export async function executeSolAgentTool(name: SolAgentToolName, rawArgs: unknown, context: ToolContext): Promise<SolAgentToolResult> {
   const args = record(rawArgs);
+
   if (name === "get_workspace_status") {
-    const [snapshot, creativeProduction] = await Promise.all([getSolOperatorSnapshot(), getCreativeProductionSnapshot()]);
-    return { ok: true, message: "Workspace status loaded.", data: { ...currentStatus(snapshot), creativeProduction } };
+    const [snapshot, creativeProduction, team] = await Promise.all([
+      getSolOperatorSnapshot(),
+      getCreativeProductionSnapshot(),
+      getSolAgentTeamSnapshot()
+    ]);
+    return {
+      ok: true,
+      message: "Reconciled manager status loaded.",
+      data: {
+        ...currentStatus(snapshot),
+        intelligenceActive: team.intelligenceActive,
+        specialists: team.agents,
+        managerPriorities: team.priorities,
+        creativeProduction
+      }
+    };
   }
-  if (name === "get_current_screen") return { ok: true, message: `Current screen: ${context.surface.label}.`, data: { ...context.surface } };
+
+  if (name === "get_current_screen") {
+    return { ok: true, message: `Current screen: ${context.surface.label}.`, data: { ...context.surface } };
+  }
+
   if (name === "get_content_inventory") {
     const rawKind = String(args.asset_type || "all");
     const kind: SolManagerContentKind = ["all", "audio", "video", "youtube", "carousel", "automation"].includes(rawKind)
@@ -258,6 +280,7 @@ export async function executeSolAgentTool(name: SolAgentToolName, rawArgs: unkno
     const inventory = await getSolManagerContentInventory({ kind, pathwaySlug: String(args.pathway_slug || "") });
     return { ok: true, message: "Content inventory loaded.", data: inventory as unknown as Record<string, unknown> };
   }
+
   if (name === "get_people_journey_status") {
     const people = await getSolManagerPeopleStatus({
       personId: String(args.person_id || ""),
@@ -266,17 +289,31 @@ export async function executeSolAgentTool(name: SolAgentToolName, rawArgs: unkno
     });
     return { ok: true, message: "People journey status loaded.", data: people as unknown as Record<string, unknown> };
   }
-  if (name === "list_creative_projects") return { ok: true, message: "Creative Project production state loaded.", data: await getCreativeProductionSnapshot() };
-  if (name === "scan_workspace") {
-    await scanSolOperator(context.actorUserId);
-    const next = await getSolOperatorSnapshot();
-    return { ok: true, message: `Scan complete. ${next.proposals.filter((item) => item.status === "pending").length} proposals are waiting.`, data: currentStatus(next) };
+
+  if (name === "list_creative_projects") {
+    return { ok: true, message: "Creative Project production state loaded.", data: await getCreativeProductionSnapshot() };
   }
+
+  if (name === "scan_workspace") {
+    const cycle = await runSolManagerCycle(context.actorUserId);
+    const next = await getSolOperatorSnapshot();
+    return {
+      ok: true,
+      message: `Manager cycle complete. ${next.proposals.filter((item) => item.status === "pending").length} current proposals are waiting.`,
+      data: {
+        ...currentStatus(next),
+        managerPriorities: cycle.team.priorities,
+        specialists: cycle.team.agents,
+        duplicateProposalsSuppressed: cycle.suppressedDuplicateProposals
+      }
+    };
+  }
+
   if (name === "list_proposals") {
     const next = await getSolOperatorSnapshot();
     return {
       ok: true,
-      message: "Pending proposals loaded.",
+      message: "Current proposals loaded.",
       data: {
         proposals: next.proposals.filter((item) => item.status === "pending").map((item) => ({
           id: item.id,
@@ -284,19 +321,23 @@ export async function executeSolAgentTool(name: SolAgentToolName, rawArgs: unkno
           summary: item.summary,
           recipeKey: item.recipeKey,
           risk: item.risk,
+          priority: item.priority,
           pathwaySlugs: item.pathwaySlugs,
           suggestedConstraints: item.suggestedConstraints
         }))
       }
     };
   }
+
   if (name === "list_runs") {
     const next = await getSolOperatorSnapshot();
+    const current = dedupeSolCurrentRuns(next.runs);
     return {
       ok: true,
-      message: "Recent runs loaded.",
+      message: "Current execution loaded. Completed history is hidden.",
       data: {
-        runs: next.runs.slice(0, 20).map((item) => ({
+        hiddenHistoricalRuns: Math.max(0, next.runs.length - current.length),
+        runs: current.map((item) => ({
           id: item.id,
           recipeKey: item.recipeKey,
           pathwaySlug: item.pathwaySlug,
@@ -309,23 +350,26 @@ export async function executeSolAgentTool(name: SolAgentToolName, rawArgs: unkno
       }
     };
   }
+
   if (name === "set_mode") {
     const mode = String(args.mode || "") as SolMode;
     const enabled = args.enabled === true;
     if (!["watch", "assist", "trusted"].includes(mode) || !hasExplicitSolIntent(context.userMessage, "mode")) {
-      return { ok: false, message: "Mode changes require a direct request in the current user message." };
+      return { ok: false, message: "Execution mode changes require a direct request in the current user message." };
     }
     await updateSolSettings({ enabled, mode, weeklyTargets: context.snapshot.settings.weeklyTargets }, context.actorUserId);
-    return { ok: true, message: enabled ? `Sol is now in ${mode} mode.` : "Sol is off.", data: { enabled, mode } };
+    return { ok: true, message: enabled ? `Sol execution is now in ${mode} mode. Intelligence remains active.` : "Sol execution is paused. Intelligence remains active.", data: { enabled, mode } };
   }
+
   if (name === "run_proposal") {
     const proposalId = String(args.proposal_id || "");
-    const proposal = context.snapshot.proposals.find((item) => item.id === proposalId && item.status === "pending");
-    if (!proposal) return { ok: false, message: "That proposal is not pending anymore. Refresh proposal state before acting." };
+    const freshSnapshot = await getSolOperatorSnapshot();
+    const proposal = freshSnapshot.proposals.find((item) => item.id === proposalId && item.status === "pending");
+    if (!proposal) return { ok: false, message: "That proposal is not current anymore. Reconcile before acting." };
     const constraints = stringArray(args.constraints);
-    if (!context.snapshot.settings.enabled) return { ok: false, message: "Sol is off. Turn it on before starting work." };
-    if (context.snapshot.settings.mode === "watch") return { ok: false, message: "Watch mode cannot run proposals. Switch to Assist or Trusted first." };
-    if (context.snapshot.settings.mode === "assist" || !isTrustedAutoRunnableProposal(proposal)) {
+    if (!freshSnapshot.settings.enabled) return { ok: false, message: "Execution is paused. Turn on Assist or Trusted before starting work." };
+    if (freshSnapshot.settings.mode === "watch") return { ok: false, message: "Watch mode cannot run proposals. Switch execution to Assist or Trusted first." };
+    if (freshSnapshot.settings.mode === "assist" || !isTrustedAutoRunnableProposal(proposal)) {
       return requestApproval(context, {
         toolName: name,
         toolArguments: { proposal_id: proposal.id, constraints },
@@ -336,19 +380,23 @@ export async function executeSolAgentTool(name: SolAgentToolName, rawArgs: unkno
     const approved = await approveSolProposal(proposal.id, constraints.length ? constraints : proposal.suggestedConstraints, context.actorUserId);
     return { ok: true, message: `Queued ${approved.runIds.length} safe draft ${approved.runIds.length === 1 ? "run" : "runs"}.`, runIds: approved.runIds, data: { proposalId: proposal.id, trusted_auto: true } };
   }
+
   if (name === "dismiss_proposal") {
     const proposalId = String(args.proposal_id || "");
-    const proposal = context.snapshot.proposals.find((item) => item.id === proposalId && item.status === "pending");
-    if (!proposal) return { ok: false, message: "That proposal is not pending anymore." };
+    const fresh = await getSolOperatorSnapshot();
+    const proposal = fresh.proposals.find((item) => item.id === proposalId && item.status === "pending");
+    if (!proposal) return { ok: false, message: "That proposal is not current anymore." };
     if (!hasExplicitSolIntent(context.userMessage, "dismiss")) {
       return requestApproval(context, { toolName: name, toolArguments: { proposal_id: proposal.id }, summary: `Dismiss “${proposal.title}”.`, risk: "review_required" });
     }
     await dismissSolProposal(proposal.id, context.actorUserId);
     return { ok: true, message: `Dismissed “${proposal.title}”.` };
   }
+
   if (name === "cancel_run") {
     const runId = String(args.run_id || "");
-    const run = context.snapshot.runs.find((item) => item.id === runId);
+    const fresh = await getSolOperatorSnapshot();
+    const run = fresh.runs.find((item) => item.id === runId);
     if (!run || !["queued", "running", "retrying"].includes(run.status)) return { ok: false, message: "That run is not active." };
     if (!hasExplicitSolIntent(context.userMessage, "cancel")) {
       return requestApproval(context, { toolName: name, toolArguments: { run_id: run.id }, summary: `Cancel the ${run.recipeKey.replaceAll("_", " ")} run${run.pathwaySlug ? ` for ${run.pathwaySlug}` : ""}.`, risk: "review_required" });
@@ -356,9 +404,11 @@ export async function executeSolAgentTool(name: SolAgentToolName, rawArgs: unkno
     await cancelSolRunV3(run.id, context.actorUserId);
     return { ok: true, message: "Run cancelled." };
   }
+
   if (name === "retry_run") {
     const runId = String(args.run_id || "");
-    const run = context.snapshot.runs.find((item) => item.id === runId);
+    const fresh = await getSolOperatorSnapshot();
+    const run = fresh.runs.find((item) => item.id === runId);
     if (!run || !["failed", "stalled", "retrying"].includes(run.status)) return { ok: false, message: "That run is not retryable." };
     if (!hasExplicitSolIntent(context.userMessage, "retry")) {
       return requestApproval(context, { toolName: name, toolArguments: { run_id: run.id }, summary: `Retry the ${run.recipeKey.replaceAll("_", " ")} run${run.pathwaySlug ? ` for ${run.pathwaySlug}` : ""}.`, risk: "review_required" });
@@ -366,6 +416,7 @@ export async function executeSolAgentTool(name: SolAgentToolName, rawArgs: unkno
     await retrySolRun(run.id, context.actorUserId);
     return { ok: true, message: "Run queued for retry.", runIds: [run.id] };
   }
+
   return { ok: false, message: `Tool ${name} is not registered.` };
 }
 
@@ -378,25 +429,31 @@ export async function executeApprovedSolAgentTool(input: {
 }): Promise<SolAgentToolResult> {
   const args = input.approval.toolArguments;
   const name = input.approval.toolName as SolAgentToolName;
+
   if (name === "run_proposal") {
     const proposalId = String(args.proposal_id || "");
-    const proposal = input.snapshot.proposals.find((item) => item.id === proposalId && item.status === "pending");
+    const fresh = await getSolOperatorSnapshot();
+    const proposal = fresh.proposals.find((item) => item.id === proposalId && item.status === "pending");
     if (!proposal) return { ok: false, message: "The proposal changed before approval. Nothing was started." };
     const approved = await approveSolProposal(proposal.id, stringArray(args.constraints), input.actorUserId);
     return { ok: true, message: `Approved and queued ${approved.runIds.length} ${approved.runIds.length === 1 ? "run" : "runs"}.`, runIds: approved.runIds };
   }
+
   if (name === "dismiss_proposal") {
     await dismissSolProposal(String(args.proposal_id || ""), input.actorUserId);
     return { ok: true, message: "Proposal dismissed." };
   }
+
   if (name === "cancel_run") {
     await cancelSolRunV3(String(args.run_id || ""), input.actorUserId);
     return { ok: true, message: "Run cancelled." };
   }
+
   if (name === "retry_run") {
     const runId = String(args.run_id || "");
     await retrySolRun(runId, input.actorUserId);
     return { ok: true, message: "Run queued for retry.", runIds: [runId] };
   }
+
   return { ok: false, message: "This approval no longer maps to a mutation tool." };
 }
