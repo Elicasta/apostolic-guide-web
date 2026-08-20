@@ -6,6 +6,7 @@ import { getAdminAccess } from "@/auth";
 import { StudioMobileNav, StudioNav } from "@/studio-nav";
 import { StudioCommandPalette } from "@/studio-command-palette";
 import { SolAdminJarvis } from "@/sol-admin-jarvis";
+import { StudioStandaloneBottomNav } from "@/studio-standalone-nav";
 import { hasStudioPermission, STUDIO_ROLE_LABELS, type StudioRole } from "@/studio-permissions";
 import { getNotificationUnreadCount } from "@/studio-notifications";
 import "./admin-surface-isolation.css";
@@ -59,6 +60,7 @@ import "./carousel-library-final-polish.css";
 import "./carousel-mobile-workflow-cleanup.css";
 import "./production-mobile-regression-fix.css";
 import "./publishing-mobile-app.css";
+import "./studio-mobile-spacing-audit.css";
 
 export const dynamic = "force-dynamic";
 
@@ -118,6 +120,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           {children}
         </div>
       </div>
+      <StudioStandaloneBottomNav role={role}/>
       <SolAdminJarvis canOperate={hasStudioPermission(role, "manage_content")}/>
     </div>
   );
