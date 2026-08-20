@@ -101,7 +101,9 @@ async function saveRenderedFrame(input: {
     if (linked.error) throw new Error(linked.error.message);
     return { id: asset.data.id, publicUrl: asset.data.public_url, storagePath: asset.data.storage_path, sha256 };
   } catch (error) {
-    if (assetId) await service.from("studio_pathway_assets").delete().eq("id", assetId).catch(() => undefined);
+    if (assetId) {
+      try { await service.from("studio_pathway_assets").delete().eq("id", assetId); } catch {}
+    }
     if (blob) await del(blob.url).catch(() => undefined);
     throw error;
   }
@@ -153,6 +155,7 @@ export async function renderForgeCarouselProject(input: {
 
   return {
     projectId: project.id,
+    pathwaySlug: project.pathwaySlug,
     stateVersion: project.stateVersion,
     renderEngine: FORGE_CAROUSEL_RENDER_ENGINE,
     width: 1080,
@@ -161,4 +164,58 @@ export async function renderForgeCarouselProject(input: {
     renderedCount: rendered.length,
     reusedCount: rendered.filter((item) => item.reused).length
   };
+}
+
+async function updateForgeRunRenderEvidence(service: Service, pathwaySlug: string, render: Awaited<ReturnType<typeof renderForgeCarouselProject>>) {
+  const run = await service.from("sol_operator_runs")
+    .select("id,result")
+    .eq("recipe_key", "forge_carousel_stage")
+    .eq("pathway_slug", pathwaySlug)
+    .eq("status", "waiting_review")
+    .order("updated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (run.error || !run.data) return;
+  const previous = record(run.data.result);
+  await service.from("sol_operator_runs").update({
+    result: {
+      ...previous,
+      renderedAssetCount: render.renderedCount,
+      renderedAssetIds: render.rendered.map((item) => item.assetId),
+      renderEngine: render.renderEngine,
+      renderStateVersion: render.stateVersion,
+      artworkReady: render.renderedCount > 0
+    }
+  }).eq("id", run.data.id);
+}
+
+export async function renderPendingForgeCarousels(limit = 2) {
+  if (!process.env.BLOB_READ_WRITE_TOKEN?.trim()) return { configured: false, renderedProjects: 0, renderedSlides: 0, failed: [] as string[] };
+  const service = createServiceClient();
+  if (!service) return { configured: false, renderedProjects: 0, renderedSlides: 0, failed: [] as string[] };
+  const projects = await service.from("studio_creative_projects")
+    .select("id,pathway_slug,tags,updated_at")
+    .eq("format", "carousel")
+    .eq("status", "draft")
+    .contains("tags", ["forge", "sol-managed"])
+    .order("updated_at", { ascending: true })
+    .limit(Math.max(1, Math.min(5, limit)));
+  if (projects.error) throw new Error(projects.error.message);
+
+  let renderedProjects = 0;
+  let renderedSlides = 0;
+  const failed: string[] = [];
+  for (const row of projects.data ?? []) {
+    const tags = Array.isArray(row.tags) ? row.tags.map(String) : [];
+    if (tags.includes("doctrine-blocked")) continue;
+    try {
+      const render = await renderForgeCarouselProject({ projectId: String(row.id) });
+      await updateForgeRunRenderEvidence(service, String(row.pathway_slug), render);
+      renderedProjects += render.rendered.some((item) => !item.reused) ? 1 : 0;
+      renderedSlides += render.rendered.filter((item) => !item.reused).length;
+    } catch (error) {
+      failed.push(`${String(row.id)}: ${error instanceof Error ? error.message : "render failed"}`.slice(0, 500));
+    }
+  }
+  return { configured: true, renderedProjects, renderedSlides, failed };
 }
