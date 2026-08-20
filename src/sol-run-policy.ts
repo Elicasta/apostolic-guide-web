@@ -27,7 +27,9 @@ export function isTransientSolFailure(message: string) {
 }
 
 export function canSolRunRecoverWithoutUser(recipeKey: unknown) {
-  return recipeKey === "journey_automation_draft" || recipeKey === "forge_carousel_stage";
+  return recipeKey === "journey_automation_draft"
+    || recipeKey === "forge_carousel_stage"
+    || recipeKey === "pathway_audio_stage";
 }
 
 export function isSolRetryDue(nextRetryAt: unknown, now = Date.now()) {
