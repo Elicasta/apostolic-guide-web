@@ -13,6 +13,6 @@ export function hasExplicitSolIntent(message: string, action: SolExplicitIntent)
     return isCommand(text, "turn|switch|set|enable|disable|put|go") && /\b(watch|assist|trusted|autopilot|off)\b/.test(text);
   }
   if (action === "dismiss") return isCommand(text, "dismiss|remove|skip|ignore");
-  if (action === "cancel") return isCommand(text, "cancel|stop|kill|abort");
+  if (action === "cancel") return isCommand(text, "cancel|stop|kill|abort|clear|dismiss");
   return isCommand(text, "retry|recover|resume|try\\s+again");
 }

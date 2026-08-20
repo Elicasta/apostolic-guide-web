@@ -33,6 +33,33 @@ function pathway(overrides: Partial<SolPathwayObservation> = {}): SolPathwayObse
   };
 }
 
+test("missing or stale audio becomes a Forge safe draft with a human script-approval gate", () => {
+  const analysis = buildSolOperatorAnalysis({ pathways: [pathway({ audioReady: false, scriptApproved: false, theologyPassed: false, audioMatchesScript: false })], weeklyTargets: {}, weeklyActuals: {} });
+  const proposal = analysis.proposals.find((item) => item.recipeKey === "pathway_audio_stage");
+  assert.ok(proposal);
+  assert.equal(proposal.risk, "safe_draft");
+  assert.ok(proposal.suggestedConstraints.includes("Never approve narration automatically"));
+  assert.ok(proposal.plan.some((step) => step.key === "theology_gate" && step.gate === "theology"));
+});
+
+test("Forge safe drafts are one Pathway per proposal so concurrency limits remain real", () => {
+  const analysis = buildSolOperatorAnalysis({
+    pathways: [
+      pathway({ slug: "god-is-one", title: "God Is One", audioReady: false, scriptApproved: false, theologyPassed: false, audioMatchesScript: false }),
+      pathway({ slug: "jesus-is-god", title: "Jesus Is God", audioReady: false, scriptApproved: false, theologyPassed: false, audioMatchesScript: false })
+    ],
+    weeklyTargets: {},
+    weeklyActuals: {}
+  });
+  const audio = analysis.proposals.filter((item) => item.recipeKey === "pathway_audio_stage");
+  const carousels = analysis.proposals.filter((item) => item.recipeKey === "forge_carousel_stage");
+  assert.equal(audio.length, 2);
+  assert.equal(carousels.length, 2);
+  assert.deepEqual(audio.map((item) => item.pathwaySlugs.length), [1, 1]);
+  assert.deepEqual(carousels.map((item) => item.pathwaySlugs.length), [1, 1]);
+  assert.equal(new Set(audio.map((item) => item.proposalKey)).size, 2);
+});
+
 test("approved audio with a passing exact theology check becomes a YouTube proposal", () => {
   const analysis = buildSolOperatorAnalysis({ pathways: [pathway()], weeklyTargets: {}, weeklyActuals: {} });
   const proposal = analysis.proposals.find((item) => item.recipeKey === "audio_to_youtube");
@@ -43,13 +70,28 @@ test("approved audio with a passing exact theology check becomes a YouTube propo
 });
 
 test("a stale or unchecked script cannot be queued for video production", () => {
-  const analysis = buildSolOperatorAnalysis({ pathways: [pathway({ theologyPassed: false })], weeklyTargets: {}, weeklyActuals: {} });
+  const analysis = buildSolOperatorAnalysis({ pathways: [pathway({ theologyPassed: false, audioReady: false })], weeklyTargets: {}, weeklyActuals: {} });
   assert.equal(analysis.proposals.some((item) => item.recipeKey === "audio_to_youtube"), false);
+  assert.equal(analysis.proposals.some((item) => item.recipeKey === "pathway_audio_stage"), true);
+});
+
+test("missing persistent carousel work becomes a Forge safe draft", () => {
+  const analysis = buildSolOperatorAnalysis({ pathways: [pathway({ carouselAssets: 0 })], weeklyTargets: {}, weeklyActuals: {} });
+  const proposal = analysis.proposals.find((item) => item.recipeKey === "forge_carousel_stage");
+  assert.ok(proposal);
+  assert.equal(proposal.risk, "safe_draft");
+  assert.ok(proposal.suggestedConstraints.includes("Do not schedule or publish"));
+  assert.ok(proposal.plan.some((step) => step.key === "doctrine_gate" && step.gate === "theology"));
 });
 
 test("legacy loose carousel topic packs are never proposed", () => {
   const analysis = buildSolOperatorAnalysis({ pathways: [pathway({ carouselAssets: 0 })], weeklyTargets: {}, weeklyActuals: {} });
   assert.equal(analysis.proposals.some((item) => item.recipeKey === "carousel_topic_pack"), false);
+});
+
+test("an existing persistent carousel suppresses Forge carousel creation", () => {
+  const analysis = buildSolOperatorAnalysis({ pathways: [pathway({ carouselAssets: 1 })], weeklyTargets: {}, weeklyActuals: {} });
+  assert.equal(analysis.proposals.some((item) => item.recipeKey === "forge_carousel_stage"), false);
 });
 
 test("keyword projects receive disabled automation and draft journey proposals only", () => {
@@ -61,7 +103,7 @@ test("keyword projects receive disabled automation and draft journey proposals o
 });
 
 test("active recipes suppress duplicate work proposals", () => {
-  const analysis = buildSolOperatorAnalysis({ pathways: [pathway({ activeRecipes: ["audio_to_youtube", "journey_automation_draft"] })], weeklyTargets: {}, weeklyActuals: {} });
+  const analysis = buildSolOperatorAnalysis({ pathways: [pathway({ activeRecipes: ["pathway_audio_stage", "audio_to_youtube", "forge_carousel_stage", "journey_automation_draft"] })], weeklyTargets: {}, weeklyActuals: {} });
   assert.equal(analysis.proposals.length, 0);
 });
 

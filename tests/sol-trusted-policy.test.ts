@@ -46,6 +46,8 @@ function run(overrides: Partial<SolRun> = {}): SolRun {
 
 test("Trusted auto-run accepts only pending safe-draft recipes on the explicit allowlist", () => {
   assert.equal(isTrustedAutoRunnableProposal(proposal()), true);
+  assert.equal(isTrustedAutoRunnableProposal(proposal({ recipeKey: "pathway_audio_stage" })), true);
+  assert.equal(isTrustedAutoRunnableProposal(proposal({ recipeKey: "forge_carousel_stage" })), true);
   assert.equal(isTrustedAutoRunnableProposal(proposal({ risk: "review_required" })), false);
   assert.equal(isTrustedAutoRunnableProposal(proposal({ risk: "external_effect" })), false);
   assert.equal(isTrustedAutoRunnableProposal(proposal({ status: "approved" })), false);
@@ -53,23 +55,25 @@ test("Trusted auto-run accepts only pending safe-draft recipes on the explicit a
   assert.equal(isTrustedAutoRunnableProposal(proposal({ recipeKey: "carousel_topic_pack", risk: "safe_draft" })), false);
 });
 
-test("Trusted mode never auto-runs review-required production work", () => {
+test("Trusted mode can auto-run Forge audio and carousel drafts but not review-required production", () => {
   const candidates = selectTrustedAutoRunCandidates({
     proposals: [
       proposal({ id: "video", recipeKey: "audio_to_youtube", risk: "review_required", priority: "urgent" }),
-      proposal({ id: "carousel", recipeKey: "carousel_topic_pack", risk: "review_required", priority: "urgent" }),
-      proposal({ id: "draft", priority: "low" })
+      proposal({ id: "legacy", recipeKey: "carousel_topic_pack", risk: "review_required", priority: "urgent" }),
+      proposal({ id: "audio", recipeKey: "pathway_audio_stage", priority: "urgent", proposalKey: "audio" }),
+      proposal({ id: "forge", recipeKey: "forge_carousel_stage", priority: "high", proposalKey: "forge" }),
+      proposal({ id: "journey", priority: "low", proposalKey: "journey" })
     ],
     runs: [],
     maxConcurrentRuns: 3
   });
-  assert.deepEqual(candidates.map((item) => item.id), ["draft"]);
+  assert.deepEqual(candidates.map((item) => item.id), ["audio", "forge", "journey"]);
 });
 
-test("Trusted selection respects active-run capacity", () => {
+test("Trusted selection respects active-run capacity including retrying work", () => {
   const candidates = selectTrustedAutoRunCandidates({
     proposals: [proposal({ id: "a" }), proposal({ id: "b", proposalKey: "b", createdAt: "2026-08-16T01:01:00.000Z" })],
-    runs: [run()],
+    runs: [run({ status: "retrying" })],
     maxConcurrentRuns: 1
   });
   assert.equal(candidates.length, 0);

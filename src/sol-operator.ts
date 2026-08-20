@@ -1,3 +1,4 @@
+import { pathwayNarrationHash } from "./pathway-audio";
 import { allPathways } from "./pathway-catalog";
 import { recordStudioAudit } from "./studio-audit";
 import { createServiceClient } from "./supabase";
@@ -82,6 +83,8 @@ const DEFAULT_SETTINGS: SolSettings = {
   lastScanAt: null
 };
 
+const CURRENT_RUN_STATUSES: SolRunStatus[] = ["queued", "running", "retrying", "waiting_review", "failed", "stalled"];
+
 type Service = NonNullable<ReturnType<typeof createServiceClient>>;
 
 function record(value: unknown) {
@@ -154,30 +157,58 @@ function appDestination(slug: string, appSlug: string) {
   return `https://app.apostolicguide.com/paths/${appSlug}?source=website&origin=website-pathway-${slug}`;
 }
 
+async function reconcileDuplicateReviewRuns(service: Service) {
+  const result = await service.from("sol_operator_runs")
+    .select("id,recipe_key,pathway_slug,updated_at,result")
+    .eq("status", "waiting_review")
+    .order("updated_at", { ascending: false })
+    .limit(200);
+  if (result.error) throw result.error;
+  const seen = new Set<string>();
+  let superseded = 0;
+  for (const row of result.data ?? []) {
+    const key = `${String(row.recipe_key)}:${String(row.pathway_slug || "workspace")}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      continue;
+    }
+    const previous = record(row.result);
+    const updated = await service.from("sol_operator_runs").update({
+      status: "cancelled",
+      current_step: null,
+      completed_at: new Date().toISOString(),
+      result: { ...previous, superseded: true, supersededReason: "A newer review run owns this recipe and Pathway." }
+    }).eq("id", row.id).eq("status", "waiting_review");
+    if (updated.error) throw updated.error;
+    superseded += 1;
+  }
+  return superseded;
+}
+
 async function observe(service: Service, weeklyTargets: Record<string, number>) {
   const since = new Date(Date.now() - 7 * 86_400_000).toISOString();
-  const [profiles, assets, publications, audio, scripts, projects, renders, runs, calendar] = await Promise.all([
+  const [profiles, publications, audio, scripts, projects, renders, runs, calendar, creatives] = await Promise.all([
     service.from("pathway_publishing_profiles").select("pathway_slug,primary_keyword,campaign_status,app_url,social_automation_id"),
-    service.from("pathway_assets").select("id,pathway_slug,type,status,published_at").neq("status", "archived"),
     service.from("pathway_publications").select("pathway_slug,platform,status,published_at"),
     service.from("pathway_audio_assets").select("pathway_slug,content_hash,audio_url"),
-    service.from("pathway_audio_scripts").select("pathway_slug,script_hash,status,checker_status,checked_script_hash"),
+    service.from("pathway_audio_scripts").select("pathway_slug,source_hash,script_hash,status,checker_status,checked_script_hash"),
     service.from("pathway_video_projects").select("pathway_slug,audio_content_hash,timeline"),
     service.from("pathway_video_renders").select("pathway_slug,format,status,requested_at").order("requested_at", { ascending: false }),
-    service.from("sol_operator_runs").select("recipe_key,pathway_slug,status").in("status", ["queued", "running"]),
-    service.from("studio_content_calendar_items").select("content_type,status,published_at").eq("status", "published").gte("published_at", since)
+    service.from("sol_operator_runs").select("recipe_key,pathway_slug,status").in("status", ["queued", "running", "retrying", "waiting_review"]),
+    service.from("studio_content_calendar_items").select("content_type,status,published_at").eq("status", "published").gte("published_at", since),
+    service.from("studio_creative_projects").select("id,pathway_slug,format,status").eq("format", "carousel").neq("status", "archived")
   ]);
-  const failure = [profiles, assets, publications, audio, scripts, projects, renders, runs, calendar].find((item) => item.error);
+  const failure = [profiles, publications, audio, scripts, projects, renders, runs, calendar, creatives].find((item) => item.error);
   if (failure?.error) throw failure.error;
 
   const profileMap = new Map((profiles.data ?? []).map((item) => [String(item.pathway_slug), item]));
   const audioMap = new Map((audio.data ?? []).map((item) => [String(item.pathway_slug), item]));
   const scriptMap = new Map((scripts.data ?? []).map((item) => [String(item.pathway_slug), item]));
   const projectMap = new Map((projects.data ?? []).map((item) => [String(item.pathway_slug), item]));
-  const assetsBySlug = new Map<string, typeof assets.data>();
-  for (const item of assets.data ?? []) assetsBySlug.set(String(item.pathway_slug), [...(assetsBySlug.get(String(item.pathway_slug)) ?? []), item]);
   const publicationsBySlug = new Map<string, typeof publications.data>();
   for (const item of publications.data ?? []) publicationsBySlug.set(String(item.pathway_slug), [...(publicationsBySlug.get(String(item.pathway_slug)) ?? []), item]);
+  const creativesBySlug = new Map<string, typeof creatives.data>();
+  for (const item of creatives.data ?? []) creativesBySlug.set(String(item.pathway_slug), [...(creativesBySlug.get(String(item.pathway_slug)) ?? []), item]);
   const latestYoutubeRender = new Map<string, { status: string }>();
   for (const item of renders.data ?? []) {
     const slug = String(item.pathway_slug);
@@ -193,8 +224,12 @@ async function observe(service: Service, weeklyTargets: Record<string, number>) 
     const profile = profileMap.get(pathway.slug);
     const sourceAudio = audioMap.get(pathway.slug);
     const script = scriptMap.get(pathway.slug);
-    const pathwayAssets = assetsBySlug.get(pathway.slug) ?? [];
     const pathwayPublications = publicationsBySlug.get(pathway.slug) ?? [];
+    const pathwayCreatives = creativesBySlug.get(pathway.slug) ?? [];
+    const sourceCurrent = Boolean(script?.script_hash && script?.source_hash === pathwayNarrationHash(pathway));
+    const scriptApproved = sourceCurrent && script?.status === "approved";
+    const theologyPassed = Boolean(scriptApproved && script?.checker_status === "passed" && script?.checked_script_hash === script?.script_hash);
+    const audioMatchesScript = Boolean(sourceAudio?.audio_url && sourceAudio?.content_hash && sourceAudio.content_hash === script?.script_hash);
     return {
       slug: pathway.slug,
       title: pathway.title,
@@ -205,15 +240,15 @@ async function observe(service: Service, weeklyTargets: Record<string, number>) 
       primaryKeyword: profile?.primary_keyword ? String(profile.primary_keyword) : null,
       destinationUrl: profile?.app_url ? String(profile.app_url) : appDestination(pathway.slug, pathway.appSlug),
       automationLinked: Boolean(profile?.social_automation_id),
-      audioReady: Boolean(sourceAudio?.audio_url),
-      scriptApproved: script?.status === "approved",
-      theologyPassed: script?.checker_status === "passed" && script?.checked_script_hash === script?.script_hash,
-      audioMatchesScript: Boolean(sourceAudio?.content_hash && sourceAudio.content_hash === script?.script_hash),
+      audioReady: Boolean(sourceAudio?.audio_url && scriptApproved && theologyPassed && audioMatchesScript),
+      scriptApproved,
+      theologyPassed,
+      audioMatchesScript,
       videoProjectReady: Array.isArray(projectMap.get(pathway.slug)?.timeline) && (projectMap.get(pathway.slug)?.timeline as unknown[]).length > 0,
       youtubeRenderState: latestYoutubeRender.get(pathway.slug)?.status ?? null,
       youtubePublished: pathwayPublications.some((item) => String(item.platform).toLowerCase() === "youtube" && item.status === "published"),
-      carouselAssets: pathwayAssets.filter((item) => item.type === "carousel").length,
-      carouselPublished: pathwayAssets.filter((item) => item.type === "carousel" && item.status === "published").length,
+      carouselAssets: pathwayCreatives.length,
+      carouselPublished: pathwayCreatives.filter((item) => item.status === "published").length,
       activeRecipes: activeBySlug.get(pathway.slug) ?? []
     };
   });
@@ -236,7 +271,11 @@ async function listProposals(service: Service) {
 }
 
 async function listRuns(service: Service) {
-  const result = await service.from("sol_operator_runs").select("*").order("updated_at", { ascending: false }).limit(40);
+  const result = await service.from("sol_operator_runs")
+    .select("*")
+    .in("status", CURRENT_RUN_STATUSES)
+    .order("updated_at", { ascending: false })
+    .limit(40);
   if (result.error) throw result.error;
   return (result.data ?? []).map((row) => runFromRow(row as Record<string, unknown>));
 }
@@ -244,6 +283,7 @@ async function listRuns(service: Service) {
 export async function scanSolOperator(actorUserId?: string | null) {
   const service = createServiceClient();
   if (!service) throw new Error("Supabase service access is not configured.");
+  const supersededReviewRuns = await reconcileDuplicateReviewRuns(service);
   const settings = await getSettings(service);
   const analysis = await observe(service, settings.weeklyTargets);
   const existingResult = await service.from("sol_operator_proposals").select("id,proposal_key,status").in("status", ["pending", "approved", "running"]);
@@ -282,7 +322,7 @@ export async function scanSolOperator(actorUserId?: string | null) {
   }
   const scannedAt = new Date().toISOString();
   await service.from("sol_operator_settings").update({ last_scan_at: scannedAt }).eq("workspace_key", "apostolic-guide");
-  if (actorUserId) await recordStudioAudit({ actorUserId, action: "sol.scan_completed", resourceType: "sol_operator", metadata: { proposal_count: analysis.proposals.length, scanned_at: scannedAt } });
+  if (actorUserId) await recordStudioAudit({ actorUserId, action: "sol.scan_completed", resourceType: "sol_operator", metadata: { proposal_count: analysis.proposals.length, superseded_review_runs: supersededReviewRuns, scanned_at: scannedAt } });
   return analysis;
 }
 
@@ -336,7 +376,7 @@ export async function approveSolProposal(proposalId: string, constraints: string
   if (result.error) throw result.error;
   if (!result.data) throw new Error("Proposal not found.");
   const proposal = proposalFromRow(result.data as Record<string, unknown>);
-  if (!['pending', 'failed'].includes(proposal.status)) throw new Error("This proposal is no longer waiting for approval.");
+  if (!["pending", "failed"].includes(proposal.status)) throw new Error("This proposal is no longer waiting for approval.");
   const now = new Date().toISOString();
   const approved = await service.from("sol_operator_proposals").update({ status: "approved", approved_by: actorUserId, approved_at: now, approval_constraints: constraints }).eq("id", proposal.id).in("status", ["pending", "failed"]);
   if (approved.error) throw approved.error;
@@ -370,7 +410,7 @@ export async function dismissSolProposal(proposalId: string, actorUserId: string
 export async function cancelSolRun(runId: string, actorUserId: string) {
   const service = createServiceClient();
   if (!service) throw new Error("Supabase service access is not configured.");
-  const result = await service.from("sol_operator_runs").update({ status: "cancelled", current_step: null, completed_at: new Date().toISOString() }).eq("id", runId).in("status", ["queued", "running"]);
+  const result = await service.from("sol_operator_runs").update({ status: "cancelled", current_step: null, completed_at: new Date().toISOString() }).eq("id", runId).in("status", ["queued", "running", "retrying"]);
   if (result.error) throw result.error;
   await recordStudioAudit({ actorUserId, action: "sol.run_cancelled", resourceType: "sol_run", resourceId: runId });
 }
@@ -380,7 +420,7 @@ export async function completeProposalFromRuns(proposalId: string) {
   if (!service) return;
   const runs = await service.from("sol_operator_runs").select("status").eq("proposal_id", proposalId);
   if (runs.error || !runs.data?.length) return;
-  if (runs.data.some((item) => item.status === "queued" || item.status === "running")) return;
+  if (runs.data.some((item) => item.status === "queued" || item.status === "running" || item.status === "retrying")) return;
   const status = runs.data.every((item) => item.status === "failed" || item.status === "cancelled") ? "failed" : "completed";
   await service.from("sol_operator_proposals").update({ status }).eq("id", proposalId);
 }

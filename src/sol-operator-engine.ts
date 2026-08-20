@@ -1,5 +1,5 @@
 export type SolMode = "watch" | "assist" | "trusted";
-export type SolRecipeKey = "audio_to_youtube" | "carousel_topic_pack" | "journey_automation_draft";
+export type SolRecipeKey = "pathway_audio_stage" | "audio_to_youtube" | "forge_carousel_stage" | "carousel_topic_pack" | "journey_automation_draft";
 export type SolProposalPriority = "urgent" | "high" | "medium" | "low";
 export type SolProposalRisk = "safe_draft" | "review_required" | "external_effect";
 export type SolProposalStatus = "pending" | "approved" | "running" | "completed" | "dismissed" | "failed" | "expired";
@@ -60,12 +60,21 @@ export type SolOperatorAnalysis = {
 };
 
 export const SOL_RECIPE_LABELS: Record<SolRecipeKey, string> = {
+  pathway_audio_stage: "Forge Pathway audio staging",
   audio_to_youtube: "Pathway audio to YouTube",
+  forge_carousel_stage: "Forge persistent carousel",
   carousel_topic_pack: "Legacy carousel topic pack",
   journey_automation_draft: "Journey and automation draft"
 };
 
 export const SOL_RECIPE_STEPS: Record<SolRecipeKey, SolPlanStep[]> = {
+  pathway_audio_stage: [
+    { key: "inspect_source", label: "Inspect canonical Pathway, narration, doctrine verdict, and current audio", gate: "automatic" },
+    { key: "prepare_script", label: "Generate or reuse narration from the current canonical Pathway", gate: "automatic" },
+    { key: "theology_gate", label: "Require the exact narration to pass doctrine review and receive human script approval", gate: "theology" },
+    { key: "generate_audio", label: "Render, master, and save audio from the approved current narration", gate: "automatic" },
+    { key: "verify_asset", label: "Verify the saved audio hash matches the approved narration", gate: "automatic" }
+  ],
   audio_to_youtube: [
     { key: "validate_source", label: "Verify approved script, theology check, and matching audio", gate: "theology" },
     { key: "analyze_video", label: "Build the timed Pathway video project", gate: "automatic" },
@@ -73,8 +82,13 @@ export const SOL_RECIPE_STEPS: Record<SolRecipeKey, SolPlanStep[]> = {
     { key: "queue_render", label: "Queue the YouTube render", gate: "automatic" },
     { key: "review", label: "Stop for finished-video and publishing approval", gate: "review" }
   ],
-  // Kept only so historical runs remain readable. New scans never create this
-  // recipe because it writes loose pathway_assets instead of Creative Projects.
+  forge_carousel_stage: [
+    { key: "inspect_source", label: "Verify the canonical Pathway and existing persistent carousel state", gate: "automatic" },
+    { key: "generate_copy", label: "Generate the complete carousel copy and captions", gate: "automatic" },
+    { key: "doctrine_gate", label: "Review the generated carousel against the canonical Pathway", gate: "theology" },
+    { key: "save_project", label: "Save a persistent Creative Project with source and doctrine evidence", gate: "automatic" },
+    { key: "review", label: "Stop for visual/editorial review before scheduling or publishing", gate: "review" }
+  ],
   carousel_topic_pack: [
     { key: "build_topics", label: "Legacy carousel planning", gate: "review" },
     { key: "generate_decks", label: "Legacy executor disabled for new work", gate: "review" },
@@ -105,6 +119,36 @@ export function buildSolOperatorAnalysis(input: {
   weeklyActuals: Record<string, number>;
 }): SolOperatorAnalysis {
   const proposals: SolProposalDraft[] = [];
+
+  const audioStageCandidates = input.pathways
+    .filter((pathway) =>
+      !pathway.audioReady
+      && !pathway.activeRecipes.includes("pathway_audio_stage")
+      && campaignRank(pathway.campaignStatus) < 9
+    )
+    .sort((a, b) => campaignRank(a.campaignStatus) - campaignRank(b.campaignStatus) || a.title.localeCompare(b.title))
+    .slice(0, 5);
+
+  for (const pathway of audioStageCandidates) {
+    proposals.push({
+      proposalKey: `forge-audio:${pathway.slug}`,
+      recipeKey: "pathway_audio_stage",
+      title: `Forge ${pathway.title} audio`,
+      summary: "Forge can prepare current narration, run the doctrine checker, stop for human script approval when needed, then automatically resume and render verified audio. Nothing is published.",
+      priority: pathway.scriptApproved && pathway.theologyPassed ? "high" : campaignRank(pathway.campaignStatus) <= 1 ? "high" : "medium",
+      risk: "safe_draft",
+      pathwaySlugs: [pathway.slug],
+      evidence: [
+        { label: "Audio current", value: pathway.audioReady ? "yes" : "no", state: pathway.audioReady ? "ready" : "missing" },
+        { label: "Approved script", value: pathway.scriptApproved && pathway.theologyPassed ? "ready" : "review needed", state: pathway.scriptApproved && pathway.theologyPassed ? "ready" : "blocked" },
+        { label: "Publishing", value: "blocked", state: "info" }
+      ],
+      plan: SOL_RECIPE_STEPS.pathway_audio_stage,
+      suggestedConstraints: ["Use the current canonical Pathway", "Never approve narration automatically", "Require exact doctrine-check evidence", "Do not publish externally"],
+      inputs: { pathways: [{ slug: pathway.slug, title: pathway.title }] }
+    });
+  }
+
   const audioCandidates = input.pathways.filter((pathway) =>
     pathway.audioReady
     && pathway.scriptApproved
@@ -134,10 +178,34 @@ export function buildSolOperatorAnalysis(input: {
     });
   }
 
-  // Do not emit carousel_topic_pack. That executor predates persistent Creative
-  // Projects and writes disconnected pathway_assets. Creative work must now
-  // begin in Creative Studio so autosave, revisions, renders, publishing state,
-  // and Sol memory all point to one source-of-truth object.
+  const carouselCandidates = input.pathways
+    .filter((pathway) =>
+      pathway.carouselAssets === 0
+      && !pathway.activeRecipes.includes("forge_carousel_stage")
+      && campaignRank(pathway.campaignStatus) < 9
+    )
+    .sort((a, b) => campaignRank(a.campaignStatus) - campaignRank(b.campaignStatus) || a.title.localeCompare(b.title))
+    .slice(0, 5);
+
+  for (const pathway of carouselCandidates) {
+    proposals.push({
+      proposalKey: `forge-carousel:${pathway.slug}`,
+      recipeKey: "forge_carousel_stage",
+      title: `Forge ${pathway.title} carousel`,
+      summary: "Forge can generate complete carousel copy, run a canonical Pathway doctrine review, and save a persistent Creative Project. Nothing is scheduled or published.",
+      priority: campaignRank(pathway.campaignStatus) <= 1 ? "high" : "medium",
+      risk: "safe_draft",
+      pathwaySlugs: [pathway.slug],
+      evidence: [
+        { label: "Persistent carousel", value: "missing", state: "missing" },
+        { label: "Canonical Pathway", value: pathway.title, state: "ready" },
+        { label: "Publishing", value: "blocked", state: "info" }
+      ],
+      plan: SOL_RECIPE_STEPS.forge_carousel_stage,
+      suggestedConstraints: ["Use only canonical Pathway doctrine", "Save a persistent Creative Project", "Do not schedule or publish", "Stop for visual/editorial review"],
+      inputs: { pathways: [{ slug: pathway.slug, title: pathway.title }] }
+    });
+  }
 
   const automationCandidates = input.pathways.filter((pathway) =>
     Boolean(pathway.primaryKeyword)

@@ -12,9 +12,14 @@ test("mode mutation needs a command instead of a question about the mode", () =>
 
 test("cancel retry and dismiss are separated by explicit user intent", () => {
   assert.equal(hasExplicitSolIntent("cancel that run", "cancel"), true);
+  assert.equal(hasExplicitSolIntent("clear those old review jobs", "cancel"), true);
+  assert.equal(hasExplicitSolIntent("Sol, dismiss that review run", "cancel"), true);
+  assert.equal(hasExplicitSolIntent("could you stop that run", "cancel"), true);
   assert.equal(hasExplicitSolIntent("why did that run stop?", "cancel"), false);
+  assert.equal(hasExplicitSolIntent("should we clear that review run?", "cancel"), false);
   assert.equal(hasExplicitSolIntent("retry the failed video", "retry"), true);
   assert.equal(hasExplicitSolIntent("why did the video fail?", "retry"), false);
   assert.equal(hasExplicitSolIntent("dismiss that proposal", "dismiss"), true);
+  assert.equal(hasExplicitSolIntent("ignore that proposal", "dismiss"), true);
   assert.equal(hasExplicitSolIntent("explain that proposal", "dismiss"), false);
 });

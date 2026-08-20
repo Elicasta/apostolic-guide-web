@@ -1,0 +1,10 @@
+.sol-v3-identity>div>small{font-size:0}
+.sol-v3-identity>div>small::after{content:"Studio agent · Forge production";font-size:9px}
+
+/* Persisted tool_call messages are history. Live work is represented by
+   .sol-v3-thinking, so old calls must never keep a spinner alive forever. */
+.sol-v3-tool-event.is-tool_call svg{display:none!important;animation:none!important}
+.sol-v3-tool-event.is-tool_call::before{content:"✓";display:grid;place-items:center;width:12px;height:12px;border-radius:50%;border:1px solid #b8c9c2;color:#168a69;font-size:8px;font-weight:900;line-height:1}
+
+/* The V4 operator keeps observation fresh even when execution is powered off. */
+.sol-v3-modebar>span{font-variant-numeric:tabular-nums}

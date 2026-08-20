@@ -1,4 +1,4 @@
-export const SOL_RUN_LEASE_MS = 3 * 60 * 1000;
+export const SOL_RUN_LEASE_MS = 6 * 60 * 1000;
 export const SOL_RUN_REQUEST_TIMEOUT_MS = 75 * 1000;
 export const SOL_QUEUED_STALE_MS = 20 * 60 * 1000;
 
@@ -27,7 +27,9 @@ export function isTransientSolFailure(message: string) {
 }
 
 export function canSolRunRecoverWithoutUser(recipeKey: unknown) {
-  return recipeKey === "journey_automation_draft";
+  return recipeKey === "journey_automation_draft"
+    || recipeKey === "forge_carousel_stage"
+    || recipeKey === "pathway_audio_stage";
 }
 
 export function isSolRetryDue(nextRetryAt: unknown, now = Date.now()) {
