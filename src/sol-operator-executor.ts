@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { ensureForgeAudioScript, forgeAudioGateState, renderForgeApprovedAudio } from "./forge-audio-production";
 import { stageForgeCarousel } from "./forge-production";
 import { SOL_RECIPE_STEPS, solProgress, type SolRecipeKey } from "./sol-operator-engine";
 import {
@@ -100,6 +101,84 @@ async function settleProposal(service: Service, proposalId: string | null) {
   if (runs.data.some((item) => ["queued", "running", "retrying"].includes(String(item.status)))) return;
   const failedOnly = runs.data.every((item) => ["failed", "stalled", "cancelled"].includes(String(item.status)));
   await service.from("sol_operator_proposals").update({ status: failedOnly ? "failed" : "completed" }).eq("id", proposalId);
+}
+
+async function pathwayAudioStage(service: Service, run: Record<string, unknown>) {
+  const inputs = record(run.inputs);
+  const slug = String(inputs.slug || run.pathway_slug || "");
+  if (!slug) throw new Error("Pathway slug is missing.");
+  const actorUserId = run.requested_by ? String(run.requested_by) : null;
+  const href = `/admin/audio?pathway=${encodeURIComponent(slug)}`;
+
+  await updateStep(service, run, "inspect_source", "running");
+  let gate = await forgeAudioGateState(slug);
+  await updateStep(service, run, "inspect_source", "completed", gate.audioReady ? "Current approved narration and matching audio already exist." : "Forge found an audio or narration gap.");
+  if (gate.audioReady) {
+    await updateStep(service, run, "prepare_script", "completed", "Existing current narration reused.");
+    await updateStep(service, run, "theology_gate", "completed", "Exact narration is approved and doctrine-passed.");
+    await updateStep(service, run, "generate_audio", "completed", "Existing matching audio reused. No TTS charge incurred.");
+    await updateStep(service, run, "verify_asset", "completed", "Audio hash matches the approved narration.");
+    await finishRun(service, run, {
+      status: "completed",
+      progress: 100,
+      current_step: "verify_asset",
+      result: { slug, href, generated: false, alreadyCurrent: true, publishingBlocked: true },
+      completed_at: new Date().toISOString(),
+      error: null
+    });
+    return;
+  }
+  if (await cancelled(service, String(run.id))) return;
+
+  await updateStep(service, run, "prepare_script", "running");
+  const script = await ensureForgeAudioScript({ pathwaySlug: slug, actorUserId });
+  await updateStep(service, run, "prepare_script", "completed", script.generated ? "Forge generated narration from the current canonical Pathway and ran the doctrine checker." : "Current narration reused.");
+  if (await cancelled(service, String(run.id))) return;
+
+  gate = await forgeAudioGateState(slug);
+  await updateStep(service, run, "theology_gate", "running");
+  if (!gate.approved || !gate.doctrinePassed) {
+    const reason = gate.scriptCurrent && script.checkerStatus === "passed"
+      ? "Narration passed doctrine review and is waiting for human script approval."
+      : "Narration needs doctrine/editorial review before audio can be rendered.";
+    await updateStep(service, run, "theology_gate", "completed", reason);
+    await finishRun(service, run, {
+      status: "waiting_review",
+      progress: run.progress,
+      current_step: "theology_gate",
+      result: {
+        slug,
+        href,
+        requiresScriptApproval: true,
+        checkerStatus: script.checkerStatus,
+        scriptStatus: script.status,
+        publishingBlocked: true
+      },
+      completed_at: new Date().toISOString(),
+      error: null
+    });
+    return;
+  }
+  await updateStep(service, run, "theology_gate", "completed", "Exact current narration is human-approved and doctrine-passed.");
+  if (await cancelled(service, String(run.id))) return;
+
+  await updateStep(service, run, "generate_audio", "running");
+  const rendered = await renderForgeApprovedAudio({ pathwaySlug: slug, actorUserId });
+  await updateStep(service, run, "generate_audio", "completed", rendered.generated ? `Forge rendered, mastered, and saved ${rendered.segments} lossless segment${rendered.segments === 1 ? "" : "s"}.` : "Existing matching audio reused. No TTS charge incurred.");
+  if (await cancelled(service, String(run.id))) return;
+
+  await updateStep(service, run, "verify_asset", "running");
+  gate = await forgeAudioGateState(slug);
+  if (!gate.audioReady) throw new Error("Forge saved audio but its hash does not match the exact approved narration.");
+  await updateStep(service, run, "verify_asset", "completed", "Saved audio is current and hash-aligned to the approved narration.");
+  await finishRun(service, run, {
+    status: "completed",
+    progress: 100,
+    current_step: "verify_asset",
+    result: { slug, href, audioUrl: rendered.asset.audio_url, generated: rendered.generated, mastering: rendered.mastering, publishingBlocked: true },
+    completed_at: new Date().toISOString(),
+    error: null
+  });
 }
 
 async function audioToYoutube(service: Service, run: Record<string, unknown>, context: ExecutionContext) {
@@ -363,7 +442,8 @@ export async function executeSolRun(runId: string, context: ExecutionContext) {
     run.worker_id = workerId;
     await appendEvent(service, run, "run.started", { recipe_key: run.recipe_key, pathway_slug: run.pathway_slug, attempt_count: attemptCount, worker_id: workerId });
     const recipe = String(run.recipe_key) as SolRecipeKey;
-    if (recipe === "audio_to_youtube") await audioToYoutube(service, run, context);
+    if (recipe === "pathway_audio_stage") await pathwayAudioStage(service, run);
+    else if (recipe === "audio_to_youtube") await audioToYoutube(service, run, context);
     else if (recipe === "forge_carousel_stage") await forgeCarouselStage(service, run);
     else if (recipe === "carousel_topic_pack") await carouselTopicPack(service, run, context);
     else await journeyAutomationDraft(service, run);
