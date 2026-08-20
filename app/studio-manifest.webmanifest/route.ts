@@ -4,7 +4,7 @@ export async function GET() {
     name: "Apostolic Guide Studio",
     short_name: "AG Studio",
     description: "Apostolic Guide publishing and studio workspace.",
-    start_url: "/admin/publishing",
+    start_url: "/admin/app",
     scope: "/admin/",
     display: "standalone",
     background_color: "#f6f7f7",
@@ -16,7 +16,7 @@ export async function GET() {
   }), {
     headers: {
       "content-type": "application/manifest+json; charset=utf-8",
-      "cache-control": "public, max-age=3600"
+      "cache-control": "public, max-age=300"
     }
   });
 }
