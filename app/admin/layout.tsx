@@ -65,7 +65,7 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "Apostolic Guide Studio",
   applicationName: "Apostolic Guide Studio",
-  manifest: "/admin/manifest.webmanifest",
+  manifest: "/studio-manifest.webmanifest",
   appleWebApp: {
     capable: true,
     title: "AG Studio",
