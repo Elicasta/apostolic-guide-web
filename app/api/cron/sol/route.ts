@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { getSolOperatorSnapshot, scanSolOperator } from "@/sol-operator";
+import { runSolManagerCycle } from "@/sol-agent-team";
+import { getSolOperatorSnapshot } from "@/sol-operator";
 import { runTrustedSolDrafts } from "@/sol-trusted-autopilot";
 
 export const runtime = "nodejs";
@@ -16,19 +17,30 @@ export async function GET(request: Request) {
 
   const before = await getSolOperatorSnapshot();
   if (!before.dbReady) return NextResponse.json({ error: "Sol Operator storage is not configured." }, { status: 503 });
-  if (!before.settings.enabled) return NextResponse.json({ ok: true, skipped: true, reason: "Sol is turned off." });
 
-  const analysis = await scanSolOperator();
-  const trusted = before.settings.mode === "trusted"
+  // Intelligence never sleeps. Even with execution turned off, the specialist
+  // team still inspects current state so opening Sol never starts from stale data.
+  const cycle = await runSolManagerCycle();
+  const afterCycle = await getSolOperatorSnapshot();
+  const trusted = afterCycle.settings.enabled && afterCycle.settings.mode === "trusted"
     ? await runTrustedSolDrafts({ origin: new URL(request.url).origin, cookie: "" })
     : null;
 
   return NextResponse.json({
     ok: true,
     scannedAt: new Date().toISOString(),
-    proposals: analysis.proposals.length,
-    mode: before.settings.mode,
-    execution: before.settings.mode === "trusted" ? "safe_drafts_auto_run" : before.settings.mode === "assist" ? "approval_required" : "observe_only",
+    intelligence: "active",
+    agents: cycle.team.agents.map((agent) => ({ key: agent.key, name: agent.name, state: agent.state })),
+    priorities: cycle.team.priorities.length,
+    duplicateProposalsSuppressed: cycle.suppressedDuplicateProposals,
+    mode: afterCycle.settings.enabled ? afterCycle.settings.mode : "off",
+    execution: !afterCycle.settings.enabled
+      ? "paused"
+      : afterCycle.settings.mode === "trusted"
+        ? "safe_drafts_auto_run"
+        : afterCycle.settings.mode === "assist"
+          ? "approval_required"
+          : "observe_only",
     trusted: trusted ? {
       proposalCount: trusted.proposalIds.length,
       runCount: trusted.runIds.length,
