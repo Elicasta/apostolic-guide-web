@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { getSolOperatorSnapshot, scanSolOperator } from "@/sol-operator";
+import { runSolManagerCycle } from "@/sol-agent-team";
+import { getSolOperatorSnapshot } from "@/sol-operator";
 import { runTrustedSolDrafts } from "@/sol-trusted-autopilot";
 
 export const runtime = "nodejs";
@@ -17,29 +18,29 @@ export async function GET(request: Request) {
   const before = await getSolOperatorSnapshot();
   if (!before.dbReady) return NextResponse.json({ error: "Sol Operator storage is not configured." }, { status: 503 });
 
-  // Observation is always allowed. Turning Sol off stops execution, not visibility.
-  // This keeps proposals, coverage, duplicate reconciliation, and last-scan state fresh.
-  const analysis = await scanSolOperator();
-  const canAutoRunTrusted = before.settings.enabled && before.settings.mode === "trusted";
-  const trusted = canAutoRunTrusted
+  // Intelligence never sleeps. Execution can be off while the full manager team
+  // keeps current evidence, priorities, duplicate suppression, and scan time fresh.
+  const cycle = await runSolManagerCycle();
+  const afterCycle = await getSolOperatorSnapshot();
+  const trusted = afterCycle.settings.enabled && afterCycle.settings.mode === "trusted"
     ? await runTrustedSolDrafts({ origin: new URL(request.url).origin, cookie: "" })
     : null;
-
-  const execution = !before.settings.enabled
-    ? "execution_off"
-    : before.settings.mode === "trusted"
-      ? "safe_drafts_auto_run"
-      : before.settings.mode === "assist"
-        ? "approval_required"
-        : "observe_only";
 
   return NextResponse.json({
     ok: true,
     scannedAt: new Date().toISOString(),
-    proposals: analysis.proposals.length,
-    enabled: before.settings.enabled,
-    mode: before.settings.mode,
-    execution,
+    intelligence: "active",
+    agents: cycle.team.agents.map((agent) => ({ key: agent.key, name: agent.name, state: agent.state })),
+    priorities: cycle.team.priorities.length,
+    duplicateProposalsSuppressed: cycle.suppressedDuplicateProposals,
+    mode: afterCycle.settings.enabled ? afterCycle.settings.mode : "off",
+    execution: !afterCycle.settings.enabled
+      ? "paused"
+      : afterCycle.settings.mode === "trusted"
+        ? "safe_drafts_auto_run"
+        : afterCycle.settings.mode === "assist"
+          ? "approval_required"
+          : "observe_only",
     trusted: trusted ? {
       proposalCount: trusted.proposalIds.length,
       runCount: trusted.runIds.length,
