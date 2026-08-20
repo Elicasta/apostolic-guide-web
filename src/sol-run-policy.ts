@@ -1,4 +1,4 @@
-export const SOL_RUN_LEASE_MS = 3 * 60 * 1000;
+export const SOL_RUN_LEASE_MS = 6 * 60 * 1000;
 export const SOL_RUN_REQUEST_TIMEOUT_MS = 75 * 1000;
 export const SOL_QUEUED_STALE_MS = 20 * 60 * 1000;
 
