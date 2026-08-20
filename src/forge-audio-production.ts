@@ -56,11 +56,22 @@ export async function ensureForgeAudioScript(input: { pathwaySlug: string; actor
   if (!apiKey) throw new Error("OPENAI_API_KEY is not configured for Forge audio scripting.");
   const source = buildPathwayNarration(pathway);
   const model = process.env.OPENAI_SCRIPT_MODEL?.trim() || "gpt-5-mini";
-  const response = await fetch("https://api.openai.com/v1/responses", {
-    method: "POST",
-    headers: { authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
-    body: JSON.stringify({ model, input: buildPathwayAudioScriptPrompt(source), max_output_tokens: 2600 })
-  });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 70_000);
+  let response: Response;
+  try {
+    response = await fetch("https://api.openai.com/v1/responses", {
+      method: "POST",
+      headers: { authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
+      signal: controller.signal,
+      body: JSON.stringify({ model, input: buildPathwayAudioScriptPrompt(source), max_output_tokens: 2600 })
+    });
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") throw new Error("Forge narration generation timed out.");
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
   if (!response.ok) {
     const detail = (await response.text().catch(() => "")).slice(0, 800);
     throw new Error(`Forge narration generation failed (${response.status}).${detail ? ` ${detail}` : ""}`);
@@ -136,7 +147,11 @@ export async function forgeAudioGateState(pathwaySlug: string) {
   };
 }
 
-export async function renderForgeApprovedAudio(input: { pathwaySlug: string; actorUserId?: string | null }) {
+export async function renderForgeApprovedAudio(input: {
+  pathwaySlug: string;
+  actorUserId?: string | null;
+  onSegment?: (progress: { completed: number; total: number }) => Promise<void> | void;
+}) {
   const service = createServiceClient();
   if (!service) throw new Error("Supabase service access is not configured.");
   const apiKey = process.env.OPENAI_API_KEY?.trim();
@@ -169,16 +184,28 @@ export async function renderForgeApprovedAudio(input: { pathwaySlug: string; act
   const speed = resolveTtsSpeed(process.env.OPENAI_TTS_SPEED);
   const pcmSegments: Buffer[] = [];
   for (let index = 0; index < chunks.length; index += 1) {
-    const speech = await fetch("https://api.openai.com/v1/audio/speech", {
-      method: "POST",
-      headers: { authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
-      body: JSON.stringify({ model, voice, input: chunks[index], response_format: "pcm", speed, instructions: PATHWAY_TTS_INSTRUCTIONS })
-    });
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 80_000);
+    let speech: Response;
+    try {
+      speech = await fetch("https://api.openai.com/v1/audio/speech", {
+        method: "POST",
+        headers: { authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
+        signal: controller.signal,
+        body: JSON.stringify({ model, voice, input: chunks[index], response_format: "pcm", speed, instructions: PATHWAY_TTS_INSTRUCTIONS })
+      });
+    } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") throw new Error(`Forge audio segment ${index + 1}/${chunks.length} timed out.`);
+      throw error;
+    } finally {
+      clearTimeout(timer);
+    }
     if (!speech.ok) {
       const detail = (await speech.text().catch(() => "")).slice(0, 800);
       throw new Error(`Forge audio generation failed on segment ${index + 1}/${chunks.length} (${speech.status}).${detail ? ` ${detail}` : ""}`);
     }
     pcmSegments.push(Buffer.from(await speech.arrayBuffer()));
+    await input.onSegment?.({ completed: index + 1, total: chunks.length });
   }
 
   const mastered = masterPathwayPcm16Mono(concatenatePcm16Segments(pcmSegments));
