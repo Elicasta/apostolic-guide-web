@@ -48,6 +48,7 @@ import "./sol-jarvis.css";
 import "./sol-control.css";
 import "./sol-v4-forge.css";
 import "./sol-manager-v4.css";
+import "./sol-manager-v4-fixes.css";
 import "./carousel-studio.css";
 import "./creative-studio.css";
 import "./creative-studio-controls.css";
