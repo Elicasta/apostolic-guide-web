@@ -46,7 +46,6 @@ export async function recoverStaleSolRuns() {
     const automatic = canSolRunRecoverWithoutUser(row.recipe_key) && attemptCount < maxAttempts;
     if (automatic) {
       if (row.status === "retrying") {
-        // The minute runner claims due retrying safe drafts immediately after this pass.
         recovered += 1;
         continue;
       }
@@ -136,6 +135,10 @@ export async function retrySolRun(runId: string, actorUserId: string) {
 export async function cancelSolRunV3(runId: string, actorUserId: string) {
   const service = createServiceClient();
   if (!service) throw new Error("Supabase service access is not configured.");
+  const current = await service.from("sol_operator_runs").select("id,status").eq("id", runId).maybeSingle();
+  if (current.error) throw current.error;
+  if (!current.data) throw new Error("Sol run not found.");
+  if (!["queued", "running", "retrying", "waiting_review"].includes(String(current.data.status))) throw new Error("Only active or waiting-review work can be cancelled.");
   const result = await service.from("sol_operator_runs").update({
     status: "cancelled",
     current_step: null,
@@ -143,8 +146,8 @@ export async function cancelSolRunV3(runId: string, actorUserId: string) {
     next_retry_at: null,
     lease_expires_at: null,
     worker_id: null
-  }).eq("id", runId).in("status", ["queued", "running", "retrying"]);
+  }).eq("id", runId).in("status", ["queued", "running", "retrying", "waiting_review"]);
   if (result.error) throw result.error;
-  await service.from("sol_operator_events").insert({ run_id: runId, event_type: "run.cancelled", detail: { actor_user_id: actorUserId } });
-  await recordStudioAudit({ actorUserId, action: "sol.run_cancelled", resourceType: "sol_run", resourceId: runId });
+  await service.from("sol_operator_events").insert({ run_id: runId, event_type: "run.cancelled", detail: { actor_user_id: actorUserId, prior_status: current.data.status } });
+  await recordStudioAudit({ actorUserId, action: "sol.run_cancelled", resourceType: "sol_run", resourceId: runId, metadata: { prior_status: current.data.status } });
 }
