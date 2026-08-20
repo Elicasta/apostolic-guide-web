@@ -1,6 +1,11 @@
 import "server-only";
 import { getCreativeProductionSnapshot } from "./creative-project-server";
 import { getPeopleMetrics } from "./people-crm";
+import {
+  dedupeSolCurrentRuns,
+  solProposalCoveredByReviewRuns,
+  solTeamRunIsActive
+} from "./sol-agent-team-engine";
 import { getSolManagerContentInventory } from "./sol-manager";
 import { getSolOperatorSnapshot, scanSolOperator } from "./sol-operator";
 import { createServiceClient } from "./supabase";
@@ -34,31 +39,6 @@ export type SolAgentTeamSnapshot = {
   priorities: Array<{ severity: "urgent" | "high" | "medium"; label: string; detail: string }>;
   hiddenHistoricalRuns: number;
 };
-
-function activeRun(status: string) {
-  return ["queued", "running", "retrying"].includes(status);
-}
-
-function attentionRun(status: string) {
-  return ["failed", "stalled", "waiting_review"].includes(status);
-}
-
-function currentRunKey(run: { recipeKey: string; pathwaySlug: string | null }) {
-  return `${run.recipeKey}:${run.pathwaySlug ?? "workspace"}`;
-}
-
-function visibleCurrentRuns<T extends { recipeKey: string; pathwaySlug: string | null; status: string }>(runs: T[]) {
-  const seen = new Set<string>();
-  const visible: T[] = [];
-  for (const run of runs) {
-    if (!activeRun(run.status) && !attentionRun(run.status)) continue;
-    const key = currentRunKey(run);
-    if (seen.has(key)) continue;
-    seen.add(key);
-    visible.push(run);
-  }
-  return visible;
-}
 
 async function journeyPulse() {
   const service = createServiceClient();
@@ -97,8 +77,8 @@ export async function getSolAgentTeamSnapshot(): Promise<SolAgentTeamSnapshot> {
     journeyPulse()
   ]);
 
-  const visibleRuns = visibleCurrentRuns(operator.runs);
-  const active = visibleRuns.filter((run) => activeRun(run.status));
+  const visibleRuns = dedupeSolCurrentRuns(operator.runs);
+  const active = visibleRuns.filter((run) => solTeamRunIsActive(run.status));
   const waitingReview = visibleRuns.filter((run) => run.status === "waiting_review");
   const failed = visibleRuns.filter((run) => run.status === "failed" || run.status === "stalled");
   const pending = operator.proposals.filter((proposal) => proposal.status === "pending");
@@ -224,11 +204,19 @@ export async function suppressDuplicateReviewWork() {
       .eq("status", "pending")
   ]);
   if (runs.error || proposals.error) return 0;
-  const reviewKeys = new Set((runs.data ?? []).map((run) => `${String(run.recipe_key)}:${String(run.pathway_slug || "workspace")}`));
+
+  const reviewRuns = (runs.data ?? []).map((run) => ({
+    recipeKey: String(run.recipe_key),
+    pathwaySlug: run.pathway_slug ? String(run.pathway_slug) : null,
+    status: String(run.status)
+  }));
   let expired = 0;
   for (const proposal of proposals.data ?? []) {
-    const slugs = Array.isArray(proposal.pathway_slugs) && proposal.pathway_slugs.length ? proposal.pathway_slugs.map(String) : ["workspace"];
-    if (!slugs.every((slug) => reviewKeys.has(`${String(proposal.recipe_key)}:${slug}`))) continue;
+    const normalized = {
+      recipeKey: String(proposal.recipe_key),
+      pathwaySlugs: Array.isArray(proposal.pathway_slugs) ? proposal.pathway_slugs.map(String) : []
+    };
+    if (!solProposalCoveredByReviewRuns(normalized, reviewRuns)) continue;
     const result = await service.from("sol_operator_proposals").update({ status: "expired" }).eq("id", proposal.id).eq("status", "pending");
     if (!result.error) expired += 1;
   }
