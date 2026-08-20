@@ -1,5 +1,5 @@
 export type SolMode = "watch" | "assist" | "trusted";
-export type SolRecipeKey = "audio_to_youtube" | "carousel_topic_pack" | "journey_automation_draft";
+export type SolRecipeKey = "audio_to_youtube" | "forge_carousel_stage" | "carousel_topic_pack" | "journey_automation_draft";
 export type SolProposalPriority = "urgent" | "high" | "medium" | "low";
 export type SolProposalRisk = "safe_draft" | "review_required" | "external_effect";
 export type SolProposalStatus = "pending" | "approved" | "running" | "completed" | "dismissed" | "failed" | "expired";
@@ -61,6 +61,7 @@ export type SolOperatorAnalysis = {
 
 export const SOL_RECIPE_LABELS: Record<SolRecipeKey, string> = {
   audio_to_youtube: "Pathway audio to YouTube",
+  forge_carousel_stage: "Forge persistent carousel",
   carousel_topic_pack: "Legacy carousel topic pack",
   journey_automation_draft: "Journey and automation draft"
 };
@@ -73,8 +74,14 @@ export const SOL_RECIPE_STEPS: Record<SolRecipeKey, SolPlanStep[]> = {
     { key: "queue_render", label: "Queue the YouTube render", gate: "automatic" },
     { key: "review", label: "Stop for finished-video and publishing approval", gate: "review" }
   ],
-  // Kept only so historical runs remain readable. New scans never create this
-  // recipe because it writes loose pathway_assets instead of Creative Projects.
+  forge_carousel_stage: [
+    { key: "inspect_source", label: "Verify the canonical Pathway and existing persistent carousel state", gate: "automatic" },
+    { key: "generate_copy", label: "Generate the complete carousel copy and captions", gate: "automatic" },
+    { key: "doctrine_gate", label: "Review the generated carousel against the canonical Pathway", gate: "theology" },
+    { key: "save_project", label: "Save a persistent Creative Project with source and doctrine evidence", gate: "automatic" },
+    { key: "review", label: "Stop for visual/editorial review before scheduling or publishing", gate: "review" }
+  ],
+  // Historical only. New scans use Forge persistent Creative Projects.
   carousel_topic_pack: [
     { key: "build_topics", label: "Legacy carousel planning", gate: "review" },
     { key: "generate_decks", label: "Legacy executor disabled for new work", gate: "review" },
@@ -134,10 +141,34 @@ export function buildSolOperatorAnalysis(input: {
     });
   }
 
-  // Do not emit carousel_topic_pack. That executor predates persistent Creative
-  // Projects and writes disconnected pathway_assets. Creative work must now
-  // begin in Creative Studio so autosave, revisions, renders, publishing state,
-  // and Sol memory all point to one source-of-truth object.
+  const carouselCandidates = input.pathways
+    .filter((pathway) =>
+      pathway.carouselAssets === 0
+      && !pathway.activeRecipes.includes("forge_carousel_stage")
+      && campaignRank(pathway.campaignStatus) < 9
+    )
+    .sort((a, b) => campaignRank(a.campaignStatus) - campaignRank(b.campaignStatus))
+    .slice(0, 2);
+
+  if (carouselCandidates.length) {
+    proposals.push({
+      proposalKey: `forge-carousel:${carouselCandidates.map((item) => item.slug).join(",")}`,
+      recipeKey: "forge_carousel_stage",
+      title: `Forge ${carouselCandidates.length} ${carouselCandidates.length === 1 ? "Pathway carousel" : "Pathway carousels"}`,
+      summary: "Forge can generate complete carousel copy, run a canonical Pathway doctrine review, and save persistent Creative Projects. Nothing is scheduled or published.",
+      priority: carouselCandidates.some((item) => campaignRank(item.campaignStatus) <= 1) ? "high" : "medium",
+      risk: "safe_draft",
+      pathwaySlugs: carouselCandidates.map((item) => item.slug),
+      evidence: [
+        { label: "Missing persistent carousels", value: carouselCandidates.length, state: "missing" },
+        { label: "Canonical Pathways", value: carouselCandidates.length, state: "ready" },
+        { label: "Publishing", value: "blocked", state: "info" }
+      ],
+      plan: SOL_RECIPE_STEPS.forge_carousel_stage,
+      suggestedConstraints: ["Use only canonical Pathway doctrine", "Save persistent Creative Projects", "Do not schedule or publish", "Stop for visual/editorial review"],
+      inputs: { pathways: carouselCandidates.map((item) => ({ slug: item.slug, title: item.title })) }
+    });
+  }
 
   const automationCandidates = input.pathways.filter((pathway) =>
     Boolean(pathway.primaryKeyword)
