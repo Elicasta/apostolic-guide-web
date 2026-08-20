@@ -2,6 +2,7 @@ import type { SolProposal, SolRun } from "./sol-operator";
 import type { SolRecipeKey } from "./sol-operator-engine";
 
 const TRUSTED_AUTO_RECIPE_ALLOWLIST = new Set<SolRecipeKey>([
+  "forge_carousel_stage",
   "journey_automation_draft"
 ]);
 
@@ -23,7 +24,7 @@ export function selectTrustedAutoRunCandidates(input: {
   runs: SolRun[];
   maxConcurrentRuns: number;
 }) {
-  const activeRuns = input.runs.filter((run) => run.status === "queued" || run.status === "running").length;
+  const activeRuns = input.runs.filter((run) => run.status === "queued" || run.status === "running" || run.status === "retrying").length;
   const capacity = Math.max(0, Math.min(3, input.maxConcurrentRuns) - activeRuns);
   if (capacity === 0) return [] as SolProposal[];
 
