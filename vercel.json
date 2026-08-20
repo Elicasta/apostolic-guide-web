@@ -29,7 +29,7 @@
     },
     {
       "path": "/api/cron/sol",
-      "schedule": "*/30 * * * *"
+      "schedule": "*/10 * * * *"
     },
     {
       "path": "/api/cron/pathway-asset-ingest-cleanup",
