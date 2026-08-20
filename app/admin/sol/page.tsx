@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Activity, Bot, CheckCircle2, Clock3, Gauge, ShieldCheck, Sparkles, TriangleAlert } from "lucide-react";
+import { Activity, Bot, BrainCircuit, CheckCircle2, Clock3, Gauge, ShieldCheck, Sparkles, TriangleAlert, Users } from "lucide-react";
 import { getStudioPermission } from "@/auth";
+import { getSolAgentTeamSnapshot } from "@/sol-agent-team";
 import { getSolOperatorSnapshot } from "@/sol-operator";
 
 export default async function SolOperatorPage() {
@@ -9,91 +10,105 @@ export default async function SolOperatorPage() {
   const localSetup = permission.access.state === "unconfigured";
   if (!permission.allowed && !localSetup) redirect("/admin");
 
-  const snapshot = await getSolOperatorSnapshot();
+  const [snapshot, team] = await Promise.all([getSolOperatorSnapshot(), getSolAgentTeamSnapshot()]);
+  const currentAttention = team.agents.filter((agent) => agent.state === "attention" || agent.state === "blocked");
+  const working = team.agents.filter((agent) => agent.state === "working");
   const pending = snapshot.proposals.filter((proposal) => proposal.status === "pending");
-  const active = snapshot.runs.filter((run) => ["queued", "running", "retrying"].includes(run.status));
-  const review = snapshot.runs.filter((run) => run.status === "waiting_review");
-  const trouble = snapshot.runs.filter((run) => run.status === "failed" || run.status === "stalled");
   const behind = snapshot.kpis.filter((kpi) => kpi.actual < kpi.target);
 
   return <div className="sol-v3-control-page">
     <div className="studio-page-heading sol-workspace-heading">
       <div>
-        <span className="eyebrow">Studio operations</span>
-        <h1>Sol Control Center</h1>
-        <p className="admin-lede">The floating Sol sidecar is the operator. This page is the control room: current state, operating policy, recovery status, and the registered work Sol is allowed to move.</p>
+        <span className="eyebrow">Apostolic Guide operations</span>
+        <h1>Sol Manager</h1>
+        <p className="admin-lede">Sol now manages a specialist intelligence team. The sidecar is the daily operating surface. This page defines who is watching what, what may execute automatically, and where the hard gates remain.</p>
       </div>
-      <span className="studio-role-badge">V3 · Durable agent kernel</span>
+      <span className="studio-role-badge">Manager · 6 specialists</span>
     </div>
 
     <section className="sol-v3-control-hero">
       <div className="sol-v3-control-hero-copy">
-        <span><Bot size={15}/> SOL STUDIO AGENT</span>
-        <h2>Ask for an outcome, not a sequence of clicks.</h2>
-        <p>Open <strong>Ask Sol</strong> in the lower-right corner from any admin screen. Sol can inspect current Studio state, use several registered tools in one turn, preserve the conversation across pages, and hand long work to durable runs instead of holding the chat open.</p>
-        <div className="sol-v3-control-example">Try: <strong>“Find anything stuck in Studio, recover what is safely recoverable, and tell me what still needs me.”</strong></div>
+        <span><BrainCircuit size={15}/> LIVE MANAGER INTELLIGENCE</span>
+        <h2>One manager. Six specialist lanes. Current evidence only.</h2>
+        <p>Atlas watches canonical content coverage. Forge moves production. Relay watches publishing readiness. Sentinel guards doctrine and system integrity. Shepherd watches stored people and journey evidence. Compass ranks what matters next.</p>
+        <div className="sol-v3-control-example">Ask: <strong>“What is behind, what can your agents fix without me, and what are the three things only I need to approve?”</strong></div>
       </div>
       <div className={`sol-v3-control-state is-${snapshot.settings.enabled ? snapshot.settings.mode : "off"}`}>
         <i/>
-        <span>{snapshot.settings.enabled ? snapshot.settings.mode : "off"}</span>
-        <small>Last scan {snapshot.settings.lastScanAt ? new Date(snapshot.settings.lastScanAt).toLocaleString() : "not run"}</small>
+        <span>{snapshot.settings.enabled ? snapshot.settings.mode : "execution off"}</span>
+        <small>Intelligence active · refreshed {new Date(team.generatedAt).toLocaleTimeString()}</small>
       </div>
     </section>
 
-    <section className="sol-v3-control-metrics" aria-label="Sol current state">
-      <article><Sparkles size={17}/><div><strong>{pending.length}</strong><span>Proposals waiting</span></div></article>
-      <article><Activity size={17}/><div><strong>{active.length}</strong><span>Runs moving</span></div></article>
-      <article><Clock3 size={17}/><div><strong>{review.length}</strong><span>Waiting review</span></div></article>
-      <article className={trouble.length ? "is-alert" : ""}><TriangleAlert size={17}/><div><strong>{trouble.length}</strong><span>Failed or stalled</span></div></article>
+    <section className="sol-v3-control-metrics" aria-label="Sol manager state">
+      <article><Bot size={17}/><div><strong>{team.agents.length}</strong><span>Specialist agents</span></div></article>
+      <article><Activity size={17}/><div><strong>{working.length}</strong><span>Agents working</span></div></article>
+      <article className={currentAttention.length ? "is-warn" : ""}><TriangleAlert size={17}/><div><strong>{currentAttention.length}</strong><span>Agents need attention</span></div></article>
+      <article><Sparkles size={17}/><div><strong>{team.priorities.length}</strong><span>Current priorities</span></div></article>
       <article className={behind.length ? "is-warn" : ""}><Gauge size={17}/><div><strong>{behind.length}</strong><span>KPIs behind</span></div></article>
     </section>
 
     <div className="sol-v3-control-grid">
       <section className="sol-v3-control-card">
-        <div className="sol-v3-control-card-head"><ShieldCheck size={16}/><div><span>Authority model</span><h3>Three modes. Server owns the boundary.</h3></div></div>
-        <div className="sol-v3-control-modes">
-          <div className={snapshot.settings.enabled && snapshot.settings.mode === "watch" ? "is-active" : ""}><b>Watch</b><span>Reads, scans, diagnoses, and proposes. It does not execute work.</span></div>
-          <div className={snapshot.settings.enabled && snapshot.settings.mode === "assist" ? "is-active" : ""}><b>Assist</b><span>Prepares registered actions and stops for human approval before mutation.</span></div>
-          <div className={snapshot.settings.enabled && snapshot.settings.mode === "trusted" ? "is-active" : ""}><b>Trusted</b><span>May auto-run only server-allowlisted safe drafts. Review-required work still stops.</span></div>
-        </div>
-      </section>
-
-      <section className="sol-v3-control-card">
-        <div className="sol-v3-control-card-head"><Activity size={16}/><div><span>Execution model</span><h3>No more immortal spinners.</h3></div></div>
-        <div className="sol-v3-control-checks">
-          <span><CheckCircle2 size={13}/> Worker lease + heartbeat</span>
-          <span><CheckCircle2 size={13}/> Internal request timeout</span>
-          <span><CheckCircle2 size={13}/> Retry with bounded backoff</span>
-          <span><CheckCircle2 size={13}/> Explicit stalled state</span>
-          <span><CheckCircle2 size={13}/> One-minute recovery worker</span>
-          <span><CheckCircle2 size={13}/> Authenticated manual Retry where browser context is required</span>
-        </div>
-      </section>
-
-      <section className="sol-v3-control-card">
-        <div className="sol-v3-control-card-head"><Sparkles size={16}/><div><span>Registered work</span><h3>Recipes Sol can actually execute.</h3></div></div>
+        <div className="sol-v3-control-card-head"><Users size={16}/><div><span>Specialist team</span><h3>Each lane has one job.</h3></div></div>
         <div className="sol-v3-control-recipes">
-          <div><b>Pathway audio → YouTube</b><span>Validate theology and exact audio, build project, create publishing kit, queue render, stop for review.</span></div>
-          <div><b>Carousel topic pack</b><span>Build from canonical Pathway steps, generate decks, doctrine-check, save drafts, stop before publishing.</span></div>
-          <div><b>Journey + automation draft</b><span>Create or reuse disabled automation and draft journey, link project, stop before activation.</span></div>
+          {team.agents.map((agent) => <div key={agent.key}><b>{agent.name} · {agent.role}</b><span>{agent.state.toUpperCase()} · {agent.nextAction}</span></div>)}
         </div>
       </section>
 
       <section className="sol-v3-control-card">
-        <div className="sol-v3-control-card-head"><ShieldCheck size={16}/><div><span>Hard locks</span><h3>Sol still cannot cross these lines.</h3></div></div>
+        <div className="sol-v3-control-card-head"><BrainCircuit size={16}/><div><span>Manager loop</span><h3>Observe → reconcile → prioritize → execute → verify.</h3></div></div>
         <div className="sol-v3-control-checks">
-          <span><CheckCircle2 size={13}/> No live publishing</span>
+          <span><CheckCircle2 size={13}/> Intelligence stays active even when execution is paused</span>
+          <span><CheckCircle2 size={13}/> Current runs are de-duplicated by recipe and Pathway</span>
+          <span><CheckCircle2 size={13}/> Completed history stays out of the operating view</span>
+          <span><CheckCircle2 size={13}/> Review work suppresses duplicate proposals</span>
+          <span><CheckCircle2 size={13}/> Canonical hashes decide whether content is actually current</span>
+          <span><CheckCircle2 size={13}/> Manager intelligence refreshes on a recurring cycle</span>
+        </div>
+      </section>
+
+      <section className="sol-v3-control-card">
+        <div className="sol-v3-control-card-head"><ShieldCheck size={16}/><div><span>Execution authority</span><h3>Three modes. Intelligence is separate from power.</h3></div></div>
+        <div className="sol-v3-control-modes">
+          <div className={snapshot.settings.enabled && snapshot.settings.mode === "watch" ? "is-active" : ""}><b>Watch</b><span>Agents read, reconcile, prioritize, and explain. No production mutation runs.</span></div>
+          <div className={snapshot.settings.enabled && snapshot.settings.mode === "assist" ? "is-active" : ""}><b>Assist</b><span>Agents prepare registered work and pause at approval boundaries.</span></div>
+          <div className={snapshot.settings.enabled && snapshot.settings.mode === "trusted" ? "is-active" : ""}><b>Trusted</b><span>Allowlisted internal safe-draft jobs may run automatically. Review and external effects still stop.</span></div>
+        </div>
+      </section>
+
+      <section className="sol-v3-control-card">
+        <div className="sol-v3-control-card-head"><Clock3 size={16}/><div><span>What is live now</span><h3>Current operating pressure.</h3></div></div>
+        <div className="sol-v3-control-recipes">
+          {team.priorities.length ? team.priorities.slice(0, 6).map((item) => <div key={`${item.severity}-${item.label}`}><b>{item.label}</b><span>{item.severity.toUpperCase()} · {item.detail}</span></div>) : <div><b>No manager priority flagged</b><span>The specialist team is watching for the next real state change.</span></div>}
+        </div>
+      </section>
+
+      <section className="sol-v3-control-card">
+        <div className="sol-v3-control-card-head"><Sparkles size={16}/><div><span>Real execution</span><h3>Registered jobs, not chat theater.</h3></div></div>
+        <div className="sol-v3-control-recipes">
+          <div><b>Pathway audio staging</b><span>Prepare current narration, preserve doctrine approval, render verified audio when prerequisites pass.</span></div>
+          <div><b>Pathway audio → YouTube</b><span>Build timed video, publishing kit, render, then stop before live publishing.</span></div>
+          <div><b>Journey + automation draft</b><span>Create disabled automation and draft journey, then stop before activation or enrollment.</span></div>
+          <div><b>{pending.length} current proposals</b><span>Only reconciled work should remain in the queue.</span></div>
+        </div>
+      </section>
+
+      <section className="sol-v3-control-card">
+        <div className="sol-v3-control-card-head"><ShieldCheck size={16}/><div><span>Hard locks</span><h3>More intelligence does not erase the gates.</h3></div></div>
+        <div className="sol-v3-control-checks">
+          <span><CheckCircle2 size={13}/> No silent live publishing</span>
           <span><CheckCircle2 size={13}/> No automation activation</span>
           <span><CheckCircle2 size={13}/> No outbound messaging or enrollment</span>
           <span><CheckCircle2 size={13}/> No canonical Pathway doctrine edits</span>
-          <span><CheckCircle2 size={13}/> No invented browser clicks</span>
-          <span><CheckCircle2 size={13}/> No “done” without tool evidence</span>
+          <span><CheckCircle2 size={13}/> No stale content counted as done</span>
+          <span><CheckCircle2 size={13}/> No duplicate paid generation when a current artifact exists</span>
         </div>
       </section>
     </div>
 
     <section className="sol-v3-control-footer">
-      <div><strong>Want the system contract?</strong><span>The V3 behavior, recovery model, approval contract, failure rules, tests, and maintenance policy are documented in the repo.</span></div>
+      <div><strong>Operational contract</strong><span>The manager architecture, source graph, production rules, people boundaries, and next build order are documented in the repo.</span></div>
       <Link href="/admin/health">Check Studio health</Link>
     </section>
   </div>;
