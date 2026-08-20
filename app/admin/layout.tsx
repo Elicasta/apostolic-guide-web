@@ -46,6 +46,7 @@ import "./pathway-source-asset.css";
 import "./sol-operator.css";
 import "./sol-jarvis.css";
 import "./sol-control.css";
+import "./sol-v4-forge.css";
 import "./carousel-studio.css";
 import "./creative-studio.css";
 import "./creative-studio-controls.css";
