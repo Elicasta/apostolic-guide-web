@@ -1,6 +1,7 @@
 import "server-only";
 import type { SolAdminSurface } from "./sol-admin-context";
 import { getCreativeProductionSnapshot } from "./creative-project-server";
+import { getForgeProductionStatus } from "./forge-production";
 import { createSolAgentApproval, type SolAgentApproval } from "./sol-agent-memory";
 import { hasExplicitSolIntent } from "./sol-agent-policy";
 import { cancelSolRunV3, retrySolRun } from "./sol-run-recovery";
@@ -19,6 +20,7 @@ import type { SolMode } from "./sol-operator-engine";
 export type SolAgentToolName =
   | "get_workspace_status"
   | "get_current_screen"
+  | "get_forge_status"
   | "list_creative_projects"
   | "scan_workspace"
   | "list_proposals"
@@ -51,7 +53,7 @@ export const SOL_AGENT_TOOLS = [
   {
     type: "function",
     name: "get_workspace_status",
-    description: "Read the current Sol operating state, KPIs, coverage, Creative Project production state, active work, failed work, and review queue. Use this before making claims about Studio status.",
+    description: "Read the current Sol operating state, exact Pathway coverage, Forge production queue, Creative Project production state, active work, failures, review gates, and KPIs. Use this before making claims about Studio status.",
     strict: true,
     parameters: EMPTY_OBJECT
   },
@@ -59,6 +61,13 @@ export const SOL_AGENT_TOOLS = [
     type: "function",
     name: "get_current_screen",
     description: "Read trusted server-authored context for the admin screen the user is currently viewing.",
+    strict: true,
+    parameters: EMPTY_OBJECT
+  },
+  {
+    type: "function",
+    name: "get_forge_status",
+    description: "Read Forge's deterministic production queue and Pathway-level audio, carousel, and YouTube state. Use this for questions like how many audios are current, what needs to be made next, what Forge can execute, or what is already owned by a current job.",
     strict: true,
     parameters: EMPTY_OBJECT
   },
@@ -72,7 +81,7 @@ export const SOL_AGENT_TOOLS = [
   {
     type: "function",
     name: "scan_workspace",
-    description: "Run the deterministic Studio scan that discovers evidence-backed Sol proposals. This reads current state and may create proposal records, but does not publish content.",
+    description: "Run the deterministic Studio scan that reconciles duplicate review work and discovers current evidence-backed Sol/Forge proposals. This may create proposal records, but does not publish content.",
     strict: true,
     parameters: EMPTY_OBJECT
   },
@@ -86,7 +95,7 @@ export const SOL_AGENT_TOOLS = [
   {
     type: "function",
     name: "list_runs",
-    description: "List recent Sol runs with progress, errors, review state, and timestamps.",
+    description: "List current Sol runs only: queued, running, retrying, waiting review, failed, or stalled. Completed/cancelled history is intentionally hidden from the operator feed.",
     strict: true,
     parameters: EMPTY_OBJECT
   },
@@ -135,7 +144,7 @@ export const SOL_AGENT_TOOLS = [
   {
     type: "function",
     name: "cancel_run",
-    description: "Cancel one queued, running, or retrying Sol run. Only execute directly when the user's current message explicitly asks to cancel or stop work; otherwise request approval.",
+    description: "Cancel one queued, running, retrying, or waiting-review Sol run. Use this to clear abandoned review work only when the user's current message explicitly asks to cancel, stop, clear, or dismiss that work; otherwise request approval.",
     strict: true,
     parameters: {
       type: "object",
@@ -211,15 +220,27 @@ function currentStatus(snapshot: SolOperatorSnapshot) {
 export async function executeSolAgentTool(name: SolAgentToolName, rawArgs: unknown, context: ToolContext): Promise<SolAgentToolResult> {
   const args = record(rawArgs);
   if (name === "get_workspace_status") {
-    const [snapshot, creativeProduction] = await Promise.all([getSolOperatorSnapshot(), getCreativeProductionSnapshot()]);
-    return { ok: true, message: "Workspace status loaded.", data: { ...currentStatus(snapshot), creativeProduction } };
+    const [snapshot, creativeProduction, forge] = await Promise.all([
+      getSolOperatorSnapshot(),
+      getCreativeProductionSnapshot(),
+      getForgeProductionStatus()
+    ]);
+    return { ok: true, message: "Workspace and Forge status loaded.", data: { ...currentStatus(snapshot), creativeProduction, forge } };
   }
   if (name === "get_current_screen") return { ok: true, message: `Current screen: ${context.surface.label}.`, data: { ...context.surface } };
+  if (name === "get_forge_status") {
+    const forge = await getForgeProductionStatus();
+    return { ok: true, message: "Forge production state loaded.", data: forge as unknown as Record<string, unknown> };
+  }
   if (name === "list_creative_projects") return { ok: true, message: "Creative Project production state loaded.", data: await getCreativeProductionSnapshot() };
   if (name === "scan_workspace") {
     await scanSolOperator(context.actorUserId);
-    const next = await getSolOperatorSnapshot();
-    return { ok: true, message: `Scan complete. ${next.proposals.filter((item) => item.status === "pending").length} proposals are waiting.`, data: currentStatus(next) };
+    const [next, forge] = await Promise.all([getSolOperatorSnapshot(), getForgeProductionStatus()]);
+    return {
+      ok: true,
+      message: `Scan complete. ${next.proposals.filter((item) => item.status === "pending").length} proposals are waiting; Forge sees ${forge.summary.total} production task${forge.summary.total === 1 ? "" : "s"}.`,
+      data: { ...currentStatus(next), forge }
+    };
   }
   if (name === "list_proposals") {
     const next = await getSolOperatorSnapshot();
@@ -243,7 +264,7 @@ export async function executeSolAgentTool(name: SolAgentToolName, rawArgs: unkno
     const next = await getSolOperatorSnapshot();
     return {
       ok: true,
-      message: "Recent runs loaded.",
+      message: "Current runs loaded.",
       data: {
         runs: next.runs.slice(0, 20).map((item) => ({
           id: item.id,
@@ -298,12 +319,17 @@ export async function executeSolAgentTool(name: SolAgentToolName, rawArgs: unkno
   if (name === "cancel_run") {
     const runId = String(args.run_id || "");
     const run = context.snapshot.runs.find((item) => item.id === runId);
-    if (!run || !["queued", "running", "retrying"].includes(run.status)) return { ok: false, message: "That run is not active." };
+    if (!run || !["queued", "running", "retrying", "waiting_review"].includes(run.status)) return { ok: false, message: "That run is not active or waiting for review." };
     if (!hasExplicitSolIntent(context.userMessage, "cancel")) {
-      return requestApproval(context, { toolName: name, toolArguments: { run_id: run.id }, summary: `Cancel the ${run.recipeKey.replaceAll("_", " ")} run${run.pathwaySlug ? ` for ${run.pathwaySlug}` : ""}.`, risk: "review_required" });
+      return requestApproval(context, {
+        toolName: name,
+        toolArguments: { run_id: run.id },
+        summary: `Cancel the ${run.recipeKey.replaceAll("_", " ")} run${run.pathwaySlug ? ` for ${run.pathwaySlug}` : ""}${run.status === "waiting_review" ? " and clear its review gate" : ""}.`,
+        risk: "review_required"
+      });
     }
     await cancelSolRunV3(run.id, context.actorUserId);
-    return { ok: true, message: "Run cancelled." };
+    return { ok: true, message: run.status === "waiting_review" ? "Review run cleared." : "Run cancelled." };
   }
   if (name === "retry_run") {
     const runId = String(args.run_id || "");
