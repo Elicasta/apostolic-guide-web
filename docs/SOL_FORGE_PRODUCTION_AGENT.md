@@ -26,15 +26,20 @@ If an exact current audio asset already exists, Forge reuses it. It does not inc
 
 ### Persistent carousels
 
-Forge can move a Pathway from no carousel project to an editable Creative Project:
+Forge can move a Pathway from no carousel to an editable project plus rendered review assets:
 
 1. Read the current canonical Pathway.
 2. Confirm there is no existing non-archived persistent carousel for that Pathway.
 3. Generate complete slide copy, captions, CTA, alt text, and Pathway links.
 4. Run a second doctrine/source review against the canonical Pathway.
 5. Save the work in `studio_creative_projects` with source-hash and doctrine-review evidence.
-6. Reuse the existing project if one appears before save.
-7. Stop before scheduling or live publishing.
+6. Render the current Creative Project frames server-side at 1080×1350.
+7. Store PNGs in Vercel Blob and register them in the existing `studio_pathway_assets` DAM.
+8. Link each PNG back to its frame through `studio_creative_project_assets`.
+9. Reuse current state-version renders instead of regenerating them.
+10. Stop before scheduling or live publishing.
+
+The renderer uses the existing AG navy/red/paper visual direction and role-specific layouts for hooks, Scripture slides, teaching slides, statements, and CTAs. Render evidence is written back to the current Forge review run.
 
 The retired `carousel_topic_pack` recipe remains readable only so historical runs do not break. New scans must not create it.
 
@@ -105,6 +110,7 @@ Background-safe Forge recipes can recover without a browser session. The minute 
 
 - detects approved audio scripts that satisfy a waiting review gate
 - resumes that same run instead of creating a replacement
+- drains new Forge carousel render work without letting old completed drafts starve newer projects
 - detects stale worker leases
 - requeues transient failures with bounded backoff
 - executes due background-safe work
@@ -115,11 +121,13 @@ The worker lease is intentionally long enough for multi-segment audio generation
 
 Pathway audio retains MP3 compatibility and permits mastered WAV assets. Generated audio is stored in the existing `pathway-audio` bucket.
 
-Forge carousels use the current persistent Creative Project tables. Forge must not write new carousel production into retired loose `pathway_assets` rows.
+Forge carousels use the current persistent Creative Project tables and the existing DAM/rendered-asset links. PNG files are stored through Vercel Blob. Forge must not write new carousel production into retired loose `pathway_assets` rows.
 
 ## Sol integration
 
-Sol receives Forge's current queue and execution state during each reasoning loop. When the user asks questions such as:
+Sol receives Forge's current queue and execution state during each reasoning loop. Forge is also exposed through `get_forge_status`, and workspace status includes Forge production evidence.
+
+When the user asks questions such as:
 
 - “How many audios are done?”
 - “What needs to be made?”
@@ -128,10 +136,16 @@ Sol receives Forge's current queue and execution state during each reasoning loo
 
 Sol should inspect current Studio/Forge state, prefer existing work over duplicates, scan when necessary, execute registered Forge proposals when policy permits, and report the actual gate or result.
 
+## Current-work hygiene
+
+The Sol operator feed is not a history page. It shows only queued, running, retrying, waiting-review, failed, and stalled work.
+
+Completed and cancelled runs remain in the durable ledger but stay out of the operator feed. Scans collapse duplicate waiting-review work by recipe + Pathway. Explicit commands such as `clear those old review jobs` may cancel abandoned review rows.
+
 ## Definition of done
 
 A Forge task is done only when current persisted state proves it.
 
 For audio, that means canonical source, approved narration, doctrine verdict, and audio hash all align.
 
-For a carousel, that means a persistent Creative Project exists with current source evidence and a doctrine review attached. Publishing is a separate stage.
+For a carousel, that means a persistent Creative Project exists with current source evidence and doctrine review, and the current project state has linked 1080×1350 rendered PNG assets ready for human review. Scheduling and publishing remain separate stages.
