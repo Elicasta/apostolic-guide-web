@@ -16,19 +16,30 @@ export async function GET(request: Request) {
 
   const before = await getSolOperatorSnapshot();
   if (!before.dbReady) return NextResponse.json({ error: "Sol Operator storage is not configured." }, { status: 503 });
-  if (!before.settings.enabled) return NextResponse.json({ ok: true, skipped: true, reason: "Sol is turned off." });
 
+  // Observation is always allowed. Turning Sol off stops execution, not visibility.
+  // This keeps proposals, coverage, duplicate reconciliation, and last-scan state fresh.
   const analysis = await scanSolOperator();
-  const trusted = before.settings.mode === "trusted"
+  const canAutoRunTrusted = before.settings.enabled && before.settings.mode === "trusted";
+  const trusted = canAutoRunTrusted
     ? await runTrustedSolDrafts({ origin: new URL(request.url).origin, cookie: "" })
     : null;
+
+  const execution = !before.settings.enabled
+    ? "execution_off"
+    : before.settings.mode === "trusted"
+      ? "safe_drafts_auto_run"
+      : before.settings.mode === "assist"
+        ? "approval_required"
+        : "observe_only";
 
   return NextResponse.json({
     ok: true,
     scannedAt: new Date().toISOString(),
     proposals: analysis.proposals.length,
+    enabled: before.settings.enabled,
     mode: before.settings.mode,
-    execution: before.settings.mode === "trusted" ? "safe_drafts_auto_run" : before.settings.mode === "assist" ? "approval_required" : "observe_only",
+    execution,
     trusted: trusted ? {
       proposalCount: trusted.proposalIds.length,
       runCount: trusted.runIds.length,
