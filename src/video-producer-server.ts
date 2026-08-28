@@ -2,6 +2,7 @@ import "server-only";
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { del, issueSignedToken, presignUrl, put } from "@vercel/blob";
 import type { createServiceClient } from "./supabase";
+import { videoProducerMulticamFingerprintState } from "./video-producer-multicam";
 
 export type ServiceClient = NonNullable<ReturnType<typeof createServiceClient>>;
 
@@ -35,6 +36,11 @@ export function workerTokenMatches(raw: string, expectedHash: string) {
 
 export function videoProducerPlanFingerprint(value: unknown) {
   return createHash("sha256").update(JSON.stringify(value)).digest("hex");
+}
+
+export function videoProducerApprovalFingerprint(plan: unknown, directorMetadata: unknown) {
+  const multicam = videoProducerMulticamFingerprintState(directorMetadata);
+  return multicam ? videoProducerPlanFingerprint({ plan, multicam }) : videoProducerPlanFingerprint(plan);
 }
 
 export function videoProducerWorkerRef() {
@@ -117,7 +123,7 @@ export async function deletePrivateVideoProducerBlob(pathname: string) {
 export async function dispatchVideoProducerWorker(input: {
   token: string;
   repository: string;
-  eventType: "video-producer-transcribe" | "video-producer-render" | "video-producer-thumbnail" | "video-producer-publisher-handoff";
+  eventType: "video-producer-transcribe" | "video-producer-render" | "video-producer-multicam-analyze" | "video-producer-thumbnail" | "video-producer-publisher-handoff";
   payload: Record<string, unknown>;
 }) {
   const response = await fetch(`https://api.github.com/repos/${input.repository}/dispatches`, {
