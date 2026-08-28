@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Video Producer finishing worker: Graphics V2, restrained grade, voice mastering and AG music."""
+"""Video Producer finishing worker: Graphics V2, mastering, AG music, and optional synchronized multicam."""
 import importlib.util
 import json
 import os
@@ -18,6 +18,21 @@ from video_producer_broadcast_graphics_v2 import build_broadcast_ass_v2  # noqa:
 
 bw.build_broadcast_ass = build_broadcast_ass_v2
 bw.base.build_ass = build_broadcast_ass_v2
+
+
+def validate_manifest_v2(manifest):
+    version = manifest.get("version")
+    if version not in (1, 2):
+        raise RuntimeError("unsupported manifest version")
+    legacy = dict(manifest)
+    legacy["version"] = 1
+    bw.base.validate_manifest(legacy)
+    if version == 2:
+        multicam = manifest.get("multicam") or {}
+        if multicam.get("version") != 1:
+            raise RuntimeError("invalid multicam manifest")
+        if not isinstance(multicam.get("cameraRanges"), list):
+            raise RuntimeError("multicam camera ranges are missing")
 
 
 def color_filter_v2(plan):
@@ -68,13 +83,6 @@ def _even(value, minimum=2):
 
 
 def reel_motion_intervals(plan):
-    """Turn model motion ranges into cheap static punch-in segments.
-
-    The former full-frame zoompan filter was the dominant Reel cost and repeatedly caused
-    the hosted runner to disappear around the second punch-in. The edit decisions are still
-    honored, but each motion beat is now a fixed crop/scale segment with a clean cut at the
-    requested boundary. That is deterministic, bounded-memory, and much faster to encode.
-    """
     duration = max(0.0, float(plan.get("outputDuration") or 0))
     if duration <= 0:
         return []
@@ -162,7 +170,148 @@ def append_reel_motion_graph(graph, plan):
     return "vmotion"
 
 
+def video_normalize_chain(mode):
+    if mode == "reels":
+        return "fps=30,crop=w='min(iw,ih*9/16)':h=ih:x='(iw-min(iw,ih*9/16))*0.5':y=0,scale=1080:1920:flags=fast_bilinear,setsar=1"
+    return "fps=30,scale=1920:1080:force_original_aspect_ratio=decrease:flags=fast_bilinear,pad=1920:1080:(ow-iw)/2:(oh-ih)/2:black,setsar=1"
+
+
+def apply_music(graph, plan, selected_music, music_index, audio_input):
+    audio_output = audio_input
+    if selected_music and selected_music.get("localPath") and music_index is not None:
+        gain_db = float(selected_music.get("gainDb", -28))
+        duration = max(.5, float(plan.get("outputDuration") or 0))
+        fade_out = max(.1, duration - 1.2)
+        graph.append(
+            f"[{music_index}:a]aresample=48000,aformat=sample_fmts=fltp:sample_rates=48000:channel_layouts=stereo,"
+            f"volume={gain_db}dB,afade=t=in:st=0:d=1.0,afade=t=out:st={fade_out:.3f}:d=1.2,atrim=0:{duration:.3f}[musicbed]"
+        )
+        if bool(selected_music.get("duckUnderVoice", True)):
+            graph.append(f"[{audio_input}]asplit=2[voice_sidechain][voice_mix]")
+            graph.append("[musicbed][voice_sidechain]sidechaincompress=threshold=0.035:ratio=8:attack=15:release=350:makeup=1[ducked]")
+            graph.append("[voice_mix][ducked]amix=inputs=2:duration=first:dropout_transition=0,alimiter=limit=0.94[aout]")
+        else:
+            graph.append(f"[{audio_input}][musicbed]amix=inputs=2:duration=first:dropout_transition=0,alimiter=limit=0.94[aout]")
+        audio_output = "aout"
+    return audio_output
+
+
+def build_ffmpeg_multicam(manifest, source, ass_file, output_file):
+    plan = manifest["renderPlan"]
+    mode = plan["mode"]
+    multicam = manifest.get("multicam") or {}
+    camera_ranges = multicam.get("cameraRanges") or []
+    if not camera_ranges:
+        raise RuntimeError("multicam render has no camera ranges")
+
+    command = ["ffmpeg", "-hide_banner", "-loglevel", "warning", "-y", "-i", source]
+    next_index = 1
+    camera_b = multicam.get("cameraB") or None
+    camera_b_index = None
+    if camera_b and camera_b.get("localPath"):
+        camera_b_index = next_index
+        command += ["-i", camera_b["localPath"]]
+        next_index += 1
+    external = multicam.get("externalAudio") or None
+    external_index = None
+    if external and external.get("localPath"):
+        external_index = next_index
+        command += ["-i", external["localPath"]]
+        next_index += 1
+    selected_music = (manifest.get("musicTracks") or [None])[0]
+    music_index = None
+    if selected_music and selected_music.get("localPath"):
+        music_index = next_index
+        command += ["-stream_loop", "-1", "-i", selected_music["localPath"]]
+        next_index += 1
+
+    source_range_start = float(multicam.get("sourceRangeStart") or 0)
+    graph = []
+    video_labels = []
+    normalize = video_normalize_chain(mode)
+    for index, segment in enumerate(camera_ranges):
+        local_start = float(segment["start"])
+        local_end = float(segment["end"])
+        if local_end <= local_start:
+            continue
+        global_start = source_range_start + local_start
+        global_end = source_range_start + local_end
+        camera = segment.get("camera") or "A"
+        if camera == "B":
+            if camera_b_index is None or not camera_b:
+                raise RuntimeError("Camera Plan selects B but Camera B media is unavailable")
+            offset = float(camera_b.get("offsetSeconds") or 0)
+            trim_start = global_start - offset
+            trim_end = global_end - offset
+            input_index = camera_b_index
+            if trim_start < -0.02:
+                raise RuntimeError("Camera B segment falls before synchronized media coverage")
+        else:
+            trim_start = global_start
+            trim_end = global_end
+            input_index = 0
+        label = f"mcvideo{index}"
+        graph.append(f"[{input_index}:v]trim=start={max(0, trim_start):.4f}:end={max(0, trim_end):.4f},setpts=PTS-STARTPTS,{normalize}[{label}]")
+        video_labels.append(f"[{label}]")
+    if not video_labels:
+        raise RuntimeError("multicam render has no usable video segments")
+    graph.append("".join(video_labels) + f"concat=n={len(video_labels)}:v=1:a=0[vcat]")
+
+    keep = plan.get("keepSegments") or []
+    audio_plan = multicam.get("audioPlan") or {"source": "camera_a"}
+    use_external = audio_plan.get("source") == "external_audio"
+    if use_external and (external_index is None or not external):
+        raise RuntimeError("External Audio is selected but its synchronized media is unavailable")
+    audio_labels = []
+    for index, segment in enumerate(keep):
+        local_start = float(segment["start"])
+        local_end = float(segment["end"])
+        if local_end <= local_start:
+            continue
+        global_start = source_range_start + local_start
+        global_end = source_range_start + local_end
+        if use_external:
+            offset = float(external.get("offsetSeconds") or 0)
+            trim_start = global_start - offset
+            trim_end = global_end - offset
+            input_index = external_index
+            if trim_start < -0.02:
+                raise RuntimeError("External Audio segment falls before synchronized media coverage")
+        else:
+            trim_start = global_start
+            trim_end = global_end
+            input_index = 0
+        label = f"mcaudio{index}"
+        graph.append(f"[{input_index}:a]atrim=start={max(0, trim_start):.4f}:end={max(0, trim_end):.4f},asetpts=PTS-STARTPTS[{label}]")
+        audio_labels.append(f"[{label}]")
+    if not audio_labels:
+        raise RuntimeError("multicam render has no usable audio segments")
+    graph.append("".join(audio_labels) + f"concat=n={len(audio_labels)}:v=0:a=1[acat]")
+
+    if mode == "reels":
+        video_input = append_reel_motion_graph(graph, plan)
+        graph.append(f"[{video_input}]{color_filter_v2(plan)},ass='{ass_file}'[vout]")
+    else:
+        graph.append(f"[vcat]{color_filter_v2(plan)},ass='{ass_file}'[vout]")
+    graph.append(f"[acat]{audio_filter_v2(plan)}[voice]")
+    audio_output = apply_music(graph, plan, selected_music, music_index, "voice")
+
+    video_preset = "veryfast" if mode == "reels" else "medium"
+    video_crf = "20" if mode == "reels" else "18"
+    command += [
+        "-filter_complex", ";".join(graph),
+        "-map", "[vout]", "-map", f"[{audio_output}]",
+        "-c:v", "libx264", "-preset", video_preset, "-crf", video_crf,
+        "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-ac", "2",
+        "-movflags", "+faststart", "-r", "30", output_file
+    ]
+    return command
+
+
 def build_ffmpeg_v2(manifest, source, ass_file, output_file):
+    if manifest.get("version") == 2 and manifest.get("multicam"):
+        return build_ffmpeg_multicam(manifest, source, ass_file, output_file)
+
     plan = manifest["renderPlan"]
     mode = plan["mode"]
     keep = plan.get("keepSegments") or []
@@ -178,7 +327,9 @@ def build_ffmpeg_v2(manifest, source, ass_file, output_file):
 
     music_tracks = manifest.get("musicTracks") or []
     selected_music = music_tracks[0] if music_tracks else None
+    music_index = None
     if selected_music and selected_music.get("localPath"):
+        music_index = 1
         command += ["-stream_loop", "-1", "-i", selected_music["localPath"]]
 
     graph = []
@@ -203,22 +354,7 @@ def build_ffmpeg_v2(manifest, source, ass_file, output_file):
         graph.append(f"[vcat]{video_chain},{color_filter_v2(plan)},ass='{ass_file}'[vout]")
 
     graph.append(f"[acat]{audio_filter_v2(plan)}[voice]")
-    audio_output = "voice"
-    if selected_music and selected_music.get("localPath"):
-        gain_db = float(selected_music.get("gainDb", -28))
-        duration = max(.5, float(plan.get("outputDuration") or 0))
-        fade_out = max(.1, duration - 1.2)
-        graph.append(
-            f"[1:a]aresample=48000,aformat=sample_fmts=fltp:sample_rates=48000:channel_layouts=stereo,"
-            f"volume={gain_db}dB,afade=t=in:st=0:d=1.0,afade=t=out:st={fade_out:.3f}:d=1.2,atrim=0:{duration:.3f}[musicbed]"
-        )
-        if bool(selected_music.get("duckUnderVoice", True)):
-            graph.append("[voice]asplit=2[voice_sidechain][voice_mix]")
-            graph.append("[musicbed][voice_sidechain]sidechaincompress=threshold=0.035:ratio=8:attack=15:release=350:makeup=1[ducked]")
-            graph.append("[voice_mix][ducked]amix=inputs=2:duration=first:dropout_transition=0,alimiter=limit=0.94[aout]")
-        else:
-            graph.append("[voice][musicbed]amix=inputs=2:duration=first:dropout_transition=0,alimiter=limit=0.94[aout]")
-        audio_output = "aout"
+    audio_output = apply_music(graph, plan, selected_music, music_index, "voice")
 
     video_preset = "veryfast" if mode == "reels" else "medium"
     video_crf = "20" if mode == "reels" else "18"
@@ -256,10 +392,22 @@ def main():
         bw.base.download(payload["manifest_url"], manifest_path)
         with open(manifest_path, "r", encoding="utf-8") as handle:
             manifest = json.load(handle)
-        bw.base.validate_manifest(manifest)
+        validate_manifest_v2(manifest)
 
         bw.base.callback(payload, "rendering", 6, "Downloading source video")
         bw.base.download(payload["source_url"], source_path)
+
+        multicam = manifest.get("multicam") or {}
+        camera_b = multicam.get("cameraB") or None
+        if camera_b and camera_b.get("url"):
+            local_path = os.path.join(directory, "camera-b")
+            bw.base.download(camera_b["url"], local_path)
+            camera_b["localPath"] = local_path
+        external = multicam.get("externalAudio") or None
+        if external and external.get("url"):
+            local_path = os.path.join(directory, "external-audio")
+            bw.base.download(external["url"], local_path)
+            external["localPath"] = local_path
 
         tracks = manifest.get("musicTracks") or []
         for index, track in enumerate(tracks):
