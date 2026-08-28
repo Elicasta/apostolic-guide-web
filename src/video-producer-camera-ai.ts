@@ -102,7 +102,7 @@ export function normalizeVideoProducerCameraDirectorOutput(input: unknown, optio
   const minShot = options.mode === "reels" ? 2.4 : 4.0;
   const maxBShare = options.mode === "reels" ? 0.45 : 0.35;
 
-  const snapped: VideoProducerCameraDecision[] = parsed.decisions.map((decision, index) => ({
+  const snapped: VideoProducerCameraDecision[] = parsed.decisions.map((decision, index): VideoProducerCameraDecision => ({
     id: `auto-camera-${index + 1}`,
     at: clamp(snapToBoundary(decision.at, boundaries), 0, duration),
     camera: decision.camera,
