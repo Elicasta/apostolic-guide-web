@@ -71,5 +71,5 @@ test("Podcast Smart Auto Cut keeps Camera A dominant", () => {
     ]
   }, { duration: 30, transcript, coverage: { start: 0, end: 30 }, mode: "podcast" });
   const bStarts = directed.plan.decisions.filter((decision) => decision.camera === "B");
-  assert.ok(bStarts.length <= 1, directed.plan.decisions);
+  assert.ok(bStarts.length <= 1, JSON.stringify(directed.plan.decisions));
 });
