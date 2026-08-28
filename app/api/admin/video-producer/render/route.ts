@@ -121,7 +121,7 @@ export async function POST(request: Request) {
     ? { start: Number(project.source_range_start), end: Number(project.source_range_end) }
     : null;
   const manifest = {
-    version: 2,
+    version: 1,
     project: {
       id: project.id,
       title: project.title,
