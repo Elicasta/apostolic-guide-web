@@ -3,7 +3,7 @@ import { z } from "zod";
 import { getStudioPermission } from "@/auth";
 import { createServiceClient } from "@/supabase";
 import { compileVideoProducerRenderPlan, type VideoProducerEditPlan } from "@/video-producer";
-import { videoProducerPlanFingerprint } from "@/video-producer-server";
+import { videoProducerApprovalFingerprint } from "@/video-producer-server";
 
 export const runtime = "nodejs";
 
@@ -16,7 +16,7 @@ export async function POST(request: Request) {
   if (!parsed.success) return NextResponse.json({ error: "Invalid approval request." }, { status: 400 });
   const service = createServiceClient();
   if (!service) return NextResponse.json({ error: "Supabase service access is not configured." }, { status: 503 });
-  const project = await service.from("video_producer_projects").select("id,mode,status,edit_plan").eq("id", parsed.data.projectId).maybeSingle();
+  const project = await service.from("video_producer_projects").select("id,mode,status,edit_plan,director_metadata").eq("id", parsed.data.projectId).maybeSingle();
   if (project.error) return NextResponse.json({ error: project.error.message }, { status: 500 });
   if (!project.data?.edit_plan || (project.data.mode !== "podcast" && project.data.mode !== "reels")) return NextResponse.json({ error: "Generate an edit plan before approval." }, { status: 409 });
   let plan: VideoProducerEditPlan;
@@ -27,7 +27,7 @@ export async function POST(request: Request) {
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Edit plan is invalid." }, { status: 422 });
   }
-  const fingerprint = videoProducerPlanFingerprint(plan);
+  const fingerprint = videoProducerApprovalFingerprint(plan, project.data.director_metadata);
   const now = new Date().toISOString();
   const update = await service.from("video_producer_projects").update({
     status: "approved",
