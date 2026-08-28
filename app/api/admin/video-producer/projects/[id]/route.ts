@@ -3,6 +3,7 @@ import { getStudioPermission } from "@/auth";
 import { createServiceClient } from "@/supabase";
 import { normalizeVideoProducerTranscript, sliceVideoProducerTranscript } from "@/video-producer-ai";
 import { reconcileVideoProducerWorkerState } from "@/video-producer-job-recovery";
+import { getVideoProducerMulticamMetadata } from "@/video-producer-multicam";
 import { createPrivateBlobDownloadUrl } from "@/video-producer-server";
 
 export const runtime = "nodejs";
@@ -34,12 +35,19 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
   const localTranscript = project.source_range_start != null && project.source_range_end != null
     ? sliceVideoProducerTranscript(transcript, Number(project.source_range_start), Number(project.source_range_end))
     : transcript;
+  const multicam = getVideoProducerMulticamMetadata(project.director_metadata);
   let sourcePreviewUrl: string | null = null;
   let renderPreviewUrl: string | null = null;
+  const cameraPreviewUrls: Record<string, string> = {};
+  let externalAudioPreviewUrl: string | null = null;
   try {
     if (project.source_provider === "vercel_blob" && project.source_locator) {
       sourcePreviewUrl = await createPrivateBlobDownloadUrl(project.source_locator, 30 * 60 * 1000);
     }
+    await Promise.all(multicam.cameras.map(async (camera) => {
+      cameraPreviewUrls[camera.id] = await createPrivateBlobDownloadUrl(camera.locator, 30 * 60 * 1000);
+    }));
+    if (multicam.externalAudio) externalAudioPreviewUrl = await createPrivateBlobDownloadUrl(multicam.externalAudio.locator, 30 * 60 * 1000);
     const completed = (rendersResult.data ?? []).find((render) => render.status === "completed" && render.output_storage_path);
     if (completed?.output_storage_path) renderPreviewUrl = await createPrivateBlobDownloadUrl(completed.output_storage_path, 30 * 60 * 1000);
   } catch (error) {
@@ -49,6 +57,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
     project: { ...project, transcript_local_text: localTranscript.text, transcript_local_duration: localTranscript.duration },
     renders: rendersResult.data ?? [],
     sourcePreviewUrl,
-    renderPreviewUrl
+    renderPreviewUrl,
+    multicamPreview: { cameraPreviewUrls, externalAudioPreviewUrl }
   });
 }
