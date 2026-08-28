@@ -62,18 +62,20 @@ export type VideoProducerCoverage = { start: number; end: number };
 
 const finite = (value: number, fallback = 0) => Number.isFinite(value) ? value : fallback;
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, finite(value, min)));
+const TIME_PRECISION = 1_000_000;
+const stableTime = (value: number) => Math.round(finite(value) * TIME_PRECISION) / TIME_PRECISION;
 
 export function assetTimeToProjectTime(assetTime: number, offsetSeconds: number) {
-  return finite(assetTime) + finite(offsetSeconds);
+  return stableTime(finite(assetTime) + finite(offsetSeconds));
 }
 
 export function projectTimeToAssetTime(projectTime: number, offsetSeconds: number) {
-  return finite(projectTime) - finite(offsetSeconds);
+  return stableTime(finite(projectTime) - finite(offsetSeconds));
 }
 
 export function mediaProjectCoverage(duration: number, offsetSeconds: number): VideoProducerCoverage {
-  const start = finite(offsetSeconds);
-  return { start, end: start + Math.max(0, finite(duration)) };
+  const start = stableTime(offsetSeconds);
+  return { start, end: stableTime(start + Math.max(0, finite(duration))) };
 }
 
 export function mediaLocalCoverage(
@@ -91,7 +93,7 @@ export function mediaLocalCoverage(
   const overlapStart = Math.max(windowStart, global.start);
   const overlapEnd = Math.min(windowEnd, global.end);
   if (overlapEnd <= overlapStart) return null;
-  return { start: overlapStart - windowStart, end: overlapEnd - windowStart };
+  return { start: stableTime(overlapStart - windowStart), end: stableTime(overlapEnd - windowStart) };
 }
 
 export function normalizeVideoProducerCameraPlan(
