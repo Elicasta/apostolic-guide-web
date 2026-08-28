@@ -102,18 +102,34 @@ export function normalizeVideoProducerCameraDirectorOutput(input: unknown, optio
   const minShot = options.mode === "reels" ? 2.4 : 4.0;
   const maxBShare = options.mode === "reels" ? 0.45 : 0.35;
 
-  const proposed: VideoProducerCameraDecision[] = parsed.decisions.map((decision, index) => ({
+  const snapped: VideoProducerCameraDecision[] = parsed.decisions.map((decision, index) => ({
     id: `auto-camera-${index + 1}`,
     at: clamp(snapToBoundary(decision.at, boundaries), 0, duration),
     camera: decision.camera,
     reason: decision.reason.trim() || undefined,
     source: "auto",
     locked: false
-  }));
+  })).sort((a, b) => a.at - b.at);
+
+  // Stabilize generated decisions before camera-plan normalization. Two model cuts
+  // can snap onto the same phrase boundary; if the second one is allowed to replace
+  // the first, a valid A→B→A beat can collapse into no visible B shot at all.
+  const proposed: VideoProducerCameraDecision[] = [];
+  let generatedCamera: "A" | "B" = "A";
+  let generatedLastAt = 0;
+  for (const decision of snapped) {
+    if (decision.camera === generatedCamera) continue;
+    if (decision.at - generatedLastAt < minShot) continue;
+    proposed.push(decision);
+    generatedCamera = decision.camera;
+    generatedLastAt = decision.at;
+  }
+
   const preserved = preserveLockedCameraDecisions(proposed, options.existingPlan);
   let plan = normalizeVideoProducerCameraPlan({ version: 1, defaultCamera: "A", decisions: preserved }, duration, options.coverage);
 
-  // Enforce minimum shot duration after snapping. Locked manual decisions win.
+  // Enforce minimum shot duration again after locked human decisions are merged.
+  // Locked manual decisions win over generated spacing.
   const spaced: VideoProducerCameraDecision[] = [];
   let lastAt = 0;
   for (const decision of plan.decisions) {
