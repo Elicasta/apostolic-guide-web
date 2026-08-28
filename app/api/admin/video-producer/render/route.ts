@@ -6,6 +6,7 @@ import { pathwayBySlug } from "@/pathway-catalog";
 import { createServiceClient } from "@/supabase";
 import { compileVideoProducerRenderPlan, type VideoProducerEditPlan } from "@/video-producer";
 import { normalizeVideoProducerTranscript, sliceVideoProducerTranscript } from "@/video-producer-ai";
+import { videoProducerMulticamFingerprintState } from "@/video-producer-multicam";
 import {
   createPrivateBlobDownloadUrl,
   createPrivateBlobUploadUrl,
@@ -13,7 +14,7 @@ import {
   deletePrivateVideoProducerBlob,
   dispatchVideoProducerWorker,
   storeVideoProducerManifest,
-  videoProducerPlanFingerprint,
+  videoProducerApprovalFingerprint,
   videoProducerRendererCredentials,
   videoProducerWorkerRef
 } from "@/video-producer-server";
@@ -37,9 +38,6 @@ function videoProducerCallbackOrigin(request: Request) {
   const configured = process.env.VIDEO_PRODUCER_CALLBACK_ORIGIN?.trim().replace(/\/+$/, "");
   if (configured) return configured;
   const requestOrigin = new URL(request.url).origin;
-  // Preview deployments may be protected by Vercel before the request reaches
-  // our token-authenticated callback route. Workers therefore report through a
-  // stable public production alias while previews still use the shared render DB.
   return process.env.VERCEL_ENV === "preview" ? DEFAULT_PUBLIC_CALLBACK_ORIGIN : requestOrigin;
 }
 
@@ -52,7 +50,7 @@ export async function POST(request: Request) {
   if (!service) return NextResponse.json({ error: "Supabase service access is not configured." }, { status: 503 });
 
   const result = await service.from("video_producer_projects")
-    .select("id,title,mode,status,pathway_slug,selected_music_track_id,source_provider,source_locator,source_filename,source_duration,source_range_start,source_range_end,transcript,edit_plan,approval_fingerprint,approved_at")
+    .select("id,title,mode,status,pathway_slug,selected_music_track_id,source_provider,source_locator,source_filename,source_duration,source_range_start,source_range_end,transcript,edit_plan,director_metadata,approval_fingerprint,approved_at")
     .eq("id", parsed.data.projectId)
     .maybeSingle();
   if (result.error) return NextResponse.json({ error: result.error.message }, { status: 500 });
@@ -62,7 +60,7 @@ export async function POST(request: Request) {
   if (project.source_provider !== "vercel_blob") return NextResponse.json({ error: "This source provider is not renderable yet." }, { status: 409 });
 
   const plan = project.edit_plan as VideoProducerEditPlan;
-  const currentFingerprint = videoProducerPlanFingerprint(plan);
+  const currentFingerprint = videoProducerApprovalFingerprint(plan, project.director_metadata);
   if (currentFingerprint !== project.approval_fingerprint) return NextResponse.json({ error: "The edit changed after approval. Review and approve it again." }, { status: 409 });
   let renderPlan;
   try {
@@ -71,6 +69,9 @@ export async function POST(request: Request) {
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Edit plan could not be compiled." }, { status: 422 });
   }
+
+  const multicam = videoProducerMulticamFingerprintState(project.director_metadata);
+  if (multicam && project.source_range_start != null) return NextResponse.json({ error: "Multicam rendering belongs to the parent long-form source, not an inherited Reel range." }, { status: 409 });
 
   const fullTranscript = normalizeVideoProducerTranscript(project.transcript);
   const localTranscript = project.source_range_start != null && project.source_range_end != null
@@ -134,6 +135,7 @@ export async function POST(request: Request) {
     },
     source: { filename: project.source_filename, duration: project.source_duration, range: sourceRange },
     renderPlan,
+    multicam,
     transcript: localTranscript,
     musicTracks,
     brand: {
@@ -145,6 +147,13 @@ export async function POST(request: Request) {
   let uploadedManifestPath: string | null = null;
   try {
     const sourceUrl = await createPrivateBlobDownloadUrl(project.source_locator, 8 * 60 * 60 * 1000);
+    const cameraUrls = multicam ? await Promise.all(multicam.cameras.map(async (camera) => ({
+      id: camera.id,
+      url: await createPrivateBlobDownloadUrl(camera.locator, 8 * 60 * 60 * 1000)
+    }))) : [];
+    const externalAudioUrl = multicam?.externalAudio
+      ? await createPrivateBlobDownloadUrl(multicam.externalAudio.locator, 8 * 60 * 60 * 1000)
+      : null;
     const outputUploadUrl = await createPrivateBlobUploadUrl({
       pathname: outputPath,
       contentType: "video/mp4",
@@ -155,13 +164,14 @@ export async function POST(request: Request) {
     uploadedManifestPath = manifestBlob.pathname;
     const manifestUrl = await createPrivateBlobDownloadUrl(manifestBlob.pathname, 8 * 60 * 60 * 1000);
     const snapshot = {
-      version: 1,
+      version: 2,
       approvalFingerprint: currentFingerprint,
       mode: project.mode,
       pathwaySlug: pathway?.slug ?? null,
       musicTrackId,
       output: renderPlan.output,
       sourceRange,
+      multicam,
       workerRef,
       rendererBridge: {
         callbackTokenHash: callback.hash,
@@ -190,6 +200,8 @@ export async function POST(request: Request) {
         project_id: project.id,
         worker_ref: workerRef,
         source_url: sourceUrl,
+        camera_urls: cameraUrls,
+        external_audio_url: externalAudioUrl,
         manifest_url: manifestUrl,
         output_upload_url: outputUploadUrl,
         callback_url: `${callbackOrigin}/api/admin/video-producer/render-callback`,
