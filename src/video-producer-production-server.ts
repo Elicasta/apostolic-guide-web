@@ -1,6 +1,6 @@
 import "server-only";
 import type { createServiceClient } from "./supabase";
-import type { VideoProducerEditPlan } from "./video-producer";
+import { buildKeepSegments, type VideoProducerEditPlan } from "./video-producer";
 import {
   compileCameraRangesThroughContentCuts,
   defaultVideoProducerAudioPlan,
@@ -40,6 +40,10 @@ export type VideoProducerResolvedProduction = {
   usesMulticam: boolean;
 };
 
+function rangeCovered(start: number, end: number, coverage: { start: number; end: number }) {
+  return start >= coverage.start - 0.03 && end <= coverage.end + 0.03;
+}
+
 export async function resolveVideoProducerProductionState(service: ServiceClient, project: VideoProducerProductionProject): Promise<VideoProducerResolvedProduction> {
   const rootProjectId = project.parent_project_id || project.id;
   const assetsResult = await service.from("video_producer_media_assets")
@@ -56,13 +60,11 @@ export async function resolveVideoProducerProductionState(service: ServiceClient
 
   const cameraBReady = Boolean(cameraB && ["synced", "manual"].includes(cameraB.sync_status) && cameraB.duration != null && cameraB.offset_seconds != null);
   const cameraBCoverage = cameraBReady && cameraB
-    ? mediaLocalCoverage(
-        Number(cameraB.duration),
-        Number(cameraB.offset_seconds),
-        Number(project.source_range_start || 0),
-        project.source_range_end != null ? Number(project.source_range_end) : null
-      )
+    ? mediaLocalCoverage(Number(cameraB.duration), Number(cameraB.offset_seconds), Number(project.source_range_start || 0), project.source_range_end != null ? Number(project.source_range_end) : null)
     : null;
+  if (project.camera_plan && cameraBReady && cameraB && project.camera_plan.sourceRevision != null && Number(project.camera_plan.sourceRevision) !== Number(cameraB.revision || 1)) {
+    throw new Error("Camera B synchronization changed after Smart Auto Cut. Regenerate or save the Camera Plan before approval.");
+  }
   const rawCameraPlan = project.camera_plan && cameraBReady && cameraBCoverage
     ? normalizeVideoProducerCameraPlan(project.camera_plan, duration, cameraBCoverage)
     : null;
@@ -71,28 +73,24 @@ export async function resolveVideoProducerProductionState(service: ServiceClient
   const requestedAudio = project.audio_plan?.version === 1 ? project.audio_plan : defaultVideoProducerAudioPlan();
   let audioPlan: VideoProducerAudioPlan = defaultVideoProducerAudioPlan();
   if (requestedAudio.source === "external_audio") {
-    if (!externalAudio || externalAudio.id !== requestedAudio.assetId || !["synced", "manual"].includes(externalAudio.sync_status) || externalAudio.offset_seconds == null) {
+    if (!externalAudio || externalAudio.id !== requestedAudio.assetId || !["synced", "manual"].includes(externalAudio.sync_status) || externalAudio.offset_seconds == null || externalAudio.duration == null) {
       throw new Error("The selected External Audio is no longer synchronized. Choose Camera A audio or synchronize the recorder again.");
     }
     if (Number(externalAudio.revision || 1) !== Number(requestedAudio.syncRevision || 0)) {
       throw new Error("External Audio synchronization changed after it was selected. Re-select the master audio before approval.");
     }
+    const coverage = mediaLocalCoverage(Number(externalAudio.duration), Number(externalAudio.offset_seconds), Number(project.source_range_start || 0), project.source_range_end != null ? Number(project.source_range_end) : null);
+    const keepSegments = buildKeepSegments(project.edit_plan.cuts, duration);
+    if (!coverage || keepSegments.some((segment) => !rangeCovered(segment.start, segment.end, coverage))) {
+      throw new Error("External Audio does not cover every kept part of this edit. Correct the sync/recording range or use Camera A audio.");
+    }
     audioPlan = { ...requestedAudio, offsetSeconds: Number(externalAudio.offset_seconds) };
   }
 
-  const usedMedia = media.filter((asset) =>
-    (cameraPlan && asset.role === "camera_b") || (audioPlan.source === "external_audio" && asset.role === "external_audio")
-  );
-  const cameraRanges = cameraPlan
-    ? compileCameraRangesThroughContentCuts(cameraPlan, project.edit_plan.cuts, duration, cameraBCoverage)
-    : [];
+  const usedMedia = media.filter((asset) => (cameraPlan && asset.role === "camera_b") || (audioPlan.source === "external_audio" && asset.role === "external_audio"));
+  const cameraRanges = cameraPlan ? compileCameraRangesThroughContentCuts(cameraPlan, project.edit_plan.cuts, duration, cameraBCoverage) : [];
   const usesMulticam = Boolean(cameraPlan || audioPlan.source === "external_audio");
-  const fingerprintInput = videoProducerProductionFingerprintInput({
-    contentPlan: project.edit_plan,
-    cameraPlan,
-    audioPlan,
-    media: usedMedia
-  });
+  const fingerprintInput = videoProducerProductionFingerprintInput({ contentPlan: project.edit_plan, cameraPlan, audioPlan, media: usedMedia });
   return {
     rootProjectId,
     media: usedMedia,
