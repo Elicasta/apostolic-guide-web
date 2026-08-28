@@ -6,6 +6,8 @@ on:
       - 'scripts/render_video_producer_worker.py'
       - 'scripts/render_video_producer_broadcast_worker.py'
       - 'scripts/render_video_producer_finishing_worker.py'
+      - 'scripts/render_video_producer_multicam_worker.py'
+      - 'scripts/analyze_video_producer_multicam.py'
       - 'scripts/video_producer_broadcast_graphics.py'
       - 'scripts/video_producer_broadcast_graphics_v2.py'
       - 'scripts/video_producer_thumbnail_worker.py'
@@ -13,6 +15,7 @@ on:
       - 'scripts/transcribe_video_producer_worker.py'
       - 'scripts/check_video_producer_worker.py'
       - 'scripts/check_video_producer_finishing.py'
+      - 'scripts/check_video_producer_multicam.py'
       - 'public/brand/**'
       - '.github/workflows/video-producer-worker-check.yml'
       - '.github/workflows/video-producer-dispatch.yml'
@@ -39,15 +42,15 @@ jobs:
   smoke:
     name: media smoke
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - name: Check out branch
         uses: actions/checkout@v4
 
-      - name: Install FFmpeg and AG fonts
+      - name: Install FFmpeg, NumPy, and AG fonts
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends ffmpeg fonts-noto-core fontconfig
+          sudo apt-get install -y --no-install-recommends ffmpeg python3-numpy fonts-noto-core fontconfig
           for pkg in fonts-bebas-neue fonts-montserrat fonts-playfair-display; do
             if apt-cache show "$pkg" >/dev/null 2>&1; then
               sudo apt-get install -y --no-install-recommends "$pkg"
@@ -61,13 +64,16 @@ jobs:
             scripts/render_video_producer_worker.py \
             scripts/render_video_producer_broadcast_worker.py \
             scripts/render_video_producer_finishing_worker.py \
+            scripts/render_video_producer_multicam_worker.py \
+            scripts/analyze_video_producer_multicam.py \
             scripts/video_producer_broadcast_graphics.py \
             scripts/video_producer_broadcast_graphics_v2.py \
             scripts/video_producer_thumbnail_worker.py \
             scripts/video_producer_publisher_handoff_worker.py \
             scripts/transcribe_video_producer_worker.py \
             scripts/check_video_producer_worker.py \
-            scripts/check_video_producer_finishing.py
+            scripts/check_video_producer_finishing.py \
+            scripts/check_video_producer_multicam.py
 
       - name: Render Podcast and Reels smoke files
         run: python3 scripts/check_video_producer_worker.py
@@ -84,3 +90,6 @@ jobs:
             echo "::error title=Finishing FFmpeg diagnostics::$diagnostic"
             exit "$status"
           fi
+
+      - name: Render multicam and verify waveform lag
+        run: python3 scripts/check_video_producer_multicam.py
