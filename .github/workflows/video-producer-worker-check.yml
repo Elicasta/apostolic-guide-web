@@ -11,8 +11,11 @@ on:
       - 'scripts/video_producer_thumbnail_worker.py'
       - 'scripts/video_producer_publisher_handoff_worker.py'
       - 'scripts/transcribe_video_producer_worker.py'
+      - 'scripts/sync_video_producer_worker.py'
       - 'scripts/check_video_producer_worker.py'
       - 'scripts/check_video_producer_finishing.py'
+      - 'scripts/check_video_producer_sync.py'
+      - 'scripts/check_video_producer_multicam.py'
       - 'public/brand/**'
       - '.github/workflows/video-producer-worker-check.yml'
       - '.github/workflows/video-producer-dispatch.yml'
@@ -39,15 +42,15 @@ jobs:
   smoke:
     name: media smoke
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - name: Check out branch
         uses: actions/checkout@v4
 
-      - name: Install FFmpeg and AG fonts
+      - name: Install FFmpeg, NumPy, and AG fonts
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends ffmpeg fonts-noto-core fontconfig
+          sudo apt-get install -y --no-install-recommends ffmpeg python3-numpy fonts-noto-core fontconfig
           for pkg in fonts-bebas-neue fonts-montserrat fonts-playfair-display; do
             if apt-cache show "$pkg" >/dev/null 2>&1; then
               sudo apt-get install -y --no-install-recommends "$pkg"
@@ -66,8 +69,14 @@ jobs:
             scripts/video_producer_thumbnail_worker.py \
             scripts/video_producer_publisher_handoff_worker.py \
             scripts/transcribe_video_producer_worker.py \
+            scripts/sync_video_producer_worker.py \
             scripts/check_video_producer_worker.py \
-            scripts/check_video_producer_finishing.py
+            scripts/check_video_producer_finishing.py \
+            scripts/check_video_producer_sync.py \
+            scripts/check_video_producer_multicam.py
+
+      - name: Verify waveform synchronization math
+        run: python3 scripts/check_video_producer_sync.py
 
       - name: Render Podcast and Reels smoke files
         run: python3 scripts/check_video_producer_worker.py
@@ -82,5 +91,18 @@ jobs:
           if [ "$status" -ne 0 ]; then
             diagnostic=$(tail -c 7000 /tmp/ag-finishing-smoke.log | tr '\n' ' ' | sed 's/%/%25/g; s/\r/%0D/g')
             echo "::error title=Finishing FFmpeg diagnostics::$diagnostic"
+            exit "$status"
+          fi
+
+      - name: Render synchronized multicam and External Audio smoke file
+        shell: bash
+        run: |
+          set +e
+          python3 scripts/check_video_producer_multicam.py > /tmp/ag-multicam-smoke.log 2>&1
+          status=$?
+          cat /tmp/ag-multicam-smoke.log
+          if [ "$status" -ne 0 ]; then
+            diagnostic=$(tail -c 7000 /tmp/ag-multicam-smoke.log | tr '\n' ' ' | sed 's/%/%25/g; s/\r/%0D/g')
+            echo "::error title=Multicam FFmpeg diagnostics::$diagnostic"
             exit "$status"
           fi
