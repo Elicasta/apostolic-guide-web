@@ -38,6 +38,7 @@ export default function TeleprompterDisplay() {
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   const frameRef = useRef<number | null>(null);
   const lastFrameRef = useRef<number | null>(null);
+  const scrollCarryRef = useRef(0);
   const bottomStopRef = useRef(false);
 
   useEffect(() => {
@@ -84,8 +85,10 @@ export default function TeleprompterDisplay() {
       fontScale: 1,
       locked: false,
       scrolling: false,
-      scrollSpeed: 60,
+      scrollSpeed: 55,
       scrollTopSequence: 0,
+      scrollNudgeSequence: 0,
+      scrollNudgeDelta: 0,
       slides: summarizeSlides(slides),
       sequence: 0,
       updatedAt: 0,
@@ -105,23 +108,36 @@ export default function TeleprompterDisplay() {
   const fontScale = state?.fontScale ?? 1;
   const locked = state?.locked ?? false;
   const scrolling = state?.scrolling ?? false;
-  const scrollSpeed = state?.scrollSpeed ?? 60;
+  const scrollSpeed = state?.scrollSpeed ?? 55;
   const scrollTopSequence = state?.scrollTopSequence ?? 0;
+  const scrollNudgeSequence = state?.scrollNudgeSequence ?? 0;
+  const scrollNudgeDelta = state?.scrollNudgeDelta ?? 0;
   const slide = slides[Math.min(slideIndex, Math.max(slides.length - 1, 0))];
   const night = theme === "night";
 
   useEffect(() => {
     scrollerRef.current?.scrollTo({ top: 0, behavior: "auto" });
+    scrollCarryRef.current = 0;
   }, [slideIndex]);
 
   useEffect(() => {
     if (scrollTopSequence <= 0) return;
     scrollerRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+    scrollCarryRef.current = 0;
   }, [scrollTopSequence]);
+
+  useEffect(() => {
+    if (scrollNudgeSequence <= 0 || scrollNudgeDelta === 0) return;
+    const scroller = scrollerRef.current;
+    if (!scroller) return;
+    scroller.scrollBy({ top: scrollNudgeDelta, behavior: "smooth" });
+    scrollCarryRef.current = 0;
+  }, [scrollNudgeDelta, scrollNudgeSequence]);
 
   useEffect(() => {
     if (!scrolling) {
       lastFrameRef.current = null;
+      scrollCarryRef.current = 0;
       bottomStopRef.current = false;
       if (frameRef.current !== null) window.cancelAnimationFrame(frameRef.current);
       frameRef.current = null;
@@ -134,11 +150,16 @@ export default function TeleprompterDisplay() {
       const previous = lastFrameRef.current ?? timestamp;
       const elapsed = Math.min(timestamp - previous, 80);
       lastFrameRef.current = timestamp;
-      const maxTop = Math.max(scroller.scrollHeight - scroller.clientHeight, 0);
-      const nextTop = Math.min(scroller.scrollTop + (scrollSpeed * elapsed) / 1000, maxTop);
-      scroller.scrollTop = nextTop;
 
-      if (nextTop >= maxTop - 1) {
+      const maxTop = Math.max(scroller.scrollHeight - scroller.clientHeight, 0);
+      scrollCarryRef.current += (scrollSpeed * elapsed) / 1000;
+      const wholePixels = Math.floor(scrollCarryRef.current);
+      if (wholePixels > 0) {
+        scrollCarryRef.current -= wholePixels;
+        scroller.scrollTop = Math.min(scroller.scrollTop + wholePixels, maxTop);
+      }
+
+      if (scroller.scrollTop >= maxTop - 1) {
         if (!bottomStopRef.current) {
           bottomStopRef.current = true;
           dispatch({ type: "scroll", scrolling: false });
@@ -153,6 +174,7 @@ export default function TeleprompterDisplay() {
       if (frameRef.current !== null) window.cancelAnimationFrame(frameRef.current);
       frameRef.current = null;
       lastFrameRef.current = null;
+      scrollCarryRef.current = 0;
     };
   }, [dispatch, scrollSpeed, scrolling]);
 
@@ -273,14 +295,14 @@ export default function TeleprompterDisplay() {
             </button>
             <button
               type="button"
-              onClick={() => dispatch({ type: "scrollSpeed", scrollSpeed: scrollSpeed - 10 })}
+              onClick={() => dispatch({ type: "scrollSpeed", scrollSpeed: scrollSpeed - 5 })}
             >
               Slower
             </button>
             <span className="tp-scroll-speed">{scrollSpeed} px/s</span>
             <button
               type="button"
-              onClick={() => dispatch({ type: "scrollSpeed", scrollSpeed: scrollSpeed + 10 })}
+              onClick={() => dispatch({ type: "scrollSpeed", scrollSpeed: scrollSpeed + 5 })}
             >
               Faster
             </button>
