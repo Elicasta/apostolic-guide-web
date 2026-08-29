@@ -141,7 +141,7 @@ export function applyTeleprompterAction(
     case "scrollNudge":
       patch = {
         scrolling: false,
-        scrollNudgeSequence: current.scrollNudgeSequence + 1,
+        scrollNudgeSequence: (current.scrollNudgeSequence ?? 0) + 1,
         scrollNudgeDelta: clamp(action.delta, -600, 600),
       };
       break;
