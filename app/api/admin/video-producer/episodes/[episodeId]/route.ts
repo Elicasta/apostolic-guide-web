@@ -35,7 +35,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ episo
   if (parsed.data.format !== undefined) patch.format = parsed.data.format;
   if (parsed.data.speakers !== undefined) patch.speakers = parsed.data.speakers;
   if (parsed.data.scriptText !== undefined) patch.script_text = parsed.data.scriptText;
-  if (["premise", "primaryPathwaySlug", "supportingPathwaySlugs", "format", "speakers", "scriptText"].some((key) => key in parsed.data)) {
+  if (["title", "premise", "primaryPathwaySlug", "supportingPathwaySlugs", "format", "speakers", "scriptText"].some((key) => key in parsed.data)) {
     patch.status = "draft";
     patch.theology_review = null;
     patch.approved_at = null;

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { APOSTOLIC_GUIDE_ONENESS_AUDIO_RULES } from "./pathway-audio-script";
+import { selectedEpisodeThumbnail, selectedEpisodeTitle, type EpisodeGrowthPlan } from "./video-producer-growth";
 
 export const EPISODE_FORMATS = ["solo", "dialogue", "panel"] as const;
 export type EpisodeFormat = typeof EPISODE_FORMATS[number];
@@ -34,12 +35,36 @@ export function episodeFormatLabel(format: EpisodeFormat) {
   return "Solo episode";
 }
 
+function growthContract(plan: EpisodeGrowthPlan) {
+  const thumbnail = selectedEpisodeThumbnail(plan);
+  return [
+    `SELECTED YOUTUBE TITLE: ${selectedEpisodeTitle(plan)}`,
+    `SELECTED THUMBNAIL COPY: ${thumbnail?.copy || ""}`,
+    `SELECTED THUMBNAIL VISUAL: ${thumbnail?.visual || ""}`,
+    `VIEWER STATE: ${plan.audience.viewerState}`,
+    `VIEWER TENSION: ${plan.audience.tension}`,
+    `EPISODE PROMISE: ${plan.audience.promise}`,
+    `EXPECTED PAYOFF: ${plan.audience.payoff}`,
+    `CLICK REASON: ${plan.packaging.clickReason}`,
+    `DELIVERY EXPECTATION: ${plan.packaging.deliveryExpectation}`,
+    `0–30 SECOND HOOK: ${plan.retention.hook}`,
+    "FIRST-MINUTE BEATS:",
+    ...plan.retention.firstMinuteBeats.map((beat, index) => `${index + 1}. ${beat}`),
+    "OPEN LOOPS TO CLOSE:",
+    ...plan.retention.openLoops.map((loop, index) => `${index + 1}. ${loop}`),
+    "PATTERN INTERRUPTS / IDEA RESETS:",
+    ...plan.retention.patternInterrupts.map((beat, index) => `${index + 1}. ${beat}`),
+    `FINAL PAYOFF: ${plan.retention.payoff}`
+  ].join("\n");
+}
+
 export function buildEpisodeGenerationPrompt(input: {
   title: string;
   premise: string;
   format: EpisodeFormat;
   speakers: EpisodeSpeaker[];
   pathwaySource: string;
+  growthPlan: EpisodeGrowthPlan;
 }) {
   const speakers = input.speakers.map((speaker) => `${speaker.name} — ${speaker.role}`).join("\n");
   const dialogueRules = input.format === "solo" ? [
@@ -53,21 +78,30 @@ export function buildEpisodeGenerationPrompt(input: {
   ];
 
   return [
-    "Write a podcast episode script for Apostolic Guide.",
+    "Write a YouTube-first Apostolic Guide episode script.",
     "The episode may be practical, pastoral, cultural, devotional, or doctrinal, but its theology and Scripture claims must stay grounded in the supplied Apostolic Guide Pathways.",
-    `TITLE: ${input.title}`,
+    "The growth plan below is a delivery contract, not optional inspiration. The title and thumbnail earn the click. The script must fulfill the exact promise they create.",
+    "Do not bait-and-switch. Do not repeat the title and thumbnail as empty hype. Earn the opening by resolving the tension through the episode.",
+    `EDITOR WORKING TITLE: ${input.title}`,
     `PREMISE / THOUGHT FROM THE EDITOR: ${input.premise}`,
     `FORMAT: ${episodeFormatLabel(input.format)}`,
     "SPEAKERS:", speakers,
     "",
+    "YOUTUBE PACKAGE + RETENTION CONTRACT",
+    growthContract(input.growthPlan),
+    "",
     "VOICE",
     "- Natural, intelligent, warm, direct, and Scripture-first.",
+    "- Teach like a real teacher speaking to a person. Do not become a hyperactive YouTuber.",
     "- Practical application matters. It is acceptable to discuss work, family, culture, friendships, holiness, identity, prayer, evangelism, leadership, suffering, technology, or daily decisions when relevant to the premise.",
     "- Do not manufacture culture-war outrage, attack other Christians, or force every practical observation into a doctrinal debate.",
     "- Distinguish biblical teaching from pastoral application. Do not present a practical recommendation as though it were an explicit verse.",
     "- Never invent Scripture quotations. Prefer references and paraphrase only what the supplied Pathway source actually supports.",
     "- Do not introduce outside proof texts, historical claims, statistics, or attributed quotations unless they are explicitly supplied by the editor.",
-    "- Make the first minute earn attention with a real question, tension, story setup, or practical problem.",
+    "- Use the planned first-minute beats naturally. The first 30 seconds must establish the promised tension and why the viewer should stay.",
+    "- Close every open loop you introduce. Do not create questions that the episode never resolves.",
+    "- Pattern interrupts are content resets, not stage directions. Let idea changes, questions, examples, Scripture moments, objections, and applications create those beats in the spoken structure.",
+    "- Build toward the promised payoff rather than front-loading every proof point.",
     "- End with a useful takeaway and a natural invitation to continue studying the relevant Pathway on Apostolic Guide.",
     "- Output only the finished script. Do not add markdown headings, production notes, sound cues, or analysis.",
     "- Aim for a useful mini episode, normally 6–15 minutes when spoken. Depth should follow the premise rather than a fixed word count.",
@@ -88,10 +122,13 @@ export function buildEpisodeReviewPrompt(input: {
   speakers: EpisodeSpeaker[];
   pathwaySource: string;
   scriptText: string;
+  growthPlan: EpisodeGrowthPlan;
 }) {
-  return `You are the rigid editorial and theological checker for an Apostolic Guide podcast episode.
+  return `You are the rigid editorial and theological checker for an Apostolic Guide YouTube episode.
 
-Review the episode against the supplied Pathway source and Apostolic Oneness rules. The episode may make practical applications that are not direct Scripture quotations, but it may not invent biblical claims, proof texts, historical facts, or doctrinal conclusions outside the supplied source.
+Review the episode against the supplied Pathway source, Apostolic Oneness rules, and the YouTube package contract. The episode may make practical applications that are not direct Scripture quotations, but it may not invent biblical claims, proof texts, historical facts, or doctrinal conclusions outside the supplied source.
+
+The package is also a truthfulness contract. The script must actually answer the tension, promise, and payoff that earned the click. If the script materially fails to fulfill the selected title/thumbnail promise, report that as a conversation warning or failure. Do not allow clickbait to pass approval merely because the theology is correct.
 
 ${APOSTOLIC_GUIDE_ONENESS_AUDIO_RULES}
 
@@ -99,7 +136,7 @@ CHECK EXACTLY FIVE AREAS
 1. theology — The episode remains within Apostolic Oneness theology and never affirms conflicting person-language, eternal-Son personhood, multiple divine centers, or mask language.
 2. scripture — References and paraphrases are faithful to the supplied Pathways. No invented quotations or outside proof texts.
 3. source — Doctrinal claims are supportable from the supplied Pathways. Practical application may extend beyond the wording of the source only when clearly presented as application, wisdom, example, or judgment.
-4. conversation — For dialogue/panel formats, the speakers sound like a real conversation rather than alternating essays. For solo, spoken flow should be natural and coherent.
+4. conversation — For dialogue/panel formats, the speakers sound like a real conversation rather than alternating essays. For solo, spoken flow should be natural and coherent. The episode must also fulfill the selected package promise without bait-and-switch.
 5. practical_application — Application is responsible, pastoral, and does not turn preference, speculation, or cultural opinion into a command of Scripture.
 
 Return "passed" only when no material issue should stop approval. A warning still requires editorial review before approval.
@@ -124,6 +161,9 @@ ${input.premise}
 FORMAT
 ${episodeFormatLabel(input.format)}
 Speakers: ${input.speakers.map((speaker) => `${speaker.name} (${speaker.role})`).join(", ")}
+
+YOUTUBE PACKAGE CONTRACT
+${growthContract(input.growthPlan)}
 
 CANONICAL PATHWAY SOURCE
 --- SOURCE START ---

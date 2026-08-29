@@ -2,6 +2,7 @@ import { put } from "@vercel/blob";
 import { NextResponse } from "next/server";
 import { getStudioPermission } from "@/auth";
 import { createServiceClient } from "@/supabase";
+import { episodeGrowthPlanMatchesSource, episodeGrowthSourceFingerprint, parseEpisodeGrowthPlan, selectedEpisodeThumbnail, selectedEpisodeTitle } from "@/video-producer-growth";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -67,6 +68,41 @@ async function ensureRenderableAudio(episode: Record<string, unknown>) {
   return { pathname: blob.pathname, duration: wavDurationSeconds(audio) };
 }
 
+function objectValue(value: unknown) {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+}
+
+function episodeDirectorMetadata(episode: Record<string, unknown>, script: string, existing?: Record<string, unknown>) {
+  const growthPlan = parseEpisodeGrowthPlan(episode.growth_plan);
+  const thumbnail = growthPlan ? selectedEpisodeThumbnail(growthPlan) : null;
+  return {
+    ...(existing ?? {}),
+    episodeScriptId: episode.id,
+    sourceKind: "episode-studio",
+    premise: episode.premise,
+    supportingPathwaySlugs: episode.supporting_pathway_slugs,
+    episodeFormat: episode.format,
+    speakers: episode.speakers,
+    approvedScript: script,
+    theologyReview: episode.theology_review,
+    episodeGrowthPlan: growthPlan,
+    youtubePackage: growthPlan ? {
+      title: selectedEpisodeTitle(growthPlan),
+      thumbnailCopy: thumbnail?.copy ?? "",
+      thumbnailVisual: thumbnail?.visual ?? "",
+      clickReason: growthPlan.packaging.clickReason,
+      deliveryExpectation: growthPlan.packaging.deliveryExpectation
+    } : null,
+    episodeAudioUrl: episode.audio_url,
+    episodeAudioStoragePath: episode.audio_storage_path ?? null,
+    episodeAudioContentHash: episode.audio_content_hash ?? null,
+    episodeAudioModel: episode.audio_model ?? null,
+    episodeAudioVoiceMap: episode.audio_voice_map ?? {},
+    episodeAudioGeneratedAt: episode.audio_generated_at ?? null,
+    handedOffAt: new Date().toISOString()
+  };
+}
+
 export async function POST(_request: Request, context: { params: Promise<{ episodeId: string }> }) {
   const { access, allowed } = await getStudioPermission("manage_content");
   if (!allowed || access.state !== "allowed" || !access.user) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -76,15 +112,19 @@ export async function POST(_request: Request, context: { params: Promise<{ episo
   const result = await service.from("video_producer_episode_scripts").select("*").eq("id", episodeId).maybeSingle();
   if (result.error) return NextResponse.json({ error: result.error.message }, { status: 500 });
   if (!result.data) return NextResponse.json({ error: "Episode was not found." }, { status: 404 });
-  const episode = result.data;
+  const episode = result.data as Record<string, unknown>;
   if (episode.status !== "approved" && episode.status !== "exported") return NextResponse.json({ error: "Approve the episode after theology review before sending it to Video Producer." }, { status: 409 });
+  const growthPlan = parseEpisodeGrowthPlan(episode.growth_plan);
+  if (!growthPlan) return NextResponse.json({ error: "Build the YouTube package before sending the episode to Video Producer." }, { status: 409 });
+  const growthSourceFingerprint = episodeGrowthSourceFingerprint({ workingTitle: String(episode.title || "Untitled episode"), premise: String(episode.premise || ""), primaryPathwaySlug: String(episode.primary_pathway_slug || ""), supportingPathwaySlugs: Array.isArray(episode.supporting_pathway_slugs) ? episode.supporting_pathway_slugs.map(String) : [], format: String(episode.format || "solo"), speakers: Array.isArray(episode.speakers) ? episode.speakers as Array<{ name: string; role?: string }> : [] });
+  if (!episodeGrowthPlanMatchesSource(growthPlan, growthSourceFingerprint)) return NextResponse.json({ error: "The episode inputs changed after packaging. Rebuild the YouTube package before Video Producer handoff." }, { status: 409 });
   if (!episode.audio_url) return NextResponse.json({ error: "Generate the approved Episode Studio audio before creating the video production project." }, { status: 409 });
   const script = String(episode.script_text || "").trim();
   if (!script) return NextResponse.json({ error: "The approved Episode script is empty." }, { status: 409 });
 
   let source: { pathname: string; duration: number | null };
   try {
-    source = await ensureRenderableAudio(episode as Record<string, unknown>);
+    source = await ensureRenderableAudio(episode);
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Episode audio could not be prepared for Video Producer." }, { status: 502 });
   }
@@ -94,7 +134,7 @@ export async function POST(_request: Request, context: { params: Promise<{ episo
   const projectPatch = {
     source_provider: "vercel_blob",
     source_locator: source.pathname,
-    source_filename: safeEpisodeFilename(episode.title),
+    source_filename: safeEpisodeFilename(String(episode.title || "episode")),
     source_duration: duration,
     transcript_text: transcript.text,
     transcript,
@@ -104,33 +144,25 @@ export async function POST(_request: Request, context: { params: Promise<{ episo
   };
 
   if (episode.exported_project_id) {
-    const existing = await service.from("video_producer_projects").update(projectPatch).eq("id", episode.exported_project_id).select("id").maybeSingle();
+    const existing = await service.from("video_producer_projects").select("id,director_metadata").eq("id", episode.exported_project_id).maybeSingle();
     if (existing.error) return NextResponse.json({ error: existing.error.message }, { status: 500 });
-    if (existing.data) return NextResponse.json({ projectId: existing.data.id, reused: true, recommendedStep: "produce" });
+    if (existing.data) {
+      const updated = await service.from("video_producer_projects").update({
+        ...projectPatch,
+        title: selectedEpisodeTitle(growthPlan) || episode.title,
+        director_metadata: episodeDirectorMetadata(episode, script, objectValue(existing.data.director_metadata))
+      }).eq("id", existing.data.id).select("id").single();
+      if (updated.error) return NextResponse.json({ error: updated.error.message }, { status: 500 });
+      return NextResponse.json({ projectId: updated.data.id, reused: true, recommendedStep: "produce" });
+    }
   }
 
   const created = await service.from("video_producer_projects").insert({
-    title: episode.title,
+    title: selectedEpisodeTitle(growthPlan) || episode.title,
     mode: "podcast",
     status: "uploaded",
     ...projectPatch,
-    director_metadata: {
-      episodeScriptId: episode.id,
-      sourceKind: "episode-studio",
-      premise: episode.premise,
-      supportingPathwaySlugs: episode.supporting_pathway_slugs,
-      episodeFormat: episode.format,
-      speakers: episode.speakers,
-      approvedScript: script,
-      theologyReview: episode.theology_review,
-      episodeAudioUrl: episode.audio_url,
-      episodeAudioStoragePath: episode.audio_storage_path ?? null,
-      episodeAudioContentHash: episode.audio_content_hash ?? null,
-      episodeAudioModel: episode.audio_model ?? null,
-      episodeAudioVoiceMap: episode.audio_voice_map ?? {},
-      episodeAudioGeneratedAt: episode.audio_generated_at ?? null,
-      handedOffAt: new Date().toISOString()
-    },
+    director_metadata: episodeDirectorMetadata(episode, script),
     created_by: access.user.id
   }).select("id").single();
   if (created.error) return NextResponse.json({ error: created.error.message }, { status: 500 });
