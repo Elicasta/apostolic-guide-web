@@ -16,12 +16,16 @@ import { loadTeleprompterDocuments } from "@/lib/teleprompter/storage";
 import type {
   TeleprompterCommand,
   TeleprompterDocument,
-  TeleprompterMode,
   TeleprompterSessionState,
   TeleprompterTheme,
 } from "@/lib/teleprompter/types";
 
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
+
+interface PointerStart {
+  x: number;
+  y: number;
+}
 
 export default function TeleprompterDisplay() {
   const [documents, setDocuments] = useState<TeleprompterDocument[]>([]);
@@ -29,14 +33,14 @@ export default function TeleprompterDisplay() {
   const [sessionCode, setSessionCode] = useState("");
   const [slideIndex, setSlideIndex] = useState(0);
   const [theme, setTheme] = useState<TeleprompterTheme>("night");
-  const [mode, setMode] = useState<TeleprompterMode>("cue");
   const [fontScale, setFontScale] = useState(1);
   const [locked, setLocked] = useState(false);
   const [chromeVisible, setChromeVisible] = useState(true);
   const [connection, setConnection] = useState<"idle" | "connecting" | "connected" | "unavailable">("idle");
   const [controllerUrl, setControllerUrl] = useState("");
   const channelRef = useRef<RealtimeChannel | null>(null);
-  const pointerStartRef = useRef<number | null>(null);
+  const pointerStartRef = useRef<PointerStart | null>(null);
+  const scrollerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const loaded = loadTeleprompterDocuments();
@@ -72,6 +76,10 @@ export default function TeleprompterDisplay() {
     setSlideIndex((current) => clamp(current, 0, Math.max(slides.length - 1, 0)));
   }, [slides.length]);
 
+  useEffect(() => {
+    scrollerRef.current?.scrollTo({ top: 0, behavior: "auto" });
+  }, [slideIndex]);
+
   const next = useCallback(() => {
     setSlideIndex((current) => clamp(current + 1, 0, Math.max(slides.length - 1, 0)));
   }, [slides.length]);
@@ -95,14 +103,13 @@ export default function TeleprompterDisplay() {
         case "theme":
           setTheme(command.theme);
           break;
-        case "mode":
-          setMode(command.mode);
-          break;
         case "fontScale":
-          setFontScale(clamp(command.fontScale, 0.75, 1.35));
+          setFontScale(clamp(command.fontScale, 0.8, 1.3));
           break;
         case "lock":
           setLocked(command.locked);
+          break;
+        case "mode":
           break;
       }
     },
@@ -115,12 +122,12 @@ export default function TeleprompterDisplay() {
       documentId: selectedDocument?.id,
       slideIndex,
       theme,
-      mode,
+      mode: "script",
       fontScale,
       locked,
       slides: summarizeSlides(slides),
     }),
-    [selectedDocument?.id, selectedDocument?.title, fontScale, locked, mode, slideIndex, slides, theme],
+    [selectedDocument?.id, selectedDocument?.title, fontScale, locked, slideIndex, slides, theme],
   );
   const stateRef = useRef(state);
 
@@ -175,11 +182,11 @@ export default function TeleprompterDisplay() {
       }
       if (locked) return;
 
-      if (["ArrowRight", "PageDown", " "].includes(event.key)) {
+      if (event.key === "ArrowRight") {
         event.preventDefault();
         next();
       }
-      if (["ArrowLeft", "PageUp"].includes(event.key)) {
+      if (event.key === "ArrowLeft") {
         event.preventDefault();
         prev();
       }
@@ -195,7 +202,7 @@ export default function TeleprompterDisplay() {
   };
 
   const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
-    pointerStartRef.current = event.clientX;
+    pointerStartRef.current = { x: event.clientX, y: event.clientY };
   };
 
   const onPointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -204,164 +211,167 @@ export default function TeleprompterDisplay() {
       return;
     }
 
-    const start = pointerStartRef.current ?? event.clientX;
+    const start = pointerStartRef.current;
     pointerStartRef.current = null;
-    const distance = event.clientX - start;
+    if (!start) return;
 
-    if (Math.abs(distance) >= 70) {
-      if (distance < 0) next();
+    const deltaX = event.clientX - start.x;
+    const deltaY = event.clientY - start.y;
+
+    if (Math.abs(deltaX) >= 90 && Math.abs(deltaX) > Math.abs(deltaY) * 1.35) {
+      if (deltaX < 0) next();
       else prev();
-      return;
     }
-
-    const x = event.clientX / window.innerWidth;
-    if (x < 0.34) prev();
-    else if (x > 0.66) next();
-    else setChromeVisible((visible) => !visible);
   };
 
   if (!selectedDocument || !slide) return null;
 
+  const sectionLabel = slide.heading || `Section ${slideIndex + 1}`;
+
   return (
     <main
-      onPointerDown={onPointerDown}
-      onPointerUp={onPointerUp}
       style={{
         position: "fixed",
         inset: 0,
         zIndex: 9999,
         overflow: "hidden",
-        background: night ? "#0C0C0B" : "#F3EFE5",
+        background: night ? "#0B0B0A" : "#F5F0E6",
         color: night ? "#F2EEE5" : "#191815",
-        userSelect: "none",
-        WebkitUserSelect: "none",
-        touchAction: "none",
+        fontFamily: "var(--font-sans, ui-sans-serif, system-ui, sans-serif)",
       }}
     >
       <div
+        ref={scrollerRef}
+        onPointerDown={onPointerDown}
+        onPointerUp={onPointerUp}
         style={{
           position: "absolute",
           inset: 0,
-          display: "flex",
-          alignItems: "center",
+          overflowY: "auto",
+          WebkitOverflowScrolling: "touch",
+          touchAction: "pan-y",
+          scrollbarGutter: "stable",
           padding: chromeVisible
-            ? "clamp(5rem, 10vh, 8.5rem) clamp(2rem, 8vw, 9rem) clamp(5rem, 9vh, 7rem)"
-            : "clamp(2rem, 7vh, 5rem) clamp(2rem, 8vw, 9rem)",
-          transition: "padding 150ms ease",
+            ? "clamp(6.5rem, 11vh, 8.5rem) clamp(1.75rem, 7vw, 6rem) 18vh"
+            : "clamp(3.5rem, 7vh, 5rem) clamp(1.75rem, 7vw, 6rem) 18vh",
+          transition: "padding-top 150ms ease",
         }}
       >
-        <SlideContent slide={slide} mode={mode} theme={theme} fontScale={fontScale} />
+        <SlideContent slide={slide} theme={theme} fontScale={fontScale} />
       </div>
 
       {chromeVisible ? (
-        <>
-          <header
-            onPointerDown={(event) => event.stopPropagation()}
-            onPointerUp={(event) => event.stopPropagation()}
+        <header
+          style={{
+            position: "absolute",
+            inset: "0 0 auto",
+            zIndex: 2,
+            display: "grid",
+            gridTemplateColumns: "minmax(0, 1fr) auto",
+            alignItems: "center",
+            gap: 20,
+            padding: "max(16px, env(safe-area-inset-top)) clamp(18px, 3vw, 34px) 14px",
+            background: night
+              ? "linear-gradient(180deg, rgba(11,11,10,.98) 0%, rgba(11,11,10,.86) 72%, rgba(11,11,10,0) 100%)"
+              : "linear-gradient(180deg, rgba(245,240,230,.98) 0%, rgba(245,240,230,.88) 72%, rgba(245,240,230,0) 100%)",
+            pointerEvents: "none",
+          }}
+        >
+          <div style={{ minWidth: 0 }}>
+            <div
+              style={{
+                fontSize: 11,
+                letterSpacing: ".15em",
+                textTransform: "uppercase",
+                color: night ? "#9D8C70" : "#7E705A",
+                fontWeight: 720,
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
+            >
+              {selectedDocument.title}
+            </div>
+            <div
+              style={{
+                marginTop: 4,
+                fontSize: 12,
+                color: night ? "#5F5B54" : "#837C70",
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
+            >
+              {sectionLabel}
+              {connection === "connected" ? ` · Remote ${sessionCode}` : connection === "unavailable" ? " · Local only" : ` · ${sessionCode}`}
+            </div>
+          </div>
+
+          <div
             style={{
-              position: "absolute",
-              inset: "0 0 auto",
               display: "flex",
               alignItems: "center",
-              justifyContent: "space-between",
-              gap: 18,
-              padding: "18px clamp(18px, 3vw, 42px)",
-              background: night ? "rgba(12,12,11,.94)" : "rgba(243,239,229,.94)",
-              borderBottom: `1px solid ${night ? "rgba(255,255,255,.08)" : "rgba(25,24,21,.1)"}`,
-              backdropFilter: "blur(14px)",
+              justifyContent: "flex-end",
+              gap: 13,
+              pointerEvents: "auto",
             }}
           >
-            <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: 12, letterSpacing: ".16em", textTransform: "uppercase", color: night ? "#B99A66" : "#8A6B39", fontWeight: 750 }}>
-                Apostolic Guide · Teleprompter Beta
-              </div>
-              <div style={{ marginTop: 3, fontSize: 15, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                {selectedDocument.title}
-              </div>
-            </div>
-
-            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
-              <button type="button" onClick={() => void copyController()} style={chipStyle(night)} title={controllerUrl}>
-                {connection === "connected" ? "Remote connected" : connection === "unavailable" ? "Local only" : `Remote ${sessionCode}`}
-              </button>
-              <a href="/teleprompter/library" style={chipStyle(night)}>Library</a>
-              <button type="button" onClick={() => setTheme((value) => (value === "night" ? "day" : "night"))} style={chipStyle(night)}>
-                {night ? "Day" : "Night"}
-              </button>
-              <button type="button" onClick={() => setMode(nextMode(mode))} style={chipStyle(night)}>
-                {mode}
-              </button>
-              <button type="button" onClick={() => setFontScale((value) => clamp(value - 0.05, 0.75, 1.35))} style={chipStyle(night)}>A−</button>
-              <button type="button" onClick={() => setFontScale((value) => clamp(value + 0.05, 0.75, 1.35))} style={chipStyle(night)}>A+</button>
-              <button type="button" onClick={() => setLocked((value) => !value)} style={chipStyle(night)}>{locked ? "Unlock" : "Lock"}</button>
-              <button type="button" onClick={() => void window.document.documentElement.requestFullscreen?.()} style={chipStyle(night)}>Full</button>
-            </div>
-          </header>
-
-          <footer
-            style={{
-              position: "absolute",
-              left: "clamp(18px, 3vw, 42px)",
-              right: "clamp(18px, 3vw, 42px)",
-              bottom: 22,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              color: night ? "#777166" : "#7A7163",
-              fontSize: 12,
-              letterSpacing: ".08em",
-              textTransform: "uppercase",
-              pointerEvents: "none",
-            }}
-          >
-            <span>{locked ? "Display locked · remote still active" : "Tap edges or swipe"}</span>
-            <span>{slideIndex + 1} / {slides.length}</span>
-          </footer>
-        </>
+            <span
+              style={{
+                color: night ? "#7B756C" : "#746D62",
+                fontSize: 12,
+                fontVariantNumeric: "tabular-nums",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {slideIndex + 1} / {slides.length}
+            </span>
+            <button type="button" onClick={() => setTheme((value) => (value === "night" ? "day" : "night"))} style={textButtonStyle(night)}>
+              {night ? "Day" : "Night"}
+            </button>
+            <button type="button" onClick={() => setFontScale((value) => clamp(value - 0.05, 0.8, 1.3))} style={textButtonStyle(night)}>A−</button>
+            <button type="button" onClick={() => setFontScale((value) => clamp(value + 0.05, 0.8, 1.3))} style={textButtonStyle(night)}>A+</button>
+            <button type="button" onClick={() => void window.document.documentElement.requestFullscreen?.()} style={textButtonStyle(night)}>Full</button>
+            <button type="button" onClick={() => void copyController()} style={textButtonStyle(night)} title={controllerUrl}>Remote</button>
+          </div>
+        </header>
       ) : null}
 
-      <div
+      <button
+        type="button"
+        aria-label={chromeVisible ? "Hide teleprompter controls" : "Show teleprompter controls"}
+        onClick={() => setChromeVisible((visible) => !visible)}
         style={{
           position: "absolute",
-          left: 0,
-          right: 0,
-          bottom: 0,
-          height: 3,
-          background: night ? "rgba(255,255,255,.06)" : "rgba(25,24,21,.08)",
-          pointerEvents: "none",
+          right: 12,
+          bottom: "max(12px, env(safe-area-inset-bottom))",
+          zIndex: 3,
+          width: 28,
+          height: 28,
+          appearance: "none",
+          border: 0,
+          borderRadius: 999,
+          background: "transparent",
+          color: night ? "#514E48" : "#9A9285",
+          fontSize: 17,
+          cursor: "pointer",
         }}
       >
-        <div
-          style={{
-            width: `${((slideIndex + 1) / slides.length) * 100}%`,
-            height: "100%",
-            background: night ? "#9A7D50" : "#8A6B39",
-            transition: "width 120ms ease",
-          }}
-        />
-      </div>
+        ···
+      </button>
     </main>
   );
 }
 
-function nextMode(mode: TeleprompterMode): TeleprompterMode {
-  if (mode === "script") return "cue";
-  if (mode === "cue") return "minimal";
-  return "script";
-}
-
-function chipStyle(night: boolean): CSSProperties {
+function textButtonStyle(night: boolean): CSSProperties {
   return {
     appearance: "none",
-    border: `1px solid ${night ? "rgba(255,255,255,.12)" : "rgba(25,24,21,.14)"}`,
-    background: night ? "#151513" : "#EBE5D8",
-    color: night ? "#DAD4C8" : "#332F28",
-    borderRadius: 999,
-    padding: "8px 11px",
+    border: 0,
+    background: "transparent",
+    color: night ? "#817B72" : "#6E675D",
+    padding: "5px 0",
     fontSize: 11,
-    lineHeight: 1,
-    textTransform: "capitalize",
-    textDecoration: "none",
+    letterSpacing: ".04em",
     cursor: "pointer",
     whiteSpace: "nowrap",
   };
