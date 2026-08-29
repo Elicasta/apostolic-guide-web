@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getAdminAccess } from "@/auth";
+import TeleprompterSeedBootstrap from "@/components/teleprompter/TeleprompterSeedBootstrap";
 import "./teleprompter.css";
 
 export const dynamic = "force-dynamic";
@@ -10,5 +11,5 @@ export default async function TeleprompterLayout({
   const access = await getAdminAccess();
   if (access.state === "signed_out" || access.state === "unconfigured") redirect("/login");
   if (access.state !== "allowed") redirect("/");
-  return children;
+  return <TeleprompterSeedBootstrap>{children}</TeleprompterSeedBootstrap>;
 }
