@@ -61,7 +61,9 @@ export function parseTeleprompterDocument(content: string): TeleprompterSlide[] 
       }
 
       if (line.startsWith("> ")) {
-        slide.quotes.push(line.slice(2).trim());
+        const quote = line.slice(2).trim();
+        slide.quotes.push(quote);
+        slide.body.push(quote);
         continue;
       }
 
@@ -74,19 +76,18 @@ export function parseTeleprompterDocument(content: string): TeleprompterSlide[] 
 }
 
 export function getSlideLines(slide: TeleprompterSlide, mode: TeleprompterMode) {
-  const meaningful = [...slide.body, ...slide.quotes].filter(Boolean);
+  const meaningful = slide.body.filter(Boolean);
 
   if (mode === "script") return meaningful;
   if (mode === "cue") return meaningful.slice(0, 3);
 
-  const anchor = slide.heading || meaningful[0] || slide.reference || "Next thought";
-  return [anchor];
+  return [meaningful[0] || slide.heading || slide.reference || "Next thought"];
 }
 
 export function summarizeSlides(slides: TeleprompterSlide[]): TeleprompterSlideSummary[] {
   return slides.map((slide) => {
     const preview = stripInlineMarkdown(
-      slide.heading || slide.body[0] || slide.quotes[0] || slide.reference || "Untitled slide",
+      slide.heading || slide.body[0] || slide.reference || "Untitled slide",
     );
 
     return {
