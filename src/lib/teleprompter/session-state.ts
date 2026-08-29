@@ -39,6 +39,10 @@ export function isTeleprompterSessionState(
       (typeof state.scrollSpeed === "number" && Number.isFinite(state.scrollSpeed))) &&
     (state.scrollTopSequence === undefined ||
       (typeof state.scrollTopSequence === "number" && Number.isInteger(state.scrollTopSequence))) &&
+    (state.scrollNudgeSequence === undefined ||
+      (typeof state.scrollNudgeSequence === "number" && Number.isInteger(state.scrollNudgeSequence))) &&
+    (state.scrollNudgeDelta === undefined ||
+      (typeof state.scrollNudgeDelta === "number" && Number.isFinite(state.scrollNudgeDelta))) &&
     Array.isArray(state.slides) &&
     state.slides.length > 0 &&
     state.slides.length <= 200 &&
@@ -67,8 +71,10 @@ export function normalizeTeleprompterState(
     fontScale: clamp(state.fontScale, 0.8, 1.3),
     mode: "script",
     scrolling: state.scrolling ?? false,
-    scrollSpeed: clamp(state.scrollSpeed ?? 60, 20, 180),
+    scrollSpeed: clamp(state.scrollSpeed ?? 55, 20, 180),
     scrollTopSequence: Math.max(0, Math.trunc(state.scrollTopSequence ?? 0)),
+    scrollNudgeSequence: Math.max(0, Math.trunc(state.scrollNudgeSequence ?? 0)),
+    scrollNudgeDelta: clamp(state.scrollNudgeDelta ?? 0, -600, 600),
     sequence: Math.max(0, Math.trunc(state.sequence)),
     updatedAt: Math.max(0, state.updatedAt),
     actorId: state.actorId.slice(0, 80),
@@ -131,6 +137,13 @@ export function applyTeleprompterAction(
       break;
     case "scrollTop":
       patch = { scrolling: false, scrollTopSequence: current.scrollTopSequence + 1 };
+      break;
+    case "scrollNudge":
+      patch = {
+        scrolling: false,
+        scrollNudgeSequence: current.scrollNudgeSequence + 1,
+        scrollNudgeDelta: clamp(action.delta, -600, 600),
+      };
       break;
     case "mode":
       patch = { mode: "script" };
