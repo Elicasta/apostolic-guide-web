@@ -9,7 +9,7 @@ import {
   loadTeleprompterDocuments,
   saveTeleprompterDocuments,
 } from "@/lib/teleprompter/storage";
-import type { TeleprompterDocument, TeleprompterMode, TeleprompterTheme } from "@/lib/teleprompter/types";
+import type { TeleprompterDocument, TeleprompterTheme } from "@/lib/teleprompter/types";
 
 export default function TeleprompterLibrary() {
   const [documents, setDocuments] = useState<TeleprompterDocument[]>([]);
@@ -17,7 +17,6 @@ export default function TeleprompterLibrary() {
   const [search, setSearch] = useState("");
   const [previewIndex, setPreviewIndex] = useState(0);
   const [previewTheme, setPreviewTheme] = useState<TeleprompterTheme>("night");
-  const [previewMode, setPreviewMode] = useState<TeleprompterMode>("cue");
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
@@ -113,7 +112,7 @@ export default function TeleprompterLibrary() {
 
           <div style={{ padding: 10, overflowY: "auto", flex: 1 }}>
             {filtered.map((doc) => {
-              const slideCount = parseTeleprompterDocument(doc.content).length;
+              const sectionCount = parseTeleprompterDocument(doc.content).length;
               const active = doc.id === selected.id;
               return (
                 <button
@@ -134,7 +133,7 @@ export default function TeleprompterLibrary() {
                   }}
                 >
                   <div style={{ fontWeight: 650, lineHeight: 1.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{doc.title}</div>
-                  <div style={{ marginTop: 6, color: active ? "#9F8B67" : "#5F5A53", fontSize: 11 }}>{slideCount} slides · {formatUpdated(doc.updatedAt)}</div>
+                  <div style={{ marginTop: 6, color: active ? "#9F8B67" : "#5F5A53", fontSize: 11 }}>{sectionCount} sections · {formatUpdated(doc.updatedAt)}</div>
                 </button>
               );
             })}
@@ -178,12 +177,12 @@ export default function TeleprompterLibrary() {
           />
 
           <div style={{ borderTop: "1px solid #292722", padding: "10px 16px", display: "flex", gap: 14, flexWrap: "wrap", color: "#6F6960", fontSize: 11 }}>
-            <span><b style={{ color: "#A88C61" }}>---</b> new slide</span>
-            <span><b style={{ color: "#A88C61" }}>#</b> heading</span>
+            <span><b style={{ color: "#A88C61" }}>---</b> new page / section</span>
+            <span><b style={{ color: "#A88C61" }}>#</b> section title</span>
             <span><b style={{ color: "#A88C61" }}>**word**</b> emphasis</span>
             <span><b style={{ color: "#A88C61" }}>&gt;</b> Scripture</span>
             <span><b style={{ color: "#A88C61" }}>@ref</b> reference</span>
-            <span><b style={{ color: "#A88C61" }}>@note</b> private cue</span>
+            <span><b style={{ color: "#A88C61" }}>@note</b> speaker note</span>
             <span style={{ marginLeft: "auto" }}>Autosaved locally</span>
           </div>
         </section>
@@ -191,18 +190,15 @@ export default function TeleprompterLibrary() {
         <aside className="tp-preview-pane" style={{ minWidth: 0, display: "flex", flexDirection: "column", background: "#0E0E0C", borderLeft: "1px solid #282621" }}>
           <div style={{ padding: "16px 16px 12px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, borderBottom: "1px solid #24221E" }}>
             <div>
-              <div style={eyebrowStyle}>Preview</div>
+              <div style={eyebrowStyle}>Section preview</div>
               <div style={{ marginTop: 5, color: "#79736A", fontSize: 11 }}>{previewIndex + 1} / {slides.length}</div>
             </div>
-            <div style={{ display: "flex", gap: 6 }}>
-              <button type="button" onClick={() => setPreviewTheme((value) => value === "night" ? "day" : "night")} style={smallButtonStyle}>{nightPreview ? "Day" : "Night"}</button>
-              <button type="button" onClick={() => setPreviewMode(nextMode(previewMode))} style={{ ...smallButtonStyle, textTransform: "capitalize" }}>{previewMode}</button>
-            </div>
+            <button type="button" onClick={() => setPreviewTheme((value) => value === "night" ? "day" : "night")} style={smallButtonStyle}>{nightPreview ? "Day" : "Night"}</button>
           </div>
 
           <div style={{ flex: 1, minHeight: 0, padding: 16, display: "flex" }}>
-            <div style={{ flex: 1, borderRadius: 18, border: `1px solid ${nightPreview ? "#282621" : "#D8CFBD"}`, background: nightPreview ? "#0C0C0B" : "#F3EFE5", padding: "28px 24px", overflow: "auto", display: "flex", alignItems: "center" }}>
-              <SlideContent slide={slides[previewIndex]} mode={previewMode} theme={previewTheme} fontScale={.8} compact />
+            <div style={{ flex: 1, borderRadius: 16, background: nightPreview ? "#0B0B0A" : "#F5F0E6", padding: "28px 24px", overflow: "auto" }}>
+              <SlideContent slide={slides[previewIndex]} theme={previewTheme} fontScale={.8} compact />
             </div>
           </div>
 
@@ -214,12 +210,6 @@ export default function TeleprompterLibrary() {
       </div>
     </main>
   );
-}
-
-function nextMode(mode: TeleprompterMode): TeleprompterMode {
-  if (mode === "script") return "cue";
-  if (mode === "cue") return "minimal";
-  return "script";
 }
 
 function formatUpdated(iso: string) {
