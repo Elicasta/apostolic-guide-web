@@ -16,10 +16,30 @@
 
 .tp-scroll-remote {
   margin-top: 20px;
-  padding: 20px 0 24px;
   border-top: 1px solid #283848;
   border-bottom: 1px solid #283848;
 }
+
+.tp-scroll-panel-toggle {
+  appearance: none;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border: 0;
+  background: transparent;
+  color: var(--tp-white);
+  padding: 15px 0;
+  text-align: left;
+  cursor: pointer;
+}
+
+.tp-scroll-panel-toggle > span { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+.tp-scroll-panel-toggle b { font-size: 13px; font-weight: 790; }
+.tp-scroll-panel-toggle small { color: #7f8e9a; font-size: 10px; font-variant-numeric: tabular-nums; }
+.tp-scroll-panel-toggle > strong { color: #8d9aa5; font-size: 10px; font-weight: 760; text-transform: uppercase; letter-spacing: .1em; }
+.tp-scroll-panel-body { padding: 4px 0 24px; }
 
 .tp-scroll-remote-header {
   display: flex;
@@ -72,7 +92,8 @@
 }
 
 .tp-speed-stepper button:disabled,
-.tp-speed-presets button:disabled { opacity: .32; cursor: default; }
+.tp-speed-presets button:disabled,
+.tp-page-rocker button:disabled { opacity: .32; cursor: default; }
 
 .tp-speed-presets {
   display: grid;
@@ -85,6 +106,57 @@
   border-color: var(--tp-red);
   background: rgba(179,33,45,.13);
   color: var(--tp-white);
+}
+
+.tp-page-rocker {
+  margin-top: 18px;
+  padding-top: 17px;
+  border-top: 1px solid #253646;
+}
+
+.tp-page-rocker > div {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.tp-page-rocker button {
+  appearance: none;
+  min-height: 70px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border: 1px solid #3b4c5d;
+  border-radius: 4px;
+  background: #0c1926;
+  color: var(--tp-white);
+  font-size: 25px;
+  cursor: pointer;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.tp-page-rocker button:active:not(:disabled) {
+  border-color: var(--tp-red);
+  background: #142638;
+  transform: translateY(1px);
+}
+
+.tp-page-rocker button span {
+  color: #aeb8c0;
+  font-size: 13px;
+  font-weight: 760;
+}
+
+.tp-page-rocker > small {
+  display: block;
+  margin-top: 8px;
+  color: #657583;
+  font-size: 9px;
+  text-align: center;
 }
 
 .tp-top-button { margin-top: 10px; }
@@ -109,5 +181,5 @@
 
 @media (max-width: 560px) {
   .tp-speed-presets { grid-template-columns: 1fr 1fr; }
-  .tp-scroll-remote { padding-top: 18px; }
+  .tp-scroll-panel-toggle > span { align-items: flex-start; flex-direction: column; gap: 3px; }
 }
