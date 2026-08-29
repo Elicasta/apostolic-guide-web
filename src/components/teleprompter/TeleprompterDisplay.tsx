@@ -36,6 +36,9 @@ export default function TeleprompterDisplay() {
   const [controllerUrl, setControllerUrl] = useState("");
   const pointerStartRef = useRef<PointerStart | null>(null);
   const scrollerRef = useRef<HTMLDivElement | null>(null);
+  const frameRef = useRef<number | null>(null);
+  const lastFrameRef = useRef<number | null>(null);
+  const bottomStopRef = useRef(false);
 
   useEffect(() => {
     const loaded = loadTeleprompterDocuments();
@@ -80,6 +83,9 @@ export default function TeleprompterDisplay() {
       mode: "script",
       fontScale: 1,
       locked: false,
+      scrolling: false,
+      scrollSpeed: 60,
+      scrollTopSequence: 0,
       slides: summarizeSlides(slides),
       sequence: 0,
       updatedAt: 0,
@@ -98,6 +104,9 @@ export default function TeleprompterDisplay() {
   const theme = state?.theme ?? "night";
   const fontScale = state?.fontScale ?? 1;
   const locked = state?.locked ?? false;
+  const scrolling = state?.scrolling ?? false;
+  const scrollSpeed = state?.scrollSpeed ?? 60;
+  const scrollTopSequence = state?.scrollTopSequence ?? 0;
   const slide = slides[Math.min(slideIndex, Math.max(slides.length - 1, 0))];
   const night = theme === "night";
 
@@ -105,8 +114,53 @@ export default function TeleprompterDisplay() {
     scrollerRef.current?.scrollTo({ top: 0, behavior: "auto" });
   }, [slideIndex]);
 
+  useEffect(() => {
+    if (scrollTopSequence <= 0) return;
+    scrollerRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+  }, [scrollTopSequence]);
+
+  useEffect(() => {
+    if (!scrolling) {
+      lastFrameRef.current = null;
+      bottomStopRef.current = false;
+      if (frameRef.current !== null) window.cancelAnimationFrame(frameRef.current);
+      frameRef.current = null;
+      return;
+    }
+
+    const tick = (timestamp: number) => {
+      const scroller = scrollerRef.current;
+      if (!scroller) return;
+      const previous = lastFrameRef.current ?? timestamp;
+      const elapsed = Math.min(timestamp - previous, 80);
+      lastFrameRef.current = timestamp;
+      const maxTop = Math.max(scroller.scrollHeight - scroller.clientHeight, 0);
+      const nextTop = Math.min(scroller.scrollTop + (scrollSpeed * elapsed) / 1000, maxTop);
+      scroller.scrollTop = nextTop;
+
+      if (nextTop >= maxTop - 1) {
+        if (!bottomStopRef.current) {
+          bottomStopRef.current = true;
+          dispatch({ type: "scroll", scrolling: false });
+        }
+        return;
+      }
+      frameRef.current = window.requestAnimationFrame(tick);
+    };
+
+    frameRef.current = window.requestAnimationFrame(tick);
+    return () => {
+      if (frameRef.current !== null) window.cancelAnimationFrame(frameRef.current);
+      frameRef.current = null;
+      lastFrameRef.current = null;
+    };
+  }, [dispatch, scrollSpeed, scrolling]);
+
   const next = useCallback(() => dispatch({ type: "next" }), [dispatch]);
   const prev = useCallback(() => dispatch({ type: "prev" }), [dispatch]);
+  const stopForManualScroll = useCallback(() => {
+    if (scrolling) dispatch({ type: "scroll", scrolling: false });
+  }, [dispatch, scrolling]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -116,6 +170,16 @@ export default function TeleprompterDisplay() {
       }
       if (event.key.toLowerCase() === "f") {
         void window.document.documentElement.requestFullscreen?.();
+        return;
+      }
+      if (event.code === "Space") {
+        event.preventDefault();
+        dispatch({ type: "scroll", scrolling: !scrolling });
+        return;
+      }
+      if (event.key === "Home") {
+        event.preventDefault();
+        dispatch({ type: "scrollTop" });
         return;
       }
       if (locked) return;
@@ -131,7 +195,7 @@ export default function TeleprompterDisplay() {
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [locked, next, prev]);
+  }, [dispatch, locked, next, prev, scrolling]);
 
   const copyController = async () => {
     if (controllerUrl) await navigator.clipboard?.writeText(controllerUrl);
@@ -139,6 +203,7 @@ export default function TeleprompterDisplay() {
 
   const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
     pointerStartRef.current = { x: event.clientX, y: event.clientY };
+    stopForManualScroll();
   };
 
   const onPointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -173,6 +238,7 @@ export default function TeleprompterDisplay() {
         className={`tp-reader ${chromeVisible ? "tp-reader-chrome" : ""}`}
         onPointerDown={onPointerDown}
         onPointerUp={onPointerUp}
+        onWheel={stopForManualScroll}
         style={{ "--tp-font-scale": fontScale } as CSSProperties}
       >
         <SlideContent slide={slide} theme={theme} fontScale={fontScale} />
@@ -198,6 +264,29 @@ export default function TeleprompterDisplay() {
             <span className="tp-page-count">
               {slideIndex + 1} / {slides.length}
             </span>
+            <button
+              type="button"
+              className={scrolling ? "is-active" : ""}
+              onClick={() => dispatch({ type: "scroll", scrolling: !scrolling })}
+            >
+              {scrolling ? "Pause" : "Auto"}
+            </button>
+            <button
+              type="button"
+              onClick={() => dispatch({ type: "scrollSpeed", scrollSpeed: scrollSpeed - 10 })}
+            >
+              Slower
+            </button>
+            <span className="tp-scroll-speed">{scrollSpeed} px/s</span>
+            <button
+              type="button"
+              onClick={() => dispatch({ type: "scrollSpeed", scrollSpeed: scrollSpeed + 10 })}
+            >
+              Faster
+            </button>
+            <button type="button" onClick={() => dispatch({ type: "scrollTop" })}>
+              Top
+            </button>
             <button
               type="button"
               onClick={() => dispatch({ type: "theme", theme: night ? "day" : "night" })}
