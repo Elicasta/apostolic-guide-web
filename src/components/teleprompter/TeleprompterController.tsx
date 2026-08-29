@@ -6,6 +6,8 @@ import { normalizeSessionCode } from "@/lib/teleprompter/realtime";
 import { useTeleprompterSessionSync } from "@/lib/teleprompter/use-session-sync";
 import type { TeleprompterAction } from "@/lib/teleprompter/types";
 
+const SPEED_PRESETS = [35, 60, 90, 120] as const;
+
 export default function TeleprompterController() {
   const [sessionCode, setSessionCode] = useState("");
   const [joinCode, setJoinCode] = useState("");
@@ -71,6 +73,8 @@ export default function TeleprompterController() {
   const current = state?.slides[state.slideIndex];
   const atStart = !state || state.slideIndex <= 0;
   const atEnd = !state || state.slideIndex >= state.slides.length - 1;
+  const scrolling = state?.scrolling ?? false;
+  const scrollSpeed = state?.scrollSpeed ?? 60;
 
   return (
     <RemoteShell>
@@ -97,6 +101,67 @@ export default function TeleprompterController() {
           {current?.reference ? (
             <div className="tp-current-reference">{current.reference}</div>
           ) : null}
+        </section>
+
+        <section className="tp-scroll-remote" aria-label="Auto scroll controls">
+          <div className="tp-scroll-remote-header">
+            <div>
+              <p className="tp-eyebrow">Auto scroll</p>
+              <strong>{scrollSpeed} px/sec</strong>
+            </div>
+            <span className={scrolling ? "is-running" : ""}>
+              {scrolling ? "Running" : "Stopped"}
+            </span>
+          </div>
+
+          <button
+            type="button"
+            className={`tp-primary-button tp-scroll-toggle ${scrolling ? "is-paused" : ""}`}
+            onClick={() => send({ type: "scroll", scrolling: !scrolling })}
+            disabled={!state}
+          >
+            {scrolling ? "Pause Auto Scroll" : "Start Auto Scroll"}
+          </button>
+
+          <div className="tp-speed-stepper">
+            <button
+              type="button"
+              onClick={() => state && send({ type: "scrollSpeed", scrollSpeed: scrollSpeed - 10 })}
+              disabled={!state || scrollSpeed <= 20}
+            >
+              − Slower
+            </button>
+            <button
+              type="button"
+              onClick={() => state && send({ type: "scrollSpeed", scrollSpeed: scrollSpeed + 10 })}
+              disabled={!state || scrollSpeed >= 180}
+            >
+              Faster +
+            </button>
+          </div>
+
+          <div className="tp-speed-presets">
+            {SPEED_PRESETS.map((speed) => (
+              <button
+                key={speed}
+                type="button"
+                className={Math.abs(scrollSpeed - speed) < 5 ? "is-active" : ""}
+                onClick={() => send({ type: "scrollSpeed", scrollSpeed: speed })}
+                disabled={!state}
+              >
+                {speed === 35 ? "Slow" : speed === 60 ? "Normal" : speed === 90 ? "Fast" : "Very Fast"}
+              </button>
+            ))}
+          </div>
+
+          <button
+            type="button"
+            className="tp-secondary-button tp-top-button"
+            onClick={() => send({ type: "scrollTop" })}
+            disabled={!state}
+          >
+            ↑ Back to Top
+          </button>
         </section>
 
         <div className="tp-transport">
@@ -142,12 +207,15 @@ export default function TeleprompterController() {
           >
             A+
           </button>
+          <button type="button" onClick={() => send({ type: "scrollTop" })} disabled={!state}>
+            Top
+          </button>
         </div>
 
         <section className="tp-section-list">
           <div className="tp-section-list-header">
             <p className="tp-eyebrow">Sections</p>
-            <span>Tap to jump</span>
+            <span>Tap to jump · auto-scroll stops</span>
           </div>
           <div>
             {state?.slides.map((slide, index) => {
