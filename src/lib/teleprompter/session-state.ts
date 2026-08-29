@@ -34,6 +34,11 @@ export function isTeleprompterSessionState(
     typeof state.fontScale === "number" &&
     Number.isFinite(state.fontScale) &&
     typeof state.locked === "boolean" &&
+    (state.scrolling === undefined || typeof state.scrolling === "boolean") &&
+    (state.scrollSpeed === undefined ||
+      (typeof state.scrollSpeed === "number" && Number.isFinite(state.scrollSpeed))) &&
+    (state.scrollTopSequence === undefined ||
+      (typeof state.scrollTopSequence === "number" && Number.isInteger(state.scrollTopSequence))) &&
     Array.isArray(state.slides) &&
     state.slides.length > 0 &&
     state.slides.length <= 200 &&
@@ -61,6 +66,9 @@ export function normalizeTeleprompterState(
     slideIndex: clamp(Math.trunc(state.slideIndex), 0, maxIndex),
     fontScale: clamp(state.fontScale, 0.8, 1.3),
     mode: "script",
+    scrolling: state.scrolling ?? false,
+    scrollSpeed: clamp(state.scrollSpeed ?? 60, 20, 180),
+    scrollTopSequence: Math.max(0, Math.trunc(state.scrollTopSequence ?? 0)),
     sequence: Math.max(0, Math.trunc(state.sequence)),
     updatedAt: Math.max(0, state.updatedAt),
     actorId: state.actorId.slice(0, 80),
@@ -98,13 +106,13 @@ export function applyTeleprompterAction(
 
   switch (action.type) {
     case "next":
-      patch = { slideIndex: clamp(current.slideIndex + 1, 0, maxIndex) };
+      patch = { slideIndex: clamp(current.slideIndex + 1, 0, maxIndex), scrolling: false };
       break;
     case "prev":
-      patch = { slideIndex: clamp(current.slideIndex - 1, 0, maxIndex) };
+      patch = { slideIndex: clamp(current.slideIndex - 1, 0, maxIndex), scrolling: false };
       break;
     case "goto":
-      patch = { slideIndex: clamp(Math.trunc(action.index), 0, maxIndex) };
+      patch = { slideIndex: clamp(Math.trunc(action.index), 0, maxIndex), scrolling: false };
       break;
     case "theme":
       patch = { theme: action.theme as TeleprompterTheme };
@@ -114,6 +122,15 @@ export function applyTeleprompterAction(
       break;
     case "lock":
       patch = { locked: action.locked };
+      break;
+    case "scroll":
+      patch = { scrolling: action.scrolling };
+      break;
+    case "scrollSpeed":
+      patch = { scrollSpeed: clamp(action.scrollSpeed, 20, 180) };
+      break;
+    case "scrollTop":
+      patch = { scrolling: false, scrollTopSequence: current.scrollTopSequence + 1 };
       break;
     case "mode":
       patch = { mode: "script" };

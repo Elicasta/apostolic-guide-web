@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getAdminAccess } from "@/auth";
 import TeleprompterSeedBootstrap from "@/components/teleprompter/TeleprompterSeedBootstrap";
 import "./teleprompter.css";
+import "./teleprompter-scroll.css";
 
 export const dynamic = "force-dynamic";
 

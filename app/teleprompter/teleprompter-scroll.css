@@ -1,0 +1,113 @@
+.tp-display-controls .is-active {
+  color: var(--tp-red-bright);
+  font-weight: 800;
+}
+
+.tp-scroll-speed {
+  color: #7f8e9a;
+  font-size: 10px;
+  font-weight: 760;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: .06em;
+  white-space: nowrap;
+}
+
+.tp-theme-day .tp-scroll-speed { color: #687581; }
+
+.tp-scroll-remote {
+  margin-top: 20px;
+  padding: 20px 0 24px;
+  border-top: 1px solid #283848;
+  border-bottom: 1px solid #283848;
+}
+
+.tp-scroll-remote-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.tp-scroll-remote-header strong {
+  display: block;
+  margin-top: 7px;
+  color: var(--tp-white);
+  font-size: 18px;
+  font-variant-numeric: tabular-nums;
+}
+
+.tp-scroll-remote-header > span {
+  color: #7f8e9a;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.tp-scroll-remote-header > span.is-running { color: #86c39a; }
+
+.tp-scroll-toggle { min-height: 64px; font-size: 16px; }
+.tp-scroll-toggle.is-paused { background: #182737; border-color: #3b4b5b; }
+
+.tp-speed-stepper {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.tp-speed-stepper button,
+.tp-speed-presets button {
+  appearance: none;
+  border: 1px solid #344454;
+  border-radius: 3px;
+  background: #0e1c2a;
+  color: #aeb8c0;
+  min-height: 46px;
+  padding: 10px 12px;
+  font-size: 12px;
+  font-weight: 720;
+  cursor: pointer;
+}
+
+.tp-speed-stepper button:disabled,
+.tp-speed-presets button:disabled { opacity: .32; cursor: default; }
+
+.tp-speed-presets {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.tp-speed-presets button.is-active {
+  border-color: var(--tp-red);
+  background: rgba(179,33,45,.13);
+  color: var(--tp-white);
+}
+
+.tp-top-button { margin-top: 10px; }
+
+@media (max-width: 980px) {
+  .tp-display-header {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  .tp-display-controls {
+    justify-content: flex-start;
+    gap: 12px;
+    overflow-x: auto;
+    padding-bottom: 3px;
+    scrollbar-width: none;
+  }
+
+  .tp-display-controls::-webkit-scrollbar { display: none; }
+  .tp-reader.tp-reader-chrome { padding-top: clamp(9rem, 18vh, 11rem); }
+}
+
+@media (max-width: 560px) {
+  .tp-speed-presets { grid-template-columns: 1fr 1fr; }
+  .tp-scroll-remote { padding-top: 18px; }
+}
