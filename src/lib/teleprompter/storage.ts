@@ -607,7 +607,7 @@ function makeId() {
 
 export function createTeleprompterDocument(
   title = "Untitled Script",
-  content = "# Intro\nPut the full opening section here.\n\n@note Private speaking cue.\n\n---\n\n# Point 1\nEach --- starts a new teleprompter page. Keep the whole section together.",
+  content = DEFAULT_TELEPROMPTER_CONTENT,
 ): TeleprompterDocument {
   const now = new Date().toISOString();
   return { id: makeId(), title, content, createdAt: now, updatedAt: now };
