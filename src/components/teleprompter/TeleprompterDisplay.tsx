@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import SlideContent from "./SlideContent";
 import { parseTeleprompterDocument, summarizeSlides } from "@/lib/teleprompter/parser";
@@ -35,7 +36,7 @@ export default function TeleprompterDisplay() {
   const [connection, setConnection] = useState<"idle" | "connecting" | "connected" | "unavailable">("idle");
   const [controllerUrl, setControllerUrl] = useState("");
   const channelRef = useRef<RealtimeChannel | null>(null);
-  const touchStartRef = useRef<number | null>(null);
+  const pointerStartRef = useRef<number | null>(null);
 
   useEffect(() => {
     const loaded = loadTeleprompterDocuments();
@@ -193,35 +194,38 @@ export default function TeleprompterDisplay() {
     await navigator.clipboard?.writeText(controllerUrl);
   };
 
-  const onPointerUp = (event: React.PointerEvent<HTMLDivElement>) => {
-    if (locked) return;
+  const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    pointerStartRef.current = event.clientX;
+  };
+
+  const onPointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (locked) {
+      pointerStartRef.current = null;
+      return;
+    }
+
+    const start = pointerStartRef.current ?? event.clientX;
+    pointerStartRef.current = null;
+    const distance = event.clientX - start;
+
+    if (Math.abs(distance) >= 70) {
+      if (distance < 0) next();
+      else prev();
+      return;
+    }
+
     const x = event.clientX / window.innerWidth;
     if (x < 0.34) prev();
     else if (x > 0.66) next();
     else setChromeVisible((visible) => !visible);
   };
 
-  const onTouchStart = (event: React.TouchEvent<HTMLDivElement>) => {
-    touchStartRef.current = event.touches[0]?.clientX ?? null;
-  };
-
-  const onTouchEnd = (event: React.TouchEvent<HTMLDivElement>) => {
-    if (locked || touchStartRef.current === null) return;
-    const end = event.changedTouches[0]?.clientX ?? touchStartRef.current;
-    const distance = end - touchStartRef.current;
-    touchStartRef.current = null;
-    if (Math.abs(distance) < 70) return;
-    if (distance < 0) next();
-    else prev();
-  };
-
   if (!selectedDocument || !slide) return null;
 
   return (
     <main
+      onPointerDown={onPointerDown}
       onPointerUp={onPointerUp}
-      onTouchStart={onTouchStart}
-      onTouchEnd={onTouchEnd}
       style={{
         position: "fixed",
         inset: 0,
@@ -231,7 +235,7 @@ export default function TeleprompterDisplay() {
         color: night ? "#F2EEE5" : "#191815",
         userSelect: "none",
         WebkitUserSelect: "none",
-        touchAction: "pan-y",
+        touchAction: "none",
       }}
     >
       <div
@@ -252,6 +256,7 @@ export default function TeleprompterDisplay() {
       {chromeVisible ? (
         <>
           <header
+            onPointerDown={(event) => event.stopPropagation()}
             onPointerUp={(event) => event.stopPropagation()}
             style={{
               position: "absolute",
@@ -345,7 +350,7 @@ function nextMode(mode: TeleprompterMode): TeleprompterMode {
   return "script";
 }
 
-function chipStyle(night: boolean): React.CSSProperties {
+function chipStyle(night: boolean): CSSProperties {
   return {
     appearance: "none",
     border: `1px solid ${night ? "rgba(255,255,255,.12)" : "rgba(25,24,21,.14)"}`,
