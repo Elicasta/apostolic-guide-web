@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { getAdminAccess } from "@/auth";
 import { isTeleprompterSessionState } from "@/lib/teleprompter/session-state";
 import { createServiceClient } from "@/supabase";
 
@@ -19,7 +20,21 @@ const writeSchema = z.object({
 
 const noStoreHeaders = { "Cache-Control": "no-store" };
 
+async function requireTeleprompterAdmin() {
+  const access = await getAdminAccess();
+  if (access.state === "signed_out" || access.state === "unconfigured") {
+    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+  }
+  if (access.state !== "allowed") {
+    return NextResponse.json({ error: "Forbidden." }, { status: 403 });
+  }
+  return null;
+}
+
 export async function GET(request: NextRequest) {
+  const unauthorized = await requireTeleprompterAdmin();
+  if (unauthorized) return unauthorized;
+
   const parsedCode = sessionCodeSchema.safeParse(
     request.nextUrl.searchParams.get("session"),
   );
@@ -56,6 +71,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const unauthorized = await requireTeleprompterAdmin();
+  if (unauthorized) return unauthorized;
+
   const contentLength = Number(request.headers.get("content-length") || 0);
   if (contentLength > 64_000) {
     return NextResponse.json({ error: "Session state is too large." }, { status: 413 });
