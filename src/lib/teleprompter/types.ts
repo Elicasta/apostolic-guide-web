@@ -37,6 +37,8 @@ export interface TeleprompterSessionState {
   scrolling: boolean;
   scrollSpeed: number;
   scrollTopSequence: number;
+  scrollNudgeSequence?: number;
+  scrollNudgeDelta?: number;
   slides: TeleprompterSlideSummary[];
   sequence: number;
   updatedAt: number;
@@ -53,7 +55,8 @@ export type TeleprompterAction =
   | { type: "lock"; locked: boolean }
   | { type: "scroll"; scrolling: boolean }
   | { type: "scrollSpeed"; scrollSpeed: number }
-  | { type: "scrollTop" };
+  | { type: "scrollTop" }
+  | { type: "scrollNudge"; delta: number };
 
 export type TeleprompterConnection =
   | "idle"
