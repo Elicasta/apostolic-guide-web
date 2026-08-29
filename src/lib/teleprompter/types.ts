@@ -34,6 +34,9 @@ export interface TeleprompterSessionState {
   mode: TeleprompterMode;
   fontScale: number;
   locked: boolean;
+  scrolling: boolean;
+  scrollSpeed: number;
+  scrollTopSequence: number;
   slides: TeleprompterSlideSummary[];
   sequence: number;
   updatedAt: number;
@@ -47,7 +50,10 @@ export type TeleprompterAction =
   | { type: "theme"; theme: TeleprompterTheme }
   | { type: "mode"; mode: TeleprompterMode }
   | { type: "fontScale"; fontScale: number }
-  | { type: "lock"; locked: boolean };
+  | { type: "lock"; locked: boolean }
+  | { type: "scroll"; scrolling: boolean }
+  | { type: "scrollSpeed"; scrollSpeed: number }
+  | { type: "scrollTop" };
 
 export type TeleprompterConnection =
   | "idle"
