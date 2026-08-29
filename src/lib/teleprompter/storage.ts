@@ -1,6 +1,9 @@
 import type { TeleprompterDocument } from "./types";
 
 export const TELEPROMPTER_STORAGE_KEY = "ag:teleprompter:documents:v1";
+export const TELEPROMPTER_LAST_DOCUMENT_KEY = "ag:teleprompter:last-presented:v1";
+
+export const DEFAULT_TELEPROMPTER_CONTENT = "# Intro\nPut the full opening section here.\n\n@note Private speaking cue.\n\n---\n\n# Point 1\nEach --- starts a new teleprompter page. Keep the whole section together.";
 
 export const JESUS_IS_GOD_SAMPLE = `# Intro
 If Jesus isn't God, then we have to explain some things.
@@ -628,6 +631,38 @@ function migrateSeedDocument(document: TeleprompterDocument): TeleprompterDocume
     content: JESUS_IS_GOD_SAMPLE,
     updatedAt: new Date().toISOString(),
   };
+}
+
+export function isUntouchedStarterDocument(document: TeleprompterDocument) {
+  return document.title === "Untitled Script" && document.content === DEFAULT_TELEPROMPTER_CONTENT;
+}
+
+export function getLastPresentedDocumentId() {
+  if (typeof window === "undefined") return "";
+  return window.localStorage.getItem(TELEPROMPTER_LAST_DOCUMENT_KEY) || "";
+}
+
+export function setLastPresentedDocumentId(documentId: string) {
+  if (typeof window === "undefined" || !documentId) return;
+  window.localStorage.setItem(TELEPROMPTER_LAST_DOCUMENT_KEY, documentId);
+}
+
+export function selectTeleprompterDocument(
+  documents: TeleprompterDocument[],
+  requestedDocumentId?: string | null,
+) {
+  const requested = documents.find((document) => document.id === requestedDocumentId);
+  if (requested && !isUntouchedStarterDocument(requested)) return requested;
+
+  const lastPresentedId = getLastPresentedDocumentId();
+  const lastPresented = documents.find((document) => document.id === lastPresentedId);
+  if (lastPresented && !isUntouchedStarterDocument(lastPresented)) return lastPresented;
+
+  return (
+    documents.find((document) => document.title === "Jesus Is God") ??
+    documents.find((document) => !isUntouchedStarterDocument(document)) ??
+    documents[0]
+  );
 }
 
 export function loadTeleprompterDocuments(): TeleprompterDocument[] {
