@@ -12,7 +12,11 @@ import {
   normalizeSessionCode,
   sendTeleprompterState,
 } from "@/lib/teleprompter/realtime";
-import { loadTeleprompterDocuments } from "@/lib/teleprompter/storage";
+import {
+  loadTeleprompterDocuments,
+  selectTeleprompterDocument,
+  setLastPresentedDocumentId,
+} from "@/lib/teleprompter/storage";
 import type {
   TeleprompterCommand,
   TeleprompterDocument,
@@ -41,6 +45,7 @@ export default function TeleprompterDisplay() {
   const channelRef = useRef<RealtimeChannel | null>(null);
   const pointerStartRef = useRef<PointerStart | null>(null);
   const scrollerRef = useRef<HTMLDivElement | null>(null);
+  const slidesLengthRef = useRef(1);
 
   useEffect(() => {
     const loaded = loadTeleprompterDocuments();
@@ -48,10 +53,11 @@ export default function TeleprompterDisplay() {
     const requestedDoc = params.get("doc");
     const requestedSession = normalizeSessionCode(params.get("session"));
     const nextSession = requestedSession || makeSessionCode();
-    const selected = loaded.find((doc) => doc.id === requestedDoc) ?? loaded[0];
+    const selected = selectTeleprompterDocument(loaded, requestedDoc);
 
     setDocuments(loaded);
     setDocumentId(selected?.id ?? "");
+    if (selected?.id) setLastPresentedDocumentId(selected.id);
     setSessionCode(nextSession);
 
     params.set("session", nextSession);
@@ -73,6 +79,7 @@ export default function TeleprompterDisplay() {
   const night = theme === "night";
 
   useEffect(() => {
+    slidesLengthRef.current = Math.max(slides.length, 1);
     setSlideIndex((current) => clamp(current, 0, Math.max(slides.length - 1, 0)));
   }, [slides.length]);
 
@@ -81,12 +88,12 @@ export default function TeleprompterDisplay() {
   }, [slideIndex]);
 
   const next = useCallback(() => {
-    setSlideIndex((current) => clamp(current + 1, 0, Math.max(slides.length - 1, 0)));
-  }, [slides.length]);
+    setSlideIndex((current) => clamp(current + 1, 0, slidesLengthRef.current - 1));
+  }, []);
 
   const prev = useCallback(() => {
-    setSlideIndex((current) => clamp(current - 1, 0, Math.max(slides.length - 1, 0)));
-  }, [slides.length]);
+    setSlideIndex((current) => clamp(current - 1, 0, slidesLengthRef.current - 1));
+  }, []);
 
   const applyRemoteCommand = useCallback(
     (command: TeleprompterCommand) => {
@@ -98,7 +105,7 @@ export default function TeleprompterDisplay() {
           prev();
           break;
         case "goto":
-          setSlideIndex(clamp(command.index, 0, Math.max(slides.length - 1, 0)));
+          setSlideIndex(clamp(command.index, 0, slidesLengthRef.current - 1));
           break;
         case "theme":
           setTheme(command.theme);
@@ -113,7 +120,7 @@ export default function TeleprompterDisplay() {
           break;
       }
     },
-    [next, prev, slides.length],
+    [next, prev],
   );
 
   const state = useMemo<TeleprompterSessionState>(
