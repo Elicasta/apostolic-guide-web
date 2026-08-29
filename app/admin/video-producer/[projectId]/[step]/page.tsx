@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getStudioPermission } from "@/auth";
+import { VideoProducerMulticamPanel } from "@/video-producer-multicam-panel";
 import { VideoProducerRegeneratePanel } from "@/video-producer-regenerate-panel";
 import { VideoProducerReelsHandoff } from "@/video-producer-reels-handoff";
 import { VideoProducerSequentialFlow, type VideoProducerStep } from "@/video-producer-sequential-flow";
@@ -15,6 +16,8 @@ export default async function VideoProducerProjectStepPage({ params }: { params:
   return (
     <>
       <VideoProducerSequentialFlow projectId={projectId} step={step as VideoProducerStep}/>
+      {step === "source" ? <VideoProducerMulticamPanel projectId={projectId} mode="source"/> : null}
+      {step === "produce" ? <VideoProducerMulticamPanel projectId={projectId} mode="produce"/> : null}
       {step === "produce" ? <VideoProducerRegeneratePanel projectId={projectId}/> : null}
       {step === "deliver" ? <VideoProducerReelsHandoff projectId={projectId}/> : null}
     </>

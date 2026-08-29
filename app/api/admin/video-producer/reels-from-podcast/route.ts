@@ -17,9 +17,8 @@ export async function POST(request: Request) {
   if (!service) return NextResponse.json({ error: "Supabase service access is not configured." }, { status: 503 });
 
   const parentResult = await service.from("video_producer_projects")
-    .select("id,title,mode,status,pathway_slug,source_provider,source_locator,source_filename,source_mime_type,source_size_bytes,source_duration,transcript_text,transcript,reel_candidates")
-    .eq("id", parsed.data.projectId)
-    .maybeSingle();
+    .select("id,title,mode,status,pathway_slug,source_provider,source_locator,source_filename,source_mime_type,source_size_bytes,source_duration,transcript_text,transcript,reel_candidates,audio_plan")
+    .eq("id", parsed.data.projectId).is("deleted_at", null).maybeSingle();
   if (parentResult.error) return NextResponse.json({ error: parentResult.error.message }, { status: 500 });
   const parent = parentResult.data;
   if (!parent || parent.mode !== "podcast" || !parent.source_locator) return NextResponse.json({ error: "Podcast source not found." }, { status: 404 });
@@ -32,18 +31,20 @@ export async function POST(request: Request) {
   }
 
   const existing = await service.from("video_producer_projects")
-    .select("id,title,mode,status,parent_project_id,pathway_slug,source_range_start,source_range_end")
-    .eq("parent_project_id", parent.id)
-    .eq("source_range_start", candidate.start)
-    .eq("source_range_end", candidate.end)
-    .maybeSingle();
+    .select("id,title,mode,status,parent_project_id,pathway_slug,source_range_start,source_range_end,audio_plan")
+    .eq("parent_project_id", parent.id).eq("source_range_start", candidate.start).eq("source_range_end", candidate.end).is("deleted_at", null).maybeSingle();
   if (existing.error) return NextResponse.json({ error: existing.error.message }, { status: 500 });
   if (existing.data) {
-    if (!existing.data.pathway_slug && parent.pathway_slug) {
-      await service.from("video_producer_projects").update({ pathway_slug: parent.pathway_slug, updated_by: access.user.id }).eq("id", existing.data.id);
-      existing.data.pathway_slug = parent.pathway_slug;
+    const patch: Record<string, unknown> = {};
+    if (!existing.data.pathway_slug && parent.pathway_slug) patch.pathway_slug = parent.pathway_slug;
+    if (JSON.stringify(existing.data.audio_plan || {}) !== JSON.stringify(parent.audio_plan || {})) {
+      patch.audio_plan = parent.audio_plan || { version: 1, source: "camera_a" };
+      patch.camera_plan = null;
+      patch.approval_fingerprint = null;
+      patch.approved_at = null;
     }
-    return NextResponse.json({ project: existing.data, created: false });
+    if (Object.keys(patch).length) await service.from("video_producer_projects").update({ ...patch, updated_by: access.user.id }).eq("id", existing.data.id);
+    return NextResponse.json({ project: { ...existing.data, ...patch }, created: false });
   }
 
   const created = await service.from("video_producer_projects").insert({
@@ -62,6 +63,8 @@ export async function POST(request: Request) {
     source_range_end: candidate.end,
     transcript_text: parent.transcript_text,
     transcript: parent.transcript,
+    audio_plan: parent.audio_plan || { version: 1, source: "camera_a" },
+    camera_plan: null,
     director_metadata: { inheritedFromPodcast: parent.id, candidate },
     created_by: access.user.id,
     updated_by: access.user.id
