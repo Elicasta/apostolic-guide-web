@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { BarChart3, Bell, Bot, BookOpen, FileClock, FileText, Film, FolderOpen, Headphones, HeartPulse, Inbox, Instagram, Layers3, ListFilter, Mail, Menu, MessageCircle, Route, Send, Settings, Sparkles, UserCog, Users, X } from "lucide-react";
+import { BarChart3, Bell, Bot, BookOpen, FileClock, FileText, Film, FolderOpen, Headphones, HeartPulse, Inbox, Instagram, Layers3, ListFilter, Mail, Menu, MessageCircle, MonitorPlay, Route, Send, Settings, Sparkles, UserCog, Users, X } from "lucide-react";
 import { hasStudioPermission, type StudioPermission, type StudioRole } from "@/studio-permissions";
 
 export const studioNavSections: Array<{ label: string; items: Array<{ href: string; label: string; icon: typeof BarChart3; permission: StudioPermission; exact?: boolean }> }> = [
@@ -25,7 +25,8 @@ export const studioNavSections: Array<{ label: string; items: Array<{ href: stri
     { href: "/admin/episode-studio", label: "Episode Studio", icon: FileText, permission: "manage_content" },
     { href: "/admin/audio", label: "Pathway Audio", icon: Headphones, permission: "manage_content" },
     { href: "/admin/video-producer", label: "Video Producer", icon: Sparkles, permission: "manage_content" },
-    { href: "/admin/video-studio", label: "Video Studio", icon: Film, permission: "manage_content" }
+    { href: "/admin/video-studio", label: "Video Studio", icon: Film, permission: "manage_content" },
+    { href: "/admin/teleprompter", label: "Teleprompter", icon: MonitorPlay, permission: "manage_content" }
   ]},
   { label: "Library", items: [
     { href: "/admin/pathways", label: "Pathway Projects", icon: Route, permission: "view_content" },
