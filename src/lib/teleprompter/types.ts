@@ -37,8 +37,8 @@ export interface TeleprompterSessionState {
   scrolling: boolean;
   scrollSpeed: number;
   scrollTopSequence: number;
-  scrollNudgeSequence: number;
-  scrollNudgeDelta: number;
+  scrollNudgeSequence?: number;
+  scrollNudgeDelta?: number;
   slides: TeleprompterSlideSummary[];
   sequence: number;
   updatedAt: number;
