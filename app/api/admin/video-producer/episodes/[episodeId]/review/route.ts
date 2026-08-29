@@ -4,6 +4,7 @@ import { getStudioPermission } from "@/auth";
 import { pathwayBySlug } from "@/pathway-catalog";
 import { createServiceClient } from "@/supabase";
 import { buildEpisodeReviewPrompt, episodeSpeakerSchema, EPISODE_FORMATS, reviewEpisodeScript } from "@/video-producer-episode-script";
+import { episodeGrowthPlanMatchesSource, episodeGrowthSourceFingerprint, parseEpisodeGrowthPlan } from "@/video-producer-growth";
 
 const schema = z.object({ approve: z.boolean().optional().default(false) });
 
@@ -31,6 +32,10 @@ export async function POST(request: Request, context: { params: Promise<{ episod
   if (!scriptText) return NextResponse.json({ error: "Generate or write the episode script before theology review." }, { status: 409 });
   const format = typeof row.format === "string" && EPISODE_FORMATS.includes(row.format as typeof EPISODE_FORMATS[number]) ? row.format as typeof EPISODE_FORMATS[number] : "solo";
   const speakers = Array.isArray(row.speakers) ? row.speakers.flatMap((value) => { const check = episodeSpeakerSchema.safeParse(value); return check.success ? [check.data] : []; }) : [];
+  const growthPlan = parseEpisodeGrowthPlan(row.growth_plan);
+  const growthSourceFingerprint = episodeGrowthSourceFingerprint({ workingTitle: String(row.title || "Untitled episode"), premise: String(row.premise || ""), primaryPathwaySlug: String(row.primary_pathway_slug || ""), supportingPathwaySlugs: Array.isArray(row.supporting_pathway_slugs) ? row.supporting_pathway_slugs.map(String) : [], format, speakers });
+  if (growthPlan && !episodeGrowthPlanMatchesSource(growthPlan, growthSourceFingerprint)) return NextResponse.json({ error: "The episode inputs changed after packaging. Rebuild the YouTube package before review and approval." }, { status: 409 });
+  if (!growthPlan) return NextResponse.json({ error: "Build the YouTube package before theology review and approval." }, { status: 409 });
   const slugs = [String(row.primary_pathway_slug || ""), ...(Array.isArray(row.supporting_pathway_slugs) ? row.supporting_pathway_slugs.map(String) : [])].filter(Boolean);
   const pathwaySource = sourceFor(slugs);
   if (!pathwaySource) return NextResponse.json({ error: "Episode Pathway source could not be built." }, { status: 409 });
@@ -39,12 +44,12 @@ export async function POST(request: Request, context: { params: Promise<{ episod
 
   try {
     const model = process.env.OPENAI_EPISODE_REVIEW_MODEL?.trim() || process.env.OPENAI_EPISODE_MODEL?.trim() || "gpt-5.6-sol";
-    const review = await reviewEpisodeScript({ apiKey, model, prompt: buildEpisodeReviewPrompt({ premise: String(row.premise || ""), format, speakers, pathwaySource, scriptText }) });
+    const review = await reviewEpisodeScript({ apiKey, model, prompt: buildEpisodeReviewPrompt({ premise: String(row.premise || ""), format, speakers, pathwaySource, scriptText, growthPlan }) });
     const canApprove = review.verdict === "passed";
-    if (parsed.data.approve && !canApprove) return NextResponse.json({ error: "Episode cannot be approved while theology review needs attention.", review }, { status: 409 });
+    if (parsed.data.approve && !canApprove) return NextResponse.json({ error: "Episode cannot be approved while theology or package review needs attention.", review }, { status: 409 });
     const status = parsed.data.approve ? "approved" : canApprove ? "draft" : "needs_review";
     const saved = await service.from("video_producer_episode_scripts").update({
-      theology_review: { ...review, model, checkedAt: new Date().toISOString() },
+      theology_review: { ...review, model, checkedAt: new Date().toISOString(), growthContentRevision: growthPlan.contentRevision },
       status,
       approved_at: parsed.data.approve ? new Date().toISOString() : null,
       updated_by: access.user.id
