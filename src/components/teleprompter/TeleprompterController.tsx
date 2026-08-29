@@ -1,16 +1,20 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { normalizeSessionCode } from "@/lib/teleprompter/realtime";
 import { useTeleprompterSessionSync } from "@/lib/teleprompter/use-session-sync";
 import type { TeleprompterAction } from "@/lib/teleprompter/types";
 
-const SPEED_PRESETS = [35, 60, 90, 120] as const;
+const SPEED_PRESETS = [40, 50, 55, 70] as const;
+const NUDGE_PX = 110;
 
 export default function TeleprompterController() {
   const [sessionCode, setSessionCode] = useState("");
   const [joinCode, setJoinCode] = useState("");
+  const [scrollPanelOpen, setScrollPanelOpen] = useState(false);
+  const holdTimerRef = useRef<number | null>(null);
+  const holdIntervalRef = useRef<number | null>(null);
   const { state, connection, dispatch } = useTeleprompterSessionSync({
     sessionCode,
     role: "remote",
@@ -31,6 +35,26 @@ export default function TeleprompterController() {
     }
     dispatch(action);
   };
+
+  const clearHold = () => {
+    if (holdTimerRef.current !== null) window.clearTimeout(holdTimerRef.current);
+    if (holdIntervalRef.current !== null) window.clearInterval(holdIntervalRef.current);
+    holdTimerRef.current = null;
+    holdIntervalRef.current = null;
+  };
+
+  const beginHoldNudge = (delta: number) => {
+    clearHold();
+    holdTimerRef.current = window.setTimeout(() => {
+      send({ type: "scrollNudge", delta });
+      holdIntervalRef.current = window.setInterval(
+        () => send({ type: "scrollNudge", delta }),
+        180,
+      );
+    }, 320);
+  };
+
+  useEffect(() => clearHold, []);
 
   const join = () => {
     const code = normalizeSessionCode(joinCode);
@@ -74,7 +98,7 @@ export default function TeleprompterController() {
   const atStart = !state || state.slideIndex <= 0;
   const atEnd = !state || state.slideIndex >= state.slides.length - 1;
   const scrolling = state?.scrolling ?? false;
-  const scrollSpeed = state?.scrollSpeed ?? 60;
+  const scrollSpeed = state?.scrollSpeed ?? 55;
 
   return (
     <RemoteShell>
@@ -103,65 +127,112 @@ export default function TeleprompterController() {
           ) : null}
         </section>
 
-        <section className="tp-scroll-remote" aria-label="Auto scroll controls">
-          <div className="tp-scroll-remote-header">
-            <div>
-              <p className="tp-eyebrow">Auto scroll</p>
-              <strong>{scrollSpeed} px/sec</strong>
-            </div>
-            <span className={scrolling ? "is-running" : ""}>
-              {scrolling ? "Running" : "Stopped"}
-            </span>
-          </div>
-
+        <section className={`tp-scroll-remote ${scrollPanelOpen ? "is-open" : "is-collapsed"}`} aria-label="Scroll controls">
           <button
             type="button"
-            className={`tp-primary-button tp-scroll-toggle ${scrolling ? "is-paused" : ""}`}
-            onClick={() => send({ type: "scroll", scrolling: !scrolling })}
-            disabled={!state}
+            className="tp-scroll-panel-toggle"
+            onClick={() => setScrollPanelOpen((open) => !open)}
           >
-            {scrolling ? "Pause Auto Scroll" : "Start Auto Scroll"}
+            <span>
+              <b>Scroll</b>
+              <small>{scrolling ? `Running · ${scrollSpeed}` : `${scrollSpeed} px/sec`}</small>
+            </span>
+            <strong>{scrollPanelOpen ? "Hide" : "Show"}</strong>
           </button>
 
-          <div className="tp-speed-stepper">
-            <button
-              type="button"
-              onClick={() => state && send({ type: "scrollSpeed", scrollSpeed: scrollSpeed - 10 })}
-              disabled={!state || scrollSpeed <= 20}
-            >
-              − Slower
-            </button>
-            <button
-              type="button"
-              onClick={() => state && send({ type: "scrollSpeed", scrollSpeed: scrollSpeed + 10 })}
-              disabled={!state || scrollSpeed >= 180}
-            >
-              Faster +
-            </button>
-          </div>
+          {scrollPanelOpen ? (
+            <div className="tp-scroll-panel-body">
+              <div className="tp-scroll-remote-header">
+                <div>
+                  <p className="tp-eyebrow">Auto scroll</p>
+                  <strong>{scrollSpeed} px/sec</strong>
+                </div>
+                <span className={scrolling ? "is-running" : ""}>
+                  {scrolling ? "Running" : "Stopped"}
+                </span>
+              </div>
 
-          <div className="tp-speed-presets">
-            {SPEED_PRESETS.map((speed) => (
               <button
-                key={speed}
                 type="button"
-                className={Math.abs(scrollSpeed - speed) < 5 ? "is-active" : ""}
-                onClick={() => send({ type: "scrollSpeed", scrollSpeed: speed })}
+                className={`tp-primary-button tp-scroll-toggle ${scrolling ? "is-paused" : ""}`}
+                onClick={() => send({ type: "scroll", scrolling: !scrolling })}
                 disabled={!state}
               >
-                {speed === 35 ? "Slow" : speed === 60 ? "Normal" : speed === 90 ? "Fast" : "Very Fast"}
+                {scrolling ? "Pause Auto Scroll" : "Start Auto Scroll"}
               </button>
-            ))}
-          </div>
 
-          <button
-            type="button"
-            className="tp-secondary-button tp-top-button"
-            onClick={() => send({ type: "scrollTop" })}
-            disabled={!state}
-          >
-            ↑ Back to Top
-          </button>
+              <div className="tp-speed-stepper">
+                <button
+                  type="button"
+                  onClick={() => state && send({ type: "scrollSpeed", scrollSpeed: scrollSpeed - 5 })}
+                  disabled={!state || scrollSpeed <= 20}
+                >
+                  − 5
+                </button>
+                <button
+                  type="button"
+                  onClick={() => state && send({ type: "scrollSpeed", scrollSpeed: scrollSpeed + 5 })}
+                  disabled={!state || scrollSpeed >= 180}
+                >
+                  + 5
+                </button>
+              </div>
+
+              <div className="tp-speed-presets">
+                {SPEED_PRESETS.map((speed) => (
+                  <button
+                    key={speed}
+                    type="button"
+                    className={Math.abs(scrollSpeed - speed) < 2.5 ? "is-active" : ""}
+                    onClick={() => send({ type: "scrollSpeed", scrollSpeed: speed })}
+                    disabled={!state}
+                  >
+                    {speed === 40 ? "Slow" : speed === 50 ? "Easy" : speed === 55 ? "Natural" : "Quick"}
+                  </button>
+                ))}
+              </div>
+
+              <div className="tp-page-rocker" aria-label="Manual page position">
+                <p className="tp-eyebrow">Page position</p>
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => send({ type: "scrollNudge", delta: -NUDGE_PX })}
+                    onPointerDown={() => beginHoldNudge(-NUDGE_PX)}
+                    onPointerUp={clearHold}
+                    onPointerCancel={clearHold}
+                    onPointerLeave={clearHold}
+                    disabled={!state}
+                  >
+                    ↑
+                    <span>Up</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => send({ type: "scrollNudge", delta: NUDGE_PX })}
+                    onPointerDown={() => beginHoldNudge(NUDGE_PX)}
+                    onPointerUp={clearHold}
+                    onPointerCancel={clearHold}
+                    onPointerLeave={clearHold}
+                    disabled={!state}
+                  >
+                    ↓
+                    <span>Down</span>
+                  </button>
+                </div>
+                <small>Tap to nudge. Hold to keep moving.</small>
+              </div>
+
+              <button
+                type="button"
+                className="tp-secondary-button tp-top-button"
+                onClick={() => send({ type: "scrollTop" })}
+                disabled={!state}
+              >
+                ↑ Back to Top
+              </button>
+            </div>
+          ) : null}
         </section>
 
         <div className="tp-transport">
