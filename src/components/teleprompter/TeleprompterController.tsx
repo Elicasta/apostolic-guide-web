@@ -1,25 +1,18 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import type { RealtimeChannel } from "@supabase/supabase-js";
-import {
-  closeTeleprompterChannel,
-  createTeleprompterChannel,
-  normalizeSessionCode,
-  requestTeleprompterState,
-  sendTeleprompterCommand,
-} from "@/lib/teleprompter/realtime";
-import type {
-  TeleprompterCommand,
-  TeleprompterSessionState,
-} from "@/lib/teleprompter/types";
+import { useEffect, useState } from "react";
+import Image from "next/image";
+import { normalizeSessionCode } from "@/lib/teleprompter/realtime";
+import { useTeleprompterSessionSync } from "@/lib/teleprompter/use-session-sync";
+import type { TeleprompterAction } from "@/lib/teleprompter/types";
 
 export default function TeleprompterController() {
   const [sessionCode, setSessionCode] = useState("");
   const [joinCode, setJoinCode] = useState("");
-  const [connection, setConnection] = useState<"idle" | "connecting" | "connected" | "unavailable">("idle");
-  const [state, setState] = useState<TeleprompterSessionState | null>(null);
-  const channelRef = useRef<RealtimeChannel | null>(null);
+  const { state, connection, dispatch } = useTeleprompterSessionSync({
+    sessionCode,
+    role: "remote",
+  });
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -30,40 +23,11 @@ export default function TeleprompterController() {
     }
   }, []);
 
-  useEffect(() => {
-    if (!sessionCode) return;
-    const channel = createTeleprompterChannel(sessionCode);
-    if (!channel) {
-      setConnection("unavailable");
-      return;
+  const send = (action: TeleprompterAction) => {
+    if (typeof navigator !== "undefined" && "vibrate" in navigator) {
+      navigator.vibrate?.(8);
     }
-
-    channelRef.current = channel;
-    setConnection("connecting");
-    setState(null);
-
-    channel
-      .on("broadcast", { event: "state" }, ({ payload }) => {
-        setState(payload as TeleprompterSessionState);
-      })
-      .subscribe((status) => {
-        if (status === "SUBSCRIBED") {
-          setConnection("connected");
-          void requestTeleprompterState(channel);
-        }
-      });
-
-    return () => {
-      channelRef.current = null;
-      void closeTeleprompterChannel(channel);
-    };
-  }, [sessionCode]);
-
-  const send = async (command: TeleprompterCommand) => {
-    const channel = channelRef.current;
-    if (!channel || connection !== "connected") return;
-    if (typeof navigator !== "undefined" && "vibrate" in navigator) navigator.vibrate?.(8);
-    await sendTeleprompterCommand(channel, command);
+    dispatch(action);
   };
 
   const join = () => {
@@ -72,110 +36,132 @@ export default function TeleprompterController() {
     setSessionCode(code);
     const params = new URLSearchParams(window.location.search);
     params.set("session", code);
-    window.history.replaceState(null, "", `${window.location.pathname}?${params.toString()}`);
+    window.history.replaceState(
+      null,
+      "",
+      `${window.location.pathname}?${params.toString()}`,
+    );
   };
 
   if (!sessionCode) {
     return (
       <RemoteShell>
-        <div style={{ width: "100%", maxWidth: 430, margin: "auto" }}>
-          <Eyebrow>Teleprompter Remote</Eyebrow>
-          <h1 style={{ margin: "12px 0 8px", fontSize: "clamp(2.2rem, 12vw, 4rem)", letterSpacing: "-.055em", lineHeight: .95 }}>Join display.</h1>
-          <p style={{ color: "#8E887E", lineHeight: 1.55, marginBottom: 26 }}>Enter the session code shown on the iPad.</p>
+        <div className="tp-join-panel">
+          <Brand />
+          <p className="tp-eyebrow">Teleprompter Remote</p>
+          <h1>Join display.</h1>
+          <p className="tp-muted">Enter the session code shown on the iPad.</p>
           <input
             value={joinCode}
             onChange={(event) => setJoinCode(normalizeSessionCode(event.target.value))}
             onKeyDown={(event) => event.key === "Enter" && join()}
-            placeholder="ABCD123"
+            placeholder="ABCD12345"
             autoCapitalize="characters"
             autoCorrect="off"
-            style={inputStyle}
+            className="tp-code-input"
           />
-          <button type="button" onClick={join} style={primaryButtonStyle}>Connect</button>
+          <button type="button" onClick={join} className="tp-primary-button">
+            Connect
+          </button>
         </div>
       </RemoteShell>
     );
   }
 
   const current = state?.slides[state.slideIndex];
+  const atStart = !state || state.slideIndex <= 0;
+  const atEnd = !state || state.slideIndex >= state.slides.length - 1;
 
   return (
     <RemoteShell>
-      <div style={{ width: "100%", maxWidth: 580, margin: "0 auto", paddingBottom: 70 }}>
-        <header style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, marginBottom: 34 }}>
-          <div style={{ minWidth: 0 }}>
-            <Eyebrow>Teleprompter · {sessionCode}</Eyebrow>
-            <h1 style={{ margin: "8px 0 0", fontSize: "clamp(1.55rem, 7vw, 2.4rem)", lineHeight: 1, letterSpacing: "-.045em", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-              {state?.title ?? "Connecting…"}
-            </h1>
+      <div className="tp-remote-panel">
+        <header className="tp-remote-header">
+          <div className="tp-remote-title">
+            <Brand />
+            <p className="tp-eyebrow">Teleprompter · {sessionCode}</p>
+            <h1>{state?.title ?? "Finding display…"}</h1>
           </div>
           <ConnectionPill connection={connection} />
         </header>
 
-        {connection === "unavailable" ? (
-          <div style={noticeStyle}>Realtime is unavailable in this environment. The iPad display still works locally.</div>
-        ) : null}
-
-        <section style={{ padding: "6px 0 28px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", gap: 12, color: "#706B63", fontSize: 11, letterSpacing: ".13em", textTransform: "uppercase" }}>
+        <section className="tp-current-section" aria-live="polite">
+          <div className="tp-current-meta">
             <span>Current section</span>
-            <span>{state ? `${state.slideIndex + 1} / ${state.slides.length}` : "—"}</span>
+            <strong>
+              {state ? `${state.slideIndex + 1} / ${state.slides.length}` : "—"}
+            </strong>
           </div>
-          <div style={{ marginTop: 14, color: "#F0EAE0", fontSize: "clamp(1.8rem, 9vw, 3.2rem)", lineHeight: 1.02, letterSpacing: "-.05em", fontWeight: 660 }}>
-            {current?.heading || current?.preview || "Waiting for the iPad…"}
+          <div className="tp-current-title">
+            {current?.heading || current?.preview || "Synchronizing…"}
           </div>
           {current?.reference ? (
-            <div style={{ marginTop: 12, color: "#9A8058", fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase" }}>
-              {current.reference}
-            </div>
+            <div className="tp-current-reference">{current.reference}</div>
           ) : null}
         </section>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1.6fr", gap: 10 }}>
-          <button type="button" onClick={() => void send({ type: "prev" })} disabled={!state || state.slideIndex <= 0} style={secondaryButtonStyle}>← Previous</button>
-          <button type="button" onClick={() => void send({ type: "next" })} disabled={!state || state.slideIndex >= state.slides.length - 1} style={primaryButtonStyle}>Next →</button>
+        <div className="tp-transport">
+          <button
+            type="button"
+            className="tp-secondary-button"
+            onClick={() => send({ type: "prev" })}
+            disabled={atStart}
+          >
+            ← Previous
+          </button>
+          <button
+            type="button"
+            className="tp-primary-button tp-next-button"
+            onClick={() => send({ type: "next" })}
+            disabled={atEnd}
+          >
+            Next →
+          </button>
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 18, margin: "24px 0 34px", color: "#706A61" }}>
-          <button type="button" onClick={() => void send({ type: "theme", theme: state?.theme === "night" ? "day" : "night" })} style={plainControlStyle}>
+        <div className="tp-quick-controls">
+          <button
+            type="button"
+            onClick={() =>
+              send({ type: "theme", theme: state?.theme === "night" ? "day" : "night" })
+            }
+            disabled={!state}
+          >
             {state?.theme === "night" ? "Day" : "Night"}
           </button>
-          <button type="button" onClick={() => state && void send({ type: "fontScale", fontScale: Math.max(.8, state.fontScale - .05) })} style={plainControlStyle}>A−</button>
-          <button type="button" onClick={() => state && void send({ type: "fontScale", fontScale: Math.min(1.3, state.fontScale + .05) })} style={plainControlStyle}>A+</button>
+          <button
+            type="button"
+            onClick={() => state && send({ type: "fontScale", fontScale: state.fontScale - 0.05 })}
+            disabled={!state}
+          >
+            A−
+          </button>
+          <button
+            type="button"
+            onClick={() => state && send({ type: "fontScale", fontScale: state.fontScale + 0.05 })}
+            disabled={!state}
+          >
+            A+
+          </button>
         </div>
 
-        <section>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
-            <Eyebrow>Sections</Eyebrow>
-            <span style={{ color: "#5D5952", fontSize: 11 }}>Tap to jump</span>
+        <section className="tp-section-list">
+          <div className="tp-section-list-header">
+            <p className="tp-eyebrow">Sections</p>
+            <span>Tap to jump</span>
           </div>
-          <div style={{ borderTop: "1px solid #26241F" }}>
+          <div>
             {state?.slides.map((slide, index) => {
               const active = index === state.slideIndex;
               return (
                 <button
                   key={slide.id}
                   type="button"
-                  onClick={() => void send({ type: "goto", index })}
-                  style={{
-                    appearance: "none",
-                    width: "100%",
-                    display: "grid",
-                    gridTemplateColumns: "38px 1fr auto",
-                    gap: 10,
-                    alignItems: "center",
-                    textAlign: "left",
-                    border: 0,
-                    borderBottom: "1px solid #26241F",
-                    background: "transparent",
-                    color: active ? "#F0E9DD" : "#938D84",
-                    padding: "15px 0",
-                    cursor: "pointer",
-                  }}
+                  className={active ? "is-active" : ""}
+                  onClick={() => send({ type: "goto", index })}
                 >
-                  <span style={{ color: active ? "#B99A66" : "#555149", fontVariantNumeric: "tabular-nums", fontSize: 11 }}>{String(index + 1).padStart(2, "0")}</span>
-                  <span style={{ lineHeight: 1.25, fontWeight: active ? 650 : 480 }}>{slide.heading || slide.preview}</span>
-                  <span style={{ color: active ? "#B99A66" : "transparent", fontSize: 16 }}>•</span>
+                  <span>{String(index + 1).padStart(2, "0")}</span>
+                  <strong>{slide.heading || slide.preview}</strong>
+                  <i aria-hidden="true" />
                 </button>
               );
             })}
@@ -186,77 +172,36 @@ export default function TeleprompterController() {
   );
 }
 
-function RemoteShell({ children }: { children: React.ReactNode }) {
+function Brand() {
   return (
-    <main style={{ position: "fixed", inset: 0, zIndex: 9999, overflowY: "auto", background: "#0B0B0A", color: "#F2EEE5", padding: "max(24px, env(safe-area-inset-top)) 18px max(30px, env(safe-area-inset-bottom))", fontFamily: "var(--font-sans, ui-sans-serif, system-ui, sans-serif)" }}>
-      {children}
-    </main>
+    <Image
+      className="tp-remote-wordmark"
+      src="/brand/apostolic-guide-wordmark-reversed.png"
+      alt="Apostolic Guide"
+      width={164}
+      height={34}
+      priority
+    />
   );
 }
 
-function Eyebrow({ children }: { children: React.ReactNode }) {
-  return <div style={{ color: "#9D835D", fontSize: 10, fontWeight: 760, letterSpacing: ".17em", textTransform: "uppercase" }}>{children}</div>;
+function RemoteShell({ children }: { children: React.ReactNode }) {
+  return <main className="tp-remote">{children}</main>;
 }
 
-function ConnectionPill({ connection }: { connection: "idle" | "connecting" | "connected" | "unavailable" }) {
-  const label = connection === "connected" ? "Live" : connection === "unavailable" ? "Offline" : "Connecting";
-  return <div style={{ flex: "0 0 auto", color: connection === "connected" ? "#B99A66" : "#68635C", paddingTop: 2, fontSize: 10, letterSpacing: ".1em", textTransform: "uppercase" }}>{label}</div>;
+function ConnectionPill({ connection }: { connection: string }) {
+  const label =
+    connection === "live"
+      ? "Synced"
+      : connection === "recovering"
+        ? "Recovering"
+        : connection === "offline"
+          ? "Offline"
+          : "Connecting";
+  return (
+    <div className={`tp-connection tp-connection-${connection}`}>
+      <span aria-hidden="true" />
+      {label}
+    </div>
+  );
 }
-
-const noticeStyle: React.CSSProperties = {
-  marginBottom: 20,
-  borderLeft: "2px solid #665232",
-  color: "#B8AA8D",
-  padding: "4px 0 4px 12px",
-  fontSize: 12,
-  lineHeight: 1.5,
-};
-
-const inputStyle: React.CSSProperties = {
-  width: "100%",
-  border: "1px solid #34312C",
-  background: "#121210",
-  color: "#F2EEE5",
-  borderRadius: 14,
-  padding: "17px 16px",
-  outline: "none",
-  fontSize: 24,
-  letterSpacing: ".12em",
-  textTransform: "uppercase",
-};
-
-const primaryButtonStyle: React.CSSProperties = {
-  appearance: "none",
-  width: "100%",
-  border: "1px solid #A68755",
-  background: "#9A7D50",
-  color: "#0B0B0A",
-  borderRadius: 15,
-  padding: "18px 18px",
-  fontSize: 15,
-  fontWeight: 760,
-  cursor: "pointer",
-};
-
-const secondaryButtonStyle: React.CSSProperties = {
-  appearance: "none",
-  width: "100%",
-  border: "1px solid #2B2925",
-  background: "#131311",
-  color: "#AAA49A",
-  borderRadius: 15,
-  padding: "18px 14px",
-  fontSize: 13,
-  fontWeight: 650,
-  cursor: "pointer",
-};
-
-const plainControlStyle: React.CSSProperties = {
-  appearance: "none",
-  border: 0,
-  background: "transparent",
-  color: "#817B72",
-  padding: 0,
-  fontSize: 12,
-  cursor: "pointer",
-};

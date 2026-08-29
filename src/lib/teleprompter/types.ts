@@ -35,9 +35,12 @@ export interface TeleprompterSessionState {
   fontScale: number;
   locked: boolean;
   slides: TeleprompterSlideSummary[];
+  sequence: number;
+  updatedAt: number;
+  actorId: string;
 }
 
-export type TeleprompterCommand =
+export type TeleprompterAction =
   | { type: "next" }
   | { type: "prev" }
   | { type: "goto"; index: number }
@@ -45,3 +48,10 @@ export type TeleprompterCommand =
   | { type: "mode"; mode: TeleprompterMode }
   | { type: "fontScale"; fontScale: number }
   | { type: "lock"; locked: boolean };
+
+export type TeleprompterConnection =
+  | "idle"
+  | "connecting"
+  | "live"
+  | "recovering"
+  | "offline";

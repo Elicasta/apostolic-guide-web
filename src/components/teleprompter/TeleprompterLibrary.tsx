@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 import SlideContent from "./SlideContent";
 import { parseTeleprompterDocument } from "@/lib/teleprompter/parser";
 import {
@@ -9,7 +10,10 @@ import {
   loadTeleprompterDocuments,
   saveTeleprompterDocuments,
 } from "@/lib/teleprompter/storage";
-import type { TeleprompterDocument, TeleprompterTheme } from "@/lib/teleprompter/types";
+import type {
+  TeleprompterDocument,
+  TeleprompterTheme,
+} from "@/lib/teleprompter/types";
 
 export default function TeleprompterLibrary() {
   const [documents, setDocuments] = useState<TeleprompterDocument[]>([]);
@@ -21,8 +25,7 @@ export default function TeleprompterLibrary() {
 
   useEffect(() => {
     const loaded = loadTeleprompterDocuments();
-    const params = new URLSearchParams(window.location.search);
-    const requested = params.get("doc");
+    const requested = new URLSearchParams(window.location.search).get("doc");
     const selected = loaded.find((doc) => doc.id === requested) ?? loaded[0];
     setDocuments(loaded);
     setSelectedId(selected?.id ?? "");
@@ -39,26 +42,30 @@ export default function TeleprompterLibrary() {
     () => documents.find((doc) => doc.id === selectedId) ?? documents[0],
     [documents, selectedId],
   );
-
   const slides = useMemo(
     () => parseTeleprompterDocument(selected?.content ?? ""),
     [selected?.content],
   );
+  const filtered = useMemo(() => {
+    const needle = search.trim().toLowerCase();
+    if (!needle) return documents;
+    return documents.filter((doc) =>
+      `${doc.title} ${doc.content}`.toLowerCase().includes(needle),
+    );
+  }, [documents, search]);
 
   useEffect(() => {
     setPreviewIndex((index) => Math.min(index, Math.max(slides.length - 1, 0)));
   }, [slides.length]);
 
-  const filtered = useMemo(() => {
-    const needle = search.trim().toLowerCase();
-    if (!needle) return documents;
-    return documents.filter((doc) => `${doc.title} ${doc.content}`.toLowerCase().includes(needle));
-  }, [documents, search]);
-
-  const updateSelected = (patch: Partial<Pick<TeleprompterDocument, "title" | "content">>) => {
+  const updateSelected = (
+    patch: Partial<Pick<TeleprompterDocument, "title" | "content">>,
+  ) => {
     const now = new Date().toISOString();
     setDocuments((current) =>
-      current.map((doc) => (doc.id === selectedId ? { ...doc, ...patch, updatedAt: now } : doc)),
+      current.map((doc) =>
+        doc.id === selectedId ? { ...doc, ...patch, updatedAt: now } : doc,
+      ),
     );
   };
 
@@ -86,31 +93,37 @@ export default function TeleprompterLibrary() {
     setPreviewIndex(0);
   };
 
-  const presentUrl = selected ? `/teleprompter?doc=${encodeURIComponent(selected.id)}` : "/teleprompter";
-  const nightPreview = previewTheme === "night";
-
   if (!hydrated || !selected) {
-    return <main style={shellStyle}><div style={{ margin: "auto", color: "#8E887E" }}>Loading Teleprompter…</div></main>;
+    return <main className="tp-library-shell tp-library-loading">Loading Teleprompter…</main>;
   }
 
-  return (
-    <main style={shellStyle}>
-      <style>{`
-        .tp-library-grid { display:grid; grid-template-columns:minmax(220px,.72fr) minmax(360px,1.22fr) minmax(300px,1fr); height:100%; }
-        @media (max-width: 980px) { .tp-library-grid { grid-template-columns:minmax(190px,.7fr) minmax(330px,1.3fr); } .tp-preview-pane { display:none !important; } }
-        @media (max-width: 680px) { .tp-library-grid { display:block; overflow-y:auto; } .tp-script-list { min-height:260px; max-height:42vh; } .tp-editor-pane { min-height:58vh; } }
-      `}</style>
+  const presentUrl = `/teleprompter?doc=${encodeURIComponent(selected.id)}`;
 
+  return (
+    <main className="tp-library-shell">
       <div className="tp-library-grid">
-        <aside className="tp-script-list" style={{ borderRight: "1px solid #282621", background: "#0F0F0D", display: "flex", flexDirection: "column", minWidth: 0 }}>
-          <div style={{ padding: "22px 18px 14px", borderBottom: "1px solid #24221E" }}>
-            <div style={eyebrowStyle}>Apostolic Guide</div>
-            <h1 style={{ margin: "8px 0 16px", fontSize: 27, letterSpacing: "-.045em", lineHeight: 1 }}>Teleprompter</h1>
-            <button type="button" onClick={createNew} style={goldButtonStyle}>+ New script</button>
-            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search scripts" style={{ ...inputStyle, marginTop: 9, fontSize: 13, letterSpacing: 0, textTransform: "none" }} />
+        <aside className="tp-library-sidebar">
+          <div className="tp-library-brand">
+            <Image
+              src="/brand/apostolic-guide-wordmark-reversed.png"
+              alt="Apostolic Guide"
+              width={164}
+              height={34}
+              priority
+            />
+            <p>Teleprompter</p>
+            <button type="button" onClick={createNew} className="tp-library-primary">
+              + New script
+            </button>
+            <input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search scripts"
+              aria-label="Search scripts"
+            />
           </div>
 
-          <div style={{ padding: 10, overflowY: "auto", flex: 1 }}>
+          <div className="tp-library-list">
             {filtered.map((doc) => {
               const sectionCount = parseTeleprompterDocument(doc.content).length;
               const active = doc.id === selected.id;
@@ -118,40 +131,32 @@ export default function TeleprompterLibrary() {
                 <button
                   key={doc.id}
                   type="button"
-                  onClick={() => { setSelectedId(doc.id); setPreviewIndex(0); }}
-                  style={{
-                    width: "100%",
-                    appearance: "none",
-                    textAlign: "left",
-                    border: `1px solid ${active ? "#6E5939" : "transparent"}`,
-                    background: active ? "#1B1813" : "transparent",
-                    color: active ? "#EFE8DA" : "#A29C92",
-                    borderRadius: 13,
-                    padding: "12px 12px",
-                    cursor: "pointer",
-                    marginBottom: 4,
+                  className={active ? "is-active" : ""}
+                  onClick={() => {
+                    setSelectedId(doc.id);
+                    setPreviewIndex(0);
                   }}
                 >
-                  <div style={{ fontWeight: 650, lineHeight: 1.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{doc.title}</div>
-                  <div style={{ marginTop: 6, color: active ? "#9F8B67" : "#5F5A53", fontSize: 11 }}>{sectionCount} sections · {formatUpdated(doc.updatedAt)}</div>
+                  <strong>{doc.title}</strong>
+                  <span>{sectionCount} sections · {formatUpdated(doc.updatedAt)}</span>
                 </button>
               );
             })}
           </div>
         </aside>
 
-        <section className="tp-editor-pane" style={{ minWidth: 0, display: "flex", flexDirection: "column", background: "#121210" }}>
-          <header style={{ display: "flex", gap: 10, alignItems: "center", justifyContent: "space-between", padding: "16px 18px", borderBottom: "1px solid #292722" }}>
+        <section className="tp-editor-pane">
+          <header>
             <input
               value={selected.title}
               onChange={(event) => updateSelected({ title: event.target.value })}
               aria-label="Script title"
-              style={{ flex: 1, minWidth: 0, border: 0, outline: 0, background: "transparent", color: "#F1ECE3", fontSize: 18, fontWeight: 680, letterSpacing: "-.02em" }}
+              className="tp-title-input"
             />
-            <div style={{ display: "flex", gap: 7 }}>
-              <button type="button" onClick={duplicate} style={smallButtonStyle}>Duplicate</button>
-              <button type="button" onClick={remove} disabled={documents.length <= 1} style={{ ...smallButtonStyle, color: documents.length <= 1 ? "#4F4B44" : "#A77F76" }}>Delete</button>
-              <a href={presentUrl} style={{ ...goldButtonStyle, width: "auto", padding: "10px 14px", textDecoration: "none" }}>Present</a>
+            <div>
+              <button type="button" onClick={duplicate}>Duplicate</button>
+              <button type="button" onClick={remove} disabled={documents.length <= 1}>Delete</button>
+              <a href={presentUrl}>Present</a>
             </div>
           </header>
 
@@ -160,51 +165,59 @@ export default function TeleprompterLibrary() {
             onChange={(event) => updateSelected({ content: event.target.value })}
             spellCheck
             aria-label="Teleprompter script"
-            style={{
-              flex: 1,
-              width: "100%",
-              resize: "none",
-              border: 0,
-              outline: 0,
-              background: "#121210",
-              color: "#DCD6CC",
-              padding: "26px clamp(18px, 4vw, 48px) 48px",
-              fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
-              fontSize: 15,
-              lineHeight: 1.72,
-              tabSize: 2,
-            }}
           />
 
-          <div style={{ borderTop: "1px solid #292722", padding: "10px 16px", display: "flex", gap: 14, flexWrap: "wrap", color: "#6F6960", fontSize: 11 }}>
-            <span><b style={{ color: "#A88C61" }}>---</b> new page / section</span>
-            <span><b style={{ color: "#A88C61" }}>#</b> section title</span>
-            <span><b style={{ color: "#A88C61" }}>**word**</b> emphasis</span>
-            <span><b style={{ color: "#A88C61" }}>&gt;</b> Scripture</span>
-            <span><b style={{ color: "#A88C61" }}>@ref</b> reference</span>
-            <span><b style={{ color: "#A88C61" }}>@note</b> speaker note</span>
-            <span style={{ marginLeft: "auto" }}>Autosaved locally</span>
+          <div className="tp-editor-help">
+            <span><b>---</b> new page</span>
+            <span><b>#</b> section title</span>
+            <span><b>**word**</b> emphasis</span>
+            <span><b>&gt;</b> Scripture</span>
+            <span><b>@ref</b> reference</span>
+            <span><b>@note</b> speaker note</span>
+            <span>Autosaved locally</span>
           </div>
         </section>
 
-        <aside className="tp-preview-pane" style={{ minWidth: 0, display: "flex", flexDirection: "column", background: "#0E0E0C", borderLeft: "1px solid #282621" }}>
-          <div style={{ padding: "16px 16px 12px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, borderBottom: "1px solid #24221E" }}>
+        <aside className="tp-preview-pane">
+          <header>
             <div>
-              <div style={eyebrowStyle}>Section preview</div>
-              <div style={{ marginTop: 5, color: "#79736A", fontSize: 11 }}>{previewIndex + 1} / {slides.length}</div>
+              <p>Section preview</p>
+              <span>{previewIndex + 1} / {slides.length}</span>
             </div>
-            <button type="button" onClick={() => setPreviewTheme((value) => value === "night" ? "day" : "night")} style={smallButtonStyle}>{nightPreview ? "Day" : "Night"}</button>
+            <button
+              type="button"
+              onClick={() => setPreviewTheme((value) => value === "night" ? "day" : "night")}
+            >
+              {previewTheme === "night" ? "Day" : "Night"}
+            </button>
+          </header>
+
+          <div className="tp-preview-stage">
+            <div className={`tp-preview-canvas tp-theme-${previewTheme}`}>
+              <SlideContent
+                slide={slides[previewIndex]}
+                theme={previewTheme}
+                fontScale={0.8}
+                compact
+              />
+            </div>
           </div>
 
-          <div style={{ flex: 1, minHeight: 0, padding: 16, display: "flex" }}>
-            <div style={{ flex: 1, borderRadius: 16, background: nightPreview ? "#0B0B0A" : "#F5F0E6", padding: "28px 24px", overflow: "auto" }}>
-              <SlideContent slide={slides[previewIndex]} theme={previewTheme} fontScale={.8} compact />
-            </div>
-          </div>
-
-          <div style={{ padding: "0 16px 16px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-            <button type="button" onClick={() => setPreviewIndex((index) => Math.max(0, index - 1))} style={smallButtonStyle}>← Previous</button>
-            <button type="button" onClick={() => setPreviewIndex((index) => Math.min(slides.length - 1, index + 1))} style={smallButtonStyle}>Next →</button>
+          <div className="tp-preview-controls">
+            <button
+              type="button"
+              onClick={() => setPreviewIndex((index) => Math.max(0, index - 1))}
+              disabled={previewIndex <= 0}
+            >
+              ← Previous
+            </button>
+            <button
+              type="button"
+              onClick={() => setPreviewIndex((index) => Math.min(slides.length - 1, index + 1))}
+              disabled={previewIndex >= slides.length - 1}
+            >
+              Next →
+            </button>
           </div>
         </aside>
       </div>
@@ -217,60 +230,3 @@ function formatUpdated(iso: string) {
   if (Number.isNaN(date.getTime())) return "recently";
   return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
-
-const shellStyle: React.CSSProperties = {
-  position: "fixed",
-  inset: 0,
-  zIndex: 9999,
-  overflow: "hidden",
-  background: "#0C0C0B",
-  color: "#F2EEE5",
-  fontFamily: "var(--font-sans, ui-sans-serif, system-ui, sans-serif)",
-};
-
-const eyebrowStyle: React.CSSProperties = {
-  color: "#B99A66",
-  fontSize: 10,
-  fontWeight: 760,
-  letterSpacing: ".18em",
-  textTransform: "uppercase",
-};
-
-const inputStyle: React.CSSProperties = {
-  width: "100%",
-  border: "1px solid #302E29",
-  background: "#151513",
-  color: "#E8E2D8",
-  borderRadius: 11,
-  padding: "10px 11px",
-  outline: "none",
-};
-
-const goldButtonStyle: React.CSSProperties = {
-  appearance: "none",
-  display: "inline-flex",
-  alignItems: "center",
-  justifyContent: "center",
-  width: "100%",
-  border: "1px solid #9D8051",
-  background: "#93764A",
-  color: "#0B0B0A",
-  borderRadius: 11,
-  padding: "11px 12px",
-  fontSize: 12,
-  fontWeight: 760,
-  cursor: "pointer",
-};
-
-const smallButtonStyle: React.CSSProperties = {
-  appearance: "none",
-  border: "1px solid #302E29",
-  background: "#171715",
-  color: "#A8A198",
-  borderRadius: 10,
-  padding: "9px 10px",
-  fontSize: 11,
-  lineHeight: 1,
-  cursor: "pointer",
-  textDecoration: "none",
-};
