@@ -1,232 +1,400 @@
 export const EPISODE_03_TITLE = "Are the Father and Son Two Persons?";
 
 export const EPISODE_03_SCRIPT = `# Cold Open
-Before we define Father and Son, put the biblical facts on the table.
+Before we define
+Father and Son,
+put the biblical facts
+on the table.
 
-Scripture says there is **one God**.
+Scripture says
+there is:
+
+**ONE GOD.**
 
 Jesus says:
 
 > God is a Spirit.
 
-Luke says the holy child born of Mary would be called **the Son of God**.
+Luke says
+the holy child
+born of Mary
+would be called:
+
+> the Son of God.
 
 Jesus says:
 
-> the Father that dwelleth in me, he doeth the works.
+> the Father
+> that dwelleth in me,
+> he doeth the works.
 
-And then He tells Philip:
+And He tells Philip:
 
-> he that hath seen me hath seen the Father.
+> he that hath seen me
+> hath seen the Father.
 
-Those are not denominational slogans.
+Those are
+the facts.
 
-Those are the texts every theology has to account for.
+Every theology
+has to account
+for them.
 
-So what does the Bible actually mean when it speaks of the **Father** and the **Son**?
+So do not begin
+with a definition
+someone handed you.
+
+Ask the text:
+
+**What does Scripture mean
+by Father
+and Son?**
 @ref Deuteronomy 6:4; John 4:24; Luke 1:35; John 14:9-10
-@note Begin with the data of Scripture, not with the label "Oneness" or "Trinity."
+@note Scripture establishes the categories before theology names them.
 
 ---
 
-# The Father Is God
-Jesus says:
+# What Does Father Mean?
+Start with Jesus:
 
 > God is a Spirit.
 
 John says:
 
-> No man hath seen God at any time.
+> No man hath seen God
+> at any time.
 
 Paul calls Him:
 
 > the invisible God.
 
-The Father is the eternal God who is Spirit.
+And Ephesians says:
 
-Not a second visible body somewhere beside Jesus.
+> one God and Father
+> of all.
 
-Not a fraction of deity.
+So the Father
+is not another
+visible human body
+standing somewhere
+beside the Son.
 
-God is one, invisible, eternal Spirit.
+The Father is
+**the eternal God.**
 
-And Scripture identifies that God as Father.
+Spirit.
+
+Invisible.
+
+Uncreated.
+
+The one God
+who was there
+before anything else.
+
+That is the
+biblical starting point
+for Father.
 @ref John 4:24; John 1:18; Colossians 1:15; Ephesians 4:6
-@note Keep the definition textual and positive.
+@note Keep this positive. Define Father from Scripture, not from a caricature.
 
 ---
 
-# The Son Was Born
-Now look at the Son.
+# What Does Son Mean?
+Now Luke 1:35.
 
-Luke 1:35 says:
+The angel says:
 
-> therefore also that holy thing which shall be born of thee shall be called the Son of God.
+> therefore also
+> that holy thing
+> which shall be born
+> of thee
+> shall be called
+> the Son of God.
+
+The Son
+is connected
+to birth.
 
 Isaiah says:
 
-> Unto us a child is born, unto us a son is given.
+> Unto us
+> a child is born,
+> unto us
+> a son is given.
 
 Galatians says:
 
-> God sent forth his Son, made of a woman.
+> God sent forth
+> his Son,
+> made of a woman.
 
-The Son is the genuine man Christ Jesus, conceived and born in time.
-
-He could grow.
-
-Pray.
-
-Obey.
-
-Suffer.
-
-Die.
-
-Rise again.
-
-And mediate between God and men.
-
-That is why Paul can call Him:
+First Timothy says:
 
 > the man Christ Jesus.
 
-Sonship is real because the humanity is real.
+So the Son
+is not imaginary.
+
+Not a costume.
+
+Not merely
+an outward shell.
+
+Jesus lived
+a genuine
+human life.
+
+He grew.
+
+He prayed.
+
+He obeyed.
+
+He suffered.
+
+He died.
+
+He rose.
+
+He mediates
+as man.
+
+Do not erase
+Sonship.
+
+The humanity
+is real.
 @ref Luke 1:35; Isaiah 9:6; Galatians 4:4; 1 Timothy 2:5
-@note Do not reduce the Son to "flesh." Emphasize the whole genuine human life of Christ.
+@note Say genuine human life, not “just flesh.”
 
 ---
 
-# The Father Dwells In The Son
-Now let Jesus explain the relationship.
+# Let Jesus Explain The Relationship
+Now go to
+John 14.
 
 Philip says:
 
-> Lord, shew us the Father.
+> Lord,
+> shew us the Father.
 
-Jesus answers:
+Jesus says:
 
-> he that hath seen me hath seen the Father.
+> he that hath seen me
+> hath seen the Father.
 
-Then He explains why:
+Then He explains:
 
-> I am in the Father, and the Father in me.
+> I am in the Father,
+> and the Father in me.
 
-And:
+And then:
 
-> the Father that dwelleth in me, he doeth the works.
+> the Father
+> that dwelleth in me,
+> he doeth the works.
 
-That is the language Scripture gives us.
+There it is.
 
-The Father **dwells in** the Son.
-
-Paul says the same truth another way:
-
-> God was in Christ, reconciling the world unto himself.
-
-The invisible God is revealed through the visible man.
-
-The Son is not the Father as humanity.
-
-The Father is not the Son as humanity.
-
-But the deity dwelling bodily in the Son is the eternal God Himself.
-@ref John 14:8-10; 2 Corinthians 5:19; Colossians 2:9
-@note This is the central distinction: genuine Son/humanity, eternal Father/deity dwelling in Him.
-
----
-
-# Real Distinction Does Not Require Divine Division
-Jesus can pray to the Father because His humanity is real.
-
-He can say:
-
-> not my will, but thine, be done.
-
-He can learn obedience.
-
-He can be tempted.
-
-He can suffer.
-
-He can die.
-
-None of that is theater.
-
-But distinction between the Father and Son does not give us permission to divide the one God into separate divine beings.
-
-Isaiah still says:
-
-> beside me there is no God.
-
-The incarnation gives us real distinction between deity and humanity without giving us another God beside the Father.
-
-Do not erase the distinctions.
-
-Do not divide the Godhead.
-@ref Luke 22:42; Hebrews 5:8; Isaiah 44:6
-@note Keep the distinction real without turning it into two Gods.
-
----
-
-# One God Still Governs The Meaning
-Deuteronomy says:
-
-> The LORD our God is one LORD.
-
-Jesus says that is the first commandment.
+The Father
+**dwells in**
+the Son.
 
 Paul says:
 
-> there is none other God but one.
+> God was in Christ,
+> reconciling the world
+> unto himself.
 
-So Father and Son cannot be interpreted in a way that overturns the Bible's repeated identification of one God.
+Colossians says:
 
-The New Testament does not replace the God of Isaiah.
+> in him dwelleth
+> all the fulness
+> of the Godhead bodily.
 
-It reveals Him in Christ.
+The invisible God
+is revealed
+through the visible man.
 
-That is why the same New Testament can say:
+The humanity
+is not the
+eternal Spirit.
 
-> God was in Christ
+The eternal Spirit
+is not the humanity.
 
-and:
+But the deity
+dwelling bodily
+in the Son
+is the one God
+Himself.
+@ref John 14:8-10; 2 Corinthians 5:19; Colossians 2:9
+@note Let Jesus’ “dwelleth in me” define the relationship.
 
-> in him dwelleth all the fulness of the Godhead bodily.
+---
 
-Real Sonship.
+# Distinction Is Real
+Then why can
+the Son pray?
 
-Real Fatherhood.
+Why can He say:
 
-One indivisible God revealed in Christ.
+> not my will,
+> but thine,
+> be done?
+
+Because the humanity
+is real.
+
+Jesus has
+a genuine
+human will.
+
+Genuine obedience.
+
+Genuine suffering.
+
+Genuine relationship
+to God as man.
+
+Do not erase
+that distinction.
+
+But do not take
+real distinction
+and turn it into
+another God.
+
+Isaiah still says:
+
+> beside me
+> there is no God.
+
+So hold both.
+
+Real distinction.
+
+**One indivisible God.**
+
+That is not
+avoiding the text.
+
+That is refusing
+to delete
+half of it.
+@ref Luke 22:42; Hebrews 5:8; Isaiah 44:6
+@note This is one of the series’ key formulations.
+
+---
+
+# One God Governs The Meaning
+Now return
+to the foundation.
+
+Deuteronomy says:
+
+> The LORD our God
+> is one LORD.
+
+Jesus repeats it.
+
+Paul says:
+
+> there is none other God
+> but one.
+
+So whatever
+Father and Son mean,
+they cannot overturn
+those statements.
+
+The New Testament
+does not replace
+the God of Isaiah
+with a different God.
+
+It reveals
+how that one God
+came to us
+in Christ.
+
+That is why
+Paul can say:
+
+> God was in Christ.
+
+And:
+
+> all the fulness
+> of the Godhead bodily.
+
+Do not begin
+with a system
+and make the verses fit.
+
+Begin with
+the verses.
+
+Then make
+the system answer
+to them.
 @ref Deuteronomy 6:4; Mark 12:29; 1 Corinthians 8:4; 2 Corinthians 5:19; Colossians 2:9
-@note Let the oneness texts control the theological conclusion.
+@note This is the Apostolic Guide posture in one section.
 
 ---
 
 # Outro
-So are the Father and Son two separate divine persons?
+So are
+Father and Son
+two separate
+divine persons?
 
-Scripture gives us something more precise than that formulation.
+Start with
+what Scripture actually gives us.
 
-The Father is the one eternal God who is Spirit.
+The Father is
+the one eternal God
+who is Spirit.
 
-The Son is the genuine man Christ Jesus, born in time.
+The Son is
+the genuine man
+Christ Jesus,
+born in time.
 
-The Father dwells in the Son.
+The Father dwells
+in the Son.
 
-All the fullness of deity dwells bodily in Him.
+All the fullness
+of deity
+dwells bodily
+in Him.
 
-And the Son truly lives, prays, obeys, suffers, dies, rises, and mediates as man.
+And the Son
+truly prays,
+obeys,
+suffers,
+dies,
+rises,
+and mediates
+as man.
 
-Real distinction.
+Do not erase
+the distinctions.
 
-One indivisible God.
+Do not divide
+the Godhead.
 
-Now that raises the next question.
+Stir all
+the Scriptures together.
 
-If the Son is born in time...
+Then the next question
+becomes obvious.
 
-**what existed before Bethlehem?**
+If the Son
+was born...
+
+**what existed
+before Bethlehem?**
 @ref Luke 1:35; John 14:10; Colossians 2:9
-@note State the conclusion as the scriptural synthesis, not as a denominational defense.`;
+@note End with the biblical synthesis, not a denominational verdict.`;
