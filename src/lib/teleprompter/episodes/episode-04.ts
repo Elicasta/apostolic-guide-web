@@ -1,214 +1,388 @@
 export const EPISODE_04_TITLE = "Did the Son Exist Before Bethlehem?";
 
 export const EPISODE_04_SCRIPT = `# Cold Open
-Put three statements beside each other.
+Put three statements
+beside each other.
 
 God is eternal.
 
 John says:
 
-> In the beginning was the Word... and the Word was God.
+> In the beginning
+> was the Word...
+> and the Word
+> was God.
 
 Luke says:
 
-> that holy thing which shall be born of thee shall be called the Son of God.
+> that holy thing
+> which shall be born
+> of thee
+> shall be called
+> the Son of God.
 
-And Isaiah says:
+Isaiah says:
 
-> Unto us a child is born, unto us a son is given.
+> Unto us
+> a child is born,
+> unto us
+> a son is given.
 
 Now think about this.
 
-Scripture gives us an eternal God.
+Scripture gives us
+an eternal God.
 
-An eternal Word that **was God**.
+An eternal Word
+that **was God.**
 
-And a Son who is conceived, born, given, and made of a woman.
+And a Son
+who is conceived,
+born,
+given,
+and made of a woman.
 
-So before we use the word "Son" as though John used it in verse 1, we need to let the Bible keep its own distinctions.
+Do not collapse
+those categories
+before the Bible does.
+
+The question is:
+
+**What was eternal,
+and what was born?**
 @ref John 1:1; Luke 1:35; Isaiah 9:6
 @note Establish God, Word, and Son from the text before discussing preexistence.
 
 ---
 
 # The Son Is Born
-Isaiah says:
+Start with
+what Scripture says
+about the Son.
 
-> Unto us a child is born, unto us a son is given.
+Isaiah:
 
-Luke says the holy thing **born** of Mary would be called the Son of God.
+> Unto us
+> a child is born,
+> unto us
+> a son is given.
 
-Galatians says:
+Luke:
 
-> when the fulness of the time was come, God sent forth his Son, made of a woman.
+> that holy thing
+> which shall be born
+> of thee
+> shall be called
+> the Son of God.
 
-Hebrews says God has spoken to us in these last days by His Son.
+Galatians:
 
-That is historical language.
+> when the fulness
+> of the time
+> was come,
+> God sent forth
+> his Son,
+> made of a woman.
 
-Conception.
+Notice the language.
 
-Birth.
+Born.
 
-A woman.
+Made of a woman.
 
-The fullness of time.
+Fullness of time.
 
-The last days.
+History.
 
-The Son is not imaginary humanity existing beside God before creation.
+The Son
+is not imaginary humanity.
 
-The Son is God's genuine manifestation in human life, born into history for our salvation.
-@ref Isaiah 9:6; Luke 1:35; Galatians 4:4; Hebrews 1:1-2
+The Son
+is the genuine
+human life
+of Jesus Christ,
+brought into the world
+for our salvation.
+
+That humanity
+had a real beginning.
+@ref Isaiah 9:6; Luke 1:35; Galatians 4:4
 @note Let the timing words do the work.
 
 ---
 
-# What Was Eternal
-John 1 does tell us what was there in the beginning.
+# What Was In The Beginning?
+Now go to
+John 1.
 
-> In the beginning was the Word.
+What does John say
+was there
+in the beginning?
 
-Then John says:
+> the Word.
 
-> the Word was with God.
+Then:
+
+> the Word
+> was with God.
 
 And:
 
-> the Word was God.
+> the Word
+> was God.
 
-John does not say, "In the beginning was the Son."
+John does not say:
 
-He says **the Word**.
+In the beginning
+was the Son.
 
-And then verse 14 tells us what happens:
+He says:
 
-> the Word was made flesh.
+**the Word.**
 
-The eternal Word of God becomes flesh.
+Then verse 14:
 
-The eternal God does not begin to exist.
+> the Word
+> was made flesh.
 
-His Word does not begin to exist.
+There is
+the movement.
 
-The incarnation begins in history.
+The eternal Word
+was God.
 
-The Son is born.
-@ref John 1:1,14
+The Word
+became flesh.
+
+The incarnation
+enters history.
+
+The Son
+is born.
+
+God did not
+begin at Bethlehem.
+
+His Word did not
+begin at Bethlehem.
+
+But the genuine
+human Son did.
+@ref John 1:1,14; Luke 1:35
 @note Keep Word and Son related without making them interchangeable before the incarnation.
 
 ---
 
-# Sent Does Not Mean A Body Traveled From Heaven
-Then Scripture says God "sent forth his Son."
+# What Does Sent Mean?
+Then somebody reads:
 
-Does the word **sent** require a preexisting human Son physically living beside God before Mary?
+> God sent forth
+> his Son.
 
-No.
+And assumes:
 
-John the Baptist is called:
+The human Son
+must have been
+physically living
+beside God
+before Mary.
+
+But Scripture itself
+will not let us
+make that assumption.
+
+John the Baptist
+is called:
 
 > a man sent from God.
 
-Jeremiah was known and ordained before his birth and then sent to the nations.
+Jeremiah was known
+and ordained
+before his birth,
+then sent
+to the nations.
 
-And First Peter says Christ was:
+And Peter says
+Christ was:
 
-> foreordained before the foundation of the world, but was manifest in these last times for you.
+> foreordained
+> before the foundation
+> of the world,
+> but was manifest
+> in these last times.
 
-Notice the sequence.
+Look at the sequence.
 
 Foreordained before.
 
-Manifest in time.
+Manifest later.
 
-God's purpose is eternal.
-
-The historical manifestation occurs when God brings that purpose into the world.
+God's purpose
+can be eternal
+without the historical
+human manifestation
+already existing bodily.
 @ref John 1:6; Jeremiah 1:5; 1 Peter 1:20
 @note Distinguish eternal purpose from preexisting human embodiment.
 
 ---
 
-# Before Abraham Was, I Am
-Now take Jesus' words seriously:
+# Before Abraham Was
+Now do not weaken
+John 8:58.
 
-> Before Abraham was, I am.
+Jesus says:
 
-That is not a small statement.
+> Before Abraham was,
+> I am.
 
-Jesus is identifying Himself with eternal divine existence.
+That is
+an enormous statement.
 
-But Mary did not give birth before Abraham.
+Jesus is speaking
+with eternal
+divine identity.
 
-So again, stir the Scriptures together.
+But Mary
+did not give birth
+before Abraham.
 
-According to His humanity, Jesus is born in history.
+So stir
+the Scriptures together.
 
-According to the deity dwelling in Him, the God revealed in Jesus is the eternal I AM.
+According to
+His humanity,
+Jesus is born
+in history.
 
-The man is not pretending to have a birth.
+According to
+the deity dwelling
+in Him,
+the God revealed
+in Jesus
+is the eternal
+**I AM.**
 
-And the deity is not pretending to be eternal.
+Do not make
+His humanity eternal
+just to protect
+His deity.
 
-The incarnation holds both truths in the one Lord Jesus Christ.
+And do not make
+His deity temporary
+just to protect
+His humanity.
+
+Hold both.
 @ref John 8:58; John 14:10; Galatians 4:4
-@note Let John 8:58 establish deity without making the human body preexistent.
+@note John 8:58 supports deity. It does not require an eternal human body.
 
 ---
 
-# The Lamb Was In God's Purpose
+# The Lamb In God's Purpose
 Revelation speaks of:
 
-> the Lamb slain from the foundation of the world.
+> the Lamb slain
+> from the foundation
+> of the world.
 
-Calvary did not physically happen before creation.
+Was Jesus
+literally crucified
+before creation?
 
-Jesus was crucified in history.
+No.
 
-Yet Scripture can speak of that saving work as settled in God's purpose before the world began.
+Calvary happened
+in history.
 
-Acts says Jesus was delivered by:
+Yet God's saving purpose
+was settled
+before history.
 
-> the determinate counsel and foreknowledge of God.
+Acts says Jesus
+was delivered by:
 
-So when Scripture speaks of Christ before His manifestation, we have to ask what kind of preexistence the text is describing.
+> the determinate counsel
+> and foreknowledge
+> of God.
+
+So Scripture is comfortable
+speaking about
+God's plan
+before its historical
+manifestation.
+
+That gives us
+a rule.
+
+When a passage
+speaks of Christ
+before Bethlehem,
+ask what the text
+is actually describing.
 
 God's eternal purpose?
 
 God's eternal Word?
 
-Or the historical Son who is born of Mary?
+Or the Son
+born of Mary?
 
-Do not collapse those categories before the Bible does.
+Let the passage answer.
 @ref Revelation 13:8; Acts 2:23; 1 Peter 1:20
-@note Use this as a biblical pattern for purpose-before-manifestation.
+@note Use purpose-before-manifestation as a biblical category, not a shortcut.
 
 ---
 
 # Outro
-Did the Son exist before Bethlehem?
+Did the Son
+exist before Bethlehem?
 
-Here is what Scripture actually gives us.
+Here is what
+Scripture gives us.
 
-The one God is eternal.
+The one God
+is eternal.
 
-His Word is eternal and **was God**.
+His Word
+is eternal
+and **was God.**
 
-His saving purpose was established before the foundation of the world.
+His saving purpose
+was established
+before the foundation
+of the world.
 
-The Son is conceived, born, given, made of a woman, and manifested in history.
+The Son
+is conceived,
+born,
+given,
+made of a woman,
+and manifested
+in history.
 
-So the eternal reality revealed in Jesus did not begin at Bethlehem.
+So the eternal reality
+revealed in Jesus
+did not begin
+at Bethlehem.
 
-God did not begin there.
+**God did not begin there.**
 
-But Scripture ties Sonship to the genuine human life that did.
+But Scripture ties
+Sonship
+to the genuine
+human life
+that did.
 
-And that brings us straight into John 1.
+And now
+we are ready
+for John 1.
 
-If the Word was there in the beginning...
+If the Word
+was there
+in the beginning...
 
-**what exactly is the Word?**
+**what exactly
+is the Word?**
 @ref John 1:1,14; Luke 1:35
-@note End by preserving the distinction the text itself makes.`;
+@note End with the distinction Scripture itself makes.`;

@@ -1,98 +1,126 @@
 export const EPISODE_02_TITLE = "Who Was Jesus Praying To?";
 
 export const EPISODE_02_SCRIPT = `# Cold Open
-Before we decide what Jesus' prayers prove, establish what Scripture says.
+Before we ask
+who Jesus was
+praying to,
+we need to establish
+what Scripture already says.
 
 There is one God.
 
-Jesus was genuinely human.
+God is Spirit.
 
-The Father dwelt in Him.
+The Son was born.
 
-All the fullness of the Godhead dwelt bodily in Him.
+Jesus is called:
 
-And Hebrews says that **in the days of his flesh** He offered prayers and supplications.
+> the man Christ Jesus.
 
-Those statements belong together.
+The Father dwells
+in the Son.
+
+And Hebrews says
+Jesus prayed:
+
+> in the days
+> of his flesh.
+
+Now think about that.
+
+Prayer is not
+an isolated verse
+that gets to erase
+everything else.
+
+We have to account
+for all of it.
 
 So the question is not:
 
-"Which verse are we going to ignore?"
+Jesus prayed,
+therefore He cannot
+be God.
 
 The question is:
 
-**What kind of incarnation does the Bible describe?**
-
-And once we let Scripture answer that, Jesus' prayers make sense.
-@ref Deuteronomy 6:4; Hebrews 5:7-8; John 14:10; Colossians 2:9
-@note Start with the biblical facts before addressing the objection.
-
----
-
-# One God Controls The Question
-Start where Scripture starts.
-
-> Hear, O Israel: The LORD our God is one LORD.
-
-Isaiah says:
-
-> beside me there is no God.
-
-Jesus repeats the Shema.
-
-Paul says:
-
-> there is none other God but one.
-
-So whatever we say about the prayers of Jesus cannot quietly create another God beside the God of Scripture.
-
-That is the boundary.
-
-Now bring the incarnation into it.
-@ref Deuteronomy 6:4; Isaiah 44:6; Mark 12:29; 1 Corinthians 8:4
-@note Establish one God before explaining Father/Son distinction.
+**What does Scripture say
+about the humanity
+of Jesus Christ?**
+@ref Deuteronomy 6:4; John 4:24; Luke 1:35; 1 Timothy 2:5; Hebrews 5:7
+@note Do not begin defensively. Establish the biblical facts first.
 
 ---
 
 # The Son Was Really Born
-Luke 1:35 says the Holy Ghost would come upon Mary, the power of the Highest would overshadow her, and:
+Luke 1:35.
 
-> therefore also that holy thing which shall be born of thee shall be called the Son of God.
+The angel says
+the Holy Ghost
+will come upon Mary.
 
-Notice **therefore**.
+The power
+of the Highest
+will overshadow her.
 
-The Son is connected to conception and birth.
+Then:
 
-The eternal God did not begin in Bethlehem.
+> therefore also
+> that holy thing
+> which shall be born
+> of thee
+> shall be called
+> the Son of God.
 
-But the Son, the holy child, really was born.
+Notice the word:
+
+**therefore.**
+
+The Son is connected
+to conception
+and birth.
 
 Isaiah says:
 
-> Unto us a child is born, unto us a son is given.
+> Unto us
+> a child is born,
+> unto us
+> a son is given.
 
-And that same verse calls Him the Mighty God and the everlasting Father.
+Galatians says:
 
-Do not erase either side.
+> God sent forth
+> his Son,
+> made of a woman.
 
-Genuine humanity.
+The eternal God
+did not begin
+in Bethlehem.
 
-Full deity.
+But the Son
+was genuinely born.
 
-One Christ.
-@ref Luke 1:35; Isaiah 9:6; 1 Timothy 3:16
-@note Let the birth language establish genuine Sonship.
+Do not erase
+that humanity.
+
+It is essential
+to the incarnation.
+@ref Luke 1:35; Isaiah 9:6; Galatians 4:4
+@note Slow down on “therefore.” The Son is not imaginary humanity.
 
 ---
 
-# A Real Human Will
-Luke 2:52 says Jesus increased in wisdom and stature.
+# A Real Human Life
+Now look at
+what Scripture says
+Jesus experienced.
 
-God does not increase in wisdom.
+Luke says
+He increased
+in wisdom
+and stature.
 
-A real human being does.
-
-Jesus hungered.
+He hungered.
 
 He slept.
 
@@ -100,115 +128,257 @@ He wept.
 
 He suffered.
 
-And in Gethsemane He prayed:
+He died.
 
-> O my Father, if it be possible, let this cup pass from me: nevertheless not as I will, but as thou wilt.
+And in Gethsemane
+He prayed:
 
-That is not two Gods negotiating.
+> not as I will,
+> but as thou wilt.
 
-That is a genuine human will submitting to the divine will.
+That is a real
+human will
+submitting to God.
 
-The Son is not pretend humanity.
+Not theater.
 
-The man Christ Jesus truly lived obedience before God.
+Not pretend humanity.
 
-If we flatten His humanity into deity, Gethsemane stops making sense.
-@ref Luke 2:52; Matthew 26:38-39; 1 Timothy 2:5
-@note Keep the humanity concrete: will, growth, suffering, obedience.
+Real obedience.
+
+Real suffering.
+
+Real prayer.
+
+Hebrews says:
+
+> Though he were a Son,
+> yet learned he obedience
+> by the things
+> which he suffered.
+
+The eternal God
+does not learn
+how to obey.
+
+But the man
+Christ Jesus
+genuinely lived
+human obedience.
+@ref Luke 2:52; Matthew 26:39; Hebrews 5:7-8; 1 Timothy 2:5
+@note Let the humanity be fully real. Do not make Jesus a puppet.
 
 ---
 
-# The Father Was In Him
-Now let Jesus tell us where the Father is.
+# Where Was The Father?
+Now here is
+what we cannot ignore.
 
-John 14:10:
+While Jesus
+is living
+that human life,
+where does He say
+the Father is?
 
-> the Father that dwelleth in me, he doeth the works.
+John 14:10.
+
+> the Father
+> that dwelleth in me,
+> he doeth the works.
 
 Paul says:
 
-> God was in Christ, reconciling the world unto himself.
+> God was in Christ,
+> reconciling the world
+> unto himself.
 
 Colossians says:
 
-> in him dwelleth all the fulness of the Godhead bodily.
+> in him dwelleth
+> all the fulness
+> of the Godhead bodily.
 
-So while the Son is praying as genuine man, God is not absent from Christ.
+So put it together.
 
-The Father dwells in Him.
+The Son prays
+as genuine man.
 
-The humanity is not the eternal Spirit.
+The Father dwells
+in the Son.
 
-The eternal Spirit is not the humanity.
+God is in Christ.
 
-But the one eternal God is dwelling in and revealing Himself through the genuine man Christ Jesus.
+All the fullness
+of deity
+dwells bodily
+in Him.
 
-Do not erase the distinction.
+Do not use
+His prayers
+to push God
+out of Christ.
 
-Do not divide the Godhead.
+Jesus Himself says
+where the Father is.
+
+**Dwelling in Him.**
 @ref John 14:10; 2 Corinthians 5:19; Colossians 2:9
-@note This is the doctrinal center.
+@note This is the center. Let Jesus answer where the Father is.
 
 ---
 
-# Hebrews Tells Us When He Prayed
-Hebrews does something very helpful.
+# In The Days Of His Flesh
+Hebrews 5:7 says:
 
-It says:
+> Who in the days
+> of his flesh,
+> when he had offered up
+> prayers and supplications...
 
-> Who in the days of his flesh... offered up prayers and supplications with strong crying and tears.
+That phrase matters.
 
-**In the days of His flesh.**
+**In the days
+of His flesh.**
 
-Then:
+Hebrews places
+His praying life
+inside His real
+incarnate experience.
 
-> Though he were a Son, yet learned he obedience by the things which he suffered.
+Then verse 8:
 
-God in His eternal divine nature does not learn obedience.
+> Though he were a Son,
+> yet learned he obedience
+> by the things
+> which he suffered.
 
-The Son in genuine human life does.
+And First Timothy says:
 
-First Timothy says:
-
-> There is one God, and one mediator between God and men, the man Christ Jesus.
+> there is one God,
+> and one mediator
+> between God and men,
+> the man Christ Jesus.
 
 One God.
 
 One mediator.
 
-And the mediator is identified as **the man Christ Jesus**.
+And the mediator
+is identified
+as the man
+Christ Jesus.
 
-Prayer belongs to the real human life of the Son.
+Prayer belongs
+exactly where Scripture
+puts it:
+
+inside the genuine
+human life
+of the Son.
 @ref Hebrews 5:7-8; 1 Timothy 2:5
-@note Let Hebrews interpret the prayers instead of starting with a theological system.
+@note Make “in the days of His flesh” the anchor phrase.
+
+---
+
+# Do Not Delete Either Side
+Here is where
+people get in trouble.
+
+They find verses
+showing Jesus praying
+and delete His deity.
+
+Or they find verses
+showing His deity
+and make His humanity
+less than real.
+
+Scripture does neither.
+
+The Word was God.
+
+The Word became flesh.
+
+The child is called
+Mighty God.
+
+God was manifest
+in the flesh.
+
+All the fullness
+of the Godhead
+dwells bodily
+in Christ.
+
+And the Son
+prayed,
+obeyed,
+suffered,
+and died.
+
+Do not erase
+the distinctions.
+
+Do not divide
+the Godhead.
+
+**Stir all the Scriptures
+together.**
+@ref John 1:1,14; Isaiah 9:6; 1 Timothy 3:16; Colossians 2:9
+@note This is the recurring series posture.
 
 ---
 
 # Outro
-So who was Jesus praying to?
+So who was
+Jesus praying to?
 
-The Son, in genuine human life, prayed to God.
+Jesus,
+in genuine humanity,
+prayed to God.
 
-The human will submitted to the divine will.
+The human will
+submitted to
+the divine will.
 
-And the same Jesus could say:
+That prayer
+proves the Son
+was genuinely human.
 
-> the Father that dwelleth in me, he doeth the works.
+It does not erase
+what Jesus says
+about the Father:
 
-Scripture gives us both truths.
+> the Father
+> that dwelleth in me.
 
-Real humanity.
+It does not erase:
 
-The fullness of God dwelling bodily in Christ.
+> God was in Christ.
 
-That does not produce two Gods.
+And it does not erase:
 
-It gives us the incarnation.
+> all the fulness
+> of the Godhead bodily.
 
-And now the next question is unavoidable:
+Now the next question
+comes naturally.
 
-If the Father dwells in the Son, and the Son truly relates to the Father as a man...
+If the Father
+and the Son
+are genuinely distinct...
 
-**what does Scripture mean by Father and Son?**
-@ref John 14:10; Hebrews 5:7
-@note Land on the next question without returning to denominational framing.`;
+**what does Scripture
+mean by Father
+and Son?**
+
+Do not start
+with a diagram.
+
+Start with
+the texts.
+
+That is where
+we go next.
+@ref John 14:10; Hebrews 5:7; 1 Timothy 2:5
+@note Land on the next question without conceding a theological system.`;

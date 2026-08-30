@@ -1,197 +1,344 @@
 export const EPISODE_09_TITLE = "Did the Apostles Disobey Matthew 28:19?";
 
 export const EPISODE_09_SCRIPT = `# Cold Open
-Put the command beside the inspired record.
+Put the command
+beside the
+inspired record.
 
 Jesus says:
 
-> baptizing them in the name of the Father, and of the Son, and of the Holy Ghost.
+> baptizing them
+> in the name
+> of the Father,
+> and of the Son,
+> and of the Holy Ghost.
 
-Then Peter says on Pentecost:
+Then Peter says
+on Pentecost:
 
-> be baptized every one of you in the name of Jesus Christ.
+> be baptized
+> every one of you
+> in the name
+> of Jesus Christ.
 
 Acts 8 says:
 
-> in the name of the Lord Jesus.
+> in the name
+> of the Lord Jesus.
 
 Acts 19 says:
 
-> in the name of the Lord Jesus.
+> in the name
+> of the Lord Jesus.
 
-So we do not have to guess how the apostles understood Matthew 28:19.
+So we do not
+have to guess
+how the apostles
+understood Matthew 28:19.
 
-The book of Acts shows us.
+Acts shows us.
 
-Matthew gives the command.
+Matthew gives
+**the command.**
 
-Acts gives the apostolic execution.
+Acts gives
+**the execution.**
+
+Now our theology
+has to account
+for both.
 @ref Matthew 28:19; Acts 2:38; Acts 8:16; Acts 19:5
-@note Start with command plus inspired fulfillment, not with a denominational defense.
+@note Start with command plus inspired fulfillment, not denominational history.
 
 ---
 
-# Jesus Said Name Singular
-Look carefully at Matthew 28:19.
+# Jesus Said Name
+Look carefully
+at Matthew 28:19.
 
 Jesus does not say:
 
-"in the names."
+In the **names**.
 
 He says:
 
-> in the **name** of the Father, and of the Son, and of the Holy Ghost.
+> in the **name**
+> of the Father,
+> and of the Son,
+> and of the Holy Ghost.
 
 Singular.
 
-One name is connected with the full revelation of Father, Son, and Holy Ghost.
+**Name.**
 
-Now do not build the whole case on grammar.
+Now do not build
+an entire doctrine
+on one grammar point.
 
-Keep reading the New Testament and watch what the men who heard Jesus actually do.
+Keep reading.
 
-The inspired practice tells us how they understood the singular name.
+Watch what
+the men who heard
+Jesus say this
+actually do.
+
+The inspired practice
+will tell us
+how they understood
+that singular name.
 @ref Matthew 28:19
-@note Grammar opens the question; Acts answers it.
+@note Grammar opens the question. Acts supplies the apostolic interpretation.
 
 ---
 
-# Pentecost Shows The Apostolic Understanding
-Acts 2 is the first public gospel response after the Holy Ghost is poured out.
+# Pentecost
+Acts 2.
+
+The Holy Ghost
+has just been
+poured out.
 
 The crowd asks:
 
-> Men and brethren, what shall we do?
+> Men and brethren,
+> what shall we do?
 
-Peter answers:
+Peter says:
 
-> Repent, and be baptized every one of you in the name of Jesus Christ for the remission of sins.
+> Repent,
+> and be baptized
+> every one of you
+> in the name
+> of Jesus Christ
+> for the remission
+> of sins.
 
-Peter is not alone.
+Now notice
+where we are.
 
-Acts says he stands with the eleven.
+This is not
+a private ceremony
+years later.
 
-This is days after the Great Commission.
+This is Pentecost.
 
-So the question is simple:
+Peter is standing
+with the eleven.
 
-Did Peter forget what Jesus said?
+These are the men
+who heard
+Matthew 28:19.
 
-Or is Peter showing us what Jesus meant?
+So ask the text:
 
-The text gives us no apostolic correction.
+Did Peter forget
+Jesus' command?
 
-It gives us thousands baptized after Peter's instruction.
+Did eleven apostles
+stand there
+while he contradicted it?
+
+Or is Peter
+showing us
+what Jesus meant?
+
+Acts records
+no correction.
+
+It records
+people receiving
+the word
+and being baptized.
 @ref Acts 2:14,37-41
-@note Let Pentecost's timing and the presence of the eleven carry the argument.
+@note Let timing and the presence of the eleven carry the argument.
 
 ---
 
-# The Pattern Does Not Change
-Then the gospel moves outward.
+# The Pattern Continues
+Then the gospel
+moves outward.
 
 Samaritans:
 
-> baptized in the name of the Lord Jesus.
+> baptized
+> in the name
+> of the Lord Jesus.
 
-Gentiles receive the Holy Ghost, and Peter commands them to be baptized.
+Gentiles receive
+the Holy Ghost,
+then Peter commands
+them to be baptized.
 
-Disciples at Ephesus:
+Ephesus:
 
-> baptized in the name of the Lord Jesus.
+> baptized
+> in the name
+> of the Lord Jesus.
 
 Different places.
 
 Different people.
 
-Same apostolic pattern.
+Same pattern.
 
-Acts never records the apostles verbally using a three-title formula over a baptism.
+Jewish beginning.
 
-It repeatedly records the name of Jesus.
+Samaritan expansion.
 
-That is not a side note.
+Gentile expansion.
 
-That is the pattern Scripture chose to preserve.
+Disciples in Ephesus.
+
+Acts repeatedly preserves
+**the name of Jesus**
+in connection
+with baptism.
+
+That is not
+a denominational tradition.
+
+That is the record
+Scripture chose
+to give us.
 @ref Acts 8:16; Acts 10:47-48; Acts 19:5
 @note Let the repeated pattern across Acts establish consistency.
 
 ---
 
-# Why The Name Jesus
-Now bring the identity texts into the baptism texts.
+# Why Jesus?
+Now bring
+the name texts
+into the room.
 
 Jesus says:
 
-> I am come in my Father's name.
+> I am come
+> in my Father's name.
 
 The angel says:
 
-> thou shalt call his name JESUS: for he shall save his people from their sins.
+> thou shalt call
+> his name JESUS:
+> for he shall save
+> his people
+> from their sins.
 
-Jesus says the Holy Ghost would come:
+Jesus says
+the Holy Ghost
+would come:
 
 > in my name.
 
-And Peter says:
+Peter says:
 
-> there is none other name under heaven given among men, whereby we must be saved.
+> there is none other name
+> under heaven
+> given among men,
+> whereby we must be saved.
 
-Father, Son, and Holy Ghost are all biblical.
+Father is biblical.
 
-But Matthew says **name**, singular.
+Son is biblical.
 
-And Acts identifies the saving name invoked by the apostles as Jesus Christ.
+Holy Ghost is biblical.
 
-The name of Jesus is where God's saving revelation is made known in the incarnation.
+But Matthew says:
+
+**NAME.**
+
+Singular.
+
+And Acts repeatedly
+invokes the name
+**Jesus Christ.**
+
+The saving revelation
+of God
+has a name
+in the incarnation.
+
+Jesus.
 @ref John 5:43; Matthew 1:21; John 14:26; Acts 4:12
-@note Keep this rooted in the biblical name texts, not in wordplay alone.
+@note Keep this rooted in the texts, not wordplay by itself.
 
 ---
 
-# Matthew And Acts Interpret Each Other
-We should never force one inspired passage to fight another.
+# Matthew And Acts Belong Together
+Here is the mistake.
 
-Matthew tells us what Jesus commanded.
+People take Matthew
+and Acts
+and make them fight.
 
-Acts shows us what His apostles understood and practiced.
+Do not do that.
+
+Both are Scripture.
+
+Matthew tells us
+what Jesus commanded.
+
+Acts shows us
+what His apostles
+understood and practiced.
 
 Jesus says:
 
-> in the name
+> in the name.
 
 Peter says:
 
-> in the name of Jesus Christ.
+> in the name
+> of Jesus Christ.
 
-Then the pattern repeats.
+Then Acts repeats
+that practice.
 
-So Acts is not a competing baptismal theology.
+So the question
+is not:
 
-It is the historical record of the Great Commission being carried out.
+Which verse
+will we choose?
 
-The command and the fulfillment belong together.
+The question is:
+
+**How do these verses
+interpret each other?**
+
+The command
+and the fulfillment
+belong together.
 @ref Matthew 28:19; Acts 2:38; Acts 8:16; Acts 19:5
-@note State the synthesis without "I think" or denominational framing.
+@note State the synthesis directly. No “I think.”
 
 ---
 
-# Baptism Is Into Christ
-And the name is not detached from the meaning of baptism.
+# Baptized Into Christ
+And baptism
+is not only
+about wording.
 
 Romans says:
 
-> so many of us as were baptized into Jesus Christ were baptized into his death.
+> so many of us
+> as were baptized
+> into Jesus Christ
+> were baptized
+> into his death.
 
 Galatians says:
 
-> as many of you as have been baptized into Christ have put on Christ.
+> as many of you
+> as have been baptized
+> into Christ
+> have put on Christ.
 
-Colossians says we are:
+Colossians says:
 
-> buried with him in baptism.
+> buried with him
+> in baptism.
 
-Baptism identifies the believer with Jesus Christ and His saving work.
+So baptism is
+Christ-centered.
 
 His death.
 
@@ -201,37 +348,65 @@ His resurrection.
 
 His name.
 
-So the apostolic use of Jesus' name fits what baptism itself means.
+His saving work.
+
+The apostolic use
+of Jesus' name
+fits what baptism
+itself means.
+
+We are being
+identified with
+**Jesus Christ.**
 @ref Romans 6:3-4; Galatians 3:27; Colossians 2:12
 @note Move from formula to identity and gospel meaning.
 
 ---
 
 # Outro
-Did the apostles disobey Matthew 28:19?
+Did the apostles
+disobey Matthew 28:19?
 
 No.
 
-The inspired record shows the opposite.
+The inspired record
+shows the opposite.
 
-Jesus commanded baptism in **the name**.
+Jesus commanded baptism
+in:
 
-Peter preached baptism in the name of Jesus Christ.
+**the name.**
 
-The same pattern continues through Acts.
+Peter preached baptism
+in:
 
-So do not choose between Matthew and Acts.
+**the name
+of Jesus Christ.**
 
-Read them together.
+The pattern continues
+through Acts.
 
-The apostles show us how they understood Jesus' command.
+So do not choose
+between Matthew
+and Acts.
 
-And now the next question is not whether this was their practice.
+Put them together.
+
+Let the apostles
+show us
+how they understood
+Jesus' command.
+
+Now the next question
+is not whether
+they did it.
 
 The record is clear.
 
-The question is:
+The next question is:
 
-**Why does the name used in baptism matter?**
+**Why does the name
+used in baptism
+matter?**
 @ref Matthew 28:19; Acts 2:38
-@note End with the established apostolic pattern and move to its theological meaning.`;
+@note End with the established pattern and move into why the name matters.`;

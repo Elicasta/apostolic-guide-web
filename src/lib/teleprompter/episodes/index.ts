@@ -11,7 +11,8 @@ import { EPISODE_10_SCRIPT, EPISODE_10_TITLE } from "./episode-10";
 import { EPISODE_11_SCRIPT, EPISODE_11_TITLE } from "./episode-11";
 import { EPISODE_12_SCRIPT, EPISODE_12_TITLE } from "./episode-12";
 
-const SEEDED_AT = "2026-08-29T20:00:00.000Z";
+export const TELEPROMPTER_EPISODE_PREVIOUS_SEEDED_AT = "2026-08-29T20:00:00.000Z";
+export const TELEPROMPTER_EPISODE_SEEDED_AT = "2026-08-30T06:15:00.000Z";
 
 const EPISODES = [
   [2, EPISODE_02_TITLE, EPISODE_02_SCRIPT],
@@ -27,15 +28,15 @@ const EPISODES = [
   [12, EPISODE_12_TITLE, EPISODE_12_SCRIPT],
 ] as const;
 
-export const TELEPROMPTER_EPISODE_SEED_VERSION = 4;
-export const TELEPROMPTER_EPISODE_SEED_KEY = "ag:teleprompter:episode-seed:v4";
+export const TELEPROMPTER_EPISODE_SEED_VERSION = 5;
+export const TELEPROMPTER_EPISODE_SEED_KEY = "ag:teleprompter:episode-seed:v5";
 
 export function getEpisodeSeedDocuments(): TeleprompterDocument[] {
   return EPISODES.map(([episode, title, content]) => ({
     id: `apostolic-guide-episode-${String(episode).padStart(2, "0")}`,
     title: `Episode ${episode}: ${title}`,
     content,
-    createdAt: SEEDED_AT,
-    updatedAt: SEEDED_AT,
+    createdAt: TELEPROMPTER_EPISODE_SEEDED_AT,
+    updatedAt: TELEPROMPTER_EPISODE_SEEDED_AT,
   }));
 }
