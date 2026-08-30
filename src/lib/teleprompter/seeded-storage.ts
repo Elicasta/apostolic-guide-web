@@ -15,6 +15,7 @@ import {
   setLastPresentedDocumentId,
 } from "./storage";
 import {
+  TELEPROMPTER_EPISODE_PREVIOUS_SEEDED_AT,
   TELEPROMPTER_EPISODE_SEED_KEY,
   TELEPROMPTER_EPISODE_SEED_VERSION,
   getEpisodeSeedDocuments,
@@ -38,12 +39,41 @@ export function getSeedDocuments(): TeleprompterDocument[] {
   return [...getLegacySeedDocuments(), ...getEpisodeSeedDocuments()];
 }
 
+function isUntouchedPreviousEpisodeSeed(document: TeleprompterDocument) {
+  return (
+    document.id.startsWith("apostolic-guide-episode-") &&
+    document.createdAt === TELEPROMPTER_EPISODE_PREVIOUS_SEEDED_AT &&
+    document.updatedAt === TELEPROMPTER_EPISODE_PREVIOUS_SEEDED_AT
+  );
+}
+
 export function mergeEpisodeSeeds(
   documents: TeleprompterDocument[],
   episodeSeeds = getEpisodeSeedDocuments(),
 ): TeleprompterDocument[] {
-  const existingIds = new Set(documents.map((document) => document.id));
-  return [...documents, ...episodeSeeds.filter((document) => !existingIds.has(document.id))];
+  const seedById = new Map(episodeSeeds.map((seed) => [seed.id, seed]));
+  const seenIds = new Set<string>();
+
+  const merged = documents.map((document) => {
+    const seed = seedById.get(document.id);
+    if (!seed) return document;
+
+    seenIds.add(document.id);
+    if (!isUntouchedPreviousEpisodeSeed(document)) return document;
+
+    return {
+      ...seed,
+      createdAt: document.createdAt,
+    };
+  });
+
+  for (const seed of episodeSeeds) {
+    if (!seenIds.has(seed.id) && !documents.some((document) => document.id === seed.id)) {
+      merged.push(seed);
+    }
+  }
+
+  return merged;
 }
 
 export function loadTeleprompterDocuments(): TeleprompterDocument[] {
