@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+const APP_HOST = "app.apostolicguide.com";
 const STUDIO_HOST = "studio.apostolicguide.com";
 const STUDIO_PASSTHROUGH_ROUTES = new Set([
   "/login",
@@ -44,8 +45,13 @@ export async function proxy(request: NextRequest) {
     ? NextResponse.rewrite(rewriteUrl, { request })
     : NextResponse.next({ request });
 
+  const host = requestHost(request);
+  if (host === APP_HOST) {
+    response.headers.set("X-Robots-Tag", "noindex, follow");
+  }
+
   const pathname = request.nextUrl.pathname;
-  const isStudioHost = requestHost(request) === STUDIO_HOST;
+  const isStudioHost = host === STUDIO_HOST;
   const needsAuthRefresh =
     isStudioHost || pathname.startsWith("/admin") || pathname.startsWith("/auth");
 
