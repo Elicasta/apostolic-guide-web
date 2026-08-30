@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
+import { QRCodeSVG } from "qrcode.react";
 import { normalizeSessionCode } from "@/lib/teleprompter/realtime";
 import { useTeleprompterSessionSync } from "@/lib/teleprompter/use-session-sync";
 import type { TeleprompterAction } from "@/lib/teleprompter/types";
@@ -13,6 +14,8 @@ export default function TeleprompterController() {
   const [sessionCode, setSessionCode] = useState("");
   const [joinCode, setJoinCode] = useState("");
   const [scrollPanelOpen, setScrollPanelOpen] = useState(false);
+  const [pairQrOpen, setPairQrOpen] = useState(false);
+  const [pairUrl, setPairUrl] = useState("");
   const holdTimerRef = useRef<number | null>(null);
   const holdIntervalRef = useRef<number | null>(null);
   const { state, connection, dispatch } = useTeleprompterSessionSync({
@@ -26,6 +29,7 @@ export default function TeleprompterController() {
     if (code) {
       setSessionCode(code);
       setJoinCode(code);
+      setPairUrl(`${window.location.origin}/teleprompter/control?session=${code}`);
     }
   }, []);
 
@@ -60,6 +64,7 @@ export default function TeleprompterController() {
     const code = normalizeSessionCode(joinCode);
     if (!code) return;
     setSessionCode(code);
+    setPairUrl(`${window.location.origin}/teleprompter/control?session=${code}`);
     const params = new URLSearchParams(window.location.search);
     params.set("session", code);
     window.history.replaceState(
@@ -111,6 +116,24 @@ export default function TeleprompterController() {
           </div>
           <ConnectionPill connection={connection} />
         </header>
+
+        <button
+          type="button"
+          className="tp-pair-remote-button"
+          onClick={() => setPairQrOpen((open) => !open)}
+        >
+          <span aria-hidden="true">▦</span>
+          {pairQrOpen ? "Hide pairing QR" : "Pair another remote"}
+        </button>
+
+        {pairQrOpen && pairUrl ? (
+          <section className="tp-controller-pair-card" aria-label="Pair another teleprompter remote">
+            <div className="tp-remote-qr-code">
+              <QRCodeSVG value={pairUrl} size={220} level="M" marginSize={2} />
+            </div>
+            <p>Scan with another phone to join session {sessionCode}.</p>
+          </section>
+        ) : null}
 
         <section className="tp-current-section" aria-live="polite">
           <div className="tp-current-meta">

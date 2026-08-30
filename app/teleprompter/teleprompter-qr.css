@@ -1,0 +1,77 @@
+/* Keep phone pairing visible even when the compact header controls overflow. */
+.tp-display-controls button[title="Scan to open the remote"] {
+  position: fixed;
+  right: 54px;
+  bottom: max(12px, env(safe-area-inset-bottom));
+  z-index: 5;
+  min-height: 36px;
+  padding: 8px 13px;
+  border: 1px solid rgba(211,58,70,.72);
+  border-radius: 999px;
+  background: rgba(179,33,45,.94);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .03em;
+  box-shadow: 0 8px 28px rgba(0,0,0,.28);
+}
+
+.tp-display-controls button[title="Scan to open the remote"]::before {
+  content: "▦ ";
+}
+
+.tp-pair-remote-button {
+  appearance: none;
+  width: 100%;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  margin: -8px 0 18px;
+  border: 1px solid #344454;
+  border-radius: 4px;
+  background: #0e1c2a;
+  color: #d8dee3;
+  font-size: 12px;
+  font-weight: 780;
+  cursor: pointer;
+}
+
+.tp-pair-remote-button span {
+  color: var(--tp-red-bright);
+  font-size: 18px;
+  line-height: 1;
+}
+
+.tp-controller-pair-card {
+  margin: -7px 0 22px;
+  padding: 18px;
+  border: 1px solid #304252;
+  border-radius: 7px;
+  background: #0b1723;
+  text-align: center;
+}
+
+.tp-controller-pair-card .tp-remote-qr-code {
+  padding: 10px;
+}
+
+.tp-controller-pair-card .tp-remote-qr-code svg {
+  width: min(220px, 62vw);
+}
+
+.tp-controller-pair-card p {
+  margin: 12px 0 0;
+  color: #8795a0;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+@media (max-width: 560px) {
+  .tp-display-controls button[title="Scan to open the remote"] {
+    right: 52px;
+    min-height: 34px;
+    padding: 7px 11px;
+  }
+}
