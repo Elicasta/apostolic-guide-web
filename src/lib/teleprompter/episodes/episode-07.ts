@@ -1,46 +1,80 @@
 export const EPISODE_07_TITLE = "Was Jesus the First Thing God Created?";
 
 export const EPISODE_07_SCRIPT = `# Cold Open
-Before we read "firstborn of every creature," start with the Creator.
+Before we read:
+
+> the firstborn
+> of every creature
+
+start with
+**the Creator.**
 
 Isaiah 44:24 says:
 
-> I am the LORD that maketh all things; that stretcheth forth the heavens alone; that spreadeth abroad the earth by myself.
+> I am the LORD
+> that maketh all things;
+> that stretcheth forth
+> the heavens alone;
+> that spreadeth abroad
+> the earth by myself.
 
-That is the claim.
+That is
+the claim.
 
-The LORD created **all things**.
+The LORD created:
 
-Alone.
+**ALL THINGS.**
 
-By Himself.
+How?
 
-Now open Colossians 1 and read what it says about Christ:
+**ALONE.**
 
-> by him were all things created
+**BY HIMSELF.**
+
+Now open
+Colossians 1.
+
+It says of Christ:
+
+> by him
+> were all things created
 
 and:
 
-> all things were created by him, and for him.
+> all things
+> were created by him,
+> and for him.
 
-Now every theology has a question to answer.
+Now the text
+has put the question
+on the table.
 
-If the LORD created all things **alone**, and all things were created by and for Christ...
+If the LORD
+created all things
+**alone**...
+
+and all things
+were created
+by Christ
+and for Christ...
 
 **who is Christ?**
 @ref Isaiah 44:24; Colossians 1:16
-@note Start with God's exclusive Creator claim, then identify Jesus.
+@note Start with God's exclusive Creator claim. Do not let “firstborn” control the passage before context does.
 
 ---
 
-# Colossians Puts Christ Over Creation
-Read the whole sentence.
+# Read The Whole Paragraph
+Now read
+what Paul actually says.
 
-Paul says:
+> by him
+> were all things created,
+> that are in heaven,
+> and that are in earth,
+> visible and invisible
 
-> by him were all things created, that are in heaven, and that are in earth, visible and invisible
-
-Then he names:
+Then Paul names:
 
 Thrones.
 
@@ -52,169 +86,320 @@ Powers.
 
 Then:
 
-> all things were created by him, and for him.
+> all things
+> were created by him,
+> and for him.
 
-And verse 17 says:
+Then verse 17:
 
-> he is before all things, and by him all things consist.
+> he is before
+> all things,
+> and by him
+> all things consist.
 
-Paul is not quietly placing Jesus inside the creature category.
+Look at the direction
+of the passage.
 
-He is placing the entire created order under Christ.
+Everything created
+is under Christ.
 
-Creation is by Him.
+Creation is:
 
-For Him.
+**by Him.**
 
-And held together in Him.
+**for Him.**
+
+**held together
+by Him.**
+
+Paul is not
+quietly placing Jesus
+inside the creature category.
+
+He is putting
+the created order
+under Him.
 @ref Colossians 1:16-17
-@note Let the scope of "all things" establish the category before defining firstborn.
+@note Let the repeated “all things” establish the category before defining firstborn.
 
 ---
 
-# Then What Does Firstborn Mean
-Now go back one verse:
+# Then Define Firstborn
+Now go back
+to verse 15.
 
-> the firstborn of every creature.
+> the firstborn
+> of every creature.
 
-Does "firstborn" automatically mean "first thing created"?
+Does firstborn
+always mean:
 
-Scripture itself says no.
+first thing created?
 
-Psalm 89:27 says of David:
+No.
 
-> Also I will make him my firstborn, higher than the kings of the earth.
+Scripture itself
+shows us otherwise.
 
-David was the youngest son in his family.
+Psalm 89:27 says
+of David:
 
-Yet God says He will **make** him firstborn.
+> Also I will make him
+> my firstborn,
+> higher than
+> the kings of the earth.
 
-And the verse explains what that means:
+David was not
+the first son
+in his family.
 
-> higher than the kings of the earth.
+He was the youngest.
 
-Firstborn can speak of rank, inheritance, supremacy, and preeminence.
+Yet God says:
 
-That is exactly where Colossians lands:
+I will make him
+**firstborn.**
 
-> that in all things he might have the preeminence.
+And the verse
+explains the idea:
+
+> higher than
+> the kings of the earth.
+
+Rank.
+
+Inheritance.
+
+Supremacy.
+
+Preeminence.
+
+Then Colossians itself says:
+
+> that in all things
+> he might have
+> the preeminence.
+
+Let Scripture
+define Scripture.
 @ref Psalm 89:27; Colossians 1:18
-@note Let Psalm 89 and Colossians 1:18 define the title.
+@note The context gives the meaning: supremacy, not “first creature.”
 
 ---
 
-# Isaiah Will Not Allow A Second Creator
-Now bring Isaiah back into the room.
+# Bring Isaiah Back
+Now bring Isaiah
+back into the room.
 
 God says:
 
-> I am the LORD that maketh all things
+> I am the LORD
+> that maketh all things.
 
 Then:
 
-> alone
+> alone.
 
 Then:
 
 > by myself.
 
-So the answer cannot be:
+So one answer
+is already impossible.
 
-"God created everything through a separate created assistant beside Him."
+We cannot say:
 
-That would make Isaiah's words collapse.
+God created everything
+through a separate
+created assistant
+standing beside Him.
 
-The New Testament is not correcting Isaiah.
+Why?
 
-It is identifying the Creator in Christ.
+Because God said:
 
-The One revealed in Jesus is not another creator beside the LORD.
+**alone.**
 
-He is the revelation of the same one God who says He created all things alone.
+**by myself.**
+
+The New Testament
+is not correcting
+Isaiah.
+
+It is identifying
+Christ with
+the Creator's work.
+
+So every theology
+has to explain
+how Christ stands
+on the Creator side
+of the line
+without creating
+another God
+beside the LORD.
 @ref Isaiah 44:24; Colossians 1:16-17
-@note This is the key cross-Testament identification.
+@note Let Isaiah establish the non-negotiable constraint.
 
 ---
 
 # The Word And Creation
-John says:
+Now go to John.
 
-> All things were made by him; and without him was not any thing made that was made.
+> All things
+> were made by him;
+> and without him
+> was not any thing made
+> that was made.
 
-But remember John's opening statement:
+But what did John
+already tell us?
 
 > the Word was God.
 
-Psalm 33 already says:
+And Psalm 33 says:
 
-> By the word of the LORD were the heavens made.
+> By the word
+> of the LORD
+> were the heavens made.
 
-God creating by His Word does not introduce another creator.
+So God creating
+by His Word
+does not introduce
+another creator.
 
-It is the one God creating by His own Word.
+It is the one God
+creating by
+His own Word.
 
 Then John says:
 
-> the Word was made flesh.
+> the Word
+> was made flesh.
 
-The Creator's own Word is manifested in genuine humanity.
+Now the creation texts
+and incarnation texts
+meet in Christ.
 
-That is why the New Testament can center creation language on Christ without adding a second God beside the Creator of Isaiah.
+The Creator's own Word
+is manifested
+in genuine humanity.
 @ref John 1:1-3,14; Psalm 33:6
-@note Tie the Creator claim to the Word that was God and became flesh.
+@note Connect Creator → Word → flesh without inventing a second creator.
 
 ---
 
-# The Humanity Was Born In Time
-Now keep the incarnation precise.
+# Keep The Humanity Precise
+And do not
+make the opposite mistake.
 
-Mary did not give birth before Genesis 1.
+Mary did not
+give birth
+before Genesis 1.
 
-The Son is genuinely born in history.
+The Son
+was genuinely born
+in history.
 
-According to the flesh, Jesus comes from David.
+Romans says
+according to the flesh
+Jesus came
+from David.
 
-According to the deity dwelling bodily in Him, the one revealed in Jesus is eternal.
+Luke says
+He was born
+of Mary.
 
-So do not turn the human Son into a created heavenly assistant who helped God make the world.
+Colossians says
+all the fullness
+of deity
+dwells bodily
+in Him.
 
-And do not erase the genuine birth of the Son either.
+So distinguish
+what Scripture distinguishes.
 
-The humanity is real.
+The humanity
+is real
+and born in time.
 
-The deity is eternal.
+The deity dwelling
+in Him
+is eternal.
 
-The God revealed in Christ is the Creator Himself.
+Do not turn
+the human Son
+into a heavenly creature
+who helped God create.
+
+And do not erase
+His genuine birth.
+
+The God revealed
+in Christ
+is the Creator Himself.
 @ref Romans 1:3-4; Luke 1:35; Colossians 2:9
-@note Avoid implying that the physical humanity existed or created before Bethlehem.
+@note Do not imply the physical humanity existed before Bethlehem.
 
 ---
 
 # Outro
-Was Jesus the first thing God created?
-
-No.
+Was Jesus
+the first thing
+God created?
 
 Start with Isaiah.
 
-The LORD created all things **alone** and **by Himself**.
+The LORD created
+all things:
+
+**ALONE.**
+
+**BY HIMSELF.**
 
 Then read Colossians.
 
-All things were created by Christ and for Christ.
+All things
+were created
+by Christ
+and for Christ.
 
-Then let the passage define "firstborn."
+Then let Colossians
+define firstborn:
 
-> that in all things he might have the preeminence.
+> that in all things
+> he might have
+> the preeminence.
 
-The question is not how to fit Jesus into the creature category.
+So the real question
+is not:
 
-The text forces the opposite question:
+How do we fit Jesus
+into the creature category?
 
-**How can Christ stand on the Creator side of the line if the LORD created alone?**
+The text forces
+another question:
 
-And once we see who Christ is, another familiar picture has to be examined carefully:
+**How can Christ
+stand on the Creator side
+of the line
+if the LORD
+created alone?**
 
-**what does it mean that Jesus is at the right hand of God?**
+Do not answer
+with a system first.
+
+Answer the texts.
+
+And once we see
+who Christ is,
+another familiar image
+needs the same treatment.
+
+What does it mean
+that Jesus is
+at the:
+
+**RIGHT HAND OF GOD?**
 @ref Isaiah 44:24; Colossians 1:15-18
-@note Finish with Scripture putting the burden on every theology to identify Christ.`;
+@note End with the burden on every theology to identify Christ from Scripture.`;
