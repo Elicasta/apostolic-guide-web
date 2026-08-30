@@ -15,6 +15,7 @@ import {
   setLastPresentedDocumentId,
 } from "./storage";
 import {
+  TELEPROMPTER_EPISODE_PREVIOUS_SEEDED_AT,
   TELEPROMPTER_EPISODE_SEED_KEY,
   TELEPROMPTER_EPISODE_SEED_VERSION,
   getEpisodeSeedDocuments,
@@ -38,14 +39,11 @@ export function getSeedDocuments(): TeleprompterDocument[] {
   return [...getLegacySeedDocuments(), ...getEpisodeSeedDocuments()];
 }
 
-function isUntouchedEpisodeSeed(
-  document: TeleprompterDocument,
-  seed: TeleprompterDocument,
-) {
+function isUntouchedPreviousEpisodeSeed(document: TeleprompterDocument) {
   return (
-    document.id === seed.id &&
-    document.createdAt === seed.createdAt &&
-    document.updatedAt === seed.updatedAt
+    document.id.startsWith("apostolic-guide-episode-") &&
+    document.createdAt === TELEPROMPTER_EPISODE_PREVIOUS_SEEDED_AT &&
+    document.updatedAt === TELEPROMPTER_EPISODE_PREVIOUS_SEEDED_AT
   );
 }
 
@@ -53,18 +51,29 @@ export function mergeEpisodeSeeds(
   documents: TeleprompterDocument[],
   episodeSeeds = getEpisodeSeedDocuments(),
 ): TeleprompterDocument[] {
-  const seedsById = new Map(episodeSeeds.map((seed) => [seed.id, seed]));
-  const refreshed = documents.map((document) => {
-    const seed = seedsById.get(document.id);
-    if (!seed || !isUntouchedEpisodeSeed(document, seed)) return document;
-    return seed;
+  const seedById = new Map(episodeSeeds.map((seed) => [seed.id, seed]));
+  const seenIds = new Set<string>();
+
+  const merged = documents.map((document) => {
+    const seed = seedById.get(document.id);
+    if (!seed) return document;
+
+    seenIds.add(document.id);
+    if (!isUntouchedPreviousEpisodeSeed(document)) return document;
+
+    return {
+      ...seed,
+      createdAt: document.createdAt,
+    };
   });
 
-  const existingIds = new Set(refreshed.map((document) => document.id));
-  return [
-    ...refreshed,
-    ...episodeSeeds.filter((document) => !existingIds.has(document.id)),
-  ];
+  for (const seed of episodeSeeds) {
+    if (!seenIds.has(seed.id) && !documents.some((document) => document.id === seed.id)) {
+      merged.push(seed);
+    }
+  }
+
+  return merged;
 }
 
 export function loadTeleprompterDocuments(): TeleprompterDocument[] {

@@ -1,19 +1,27 @@
 export const EPISODE_05_TITLE = "What Is the Word in John 1?";
 
 export const EPISODE_05_SCRIPT = `# Cold Open
-John gives us three statements we are not allowed to rewrite.
+John gives us
+three statements
+we are not allowed
+to rewrite.
 
-> In the beginning was the Word.
+> In the beginning
+> was the Word.
 
-> the Word was with God.
+> the Word
+> was with God.
 
-> the Word was God.
+> the Word
+> was God.
 
-Then verse 14 says:
+Then verse 14:
 
-> the Word was made flesh.
+> the Word
+> was made flesh.
 
-That is the sequence.
+That is
+John's sequence.
 
 With God.
 
@@ -21,20 +29,35 @@ Was God.
 
 Made flesh.
 
-So before we import a later theological system into the word *Word*, let John define the boundaries of the conversation.
+So before we import
+any theological system
+into the word
+**Word,**
+let John set
+the boundaries.
 
-Whatever the Word is, the Word is not another God beside God.
+Whatever the Word is,
+John will not let us
+make the Word
+another God
+beside God.
 
-John says the Word **was God**.
+He says:
+
+> the Word was God.
 @ref John 1:1,14
-@note Let John's verbs establish the framework.
+@note Let John’s verbs establish the framework before any explanation.
 
 ---
 
-# Start With The One God
-The Old Testament already tells us who created and revealed Himself.
+# Start With The Creator
+Now go backward
+to the Scriptures
+John already knew.
 
-Isaiah says the LORD made all things:
+Isaiah says
+the LORD made
+all things:
 
 > alone
 
@@ -44,169 +67,313 @@ and:
 
 Psalm 33 says:
 
-> By the word of the LORD were the heavens made.
+> By the word
+> of the LORD
+> were the heavens made.
 
-God creates by His Word.
+So who creates?
 
-God speaks by His Word.
+**God.**
 
-God reveals His will, wisdom, purpose, and action by His Word.
+How does Scripture
+speak about Him creating?
 
-His Word is not a rival deity assisting Him.
+By His Word.
 
-It belongs to God's own identity and self-expression.
+God speaks
+by His Word.
 
-That is the biblical world John 1 enters.
-@ref Isaiah 44:24; Psalm 33:6
-@note Establish the Old Testament pattern before discussing Logos philosophy.
+Reveals
+by His Word.
+
+Expresses His will
+by His Word.
+
+Acts
+by His Word.
+
+The Word
+is not a rival deity
+helping God create.
+
+Isaiah already closed
+that door.
+
+God created
+**alone.**
+
+John enters
+that biblical world
+and says:
+
+> the Word was God.
+@ref Isaiah 44:24; Psalm 33:6; John 1:1-3
+@note Old Testament creation language controls how we read John 1.
 
 ---
 
 # With God And Was God
-So how can the Word be **with God** and still **be God**?
+Now here is
+the tension.
 
-Do not erase either phrase.
+The Word was:
 
-The Word is with God.
+> with God.
 
-The Word is God.
+And the Word:
 
-God's own Word can be spoken of in relation to Him because it is His expression, His utterance, His self-revelation going forth.
+> was God.
 
-But John immediately closes the door on making that Word a second God.
+Do not erase
+**with.**
+
+Do not erase
+**was.**
+
+Both are Scripture.
+
+God's Word
+can be spoken of
+in relation to Him
+because it is
+His own expression,
+utterance,
+wisdom,
+purpose,
+and self-revelation
+going forth.
+
+But John immediately
+refuses the conclusion
+that this gives us
+another God.
 
 He does not say:
 
-"the Word was a God."
+The Word was
+**a God.**
 
 He says:
 
 > the Word was God.
 
-The distinction in expression does not divide the divine identity.
+Distinction in expression
+does not require
+division in deity.
+
+Keep both clauses.
 @ref John 1:1
-@note Keep both clauses intact. Do not solve one by weakening the other.
+@note Do not solve “with God” by weakening “was God,” or vice versa.
 
 ---
 
 # The Word Became Flesh
-Then verse 14 changes the scene:
+Then verse 14
+changes the scene.
 
-> And the Word was made flesh, and dwelt among us.
+> And the Word
+> was made flesh,
+> and dwelt among us.
 
 Now think about this.
 
-The Word that **was God** is made flesh.
+The Word
+that **was God**
+was made flesh.
 
-John is not describing one divine being sending another divine being into a human body.
+John does not say
+God's Word
+stood beside a man.
 
-He is describing God's own eternal Word entering genuine human existence.
+He does not say
+God occasionally
+used a man.
 
-The invisible God is making Himself known in flesh.
+He says:
 
-That is why Paul can say:
+**the Word
+was made flesh.**
 
-> God was manifest in the flesh.
+That is incarnation.
+
+The invisible God
+is making Himself known
+in genuine humanity.
+
+Paul says:
+
+> God was manifest
+> in the flesh.
 
 And:
 
-> God was in Christ, reconciling the world unto himself.
+> God was in Christ,
+> reconciling the world
+> unto himself.
 
-The movement is revelation.
+The movement
+is not away
+from the one God.
 
-The one God is making Himself known in Christ.
+It is the one God
+making Himself known
+in Christ.
 @ref John 1:14; 1 Timothy 3:16; 2 Corinthians 5:19
-@note Keep the incarnation concrete and God-centered.
+@note Keep this concrete: God’s own Word made flesh.
 
 ---
 
-# The Son Declares The Invisible God
+# The Son Declares Him
 John 1:18 says:
 
-> No man hath seen God at any time.
+> No man hath seen God
+> at any time.
 
-Then John tells us the Son has:
+Then John says
+the Son has:
 
 > declared him.
 
-That fits the entire chapter.
+Now the whole chapter
+starts locking together.
 
-The invisible God is expressed.
+God is unseen.
 
-The Word is made flesh.
+His Word expresses Him.
 
-The Son declares Him.
+The Word
+is made flesh.
+
+The Son
+declares Him.
 
 Colossians calls Jesus:
 
-> the image of the invisible God.
+> the image
+> of the invisible God.
 
-Hebrews calls the Son the brightness of God's glory and the express image of His person.
+Hebrews calls Him:
 
-Jesus Christ is not merely someone who gives us information about God.
+> the brightness
+> of his glory,
+> and the express image
+> of his person.
 
-He is the bodily revelation in which the invisible God is made known.
+Jesus does not merely
+bring information
+about God.
+
+In Christ,
+the invisible God
+is made known
+bodily.
 @ref John 1:18; Colossians 1:15; Hebrews 1:3
-@note Move from Word to revelation, not from Word to abstract person-counting.
+@note Move from Logos to revelation, not abstract person-counting.
 
 ---
 
-# The Father Dwells In Him
-Now put John 1 beside John 14.
+# Put John 1 Beside John 14
+Now listen
+to Jesus Himself.
 
-Jesus tells Philip:
+Philip says:
 
-> he that hath seen me hath seen the Father.
+> Lord,
+> shew us the Father.
+
+Jesus says:
+
+> he that hath seen me
+> hath seen the Father.
 
 Then He explains:
 
-> the Father that dwelleth in me, he doeth the works.
+> the Father
+> that dwelleth in me,
+> he doeth the works.
 
-That does not mean the human flesh is the Father.
-
-It means the Father, the eternal God who is Spirit, dwells in the Son and is revealed through Him.
-
-So the biblical picture is consistent.
+There it is again.
 
 The Word was God.
 
-The Word was made flesh.
+The Word
+was made flesh.
 
-The Father dwells in the Son.
+The Father dwells
+in the Son.
 
 God was in Christ.
 
-All the fullness of the Godhead dwells bodily in Him.
+All the fullness
+of the Godhead
+dwells bodily
+in Him.
 
-We have to stir all those Scriptures together.
-@ref John 14:9-10; 2 Corinthians 5:19; Colossians 2:9
-@note Preserve genuine humanity while identifying the indwelling deity as the one God.
+Do not take
+one of those verses
+and use it
+to cancel another.
+
+**Stir all
+the Scriptures together.**
+
+The humanity
+is genuine.
+
+The indwelling deity
+is the one God.
+@ref John 14:8-10; 2 Corinthians 5:19; Colossians 2:9
+@note Preserve genuine humanity and full deity in the same Christ.
 
 ---
 
 # Outro
-So what is the Word in John 1?
+So what is
+the Word
+in John 1?
 
-The Word is God's own eternal self-expression and revelation.
+The Word is
+God's own eternal
+self-expression
+and revelation.
 
-The Word was with God.
+The Word
+was with God.
 
-The Word was God.
+The Word
+was God.
 
-And the Word was made flesh.
+And the Word
+was made flesh.
 
-John does not begin with a second God beside the first.
+John does not begin
+with another God
+beside God.
 
-He begins with God and His Word.
+He begins
+with God
+and His Word.
 
-Then he shows us that Word made flesh in Jesus Christ.
+Then he shows us
+that Word
+made flesh
+in Jesus Christ.
 
-And now Paul's language becomes unavoidable:
+Now Paul's language
+becomes unavoidable:
 
-> the image of the invisible God.
+> the image
+> of the invisible God.
 
-If God is invisible and Jesus is His image...
+If God
+is invisible...
 
-**what exactly are we seeing when we look at Christ?**
+and Jesus
+is His image...
+
+**what exactly
+are we seeing
+when we look
+at Christ?**
 @ref John 1:1,14,18; Colossians 1:15
-@note End by moving from the Word to the visible revelation of God in Christ.`;
+@note End by moving directly into the visible revelation question.`;
