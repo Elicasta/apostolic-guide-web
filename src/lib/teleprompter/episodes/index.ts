@@ -28,8 +28,8 @@ const EPISODES = [
   [12, EPISODE_12_TITLE, EPISODE_12_SCRIPT],
 ] as const;
 
-export const TELEPROMPTER_EPISODE_SEED_VERSION = 4;
-export const TELEPROMPTER_EPISODE_SEED_KEY = "ag:teleprompter:episode-seed:v4";
+export const TELEPROMPTER_EPISODE_SEED_VERSION = 5;
+export const TELEPROMPTER_EPISODE_SEED_KEY = "ag:teleprompter:episode-seed:v5";
 
 export function getEpisodeSeedDocuments(): TeleprompterDocument[] {
   return EPISODES.map(([episode, title, content]) => ({
