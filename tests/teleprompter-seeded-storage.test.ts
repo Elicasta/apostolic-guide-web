@@ -27,12 +27,27 @@ test("Teleprompter seeds ship exactly Episodes 2 through 12 with stable unique I
   assert.equal(new Set(seeds.map((seed) => seed.id)).size, 11);
 });
 
+test("Teleprompter seed merge refreshes untouched seeded episodes", () => {
+  const seeds = getEpisodeSeedDocuments();
+  const staleUntouchedEpisodeTwo: TeleprompterDocument = {
+    ...seeds[0],
+    content: "Older stock Episode 2 content",
+  };
+
+  const merged = mergeEpisodeSeeds([existingDocument, staleUntouchedEpisodeTwo], seeds);
+
+  assert.equal(merged.length, 12);
+  assert.deepEqual(merged[0], existingDocument);
+  assert.deepEqual(merged[1], seeds[0]);
+});
+
 test("Teleprompter seed merge preserves user documents and edited seeded episodes", () => {
   const seeds = getEpisodeSeedDocuments();
   const editedEpisodeTwo: TeleprompterDocument = {
     ...seeds[0],
     title: "My edited Episode 2",
     content: "User edit",
+    updatedAt: "2026-08-30T06:30:00.000Z",
   };
 
   const merged = mergeEpisodeSeeds([existingDocument, editedEpisodeTwo], seeds);
