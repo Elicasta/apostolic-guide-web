@@ -38,12 +38,33 @@ export function getSeedDocuments(): TeleprompterDocument[] {
   return [...getLegacySeedDocuments(), ...getEpisodeSeedDocuments()];
 }
 
+function isUntouchedEpisodeSeed(
+  document: TeleprompterDocument,
+  seed: TeleprompterDocument,
+) {
+  return (
+    document.id === seed.id &&
+    document.createdAt === seed.createdAt &&
+    document.updatedAt === seed.updatedAt
+  );
+}
+
 export function mergeEpisodeSeeds(
   documents: TeleprompterDocument[],
   episodeSeeds = getEpisodeSeedDocuments(),
 ): TeleprompterDocument[] {
-  const existingIds = new Set(documents.map((document) => document.id));
-  return [...documents, ...episodeSeeds.filter((document) => !existingIds.has(document.id))];
+  const seedsById = new Map(episodeSeeds.map((seed) => [seed.id, seed]));
+  const refreshed = documents.map((document) => {
+    const seed = seedsById.get(document.id);
+    if (!seed || !isUntouchedEpisodeSeed(document, seed)) return document;
+    return seed;
+  });
+
+  const existingIds = new Set(refreshed.map((document) => document.id));
+  return [
+    ...refreshed,
+    ...episodeSeeds.filter((document) => !existingIds.has(document.id)),
+  ];
 }
 
 export function loadTeleprompterDocuments(): TeleprompterDocument[] {
