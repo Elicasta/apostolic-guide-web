@@ -3,28 +3,53 @@ export const EPISODE_06_TITLE = "What Does It Mean That Jesus Is the Image of Go
 export const EPISODE_06_SCRIPT = `# Cold Open
 Colossians calls Jesus:
 
-> the image of the invisible God.
+> the image
+> of the invisible God.
 
-Do not rush past that sentence.
+Do not rush
+past that sentence.
 
-God is **invisible**.
+God is:
 
-An image is **visible**.
+**INVISIBLE.**
 
-So Paul is making a claim every theology has to account for.
+An image is:
 
-In Jesus Christ, the God we cannot see has made Himself visible and knowable.
+**VISIBLE.**
 
-Jesus is not the image of another visible divine body.
+So Paul is making
+a claim every theology
+has to account for.
 
-He is the visible revelation of the **invisible God**.
+In Jesus Christ,
+the God we cannot see
+has made Himself
+visible and knowable.
+
+The question is not:
+
+Which divine person
+looks like which one?
+
+The text says
+God is invisible.
+
+Then it points
+at Jesus and says:
+
+**His image.**
+
+So what exactly
+is being revealed
+in Christ?
 @ref Colossians 1:15
-@note Make the invisible/visible contrast the controlling question.
+@note Make invisible versus visible the controlling contrast.
 
 ---
 
 # God Is Invisible Spirit
-Scripture is consistent about God's eternal nature.
+Start with
+God's own nature.
 
 Jesus says:
 
@@ -32,169 +57,328 @@ Jesus says:
 
 John says:
 
-> No man hath seen God at any time.
+> No man hath seen God
+> at any time.
 
 Paul calls Him:
 
-> the King eternal, immortal, invisible, the only wise God.
+> the King eternal,
+> immortal,
+> invisible,
+> the only wise God.
 
-So before we imagine what the Father looks like, Scripture tells us something more basic.
+So before we imagine
+what the Father
+looks like,
+Scripture tells us
+something more basic.
 
 The Father is Spirit.
 
-The eternal God is invisible.
+The eternal God
+is invisible.
 
-He is not confined to a human body or a seat in heaven.
+He is not confined
+to a human body.
 
 Then the question becomes:
 
-How does the invisible God make Himself visible to us?
+How does
+the invisible God
+make Himself known
+visibly?
 
 Scripture answers:
 
 **in Christ.**
 @ref John 4:24; John 1:18; 1 Timothy 1:17
-@note Establish God's invisibility positively, without caricaturing another view.
+@note Define God positively from Scripture before discussing the image.
 
 ---
 
-# The Image Is Jesus Christ
+# The Image Is Christ
 Colossians says Jesus is:
 
-> the image of the invisible God.
+> the image
+> of the invisible God.
 
-Second Corinthians says the knowledge of God's glory shines:
+Second Corinthians says
+the knowledge
+of God's glory
+shines:
 
-> in the face of Jesus Christ.
+> in the face
+> of Jesus Christ.
 
-Hebrews says the Son is the brightness of God's glory and the express image of His person.
+Hebrews says
+the Son is:
 
-This is revelation language.
+> the brightness
+> of his glory,
+> and the express image
+> of his person.
 
-The invisible God has given us a visible human revelation of Himself.
+This is
+revelation language.
 
-That does not make Jesus a lesser copy.
+The invisible God
+has given us
+a visible
+human revelation
+of Himself.
 
-It tells us where God's glory, character, authority, and saving presence are made known bodily.
+Not merely information
+about God.
 
-In Jesus Christ.
+Not merely
+a representative
+pointing away
+from Himself.
+
+In Jesus Christ,
+God's glory,
+character,
+authority,
+and saving presence
+are made known
+bodily.
 @ref Colossians 1:15; 2 Corinthians 4:6; Hebrews 1:3
 @note Keep the focus on revelation rather than person-counting.
 
 ---
 
 # Philip Asked To See The Father
-Now put that beside John 14.
+Now put that
+beside John 14.
 
 Philip says:
 
-> Lord, shew us the Father.
+> Lord,
+> shew us the Father.
 
 Jesus answers:
 
-> Have I been so long time with you, and yet hast thou not known me, Philip?
+> Have I been
+> so long time
+> with you,
+> and yet hast thou
+> not known me,
+> Philip?
 
 Then:
 
-> he that hath seen me hath seen the Father.
+> he that hath seen me
+> hath seen the Father.
 
-And Jesus explains why:
+Now think about this.
 
-> the Father that dwelleth in me, he doeth the works.
+Philip asks
+to see the Father.
 
-That is the text.
+Jesus points him
+back to **Himself.**
 
-The Father is not absent from Jesus.
+And then
+Jesus explains why:
 
-The Father dwells in Him.
+> the Father
+> that dwelleth in me,
+> he doeth the works.
 
-The human Son is not the eternal Spirit as humanity.
+There is
+the explanation.
 
-But the eternal Spirit is dwelling in and revealing Himself through that genuine human life.
+The Father dwells
+in the Son.
 
-That is why seeing Jesus is seeing the Father.
+The humanity
+is not the
+eternal Spirit.
+
+But the eternal Spirit
+is dwelling in
+and revealing Himself
+through that
+real human life.
+
+That is why
+seeing Jesus
+is seeing
+the Father.
 @ref John 14:8-10
-@note Let Jesus' explanation in verse 10 define verse 9.
+@note Let verse 10 explain verse 9. Do not stop at the slogan.
 
 ---
 
 # All The Fullness Bodily
-Colossians 2:9 makes the claim even stronger:
+Then Colossians 2:9:
 
-> For in him dwelleth all the fulness of the Godhead bodily.
+> in him dwelleth
+> all the fulness
+> of the Godhead bodily.
 
-**All the fullness.**
+How much?
+
+**ALL.**
+
+Not part.
+
+Not a percentage.
+
+Not one-third.
+
+All the fullness.
 
 Bodily.
 
-Not part of God.
+The body
+is genuinely human.
 
-Not a partial revelation.
+The deity dwelling there
+is genuinely divine.
 
-The body is genuinely human.
+That is why Thomas
+can stand before
+the risen Jesus
+and say:
 
-The deity dwelling there is genuinely divine.
+> My Lord
+> and my God.
 
-That is why Thomas can stand before the risen Jesus and say:
+Calling Jesus
+God's image
+does not reduce
+His deity.
 
-> My Lord and my God.
+It tells us
+how the invisible deity
+is revealed
+bodily.
 
-Calling Jesus the image of God does not reduce His deity.
+Do not confuse
+the human body
+with omnipresent Spirit.
 
-It tells us how the invisible deity is revealed bodily.
-@ref Colossians 2:9; John 20:28
-@note Emphasize fullness without implying the physical body itself is omnipresent Spirit.
+But do not separate
+the Spirit dwelling
+in that body
+from the one God either.
+@ref Colossians 2:9; John 20:28; John 4:24
+@note Keep the incarnation precise: visible humanity, indwelling fullness of deity.
 
 ---
 
-# Image Does Not Mean Created Copy
-Now read the next phrase carefully:
+# Then What Does Firstborn Mean?
+Now keep reading.
 
-> the firstborn of every creature.
+Colossians calls Jesus:
 
-Some people see "image" and "firstborn" and assume Jesus must be the first creature God made.
+> the firstborn
+> of every creature.
 
-But the passage does not move Jesus down into creation.
+Do not isolate
+one word
+from the paragraph.
 
-It moves everything else under Him.
+The very next verse says:
 
-Paul says all things were created by Him and for Him.
+> by him
+> were all things created.
 
-Then he says:
+Then:
 
-> that in all things he might have the preeminence.
+> all things
+> were created by him,
+> and for him.
 
-And Scripture uses "firstborn" for rank and supremacy as well as birth order.
+Then:
 
-Psalm 89 says David would be made God's firstborn:
+> he is before
+> all things.
 
-> higher than the kings of the earth.
+And finally:
 
-So the context itself tells us how to read the title.
+> that in all things
+> he might have
+> the preeminence.
+
+So the passage
+is not moving Jesus
+down into creation.
+
+It is placing
+creation under Him.
+
+Psalm 89 calls David
+God's firstborn
+and explains it as:
+
+> higher than
+> the kings of the earth.
+
+Firstborn can speak
+of rank,
+inheritance,
+and supremacy.
+
+Let the context
+define the word.
 @ref Colossians 1:15-18; Psalm 89:27
-@note Preview Episode 7 by letting the context define firstborn.
+@note This previews Episode 7 without letting “firstborn” control the paragraph.
 
 ---
 
 # Outro
-What does it mean that Jesus is the image of God?
+So what does it mean
+that Jesus is
+the image of God?
 
-The eternal God is invisible Spirit.
+The eternal God
+is invisible Spirit.
 
-Jesus Christ is His visible bodily revelation in genuine humanity.
+Jesus Christ
+is His visible
+bodily revelation
+in genuine humanity.
 
-The Father dwells in the Son.
+The Father dwells
+in the Son.
 
-All the fullness of the Godhead dwells bodily in Him.
+All the fullness
+of the Godhead
+dwells bodily
+in Him.
 
-So when Scripture calls Jesus the image of God, it is not introducing a lesser divine copy.
+So when Scripture says:
 
-It is telling us where the invisible God is revealed.
+> the image
+> of the invisible God
 
-And now Colossians gives us the next question:
+it is telling us
+where the invisible God
+is made known.
 
-If Jesus is called **the firstborn of every creature**...
+**In Christ.**
 
-**was He created?**
-@ref Colossians 1:15; John 14:10; Colossians 2:9
-@note Keep the conclusion positive and move directly into the creation question.`;
+Now keep reading
+Colossians.
+
+It calls Him:
+
+> the firstborn
+> of every creature.
+
+And that raises
+the next question.
+
+Did God create Jesus
+first...
+
+then use Him
+to create everything else?
+
+Or does Scripture
+say something
+very different?
+@ref Colossians 1:15-18; John 14:10; Colossians 2:9
+@note End by moving naturally into creation and firstborn.`;
