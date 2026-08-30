@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
 import Image from "next/image";
+import { QRCodeSVG } from "qrcode.react";
 import SlideContent from "./SlideContent";
 import {
   parseTeleprompterDocument,
@@ -34,6 +35,7 @@ export default function TeleprompterDisplay() {
   const [sessionCode, setSessionCode] = useState("");
   const [chromeVisible, setChromeVisible] = useState(true);
   const [controllerUrl, setControllerUrl] = useState("");
+  const [remoteQrOpen, setRemoteQrOpen] = useState(false);
   const pointerStartRef = useRef<PointerStart | null>(null);
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   const frameRef = useRef<number | null>(null);
@@ -186,6 +188,10 @@ export default function TeleprompterDisplay() {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && remoteQrOpen) {
+        setRemoteQrOpen(false);
+        return;
+      }
       if (event.key.toLowerCase() === "c") {
         setChromeVisible((visible) => !visible);
         return;
@@ -217,7 +223,7 @@ export default function TeleprompterDisplay() {
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [dispatch, locked, next, prev, scrolling]);
+  }, [dispatch, locked, next, prev, remoteQrOpen, scrolling]);
 
   const copyController = async () => {
     if (controllerUrl) await navigator.clipboard?.writeText(controllerUrl);
@@ -333,11 +339,39 @@ export default function TeleprompterDisplay() {
             >
               Full
             </button>
-            <button type="button" onClick={() => void copyController()} title={controllerUrl}>
+            <button
+              type="button"
+              onClick={() => setRemoteQrOpen(true)}
+              title="Scan to open the remote"
+            >
               Remote
             </button>
           </div>
         </header>
+      ) : null}
+
+      {remoteQrOpen && controllerUrl ? (
+        <div
+          className="tp-remote-qr-backdrop"
+          role="presentation"
+          onPointerDown={(event) => {
+            if (event.currentTarget === event.target) setRemoteQrOpen(false);
+          }}
+        >
+          <section className="tp-remote-qr-card" role="dialog" aria-modal="true" aria-label="Connect teleprompter remote">
+            <span className="tp-remote-qr-eyebrow">PHONE REMOTE</span>
+            <h2>Scan to connect</h2>
+            <p>Open your camera and scan this code. The remote will join this session automatically.</p>
+            <div className="tp-remote-qr-code">
+              <QRCodeSVG value={controllerUrl} size={256} level="M" marginSize={2} />
+            </div>
+            <div className="tp-remote-qr-session">Session {sessionCode}</div>
+            <div className="tp-remote-qr-actions">
+              <button type="button" onClick={() => void copyController()}>Copy link</button>
+              <button type="button" onClick={() => setRemoteQrOpen(false)}>Close</button>
+            </div>
+          </section>
+        </div>
       ) : null}
 
       <button
