@@ -1,81 +1,89 @@
 export const EPISODE_11_TITLE = "What Does It Mean to Be Born Again?";
 
 export const EPISODE_11_SCRIPT = `# Cold Open
-Jesus told Nicodemus:
+Start with Jesus.
+
+He tells Nicodemus:
 
 > Except a man be born again, he cannot see the kingdom of God.
 
-Then He made it more specific:
+Then He makes it more specific:
 
 > Except a man be born of water and of the Spirit, he cannot enter into the kingdom of God.
 
-So what does it mean to be born again?
+Now go to the first apostolic sermon after the Holy Ghost is poured out.
 
-The book of Acts gives us the lived apostolic answer:
+The people ask:
 
-Repentance.
+> Men and brethren, what shall we do?
 
-Baptism in the name of Jesus Christ.
+Peter answers:
 
-And receiving the gift of the Holy Ghost.
+> Repent, and be baptized every one of you in the name of Jesus Christ... and ye shall receive the gift of the Holy Ghost.
 
-Not three unrelated religious experiences.
+Jesus says **water and Spirit**.
 
-One gospel response to the death, burial, and resurrection of Jesus Christ.
-@ref John 3:3,5; Acts 2:38
-@note Open with Jesus, then move to Acts.
+Peter preaches repentance, baptism, and the Holy Ghost.
+
+The question is not what a denomination calls the new birth.
+
+The question is:
+
+**How does Scripture describe it?**
+@ref John 3:3,5; Acts 2:37-38
+@note Begin with Jesus and the apostolic response, not with a label.
 
 ---
 
 # Jesus Says Water And Spirit
-Nicodemus hears "born again" and thinks about physical birth.
+Nicodemus hears "born again" and thinks about another physical birth.
 
 Jesus corrects him:
 
 > Except a man be born of water and of the Spirit, he cannot enter into the kingdom of God.
 
-Whatever interpretation we use has to take both parts seriously.
+Both words matter.
 
 Water.
 
 Spirit.
 
-Then after the resurrection Jesus sends the apostles to preach the gospel.
+Then Jesus dies, is buried, rises again, and sends His apostles to preach repentance and remission of sins in His name.
 
-In Acts 2, people are convicted and ask what to do.
+When that preaching begins in Acts 2, the response includes water baptism and the promise of the Holy Ghost.
 
-Peter's answer gives us repentance, baptism, and the promised Holy Ghost.
+That is not a random combination.
 
-That is not a random coincidence.
-
-It is the apostolic preaching of new-covenant entrance.
-@ref John 3:5; Acts 2:37-39
-@note Do not get sidetracked into amniotic-fluid interpretations unless responding to an objection.
+It is the gospel being preached and received in history.
+@ref John 3:5; Luke 24:46-49; Acts 2:37-39
+@note Let Jesus' words and Acts 2 interpret each other.
 
 ---
 
 # Repentance
-Peter begins:
+Peter begins with one word:
 
 > Repent.
 
-Repentance is not merely feeling bad.
+Repentance is more than regret.
 
-It is a turn.
+It is a turn toward God.
 
-A change of mind and direction toward God.
+A change of mind.
 
-The gospel confronts my old life and calls me to surrender.
+A change of direction.
 
-Jesus died for sin.
+The gospel announces that Jesus died for our sins and rose again.
 
-I cannot respond to that gospel by insisting on keeping sin as my master.
+That gospel calls us to leave the old life and submit to the Lord who saves us.
 
-Repentance is where I stop defending the old life and turn toward the Lord who died and rose for me.
+Repentance does not earn grace.
 
-It corresponds naturally to death: the old direction is renounced.
+It is what faith does when the Word of God confronts us.
+
+We stop defending the old life and turn toward Christ.
 @ref Acts 2:38; Luke 24:46-47
-@note Keep the death/burial/resurrection correspondence as teaching aid, not a rigid formula replacing the text.
+@note Keep repentance as a faith response to the gospel.
 
 ---
 
@@ -84,47 +92,61 @@ Then Peter says:
 
 > be baptized every one of you in the name of Jesus Christ for the remission of sins.
 
-Romans 6 says baptism joins us to Christ's death and burial.
+Romans 6 says:
+
+> so many of us as were baptized into Jesus Christ were baptized into his death.
 
 Colossians says we are:
 
 > buried with him in baptism.
 
-Baptism is not an optional graduation ceremony after salvation.
+Baptism belongs inside the apostolic response to the gospel.
 
-In apostolic preaching, it belongs inside the response to the gospel.
+It identifies us with Jesus Christ.
 
-And as we saw in the last episode, the apostolic baptismal name is Jesus Christ.
+His death.
+
+His burial.
+
+His name.
+
+It is not a graduation ceremony added after the gospel story is already finished.
+
+Scripture places it in the response itself.
 @ref Acts 2:38; Romans 6:3-4; Colossians 2:12
-@note Tie back to Episodes 9 and 10.
+@note Keep the language tied directly to the texts.
 
 ---
 
 # The Holy Ghost
-Then comes the promise:
+Then Peter says:
 
 > and ye shall receive the gift of the Holy Ghost.
 
-This is not merely becoming more emotional or religious.
+This is not merely a change in mood or religious enthusiasm.
 
 God gives His Spirit.
 
-Acts 2 records believers filled with the Holy Ghost and speaking with other tongues as the Spirit gives utterance.
+Acts 2 says believers were filled with the Holy Ghost and:
 
-Acts 10 gives the same observable sign among Gentiles. Peter's Jewish companions know the Holy Ghost has been poured out because:
+> began to speak with other tongues, as the Spirit gave them utterance.
+
+Acts 10 says Peter's companions knew the Gentiles had received the Holy Ghost because:
 
 > they heard them speak with tongues, and magnify God.
 
-Acts 19 again records believers receiving the Holy Ghost and speaking with tongues and prophesying.
+Acts 19 records the same pattern again when believers receive the Holy Ghost.
 
 The Spirit birth is a real New Testament experience.
+
+And Acts repeatedly gives tongues as the initial observable sign that the Spirit has been received.
 @ref Acts 2:4; Acts 10:44-46; Acts 19:6
-@note State the Apostolic Guide position plainly: tongues as the initial sign.
+@note State the tongues position from the narrative pattern, not as denominational distinctiveness.
 
 ---
 
-# One Gospel Pattern
-Now put the pattern together.
+# One Gospel Response
+Now put the gospel and the response together.
 
 Jesus dies.
 
@@ -132,74 +154,96 @@ He is buried.
 
 He rises again.
 
-The gospel calls us into union with that saving work.
+Paul says that is the gospel he preached.
 
-We repent.
+Then Romans 6 says believers are baptized into Christ's death and burial and rise to walk in newness of life.
 
-We are baptized into Jesus Christ.
+Peter preaches repentance, baptism in Jesus' name, and the gift of the Holy Ghost.
 
-We receive new life by the Holy Ghost.
+These are not three unrelated religious checkpoints.
 
-Paul summarizes the gospel in terms of Christ's death, burial, and resurrection.
+They are one response of obedient faith to the saving work of Jesus Christ.
 
-Romans 6 connects baptism directly to that death and burial and says we should walk in newness of life.
+The new birth is not self-improvement.
 
-The new birth is not human self-improvement.
-
-It is participation in the saving work of Jesus by grace through obedient faith.
-@ref 1 Corinthians 15:1-4; Romans 6:3-4
-@note This is the synthesis.
+It is new life in Christ by the grace and Spirit of God.
+@ref 1 Corinthians 15:1-4; Romans 6:3-4; Acts 2:38
+@note Synthesize the pattern without turning the death/burial/resurrection parallel into a substitute for the actual texts.
 
 ---
 
-# What About Belief?
-Do Apostolics believe in salvation by faith?
+# What Does Faith Do
+Where does faith fit?
 
-Of course.
+Everywhere.
 
-Without faith none of this means anything.
+Without faith, repentance is empty.
 
-But biblical faith is not reduced to mental agreement.
+Without faith, baptism is just water.
 
-The people in Acts 2 believed Peter enough to ask what they should do.
+Without faith, nobody receives the promise of God.
 
-Then Peter told them how to respond.
+But Scripture does not reduce faith to mental agreement.
 
-In Acts 16 the jailer is told to believe on the Lord Jesus, and that same night he and his household are baptized.
+The people in Acts 2 receive Peter's word and then act on it.
 
-Faith moves toward Christ.
+The Philippian jailer is told:
 
-Faith receives His word.
+> Believe on the Lord Jesus Christ
 
-Faith obeys the gospel.
+and that same night he and his household are baptized.
+
+Biblical faith receives the Word.
+
+Turns toward Christ.
+
+And obeys the gospel.
 
 We are not earning salvation.
 
-We are responding to the Savior.
-@ref Acts 2:37-41; Acts 16:30-33
-@note Keep faith and obedience together.
+We are responding to the Savior who has already acted for us.
+@ref Acts 2:37-41; Acts 16:30-33; Ephesians 2:8-10
+@note Replace the old "Do Apostolics believe in faith?" frame with a positive biblical account of faith.
 
 ---
 
 # Outro
 What does it mean to be born again?
 
-Jesus says we must be born of water and Spirit.
+Jesus says:
 
-Peter preaches repentance, baptism in Jesus Christ's name, and the gift of the Holy Ghost.
+> born of water and of the Spirit.
 
-Acts shows that pattern moving through the early church.
+Peter preaches:
 
-And none of it makes sense apart from Jesus Himself.
+> Repent
 
-The point is not to collect Apostolic doctrines like trivia.
+> be baptized... in the name of Jesus Christ
 
-The point is to know who Jesus is and respond to His gospel.
+> and ye shall receive the gift of the Holy Ghost.
 
-That is why this whole series started with the identity of Christ.
+Acts shows that gospel moving through the early church.
 
-If Jesus is truly the one God revealed in flesh, then His name, His death, His resurrection, His Spirit, and His gospel response all belong together.
+So the point is not to defend an Apostolic checklist.
 
-And that gives us the foundation for where the Apostolic Guide goes next.
+The point is to let Scripture define the response to Jesus Christ.
+
+Start with the gospel.
+
+Read the command.
+
+Watch the apostles preach it.
+
+Watch people receive it.
+
+Then let every theology account for that pattern.
+
+The question is not:
+
+"What does my tradition allow me to keep?"
+
+The question is:
+
+**What did Jesus and His apostles actually teach?**
 @ref John 3:5; Acts 2:38-39
-@note Close the 10-episode batch as one connected argument.`;
+@note Close the series batch with Scripture as the standard, not Apostolic identity as the premise.`;

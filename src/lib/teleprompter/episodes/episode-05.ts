@@ -1,188 +1,212 @@
 export const EPISODE_05_TITLE = "What Is the Word in John 1?";
 
 export const EPISODE_05_SCRIPT = `# Cold Open
-John 1 says:
+John gives us three statements we are not allowed to rewrite.
 
-> In the beginning was the Word, and the Word was with God, and the Word was God.
+> In the beginning was the Word.
 
-Then fourteen verses later:
+> the Word was with God.
+
+> the Word was God.
+
+Then verse 14 says:
 
 > the Word was made flesh.
 
-So what is the Word?
+That is the sequence.
 
-If we answer that question badly, we can accidentally create another divine being beside the one God before we ever reach verse 14.
+With God.
 
-But John does not say the Word was **a God**.
+Was God.
 
-He says the Word **was God**.
+Made flesh.
 
-And then that Word became flesh.
+So before we import a later theological system into the word *Word*, let John define the boundaries of the conversation.
+
+Whatever the Word is, the Word is not another God beside God.
+
+John says the Word **was God**.
 @ref John 1:1,14
-@note Let John's exact language frame the question.
+@note Let John's verbs establish the framework.
 
 ---
 
-# Word Does Not Mean Another God
-The Greek word is *logos*.
+# Start With The One God
+The Old Testament already tells us who created and revealed Himself.
 
-People can debate every philosophical background behind that term, but John's own sentence gives us the guardrails.
+Isaiah says the LORD made all things:
 
-The Word was in the beginning.
+> alone
 
-The Word was with God.
+and:
 
-And the Word was God.
-
-Whatever "with God" means, John immediately refuses the conclusion that the Word is another God.
-
-The Word belongs to God's own identity.
-
-Think about the Old Testament pattern.
-
-God creates by His word.
-
-God reveals Himself by His word.
-
-God's word expresses His will, wisdom, purpose, and action.
+> by myself.
 
 Psalm 33 says:
 
 > By the word of the LORD were the heavens made.
 
-The Word is God's own self-expression going forth from Him, not a rival deity beside Him.
-@ref John 1:1; Psalm 33:6
-@note Avoid pretending one English analogy exhausts Logos.
+God creates by His Word.
+
+God speaks by His Word.
+
+God reveals His will, wisdom, purpose, and action by His Word.
+
+His Word is not a rival deity assisting Him.
+
+It belongs to God's own identity and self-expression.
+
+That is the biblical world John 1 enters.
+@ref Isaiah 44:24; Psalm 33:6
+@note Establish the Old Testament pattern before discussing Logos philosophy.
 
 ---
 
 # With God And Was God
-How can the Word be **with God** and **be God**?
+So how can the Word be **with God** and still **be God**?
 
-Because something can belong to God's own self-expression and still be spoken of in relation to Him.
+Do not erase either phrase.
 
-God's wisdom is with Him.
+The Word is with God.
 
-God's counsel is with Him.
+The Word is God.
 
-God's word proceeds from Him.
+God's own Word can be spoken of in relation to Him because it is His expression, His utterance, His self-revelation going forth.
 
-But none of those require another God-person.
+But John immediately closes the door on making that Word a second God.
 
-John is preparing us for revelation.
+He does not say:
 
-The God no man has seen is going to make Himself known.
+"the Word was a God."
 
-That is why the chapter ends its opening movement by saying the only begotten Son has **declared** Him.
+He says:
 
-The invisible God is being expressed, revealed, and made known.
-@ref John 1:1,18
-@note Keep "with" and "was" together. Do not erase either phrase.
+> the Word was God.
+
+The distinction in expression does not divide the divine identity.
+@ref John 1:1
+@note Keep both clauses intact. Do not solve one by weakening the other.
 
 ---
 
 # The Word Became Flesh
-Verse 14 is the turning point:
+Then verse 14 changes the scene:
 
 > And the Word was made flesh, and dwelt among us.
 
-John does not say the Word entered a second divine person.
+Now think about this.
 
-He says the Word became flesh.
+The Word that **was God** is made flesh.
 
-God's eternal self-expression entered genuine human existence.
+John is not describing one divine being sending another divine being into a human body.
 
-Now the invisible is revealed visibly.
+He is describing God's own eternal Word entering genuine human existence.
 
-The God who is Spirit is manifested in flesh.
+The invisible God is making Himself known in flesh.
 
-The One who cannot be seen in His eternal Spirit is made known in the face of Jesus Christ.
+That is why Paul can say:
 
-That is why Paul says:
+> God was manifest in the flesh.
 
-> God, who commanded the light to shine out of darkness, hath shined in our hearts... in the face of Jesus Christ.
-@ref John 1:14; 1 Timothy 3:16; 2 Corinthians 4:6
-@note This is incarnation language. Keep it concrete.
+And:
+
+> God was in Christ, reconciling the world unto himself.
+
+The movement is revelation.
+
+The one God is making Himself known in Christ.
+@ref John 1:14; 1 Timothy 3:16; 2 Corinthians 5:19
+@note Keep the incarnation concrete and God-centered.
 
 ---
 
-# Jesus Is The Expression Of The Invisible God
+# The Son Declares The Invisible God
+John 1:18 says:
+
+> No man hath seen God at any time.
+
+Then John tells us the Son has:
+
+> declared him.
+
+That fits the entire chapter.
+
+The invisible God is expressed.
+
+The Word is made flesh.
+
+The Son declares Him.
+
 Colossians calls Jesus:
 
 > the image of the invisible God.
 
-Hebrews calls the Son:
+Hebrews calls the Son the brightness of God's glory and the express image of His person.
 
-> the express image of his person.
+Jesus Christ is not merely someone who gives us information about God.
 
-Jesus is not merely one person pointing toward another invisible divine person.
-
-He is the human image in which the invisible God is perfectly revealed.
-
-That is why Jesus can tell Philip:
-
-> he that hath seen me hath seen the Father.
-
-Not because the flesh is the Father.
-
-But because the Father dwells in Him and is perfectly revealed through Him.
-
-The Word made flesh is God's self-revelation in a real human life.
-@ref Colossians 1:15; Hebrews 1:3; John 14:9-10
-@note Preserve distinction between flesh and indwelling deity.
+He is the bodily revelation in which the invisible God is made known.
+@ref John 1:18; Colossians 1:15; Hebrews 1:3
+@note Move from Word to revelation, not from Word to abstract person-counting.
 
 ---
 
-# Why This Matters
-This changes the question from:
+# The Father Dwells In Him
+Now put John 1 beside John 14.
 
-"Which divine person became incarnate?"
+Jesus tells Philip:
 
-to the question John actually answers:
+> he that hath seen me hath seen the Father.
 
-**How did the one invisible God make Himself known?**
+Then He explains:
+
+> the Father that dwelleth in me, he doeth the works.
+
+That does not mean the human flesh is the Father.
+
+It means the Father, the eternal God who is Spirit, dwells in the Son and is revealed through Him.
+
+So the biblical picture is consistent.
 
 The Word was God.
 
-The Word became flesh.
-
-The Son declares the unseen God.
+The Word was made flesh.
 
 The Father dwells in the Son.
 
 God was in Christ.
 
-Those are not disconnected slogans.
+All the fullness of the Godhead dwells bodily in Him.
 
-They form one biblical picture.
-
-Jesus Christ is the full revelation of the invisible God manifested in genuine humanity for our salvation.
-@ref John 1:1,14,18; John 14:10; 2 Corinthians 5:19
-@note This sentence matches the AG doctrinal language.
+We have to stir all those Scriptures together.
+@ref John 14:9-10; 2 Corinthians 5:19; Colossians 2:9
+@note Preserve genuine humanity while identifying the indwelling deity as the one God.
 
 ---
 
 # Outro
 So what is the Word in John 1?
 
-The Word is not another God beside God.
-
 The Word is God's own eternal self-expression and revelation.
+
+The Word was with God.
 
 The Word was God.
 
-And the Word became flesh.
+And the Word was made flesh.
 
-That means the next question is unavoidable.
+John does not begin with a second God beside the first.
 
-If the invisible God is revealed in Jesus...
+He begins with God and His Word.
 
-**what does it mean that Jesus is the image of God?**
+Then he shows us that Word made flesh in Jesus Christ.
 
-Because an image is visible.
+And now Paul's language becomes unavoidable:
 
-God is invisible.
+> the image of the invisible God.
 
-And Paul deliberately puts those two ideas together in one sentence.
-@ref Colossians 1:15
-@note Direct handoff to Episode 6.`;
+If God is invisible and Jesus is His image...
+
+**what exactly are we seeing when we look at Christ?**
+@ref John 1:1,14,18; Colossians 1:15
+@note End by moving from the Word to the visible revelation of God in Christ.`;

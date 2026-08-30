@@ -1,24 +1,9 @@
 export const EPISODE_08_TITLE = "What Does the Right Hand of God Mean?";
 
 export const EPISODE_08_SCRIPT = `# Cold Open
-If Jesus is God, why does the Bible say He sits at the **right hand of God**?
+Before we use the phrase **right hand of God** to count divine persons, let Scripture tell us what the phrase means.
 
-Does that mean there are two divine persons sitting next to each other on two thrones?
-
-Only if "right hand" means a literal physical location beside God's body.
-
-But Scripture tells us God is Spirit.
-
-And throughout the Bible, the right hand of God is language for **power, authority, victory, and exaltation**.
-
-So we need to let the Bible interpret its own image.
-@ref Mark 16:19; John 4:24
-@note Set up the literal-body assumption clearly.
-
----
-
-# God's Right Hand Is Power
-Exodus 15 says:
+Exodus says:
 
 > Thy right hand, O LORD, is become glorious in power.
 
@@ -30,133 +15,182 @@ Isaiah says:
 
 > my right hand hath spanned the heavens.
 
-Nobody thinks God has a gigantic physical hand stretched across outer space.
+So the Bible already uses God's right hand as language for power, action, authority, victory, and rule.
 
-The language communicates His power and action.
+Now bring Jesus into that biblical picture.
 
-The right hand is the place of authority, favor, victory, and rule.
-
-So when Christ is exalted to God's right hand, Scripture is declaring His supreme authority, not drawing us a seating chart inside the Godhead.
-@ref Exodus 15:6; Psalm 118:16; Isaiah 48:13
-@note "Not a seating chart" is the memorable line.
+What does it mean that the risen Christ is exalted to God's right hand?
+@ref Exodus 15:6; Psalm 118:16; Isaiah 48:13; Mark 16:19
+@note Define the biblical image before introducing the theological objection.
 
 ---
 
-# Psalm 110
-The most quoted right-hand text is Psalm 110:
+# God Is Spirit
+Jesus says:
+
+> God is a Spirit.
+
+The eternal Father is not a physical body confined to a chair in heaven.
+
+So when Scripture speaks of God's hand, arm, eyes, wings, or throne, we have to read the imagery the way Scripture uses it.
+
+God's right hand is not a literal anatomical measurement of the Godhead.
+
+It is the biblical language of divine authority and power.
+
+That matters before we ever read Psalm 110.
+@ref John 4:24; Exodus 15:6; Psalm 91:4
+@note Keep the language respectful and biblical, not caricatured.
+
+---
+
+# Psalm 110 Is Messianic Exaltation
+Psalm 110 says:
 
 > The LORD said unto my Lord, Sit thou at my right hand, until I make thine enemies thy footstool.
 
-This is messianic exaltation.
+Peter quotes that passage in Acts 2 after the resurrection.
 
-The Messiah, the genuine human Son of David, is raised and enthroned in divine authority.
+Then he says:
 
-Peter uses this in Acts 2 after the resurrection and says God has made that same Jesus both Lord and Christ.
+> God hath made that same Jesus, whom ye have crucified, both Lord and Christ.
 
-The exalted man Christ Jesus now reigns with the authority of God.
+The man Christ Jesus who was rejected, crucified, and raised is now exalted in divine authority.
 
-That does not require a second divine throne.
+The right hand tells us about the Messiah's victory and enthronement.
 
-It describes the victorious Messiah receiving the kingdom and authority promised to Him.
+It does not require us to imagine two visible divine bodies seated beside one another.
+
+The Son who truly humbled Himself is truly exalted.
 @ref Psalm 110:1; Acts 2:32-36
-@note Keep deity and messianic exaltation distinct but united in Christ.
+@note Keep the genuine human Messiah central to the exaltation language.
 
 ---
 
-# Stephen's Vision
-What about Stephen?
-
-Acts 7 says he saw:
+# Stephen Sees The Exalted Christ
+Acts 7 says Stephen saw:
 
 > the glory of God, and Jesus standing on the right hand of God.
 
-Notice what he sees besides Jesus:
+Do not dismiss the vision.
 
-**the glory of God.**
+Ask what the text itself says Stephen is seeing.
 
-God is Spirit and invisible.
+He sees **the glory of God**.
 
-Stephen sees Jesus, the glorified Son, in the position of divine authority and glory.
+And he sees Jesus standing in the position of divine authority and vindication.
 
-The vision communicates vindication.
+The One rejected on earth is glorified in heaven.
 
-The One rejected and killed on earth is exalted in heaven.
+Stephen's vision communicates the exaltation of the Son.
 
-Stephen is not giving us an anatomical description of two divine bodies.
+It does not overturn what Jesus already said:
 
-He is seeing the glorified Christ in God's power and authority.
-@ref Acts 7:55-56; John 4:24
-@note Don't dismiss the vision. Explain what its imagery communicates.
+> God is a Spirit.
+
+And it does not create another God beside the one God of Scripture.
+@ref Acts 7:55-56; John 4:24; Isaiah 44:6
+@note Honor the vision while interpreting its symbolic location biblically.
 
 ---
 
-# One Throne
-Revelation is especially interesting because it speaks of:
+# Revelation Gives One Throne
+Then Revelation says:
 
-> the throne of God and of the Lamb.
+> the throne of God and of the Lamb shall be in it.
 
-But it says **throne**, singular.
+Notice:
 
-Then the next verse says:
+**throne**.
 
-> his servants shall serve him: And they shall see his face; and his name shall be in their foreheads.
+Singular.
 
-The biblical end point is not two competing centers of deity.
+Then:
 
-It is one throne, one divine rule, with the Lamb central to God's self-revelation and redemption.
+> his servants shall serve him
 
-The glorified humanity of Christ does not disappear.
+and:
 
-But neither does Scripture abandon the oneness of God.
+> they shall see his face; and his name shall be in their foreheads.
+
+The Lamb is not erased.
+
+The glorified humanity of Christ remains central to redemption.
+
+But Scripture's final vision does not end with competing centers of deity.
+
+It ends with one divine rule, one throne, and the Lamb at the center of God's saving revelation.
 @ref Revelation 22:3-4
-@note Let singular grammar land without overclaiming every pronoun.
+@note Let the singular throne and unified worship land without overclaiming every pronoun.
 
 ---
 
-# Why The Right Hand Matters
-The right hand tells us what happened to the crucified and risen Messiah.
+# The Right Hand Tells The Gospel Story
+Philippians says Jesus:
 
-He was humbled.
+> humbled himself, and became obedient unto death
 
-He suffered.
+Then:
 
-He died.
+> God also hath highly exalted him.
 
-God raised Him.
+Ephesians says Christ is raised and seated:
 
-And the man Christ Jesus is exalted above every principality and power.
+> far above all principality, and power, and might, and dominion.
 
-Philippians says God highly exalted Him and gave Him a name above every name.
+That is what the right hand is telling us.
 
-The right hand is therefore not an embarrassment to Oneness theology.
+Humiliation.
 
-It is part of the gospel story of the Son's humiliation, resurrection, and exaltation.
+Death.
+
+Resurrection.
+
+Exaltation.
+
+Authority.
 
 The humanity that truly suffered is now truly glorified.
+
+The right hand is not a problem Scripture needs us to rescue.
+
+It is part of the gospel declaration that the crucified Messiah reigns.
 @ref Philippians 2:8-11; Ephesians 1:20-23
-@note Make this gospel-centered, not merely defensive.
+@note Make the section positive and gospel-centered.
 
 ---
 
 # Outro
 What does the right hand of God mean?
 
-It is biblical language for God's power, authority, favor, victory, and rule.
+Let Scripture answer.
 
-Jesus at the right hand is the risen Messiah exalted to supreme authority.
+Power.
 
-It does not require us to imagine two divine bodies sitting side by side.
+Authority.
 
-But then we reach one of the most common objections of all.
+Victory.
 
-Jesus commanded baptism:
+Exaltation.
+
+Rule.
+
+Jesus at God's right hand is the risen Messiah exalted to supreme authority.
+
+The phrase does not require a physical Father sitting beside a second divine body.
+
+It requires us to understand the biblical language of exaltation.
+
+And now we move from who Jesus is to the name He commanded His disciples to use.
+
+Matthew 28:19 says:
 
 > in the name of the Father, and of the Son, and of the Holy Ghost.
 
-So why did the apostles baptize in the name of Jesus?
+Acts repeatedly records baptism in the name of Jesus Christ.
 
-**Did they disobey Matthew 28:19?**
+So the next question is:
 
-That is next.
+**Did the apostles understand Jesus' command?**
 @ref Matthew 28:19; Acts 2:38
-@note Direct handoff to Episode 9.`;
+@note Move into baptism by setting Matthew beside Acts, not by framing it as a denominational dispute.`;
