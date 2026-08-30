@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { getEpisodeSeedDocuments } from "../src/lib/teleprompter/episodes";
+import {
+  TELEPROMPTER_EPISODE_PREVIOUS_SEEDED_AT,
+  getEpisodeSeedDocuments,
+} from "../src/lib/teleprompter/episodes";
 import { mergeEpisodeSeeds } from "../src/lib/teleprompter/seeded-storage";
 import type { TeleprompterDocument } from "../src/lib/teleprompter/types";
 
@@ -33,6 +36,7 @@ test("Teleprompter seed merge preserves user documents and edited seeded episode
     ...seeds[0],
     title: "My edited Episode 2",
     content: "User edit",
+    updatedAt: "2026-08-30T07:00:00.000Z",
   };
 
   const merged = mergeEpisodeSeeds([existingDocument, editedEpisodeTwo], seeds);
@@ -44,4 +48,26 @@ test("Teleprompter seed merge preserves user documents and edited seeded episode
     merged.filter((document) => document.id === editedEpisodeTwo.id).length,
     1,
   );
+});
+
+test("Teleprompter seed merge refreshes untouched previous episode seeds", () => {
+  const seeds = getEpisodeSeedDocuments();
+  const currentEpisodeTwo = seeds[0];
+  const previousEpisodeTwo: TeleprompterDocument = {
+    ...currentEpisodeTwo,
+    title: "Episode 2: Old seeded title",
+    content: "Old seeded script",
+    createdAt: TELEPROMPTER_EPISODE_PREVIOUS_SEEDED_AT,
+    updatedAt: TELEPROMPTER_EPISODE_PREVIOUS_SEEDED_AT,
+  };
+
+  const merged = mergeEpisodeSeeds([existingDocument, previousEpisodeTwo], seeds);
+  const refreshed = merged.find((document) => document.id === currentEpisodeTwo.id);
+
+  assert.ok(refreshed);
+  assert.equal(refreshed.title, currentEpisodeTwo.title);
+  assert.equal(refreshed.content, currentEpisodeTwo.content);
+  assert.equal(refreshed.createdAt, TELEPROMPTER_EPISODE_PREVIOUS_SEEDED_AT);
+  assert.equal(refreshed.updatedAt, currentEpisodeTwo.updatedAt);
+  assert.deepEqual(merged[0], existingDocument);
 });
