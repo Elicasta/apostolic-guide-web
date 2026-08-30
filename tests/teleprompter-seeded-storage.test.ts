@@ -12,19 +12,19 @@ const existingDocument: TeleprompterDocument = {
   updatedAt: "2026-08-29T00:00:00.000Z",
 };
 
-test("Teleprompter seeds ship exactly Episodes 2 through 11 with stable unique IDs", () => {
+test("Teleprompter seeds ship exactly Episodes 2 through 12 with stable unique IDs", () => {
   const seeds = getEpisodeSeedDocuments();
   const expectedIds = Array.from(
-    { length: 10 },
+    { length: 11 },
     (_, index) => `apostolic-guide-episode-${String(index + 2).padStart(2, "0")}`,
   );
 
-  assert.equal(seeds.length, 10);
+  assert.equal(seeds.length, 11);
   assert.deepEqual(
     seeds.map((seed) => seed.id),
     expectedIds,
   );
-  assert.equal(new Set(seeds.map((seed) => seed.id)).size, 10);
+  assert.equal(new Set(seeds.map((seed) => seed.id)).size, 11);
 });
 
 test("Teleprompter seed merge preserves user documents and edited seeded episodes", () => {
@@ -37,7 +37,7 @@ test("Teleprompter seed merge preserves user documents and edited seeded episode
 
   const merged = mergeEpisodeSeeds([existingDocument, editedEpisodeTwo], seeds);
 
-  assert.equal(merged.length, 11);
+  assert.equal(merged.length, 12);
   assert.deepEqual(merged[0], existingDocument);
   assert.deepEqual(merged[1], editedEpisodeTwo);
   assert.equal(
