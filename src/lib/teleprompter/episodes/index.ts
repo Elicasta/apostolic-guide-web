@@ -9,6 +9,7 @@ import { EPISODE_08_SCRIPT, EPISODE_08_TITLE } from "./episode-08";
 import { EPISODE_09_SCRIPT, EPISODE_09_TITLE } from "./episode-09";
 import { EPISODE_10_SCRIPT, EPISODE_10_TITLE } from "./episode-10";
 import { EPISODE_11_SCRIPT, EPISODE_11_TITLE } from "./episode-11";
+import { EPISODE_12_SCRIPT, EPISODE_12_TITLE } from "./episode-12";
 
 const SEEDED_AT = "2026-08-29T20:00:00.000Z";
 
@@ -23,10 +24,11 @@ const EPISODES = [
   [9, EPISODE_09_TITLE, EPISODE_09_SCRIPT],
   [10, EPISODE_10_TITLE, EPISODE_10_SCRIPT],
   [11, EPISODE_11_TITLE, EPISODE_11_SCRIPT],
+  [12, EPISODE_12_TITLE, EPISODE_12_SCRIPT],
 ] as const;
 
-export const TELEPROMPTER_EPISODE_SEED_VERSION = 2;
-export const TELEPROMPTER_EPISODE_SEED_KEY = "ag:teleprompter:episode-seed:v2";
+export const TELEPROMPTER_EPISODE_SEED_VERSION = 3;
+export const TELEPROMPTER_EPISODE_SEED_KEY = "ag:teleprompter:episode-seed:v3";
 
 export function getEpisodeSeedDocuments(): TeleprompterDocument[] {
   return EPISODES.map(([episode, title, content]) => ({
