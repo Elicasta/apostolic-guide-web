@@ -1,465 +1,270 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { AdminLiveMetrics } from "@/admin-live-metrics";
+import { AnalyticsSolBrief } from "@/analytics-sol-brief";
+import {
+  analyticsConfidence,
+  analyticsRate,
+  buildAnalyticsV3Signals,
+  compareAnalyticsMetric,
+  formatAnalyticsComparison,
+  rollupPathwayCollections,
+  type AnalyticsV3Comparison,
+  type AnalyticsV3PathwayRow,
+  type AnalyticsV3QualityRow,
+  type AnalyticsV3Signal
+} from "@/analytics-v3";
+import { loadAnalyticsV3 } from "@/analytics-v3-server";
 import { getStudioPermission } from "@/auth";
 import { articles } from "@/data";
+import { getSearchConsoleSnapshot, searchConsoleOpportunities } from "@/google-search-console";
 import { allPathways } from "@/pathway-catalog";
-import { createServiceClient } from "@/supabase";
+import { hasStudioPermission } from "@/studio-permissions";
 
-type MetricRow = [string, number];
-
-type AnalyticsMetrics = {
-  total_events: number;
-  page_views: number;
-  unique_browsers: number;
-  browser_sessions: number;
-  active_browsers: number;
-  active_sessions: number;
-  app_transition_events: number;
-  app_transition_sessions: number;
-  searches: number;
-  missing_searches: number;
-  article_completions: number;
-  pathway_completions: number;
-  known_pathway_completers: number;
-  first_event: string | null;
-  latest_event: string | null;
-};
-
-type DecisionMetrics = {
-  engaged_study_sessions: number;
-  returning_browsers: number;
-  public_page_views: number;
-  public_unique_browsers: number;
-  public_browser_sessions: number;
-  public_active_browsers: number;
-  public_active_sessions: number;
-  weekly_page_views: number;
-  weekly_visitors: number;
-  weekly_sessions: number;
-  weekly_new_browsers: number;
-  weekly_returning_browsers: number;
-  weekly_returning_share: number;
-  weekly_engaged_study_sessions: number;
-  prior_week_engaged_study_sessions: number;
-  weekly_pathway_start_sessions: number;
-  weekly_pathway_completion_sessions: number;
-  weekly_app_transition_sessions: number;
-  weekly_internal_sessions: number;
-  tracking_days: number;
-  trend_ready: boolean;
-  seven_day_cohort_size: number;
-  seven_day_returned: number;
-  seven_day_return_rate: number | null;
-  thirty_day_cohort_size: number;
-  thirty_day_returned: number;
-  thirty_day_return_rate: number | null;
-  search_sessions: number;
-  search_success_sessions: number;
-  search_success_rate: number;
-  search_result_opens: number;
-  search_no_result_sessions: number;
-};
-
-type AcquisitionRow = {
-  source: string;
-  sessions: number;
-  engagedSessions: number;
-  completionSessions: number;
-  appSessions: number;
-  studyRate: number;
-  completionRate: number;
-  appRate: number;
-};
-
-type PathwayFunnelRow = {
-  slug: string;
-  starts: number;
-  reach25: number;
-  reach50: number;
-  reach75: number;
-  completions: number;
-  completionRate: number;
-  averageProgress: number;
-};
-
-type PathwayAnalyticsRow = {
-  slug: string;
-  starts: number;
-  audioStarts: number;
-  uniqueSessions: number;
-  observedSteps: number;
-  reachedFinalStep: number;
-  completions: number;
-  readingCompletions: number;
-  audioCompletions: number;
-  knownCompleters: number;
-  completionRate: number;
-  averageProgress: number;
-  appTransitions: number;
-};
-
-type ArticleAnalyticsRow = {
-  slug: string;
-  opens: number;
-  uniqueSessions: number;
-  completions: number;
-  completionRate: number;
-  appTransitions: number;
-};
-
-type DecisionSnapshot = {
-  metrics: DecisionMetrics;
-  acquisition: AcquisitionRow[];
-  pathwayFunnel: PathwayFunnelRow[];
-};
-
-type AnalyticsSnapshot = {
-  metrics: AnalyticsMetrics;
-  eventCounts: MetricRow[];
-  topPages: MetricRow[];
-  trafficSources: MetricRow[];
-  devices: MetricRow[];
-  countries: MetricRow[];
-  cities: MetricRow[];
-  browsers: MetricRow[];
-  operatingSystems: MetricRow[];
-  campaigns: MetricRow[];
-  mediums: MetricRow[];
-  searches: MetricRow[];
-  missingSearches: MetricRow[];
-  appOrigins: MetricRow[];
-  pathways: PathwayAnalyticsRow[];
-  articles: ArticleAnalyticsRow[];
-  v2: DecisionSnapshot;
-};
-
-const emptyMetrics: AnalyticsMetrics = {
-  total_events: 0,
-  page_views: 0,
-  unique_browsers: 0,
-  browser_sessions: 0,
-  active_browsers: 0,
-  active_sessions: 0,
-  app_transition_events: 0,
-  app_transition_sessions: 0,
-  searches: 0,
-  missing_searches: 0,
-  article_completions: 0,
-  pathway_completions: 0,
-  known_pathway_completers: 0,
-  first_event: null,
-  latest_event: null
-};
-
-const emptyDecisionMetrics: DecisionMetrics = {
-  engaged_study_sessions: 0,
-  returning_browsers: 0,
-  public_page_views: 0,
-  public_unique_browsers: 0,
-  public_browser_sessions: 0,
-  public_active_browsers: 0,
-  public_active_sessions: 0,
-  weekly_page_views: 0,
-  weekly_visitors: 0,
-  weekly_sessions: 0,
-  weekly_new_browsers: 0,
-  weekly_returning_browsers: 0,
-  weekly_returning_share: 0,
-  weekly_engaged_study_sessions: 0,
-  prior_week_engaged_study_sessions: 0,
-  weekly_pathway_start_sessions: 0,
-  weekly_pathway_completion_sessions: 0,
-  weekly_app_transition_sessions: 0,
-  weekly_internal_sessions: 0,
-  tracking_days: 0,
-  trend_ready: false,
-  seven_day_cohort_size: 0,
-  seven_day_returned: 0,
-  seven_day_return_rate: null,
-  thirty_day_cohort_size: 0,
-  thirty_day_returned: 0,
-  thirty_day_return_rate: null,
-  search_sessions: 0,
-  search_success_sessions: 0,
-  search_success_rate: 0,
-  search_result_opens: 0,
-  search_no_result_sessions: 0
-};
-
-const emptySnapshot: AnalyticsSnapshot = {
-  metrics: emptyMetrics,
-  eventCounts: [],
-  topPages: [],
-  trafficSources: [],
-  devices: [],
-  countries: [],
-  cities: [],
-  browsers: [],
-  operatingSystems: [],
-  campaigns: [],
-  mediums: [],
-  searches: [],
-  missingSearches: [],
-  appOrigins: [],
-  pathways: [],
-  articles: [],
-  v2: { metrics: emptyDecisionMetrics, acquisition: [], pathwayFunnel: [] }
-};
-
-function percent(part: number, total: number) {
-  return total ? `${Math.min(100, Math.round((part / total) * 100))}%` : "0%";
+function deltaTone(comparison: AnalyticsV3Comparison) {
+  if (comparison.direction === "up" || comparison.direction === "new") return "is-up";
+  if (comparison.direction === "down") return "is-down";
+  return "is-flat";
 }
 
-function retention(rate: number | null, cohort: number) {
-  return cohort > 0 && rate !== null ? `${rate}%` : "Collecting";
+function MetricCard({ label, value, current, previous, ready, definition, confidenceBase }: {
+  label: string;
+  value: number | string;
+  current: number;
+  previous: number;
+  ready: boolean;
+  definition: string;
+  confidenceBase?: number;
+}) {
+  const comparison = compareAnalyticsMetric(current, previous);
+  const confidence = analyticsConfidence(confidenceBase ?? current + previous);
+  return <article className="analytics-v3-metric">
+    <div className="analytics-v3-metric-value">{value}</div>
+    <strong>{label}</strong>
+    <span className={ready ? deltaTone(comparison) : "is-flat"}>{ready ? formatAnalyticsComparison(comparison) : "Collecting comparison baseline"}</span>
+    <details><summary>Definition</summary><p>{definition}</p><small>{confidence} sample signal</small></details>
+  </article>;
 }
 
-function studyTrend(current: number, prior: number, ready: boolean) {
-  if (!ready) return "Collecting baseline";
-  if (!prior) return current ? "New study activity" : "No change";
-  const change = Math.round(((current - prior) / prior) * 100);
-  return `${change >= 0 ? "+" : ""}${change}% vs prior 7 days`;
+function SignalCard({ signal }: { signal: AnalyticsV3Signal }) {
+  return <article className={`analytics-v3-signal is-${signal.severity}`}>
+    <div className="analytics-v3-signal-top"><span>{signal.severity}</span><b>{signal.confidence} signal</b></div>
+    <h3>{signal.title}</h3>
+    <p>{signal.detail}</p>
+    <div className="analytics-v3-evidence-row">{signal.evidence.map((item) => <span key={`${signal.id}:${item.label}`}><b>{item.value}</b><small>{item.label}</small></span>)}</div>
+    {signal.href ? <Link href={signal.href}>Open evidence →</Link> : null}
+  </article>;
 }
 
-function asSnapshot(value: unknown): AnalyticsSnapshot {
-  if (!value || typeof value !== "object") return emptySnapshot;
-  const snapshot = value as Partial<AnalyticsSnapshot>;
-  const decision = snapshot.v2 ?? emptySnapshot.v2;
-  return {
-    metrics: { ...emptyMetrics, ...(snapshot.metrics ?? {}) },
-    eventCounts: snapshot.eventCounts ?? [],
-    topPages: snapshot.topPages ?? [],
-    trafficSources: snapshot.trafficSources ?? [],
-    devices: snapshot.devices ?? [],
-    countries: snapshot.countries ?? [],
-    cities: snapshot.cities ?? [],
-    browsers: snapshot.browsers ?? [],
-    operatingSystems: snapshot.operatingSystems ?? [],
-    campaigns: snapshot.campaigns ?? [],
-    mediums: snapshot.mediums ?? [],
-    searches: snapshot.searches ?? [],
-    missingSearches: snapshot.missingSearches ?? [],
-    appOrigins: snapshot.appOrigins ?? [],
-    pathways: snapshot.pathways ?? [],
-    articles: snapshot.articles ?? [],
-    v2: {
-      metrics: { ...emptyDecisionMetrics, ...(decision.metrics ?? {}) },
-      acquisition: decision.acquisition ?? [],
-      pathwayFunnel: decision.pathwayFunnel ?? []
-    }
-  };
+function biggestPathwayLoss(row: AnalyticsV3PathwayRow) {
+  const stages = [
+    { label: "Start → 25%", lost: row.starts - row.reach25 },
+    { label: "25% → 50%", lost: row.reach25 - row.reach50 },
+    { label: "50% → 75%", lost: row.reach50 - row.reach75 },
+    { label: "75% → complete", lost: row.reach75 - row.completions }
+  ];
+  return stages.sort((a, b) => b.lost - a.lost)[0];
+}
+
+function PathwayCard({ row, title }: { row: AnalyticsV3PathwayRow; title: string }) {
+  const loss = biggestPathwayLoss(row);
+  const stages = [
+    { label: "Started", value: row.starts, percent: 100 },
+    { label: "25%", value: row.reach25, percent: analyticsRate(row.reach25, row.starts) },
+    { label: "50%", value: row.reach50, percent: analyticsRate(row.reach50, row.starts) },
+    { label: "75%", value: row.reach75, percent: analyticsRate(row.reach75, row.starts) },
+    { label: "Completed", value: row.completions, percent: analyticsRate(row.completions, row.starts) }
+  ];
+  const starts = compareAnalyticsMetric(row.starts, row.priorStarts);
+  return <article className="analytics-v3-pathway">
+    <div className="analytics-v3-pathway-head">
+      <div><span>PATHWAY</span><h3>{title}</h3></div>
+      <Link href={`/pathways/${row.slug}`}>Open →</Link>
+    </div>
+    <div className="analytics-v3-pathway-stats">
+      <span><b>{row.starts}</b><small>starts</small></span>
+      <span><b>{row.averageProgress}%</b><small>avg. depth</small></span>
+      <span><b>{row.completions} of {row.starts}</b><small>completed</small></span>
+      <span><b>{row.completionRate}%</b><small>completion rate</small></span>
+    </div>
+    <p className="analytics-v3-pathway-change">Starts: {formatAnalyticsComparison(starts)}</p>
+    <div className="analytics-v3-funnel">{stages.map((stage) => <div key={stage.label}>
+      <div><span>{stage.label}</span><b>{stage.value} · {stage.percent}%</b></div>
+      <i><em style={{ width: `${stage.percent}%` }}/></i>
+    </div>)}</div>
+    <p className="analytics-v3-drop"><strong>Biggest observed loss:</strong> {loss.label} · {Math.max(0, loss.lost)} session{loss.lost === 1 ? "" : "s"}</p>
+  </article>;
+}
+
+function QualityCard({ row }: { row: AnalyticsV3QualityRow }) {
+  return <article className="analytics-v3-quality-card">
+    <h3>{row.label}</h3>
+    <div><span><b>{row.sessions}</b><small>sessions</small></span><span><b>{row.studyRate}%</b><small>study</small></span><span><b>{row.completionRate}%</b><small>complete</small></span><span><b>{row.appRate}%</b><small>app</small></span></div>
+  </article>;
 }
 
 export default async function AdminAnalyticsPage() {
   const { access, allowed } = await getStudioPermission("view_analytics");
   if (!allowed || access.state !== "allowed") redirect("/admin");
 
-  const service = createServiceClient();
-  let snapshot = emptySnapshot;
-  let subscriberCount = 0;
-  let loadError = "";
+  const [{ snapshot, articles: articleRows, fallback, error }, searchConsole] = await Promise.all([
+    loadAnalyticsV3(),
+    getSearchConsoleSnapshot()
+  ]);
 
-  if (service) {
-    const [snapshotResult, subscribersResult] = await Promise.all([
-      service.schema("analytics").rpc("dashboard_snapshot_v2"),
-      service.from("email_subscribers")
-        .select("id", { head: true, count: "exact" })
-        .eq("status", "subscribed")
-    ]);
-
-    snapshot = asSnapshot(snapshotResult.data);
-    subscriberCount = subscribersResult.count ?? 0;
-    if (snapshotResult.error) loadError = `${snapshotResult.error.code}: ${snapshotResult.error.message}`;
-    if (subscribersResult.error && !loadError) loadError = `${subscribersResult.error.code}: ${subscribersResult.error.message}`;
-  } else {
-    loadError = "Supabase service credentials are not configured in this environment.";
+  if (!snapshot) {
+    return <main className="admin-main analytics-v3-page">
+      <div className="analytics-v3-hero"><span className="eyebrow"><i/> Decision analytics</span><h1>Analytics V3</h1><p>Exact first-party analytics are temporarily unavailable.</p></div>
+      <div className="admin-alert is-error"><strong>Analytics could not load.</strong><span>{error || "Unknown analytics error."}</span></div>
+    </main>;
   }
 
-  const metrics = snapshot.metrics;
-  const decisions = snapshot.v2.metrics;
-  const pathwayTitles = new Map(allPathways.map((pathway) => [pathway.slug, pathway.title]));
+  const catalog = new Map(allPathways.map((pathway) => [pathway.slug, pathway]));
+  const pathwayRows = snapshot.pathways.map((row) => {
+    const pathway = catalog.get(row.slug);
+    return pathway ? { ...row, title: pathway.title, collection: pathway.collection } : null;
+  }).filter((row): row is NonNullable<typeof row> => Boolean(row));
+  const collections = rollupPathwayCollections(pathwayRows);
+  const signals = buildAnalyticsV3Signals(snapshot, pathwayRows);
   const articleTitles = new Map(articles.map((article) => [article.slug, article.title]));
-  const pathwayIntelligence = snapshot.pathways
-    .filter((row) => pathwayTitles.has(row.slug))
-    .map((row) => ({ ...row, title: pathwayTitles.get(row.slug) ?? row.slug }))
-    .slice(0, 12);
-  const pathwayFunnel = snapshot.v2.pathwayFunnel
-    .filter((row) => pathwayTitles.has(row.slug))
-    .map((row) => ({ ...row, title: pathwayTitles.get(row.slug) ?? row.slug }))
-    .slice(0, 12);
-  const articleIntelligence = snapshot.articles
+  const currentArticles = articleRows
     .filter((row) => articleTitles.has(row.slug))
     .map((row) => ({ ...row, title: articleTitles.get(row.slug) ?? row.slug }))
-    .slice(0, 12);
+    .sort((a, b) => b.uniqueSessions - a.uniqueSessions)
+    .slice(0, 8);
+  const googleOpportunities = searchConsoleOpportunities(searchConsole);
+  const c = snapshot.period.current;
+  const p = snapshot.period.previous;
+  const searchSuccess = Math.max(0, c.searchSessions - c.noResultSearchSessions);
+  const canUseSol = Boolean(access.role && hasStudioPermission(access.role, "manage_content"));
 
-  const attention: { title: string; detail: string }[] = [];
-  if (decisions.trend_ready && decisions.prior_week_engaged_study_sessions > 0) {
-    const change = Math.round(((decisions.weekly_engaged_study_sessions - decisions.prior_week_engaged_study_sessions) / decisions.prior_week_engaged_study_sessions) * 100);
-    if (change <= -20) attention.push({ title: "Engaged study is down", detail: `${Math.abs(change)}% lower than the previous seven-day period.` });
-  }
-  for (const [query, count] of snapshot.missingSearches.slice(0, 2)) {
-    attention.push({ title: `Search gap: ${query}`, detail: `${count} no-result search${count === 1 ? "" : "es"}. This is a content or search-index candidate.` });
-  }
-  for (const row of pathwayFunnel.filter((item) => item.starts >= 3 && item.completionRate < 25).slice(0, 2)) {
-    attention.push({ title: `${row.title} loses readers early`, detail: `${row.starts} observed starts with a ${row.completionRate}% completion rate.` });
-  }
-  for (const row of snapshot.v2.acquisition.filter((item) => item.sessions >= 5 && item.studyRate < 10).slice(0, 1)) {
-    attention.push({ title: `${row.source} traffic is not studying deeply`, detail: `${row.sessions} sessions with a ${row.studyRate}% engaged-study rate in the last seven days.` });
-  }
+  return <main className="admin-main analytics-v3-page">
+    <header className="analytics-v3-hero">
+      <span className="eyebrow"><i/> Decision analytics</span>
+      <h1>Analytics V3</h1>
+      <p>Know who arrived, where they came from, what they studied, where they stopped, and what deserves attention next.</p>
+      <div className="analytics-v3-period"><strong>LAST 7 DAYS</strong><span>vs previous 7 days</span><b>{snapshot.period.trackingDays} tracked days</b></div>
+      {fallback ? <div className="analytics-v3-baseline-note"><strong>V3 database migration pending.</strong><span>The page is safely using V2 exact aggregates until the new snapshot is available. Full comparisons and daily V3 analysis stay disabled.</span></div> : null}
+    </header>
 
-  return (
-    <>
-      <AdminLiveMetrics />
-      <span className="eyebrow">Decision analytics</span>
-      <h1>Analytics V2</h1>
-      <p className="admin-lede">Measure whether people arrive, study, finish, move into the app, and come back. The first row is the seven-day operating view, not a vanity-traffic summary.</p>
-      <p className="admin-muted">Known Studio and Vercel-preview sessions are excluded from public visitor and acquisition metrics. Engaged study requires a completed Pathway step, a meaningful article completion, a Pathway completion, or at least 30 seconds of tracked Pathway audio.</p>
-
-      {loadError ? <section className="admin-card"><h2>Tracker status</h2><p><strong>Analytics reporting is unavailable.</strong></p><p>{loadError}</p><p>Apply the Analytics V2 migrations and confirm the production Supabase service key is configured.</p></section> : null}
-
-      <section>
-        <div className="studio-section-head"><div><span className="section-kicker">Last 7 days</span><h2>Operating health</h2></div><p>{studyTrend(decisions.weekly_engaged_study_sessions, decisions.prior_week_engaged_study_sessions, decisions.trend_ready)}</p></div>
-        <div className="metric-grid">
-          <div className="metric"><strong>{decisions.weekly_visitors}</strong><span>Public visitors</span></div>
-          <div className="metric"><strong>{decisions.weekly_engaged_study_sessions}</strong><span>Engaged studies</span></div>
-          <div className="metric"><strong>{decisions.weekly_pathway_start_sessions}</strong><span>Pathway starts</span></div>
-          <div className="metric"><strong>{decisions.weekly_pathway_completion_sessions}</strong><span>Pathway completions</span></div>
-          <div className="metric"><strong>{decisions.weekly_app_transition_sessions}</strong><span>App transition sessions</span></div>
-          <div className="metric"><strong>{decisions.weekly_returning_browsers}</strong><span>Returning visitors</span></div>
-        </div>
-      </section>
-
-      <div className="analytics-operations-grid">
-        <section className="admin-card">
-          <span className="section-kicker">North star</span>
-          <h2>Engaged study sessions</h2>
-          <p><strong>{decisions.weekly_engaged_study_sessions}</strong> sessions studied meaningfully in the last seven days.</p>
-          <table className="admin-table"><tbody>
-            <tr><td>Study rate</td><td><strong>{percent(decisions.weekly_engaged_study_sessions, decisions.weekly_sessions)}</strong></td></tr>
-            <tr><td>Public sessions</td><td><strong>{decisions.weekly_sessions}</strong></td></tr>
-            <tr><td>Pathway start rate</td><td><strong>{percent(decisions.weekly_pathway_start_sessions, decisions.weekly_sessions)}</strong></td></tr>
-            <tr><td>Session → app rate</td><td><strong>{percent(decisions.weekly_app_transition_sessions, decisions.weekly_sessions)}</strong></td></tr>
-          </tbody></table>
-        </section>
-
-        <section className="admin-card">
-          <span className="section-kicker">Retention</span>
-          <h2>Are people coming back?</h2>
-          <table className="admin-table"><tbody>
-            <tr><td>New visitors, 7 days</td><td><strong>{decisions.weekly_new_browsers}</strong></td></tr>
-            <tr><td>Returning visitors, 7 days</td><td><strong>{decisions.weekly_returning_browsers}</strong></td></tr>
-            <tr><td>Returning share</td><td><strong>{decisions.weekly_returning_share}%</strong></td></tr>
-            <tr><td>7-day retention</td><td><strong>{retention(decisions.seven_day_return_rate, decisions.seven_day_cohort_size)}</strong><small>{decisions.seven_day_cohort_size ? `${decisions.seven_day_returned}/${decisions.seven_day_cohort_size} eligible browsers` : " waiting for a complete cohort"}</small></td></tr>
-            <tr><td>30-day retention</td><td><strong>{retention(decisions.thirty_day_return_rate, decisions.thirty_day_cohort_size)}</strong><small>{decisions.thirty_day_cohort_size ? `${decisions.thirty_day_returned}/${decisions.thirty_day_cohort_size} eligible browsers` : " waiting for a complete cohort"}</small></td></tr>
-          </tbody></table>
-        </section>
+    <section className="analytics-v3-section">
+      <div className="analytics-v3-section-head"><div><span>OPERATING VIEW</span><h2>This week</h2></div><p>Exact counts first. Every comparison shows the actual current and prior values.</p></div>
+      <div className="analytics-v3-metrics">
+        <MetricCard label="Public visitors" value={c.visitors} current={c.visitors} previous={p.visitors} ready={snapshot.period.trendReady} confidenceBase={c.visitors + p.visitors} definition="Distinct anonymous browser identities that viewed at least one public page during the period. This is a tracked browser count, not a guaranteed count of individual humans."/>
+        <MetricCard label="Sessions" value={c.sessions} current={c.sessions} previous={p.sessions} ready={snapshot.period.trendReady} definition="Distinct public browsing sessions with at least one page view."/>
+        <MetricCard label="Page views" value={c.pageViews} current={c.pageViews} previous={p.pageViews} ready={snapshot.period.trendReady} definition="Recorded public page_viewed events after known Studio and preview sessions are excluded."/>
+        <MetricCard label="Engaged studies" value={c.engagedStudySessions} current={c.engagedStudySessions} previous={p.engagedStudySessions} ready={snapshot.period.trendReady} definition="Sessions with a completed Pathway step, meaningful article completion, Pathway completion, audio completion, or at least 30 seconds of tracked Pathway audio."/>
+        <MetricCard label="Pathway starts" value={c.pathwayStartSessions} current={c.pathwayStartSessions} previous={p.pathwayStartSessions} ready={snapshot.period.trendReady} definition="Distinct public sessions that fired pathway_started during the period."/>
+        <MetricCard label="Pathway completions" value={c.pathwayCompletionSessions} current={c.pathwayCompletionSessions} previous={p.pathwayCompletionSessions} ready={snapshot.period.trendReady} definition="Distinct public sessions that fired pathway_completed during the period."/>
+        <MetricCard label="App transitions" value={c.appTransitionSessions} current={c.appTransitionSessions} previous={p.appTransitionSessions} ready={snapshot.period.trendReady} definition="Distinct public sessions that intentionally clicked from the website into the Apostolic Guide app."/>
+        <MetricCard label="Search sessions" value={c.searchSessions} current={c.searchSessions} previous={p.searchSessions} ready={snapshot.period.trendReady} definition="Distinct public sessions that submitted at least one Apostolic Guide search."/>
       </div>
-
-      <section className="admin-card">
-        <div className="study-intelligence-card-head"><div><span className="section-kicker">Needs attention</span><h2>What should change next?</h2></div><span className="admin-muted">Rule-based signals, no AI guesswork</span></div>
-        {attention.length ? <table className="admin-table"><tbody>{attention.slice(0, 5).map((item) => <tr key={`${item.title}-${item.detail}`}><td><strong>{item.title}</strong><small>{item.detail}</small></td></tr>)}</tbody></table> : <p>No threshold-based issues are firing yet. More usage will make this section more useful.</p>}
-      </section>
-
-      <section className="admin-card">
-        <div className="study-intelligence-card-head"><div><span className="section-kicker">Pathway funnel</span><h2>Where study depth falls off</h2></div><Link href="/admin/app-content">Manage pathways</Link></div>
-        {pathwayFunnel.length ? <div className="study-table-wrap"><table className="admin-table study-table"><thead><tr><th>Pathway</th><th>Starts</th><th>25%</th><th>50%</th><th>75%</th><th>Complete</th><th>Rate</th></tr></thead><tbody>{pathwayFunnel.map((row) => <tr key={row.slug}><td><Link href={`/pathways/${row.slug}`}>{row.title}</Link><small>{row.averageProgress}% average observed depth</small></td><td><strong>{row.starts}</strong></td><td><strong>{row.reach25}</strong><small>{percent(row.reach25, row.starts)}</small></td><td><strong>{row.reach50}</strong><small>{percent(row.reach50, row.starts)}</small></td><td><strong>{row.reach75}</strong><small>{percent(row.reach75, row.starts)}</small></td><td><strong>{row.completions}</strong></td><td><strong>{row.completionRate}%</strong></td></tr>)}</tbody></table></div> : <p>No Pathway funnel activity yet.</p>}
-      </section>
-
-      <section className="admin-card">
-        <div className="study-intelligence-card-head"><div><span className="section-kicker">Acquisition</span><h2>Which traffic actually studies?</h2></div><span className="admin-muted">First-touch source, last 7 days</span></div>
-        {snapshot.v2.acquisition.length ? <div className="study-table-wrap"><table className="admin-table study-table"><thead><tr><th>Source</th><th>Sessions</th><th>Engaged</th><th>Study rate</th><th>Completed</th><th>App</th><th>App rate</th></tr></thead><tbody>{snapshot.v2.acquisition.map((row) => <tr key={row.source}><td><strong>{row.source}</strong></td><td><strong>{row.sessions}</strong></td><td><strong>{row.engagedSessions}</strong></td><td><strong>{row.studyRate}%</strong></td><td><strong>{row.completionSessions}</strong><small>{row.completionRate}% rate</small></td><td><strong>{row.appSessions}</strong></td><td><strong>{row.appRate}%</strong></td></tr>)}</tbody></table></div> : <p>No public acquisition data yet.</p>}
-      </section>
-
-      <div className="analytics-operations-grid">
-        <section className="admin-card">
-          <span className="section-kicker">Search quality</span>
-          <h2>Did search lead somewhere?</h2>
-          <table className="admin-table"><tbody>
-            <tr><td>Search sessions</td><td><strong>{decisions.search_sessions}</strong></td></tr>
-            <tr><td>Sessions opening a result</td><td><strong>{decisions.search_success_sessions}</strong></td></tr>
-            <tr><td>Search success rate</td><td><strong>{decisions.search_success_rate}%</strong></td></tr>
-            <tr><td>No-result sessions</td><td><strong>{decisions.search_no_result_sessions}</strong></td></tr>
-            <tr><td>Result opens</td><td><strong>{decisions.search_result_opens}</strong></td></tr>
-          </tbody></table>
-          <p className="admin-muted">Success means the session opened at least one tracked search result. It does not treat every keystroke query as a separate successful search.</p>
-        </section>
-
-        <section className="admin-card">
-          <span className="section-kicker">Public traffic</span>
-          <h2>Clean visitor totals</h2>
-          <table className="admin-table"><tbody>
-            <tr><td>Public page views</td><td><strong>{decisions.public_page_views}</strong></td></tr>
-            <tr><td>Public visitors</td><td><strong>{decisions.public_unique_browsers}</strong></td></tr>
-            <tr><td>Public sessions</td><td><strong>{decisions.public_browser_sessions}</strong></td></tr>
-            <tr><td>Known returning browsers</td><td><strong>{decisions.returning_browsers}</strong></td></tr>
-            <tr><td>Known internal sessions excluded, 7 days</td><td><strong>{decisions.weekly_internal_sessions}</strong></td></tr>
-          </tbody></table>
-        </section>
-      </div>
-
-      <section className="study-intelligence-block">
-        <div className="studio-section-head study-intelligence-heading"><div><span className="section-kicker">Study detail</span><h2>Reading and audio intelligence</h2></div><p>These tables keep the deeper per-content diagnostics behind the operating metrics above.</p></div>
-        <div className="study-intelligence-grid">
-          <section className="admin-card study-intelligence-card">
-            <div className="study-intelligence-card-head"><div><span className="section-kicker">Pathways</span><h3>Pathway depth</h3></div><Link href="/admin/app-content">Manage pathways</Link></div>
-            {pathwayIntelligence.length ? <div className="study-table-wrap"><table className="admin-table study-table"><thead><tr><th>Pathway</th><th>Starts</th><th>Avg. depth</th><th>Completed</th><th>Audio</th><th>Known</th><th>App</th></tr></thead><tbody>{pathwayIntelligence.map((row) => <tr key={row.slug}><td><Link href={`/pathways/${row.slug}`}>{row.title}</Link><small>{row.observedSteps} observed reading steps · {row.uniqueSessions} study sessions</small></td><td><strong>{row.starts}</strong><small>{row.audioStarts} audio starts</small></td><td><strong>{row.averageProgress}%</strong></td><td><strong>{row.completions}</strong><small>{row.completionRate}% rate · {row.readingCompletions} reading</small></td><td><strong>{row.audioCompletions}</strong></td><td><strong>{row.knownCompleters}</strong></td><td><strong>{row.appTransitions}</strong></td></tr>)}</tbody></table></div> : <div className="studio-empty-state"><strong>No Pathway study depth yet</strong><p>Reading and audio progress begin collecting as visitors meaningfully study a Pathway.</p></div>}
-          </section>
-
-          <section className="admin-card study-intelligence-card">
-            <div className="study-intelligence-card-head"><div><span className="section-kicker">Articles</span><h3>Article depth</h3></div><Link href="/admin/content">Manage articles</Link></div>
-            {articleIntelligence.length ? <div className="study-table-wrap"><table className="admin-table study-table"><thead><tr><th>Article</th><th>Opens</th><th>Completed</th><th>Rate</th><th>App</th></tr></thead><tbody>{articleIntelligence.map((row) => <tr key={row.slug}><td><Link href={`/articles/${row.slug}`}>{row.title}</Link><small>{row.uniqueSessions} reading sessions</small></td><td><strong>{row.opens}</strong></td><td><strong>{row.completions}</strong></td><td><strong>{row.completionRate}%</strong></td><td><strong>{row.appTransitions}</strong></td></tr>)}</tbody></table></div> : <div className="studio-empty-state"><strong>No article depth yet</strong><p>Article opens and meaningful completions will appear here.</p></div>}
-          </section>
-        </div>
-      </section>
-
-      <div className="analytics-operations-grid">
-        <section className="admin-card">
-          <h2>Live presence</h2>
-          <table className="admin-table"><tbody>
-            <tr><td>Public browsers online</td><td><strong>{decisions.public_active_browsers}</strong></td></tr>
-            <tr><td>Public active sessions</td><td><strong>{decisions.public_active_sessions}</strong></td></tr>
-            <tr><td>Presence window</td><td><strong>Last 75 seconds</strong></td></tr>
-            <tr><td>Dashboard refresh</td><td><strong>Every 15 seconds</strong></td></tr>
-          </tbody></table>
-        </section>
-
-        <section className="admin-card">
-          <h2>Tracker health</h2>
-          <table className="admin-table"><tbody>
-            <tr><td>Raw events stored</td><td><strong>{metrics.total_events}</strong></td></tr>
-            <tr><td>Raw browser identities</td><td><strong>{metrics.unique_browsers}</strong></td></tr>
-            <tr><td>Tracking started</td><td><strong>{metrics.first_event ? new Date(metrics.first_event).toLocaleString() : "No events received"}</strong></td></tr>
-            <tr><td>Latest event</td><td><strong>{metrics.latest_event ? new Date(metrics.latest_event).toLocaleString() : "No events received"}</strong></td></tr>
-            <tr><td>Reporting mode</td><td><strong>Exact ledger aggregates</strong></td></tr>
-            <tr><td>Baseline age</td><td><strong>{decisions.tracking_days} days</strong></td></tr>
-          </tbody></table>
-        </section>
-      </div>
-
-      <div className="analytics-grid">
-        <MetricTable title="Top traffic sources" rows={snapshot.trafficSources} empty="No referrer or campaign data yet." />
-        <MetricTable title="Most used pages" rows={snapshot.topPages} empty="No page activity yet." />
-        <MetricTable title="Countries" rows={snapshot.countries} empty="No location data yet." />
-        <MetricTable title="Cities / regions" rows={snapshot.cities} empty="No city data yet." />
-        <MetricTable title="Devices" rows={snapshot.devices} empty="No device data yet." />
-        <MetricTable title="Browsers" rows={snapshot.browsers} empty="No browser data yet." />
-        <MetricTable title="Operating systems" rows={snapshot.operatingSystems} empty="No OS data yet." />
-        <MetricTable title="Campaigns" rows={snapshot.campaigns} empty="No UTM campaign traffic yet." />
-        <MetricTable title="UTM mediums" rows={snapshot.mediums} empty="No UTM medium traffic yet." />
-        <MetricTable title="Top searches" rows={snapshot.searches} empty="No searches yet." />
-        <MetricTable title="Content gaps" rows={snapshot.missingSearches} empty="No missing-result searches yet." />
-        <MetricTable title="App conversion origins" rows={snapshot.appOrigins} empty="No app transitions yet." />
-      </div>
-    </>
-  );
-}
-
-function MetricTable({ title, rows, empty }: { title: string; rows: MetricRow[]; empty: string }) {
-  return (
-    <section className="admin-card">
-      <h2>{title}</h2>
-      {rows.length ? <table className="admin-table"><tbody>{rows.map(([label, value]) => <tr key={label}><td>{label}</td><td><strong>{value}</strong></td></tr>)}</tbody></table> : <p>{empty}</p>}
     </section>
-  );
+
+    <section className="analytics-v3-section">
+      <div className="analytics-v3-section-head"><div><span>DECISION LAYER</span><h2>What changed</h2></div><p>Rules interpret exact facts before Sol ever sees them.</p></div>
+      {signals.length ? <div className="analytics-v3-signals">{signals.map((signal) => <SignalCard key={signal.id} signal={signal}/>)}</div> : <div className="analytics-v3-empty"><strong>No major rule-based warning yet.</strong><span>Keep collecting clean traffic and study behavior. V3 will surface movement when the sample supports it.</span></div>}
+    </section>
+
+    <AnalyticsSolBrief canUseSol={canUseSol}/>
+
+    <section className="analytics-v3-section">
+      <div className="analytics-v3-section-head"><div><span>DAILY MOVEMENT</span><h2>Seven-day rhythm</h2></div><p>See whether publishing activity creates a visible traffic or study response.</p></div>
+      {snapshot.daily.length ? <div className="analytics-v3-days">{snapshot.daily.map((day) => <article key={day.date}>
+        <strong>{new Date(`${day.date}T12:00:00`).toLocaleDateString("en-US", { weekday: "short" })}</strong>
+        <span><b>{day.visitors}</b><small>visitors</small></span>
+        <span><b>{day.engagedStudySessions}</b><small>study</small></span>
+        <span><b>{day.pathwayStarts}</b><small>starts</small></span>
+        <span><b>{day.pageViews}</b><small>views</small></span>
+      </article>)}</div> : <div className="analytics-v3-empty"><strong>Daily V3 series is waiting for the new database snapshot.</strong></div>}
+    </section>
+
+    <section className="analytics-v3-section">
+      <div className="analytics-v3-section-head"><div><span>PATHWAY COLLECTIONS</span><h2>What people are studying</h2></div><p>Roll individual Pathways into the four current theological collections before drilling down.</p></div>
+      <div className="analytics-v3-collections">{collections.map((row) => <article key={row.collection}>
+        <span>COLLECTION</span><h3>{row.collection}</h3>
+        <div><b>{row.starts}</b><small>starts</small></div>
+        <div><b>{row.weightedAverageProgress}%</b><small>avg. depth</small></div>
+        <div><b>{row.completions} of {row.starts}</b><small>completed · {row.completionRate}%</small></div>
+        <p>{row.activePathways} active Pathway{row.activePathways === 1 ? "" : "s"} in this period.</p>
+      </article>)}</div>
+    </section>
+
+    <section className="analytics-v3-section">
+      <div className="analytics-v3-section-head"><div><span>PATHWAY FUNNELS</span><h2>Where readers continue or stop</h2></div><p>Counts and percentages stay together so mobile can never turn “3 completions · 19%” into “319%.”</p></div>
+      {pathwayRows.length ? <div className="analytics-v3-pathways">{pathwayRows.map((row) => <PathwayCard key={row.slug} row={row} title={row.title}/>)}</div> : <div className="analytics-v3-empty"><strong>No Pathway starts in this period.</strong></div>}
+    </section>
+
+    <section className="analytics-v3-section">
+      <div className="analytics-v3-section-head"><div><span>ACQUISITION QUALITY</span><h2>Where useful traffic comes from</h2></div><p>Traffic volume alone is weak. Compare each source by study, completion, and app movement.</p></div>
+      {snapshot.acquisition.length ? <div className="analytics-v3-acquisition">{snapshot.acquisition.map((row) => {
+        const change = compareAnalyticsMetric(row.sessions, row.priorSessions);
+        return <article key={row.source}>
+          <div><span>SOURCE</span><h3>{row.source}</h3><small>{formatAnalyticsComparison(change)}</small></div>
+          <div className="analytics-v3-source-stats"><span><b>{row.sessions}</b><small>sessions</small></span><span><b>{row.studyRate}%</b><small>study</small></span><span><b>{row.completionRate}%</b><small>complete</small></span><span><b>{row.appRate}%</b><small>app</small></span></div>
+        </article>;
+      })}</div> : <div className="analytics-v3-empty"><strong>No attributable public sessions in this period.</strong></div>}
+    </section>
+
+    <section className="analytics-v3-section analytics-v3-split">
+      <div>
+        <div className="analytics-v3-section-head"><div><span>SEARCH INTENT</span><h2>What people are asking</h2></div></div>
+        <div className="analytics-v3-search-health">
+          <span><b>{c.searchSessions}</b><small>search sessions</small></span>
+          <span><b>{searchSuccess}</b><small>without a no-result event</small></span>
+          <span><b>{analyticsRate(searchSuccess, c.searchSessions)}%</b><small>coverage proxy</small></span>
+          <span><b>{c.noResultSearchSessions}</b><small>no-result sessions</small></span>
+        </div>
+        <div className="analytics-v3-list-block"><h3>Top searches</h3>{snapshot.searches.length ? snapshot.searches.map((row) => <div key={row.query}><span>{row.query}</span><b>{row.count}</b></div>) : <p>No search queries recorded in this period.</p>}</div>
+      </div>
+      <div>
+        <div className="analytics-v3-section-head"><div><span>CONTENT GAPS</span><h2>Demand we are not answering</h2></div></div>
+        <div className="analytics-v3-list-block is-alert">{snapshot.searchGaps.length ? snapshot.searchGaps.map((row) => <div key={row.query}><span>{row.query}</span><b>{row.count} no-result</b></div>) : <p>No no-result searches recorded in this period.</p>}</div>
+      </div>
+    </section>
+
+    <section className="analytics-v3-section">
+      <div className="analytics-v3-section-head"><div><span>GOOGLE SEARCH CONSOLE</span><h2>Demand before the visit</h2></div><p>Search Console is optional. Apostolic Guide analytics remains the source of truth for what happens after arrival.</p></div>
+      {!searchConsole.configured ? <div className="analytics-v3-google-setup">
+        <strong>Search Console is ready to connect.</strong>
+        <p>Add the Apostolic Guide service account as a Search Console property user, then set these server-only environment variables:</p>
+        <code>GOOGLE_SEARCH_CONSOLE_SITE_URL</code><code>GOOGLE_SERVICE_ACCOUNT_EMAIL</code><code>GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY</code>
+        <span>Recommended property value: <b>sc-domain:apostolicguide.com</b></span>
+      </div> : searchConsole.error || !searchConsole.current || !searchConsole.previous ? <div className="analytics-v3-inline-error"><strong>Search Console is configured but unavailable.</strong><span>{searchConsole.error || "No complete Search Console period returned."}</span></div> : <>
+        <div className="analytics-v3-google-metrics">
+          <MetricCard label="Google clicks" value={searchConsole.current.clicks} current={searchConsole.current.clicks} previous={searchConsole.previous.clicks} ready definition={`Final Search Console clicks for ${searchConsole.current.startDate} through ${searchConsole.current.endDate}. Google reporting is intentionally read with a two-day delay.`}/>
+          <MetricCard label="Google impressions" value={searchConsole.current.impressions} current={searchConsole.current.impressions} previous={searchConsole.previous.impressions} ready definition="Times Apostolic Guide pages appeared in eligible Google Search results during the complete reporting window."/>
+          <article className="analytics-v3-metric"><div className="analytics-v3-metric-value">{searchConsole.current.ctr}%</div><strong>Google CTR</strong><span>{searchConsole.current.clicks} clicks / {searchConsole.current.impressions} impressions</span><details><summary>Definition</summary><p>Search Console clicks divided by impressions.</p></details></article>
+          <article className="analytics-v3-metric"><div className="analytics-v3-metric-value">{searchConsole.current.position}</div><strong>Avg. position</strong><span>Prior: {searchConsole.previous.position}</span><details><summary>Definition</summary><p>Impression-weighted average Search Console position across the returned query/page rows.</p></details></article>
+        </div>
+        <div className="analytics-v3-list-block"><h3>Google opportunities</h3>{googleOpportunities.length ? googleOpportunities.map((row) => <div key={`${row.kind}:${row.query}:${row.page}`}><span><b>{row.query}</b><small>{row.kind === "ctr" ? "Snippet / title opportunity" : "Ranking opportunity"} · {row.impressions} impressions · pos. {row.position} · {row.ctr}% CTR</small></span><strong>{row.clicks} clicks</strong></div>) : <p>No high-confidence Google opportunity passed the current thresholds.</p>}</div>
+      </>}
+    </section>
+
+    <section className="analytics-v3-section analytics-v3-split">
+      <div><div className="analytics-v3-section-head"><div><span>DEVICE QUALITY</span><h2>Does mobile behavior differ?</h2></div></div><div className="analytics-v3-quality-grid">{snapshot.devices.length ? snapshot.devices.map((row) => <QualityCard key={row.label} row={row}/>) : <div className="analytics-v3-empty"><strong>Device quality is collecting.</strong></div>}</div></div>
+      <div><div className="analytics-v3-section-head"><div><span>GEOGRAPHY</span><h2>Where useful sessions come from</h2></div></div><div className="analytics-v3-quality-grid">{snapshot.countries.length ? snapshot.countries.slice(0, 8).map((row) => <QualityCard key={row.label} row={row}/>) : <div className="analytics-v3-empty"><strong>Geographic quality is collecting.</strong></div>}</div></div>
+    </section>
+
+    <section className="analytics-v3-section analytics-v3-split">
+      <div><div className="analytics-v3-section-head"><div><span>TOP PAGES</span><h2>What gets viewed</h2></div></div><div className="analytics-v3-list-block">{snapshot.topPages.length ? snapshot.topPages.map((row) => <div key={row.label}><span>{row.label}</span><b>{row.count}</b></div>) : <p>No page views recorded.</p>}</div></div>
+      <div><div className="analytics-v3-section-head"><div><span>CAMPAIGNS</span><h2>Tagged distribution</h2></div></div><div className="analytics-v3-list-block">{snapshot.campaigns.length ? snapshot.campaigns.map((row) => <div key={row.label}><span>{row.label}</span><b>{row.count} sessions</b></div>) : <p>No UTM campaign sessions recorded in this period.</p>}</div></div>
+    </section>
+
+    <section className="analytics-v3-section">
+      <div className="analytics-v3-section-head"><div><span>ARTICLE STUDY</span><h2>Reading quality</h2></div><p>Article completion remains exact first-party study telemetry while V3 focuses the primary decision layer on the current seven-day operating window.</p></div>
+      {currentArticles.length ? <div className="analytics-v3-articles">{currentArticles.map((row) => <article key={row.slug}><h3>{row.title}</h3><div><span><b>{row.uniqueSessions}</b><small>sessions</small></span><span><b>{row.completions}</b><small>completions</small></span><span><b>{row.completionRate}%</b><small>completion</small></span><span><b>{row.appTransitions}</b><small>app</small></span></div></article>)}</div> : <div className="analytics-v3-empty"><strong>No article study telemetry yet.</strong></div>}
+    </section>
+
+    <section className="analytics-v3-section">
+      <div className="analytics-v3-section-head"><div><span>LIVE + DATA QUALITY</span><h2>Can we trust what we are seeing?</h2></div><p>Known Studio and Vercel-preview sessions stay outside public acquisition metrics.</p></div>
+      <AdminLiveMetrics/>
+      <div className="analytics-v3-data-quality">
+        <span><b>{snapshot.internalSessionsExcluded}</b><small>internal sessions excluded this week</small></span>
+        <span><b>{snapshot.period.trackingDays}</b><small>tracked days</small></span>
+        <span><b>{snapshot.period.trendReady ? "Ready" : "Collecting"}</b><small>two-period comparison</small></span>
+        <span><b>{searchConsole.configured ? (searchConsole.error ? "Needs attention" : "Connected") : "Optional"}</b><small>Google Search Console</small></span>
+      </div>
+    </section>
+  </main>;
 }
