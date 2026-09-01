@@ -6,20 +6,23 @@ function source(path: string) {
   return readFileSync(path, "utf8");
 }
 
-test("analytics dashboard uses exact V2 database aggregates instead of a capped event sample", () => {
+test("analytics dashboard uses exact V3 database aggregates with a safe V2 fallback", () => {
   const page = source("app/admin/analytics/page.tsx");
-  assert.match(page, /schema\("analytics"\)\.rpc\("dashboard_snapshot_v2"\)/);
+  const loader = source("src/analytics-v3-server.ts");
+  assert.match(page, /loadAnalyticsV3\(\)/);
+  assert.match(loader, /schema\("analytics"\)\.rpc\("dashboard_snapshot_v3"\)/);
+  assert.match(loader, /schema\("analytics"\)\.rpc\("dashboard_snapshot_v2"\)/);
   assert.doesNotMatch(page, /limit\(10000\)/);
-  assert.match(page, /decisions\.weekly_engaged_study_sessions/);
-  assert.match(page, /decisions\.public_unique_browsers/);
-  assert.match(page, /decisions\.weekly_app_transition_sessions/);
+  assert.match(page, /c\.visitors/);
+  assert.match(page, /c\.engagedStudySessions/);
+  assert.match(page, /c\.appTransitionSessions/);
 });
 
-test("analytics dashboard excludes retired pathway and article slugs from current-content tables", () => {
+test("analytics dashboard excludes retired pathway and article slugs from current-content cards", () => {
   const page = source("app/admin/analytics/page.tsx");
-  assert.match(page, /snapshot\.pathways\s*\.filter\(\(row\) => pathwayTitles\.has\(row\.slug\)\)/);
-  assert.match(page, /snapshot\.v2\.pathwayFunnel\s*\.filter\(\(row\) => pathwayTitles\.has\(row\.slug\)\)/);
-  assert.match(page, /snapshot\.articles\s*\.filter\(\(row\) => articleTitles\.has\(row\.slug\)\)/);
+  assert.match(page, /const catalog = new Map\(allPathways\.map/);
+  assert.match(page, /const pathway = catalog\.get\(row\.slug\)/);
+  assert.match(page, /articleTitles\.has\(row\.slug\)/);
 });
 
 test("analytics reporting migration calculates visitor, session, live, and study metrics from the full ledger", () => {
@@ -72,6 +75,33 @@ test("Analytics V2 study, search, app and Pathway funnel metrics use public sess
   assert.match(migration, /grant execute on function analytics\.public_study_metrics_v2\(\) to service_role/i);
 });
 
+test("Analytics V3 compares exact public current and prior periods and keeps funnels session-bound", () => {
+  const migration = source("supabase/migrations/202608310001_analytics_v3_decision_system.sql");
+  assert.match(migration, /create or replace function analytics\.dashboard_snapshot_v3\(\)/i);
+  assert.match(migration, /current_start/);
+  assert.match(migration, /previous_start/);
+  assert.match(migration, /where not c\.is_internal/);
+  assert.match(migration, /'visitors'/);
+  assert.match(migration, /'engagedStudySessions'/);
+  assert.match(migration, /current_pathway_sessions/);
+  assert.match(migration, /count\(\*\) filter \(where c\.started and c\.progress >= 25\)/);
+  assert.match(migration, /'priorSessions'/);
+  assert.match(migration, /'daily'/);
+  assert.match(migration, /'devices'/);
+  assert.match(migration, /'countries'/);
+  assert.match(migration, /grant execute on function analytics\.dashboard_snapshot_v3\(\) to service_role/i);
+});
+
+test("Analytics V3 mobile presentation keeps Pathway counts and percentages in separate labeled fields", () => {
+  const page = source("app/admin/analytics/page.tsx");
+  const css = source("app/admin/analytics-v3.css");
+  assert.match(page, /<b>\{row\.completions\} of \{row\.starts\}<\/b><small>completed<\/small>/);
+  assert.match(page, /<b>\{row\.completionRate\}%<\/b><small>completion rate<\/small>/);
+  assert.match(page, /Biggest observed loss/);
+  assert.match(css, /@media\(max-width:600px\)/);
+  assert.doesNotMatch(page, /<table/);
+});
+
 test("browser identity is shared across Apostolic Guide subdomains and any UTM field can establish attribution", () => {
   const analytics = source("src/analytics.tsx");
   assert.match(analytics, /cookieValue\(ANONYMOUS_KEY\)/);
@@ -80,7 +110,7 @@ test("browser identity is shared across Apostolic Guide subdomains and any UTM f
   assert.match(analytics, /Domain=\.apostolicguide\.com/);
 });
 
-test("Pathway starts and search-result opens are instrumented for V2 funnels", () => {
+test("Pathway starts and search-result opens are instrumented for V2/V3 funnels", () => {
   const analytics = source("src/analytics.tsx");
   const route = source("app/api/analytics/events/route.ts");
   assert.match(analytics, /if \(section === "pathways"\) return \{ name: "pathway_started"/);
