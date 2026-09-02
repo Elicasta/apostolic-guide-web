@@ -208,7 +208,7 @@ export function VideoProducerVisualPassPanel({ projectId }: { projectId: string 
         <span className={state.providers.pexels ? styles.providerOn : styles.providerOff}>PEXELS</span>
         <span className={state.providers.pixabay ? styles.providerOn : styles.providerOff}>PIXABAY</span>
         <span className={state.providers.runway ? styles.providerOn : styles.providerOff}>RUNWAY · AI FALLBACK</span>
-        <span className={state.providers.firefly ? styles.providerOn : styles.providerOff}>FIREFLY · SAFE FALLBACK</span>
+        <span className={styles.providerOff}>FIREFLY · {state.providers.firefly ? "CONFIGURED, NOT ACTIVE" : "NOT ACTIVE"}</span>
       </div>
 
       {message ? <div className={styles.message}>{message}</div> : null}
