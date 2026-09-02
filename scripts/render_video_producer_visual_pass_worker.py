@@ -2,8 +2,8 @@
 """Video Producer V3 renderer.
 
 Adds Visual Pass assembly media above the A-roll/multicam picture while preserving
-A-roll/external master audio. Broadcast Graphics V2 is applied after B-roll so
-Scripture, statements, and evidence graphics remain the top editorial layer.
+A-roll/external master audio. Broadcast Graphics V2 and AG Kinetic Graphics are
+applied after B-roll so Scripture, evidence, and motion typography stay on top.
 """
 import importlib.util
 import json
@@ -18,6 +18,8 @@ SPEC = importlib.util.spec_from_file_location("ag_finishing_worker", FINISHING_P
 fw = importlib.util.module_from_spec(SPEC)
 assert SPEC and SPEC.loader
 SPEC.loader.exec_module(fw)
+
+from video_producer_kinetic_graphics import append_kinetic_graphics  # noqa: E402
 
 ORIGINAL_BUILD = fw.build_ffmpeg_v2
 
@@ -77,7 +79,7 @@ def build_ffmpeg_v3(manifest, source, ass_file, output_file):
     graph = command[graph_index]
 
     # Remove the existing final ASS render. Visuals are composited first, then
-    # the exact same Graphics V2 file is applied once at the top of the stack.
+    # the exact same Graphics/Kinetic ASS file is applied once at the top.
     replaced, count = re.subn(r",ass='[^']+'\[vout\]", "[vpre]", graph, count=1)
     if count != 1:
         raise RuntimeError("could not locate final Graphics V2 stage")
@@ -152,6 +154,23 @@ fw.bw.build_ffmpeg = build_ffmpeg_v3
 fw.build_ffmpeg_v2 = build_ffmpeg_v3
 
 
+def build_graphics_ass(manifest, target):
+    """Render normal Broadcast Graphics once, then append Kinetic Graphics.
+
+    Kinetic cues are filtered out of V2 first so the legacy generic-card fallback
+    cannot double-render them. The dedicated kinetic renderer then owns the full
+    text-hit -> animated-card transition using AG colors.
+    """
+    graphics_manifest = dict(manifest)
+    graphics_plan = dict(manifest.get("renderPlan") or {})
+    graphics_plan["overlays"] = [
+        cue for cue in (graphics_plan.get("overlays") or []) if cue.get("kind") != "kinetic"
+    ]
+    graphics_manifest["renderPlan"] = graphics_plan
+    fw.build_broadcast_ass_v2(graphics_manifest, target)
+    return append_kinetic_graphics(manifest, target)
+
+
 def main():
     if len(sys.argv) != 3:
         raise SystemExit("usage: render_video_producer_visual_pass_worker.py payload.json output.mp4")
@@ -211,9 +230,10 @@ def main():
             fw.bw.base.download(asset["url"], local_path)
             asset["localPath"] = local_path
 
-        fw.bw.base.callback(payload, "rendering", 12, "Building Visual Pass and Graphics V2")
-        fw.build_broadcast_ass_v2(manifest, ass_path)
-        fw.bw.safe_progress_callback(payload, 18, "Encoding A-roll + B-roll assembly · estimating")
+        fw.bw.base.callback(payload, "rendering", 12, "Building Visual Pass + AG Kinetic Graphics")
+        kinetic_count = build_graphics_ass(manifest, ass_path)
+        stage = "Encoding A-roll + B-roll + kinetic assembly · estimating" if kinetic_count else "Encoding A-roll + B-roll assembly · estimating"
+        fw.bw.safe_progress_callback(payload, 18, stage)
         fw.bw.run_main_render_with_progress(payload, manifest, source_path, ass_path, main_path)
         if not os.path.exists(main_path) or os.path.getsize(main_path) < 1024:
             raise RuntimeError("FFmpeg completed without a usable main render")
