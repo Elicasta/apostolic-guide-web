@@ -19,8 +19,17 @@ export type VideoProducerOverlayKind =
   | "lower-third"
   | "chapter"
   | "statement"
+  | "kinetic"
   | "quote"
   | "cta";
+
+export type VideoProducerKineticTreatment =
+  | "impact"
+  | "split"
+  | "strike"
+  | "band"
+  | "stack"
+  | "question-stack";
 
 export type VideoProducerOverlayAnimation = "fade" | "rise" | "slide" | "pop" | "wipe" | "none";
 export type VideoProducerOverlayPlacement = "top" | "center" | "lower-third" | "full-frame";
@@ -45,6 +54,7 @@ export type VideoProducerOverlay = {
   reference?: string;
   animation?: VideoProducerOverlayAnimation;
   placement?: VideoProducerOverlayPlacement;
+  treatment?: VideoProducerKineticTreatment;
 };
 
 export type VideoProducerMotionTransform = {
