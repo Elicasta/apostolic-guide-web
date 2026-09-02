@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
   buildEditorialGenerationPrompt,
@@ -152,4 +153,13 @@ test("license and Premiere assembly exports preserve provenance and silent V2 pl
   assert.equal(assembly.bins.brollAi, "02_BROLL/AI");
   assert.equal(assembly.placements[0].audioEnabled, false);
   assert.equal(assembly.placements[0].storageLocator, visualAsset.storageLocator);
+});
+
+test("stock reuse keys include the selected trim so one provider source can have multiple useful derivatives", () => {
+  const route = readFileSync("app/api/admin/video-producer/visual-pass/use/route.ts", "utf8");
+  assert.match(route, /function stockDerivativeId/);
+  assert.match(route, /providerAssetId}@\$\{start\.toFixed\(3\)\}\+\$\{length\.toFixed\(3\)\}/);
+  assert.match(route, /provider_asset_id: durableProviderAssetId/);
+  assert.match(route, /originalProviderAssetId/);
+  assert.match(route, /derivativeAssetId/);
 });
