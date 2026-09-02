@@ -201,14 +201,14 @@ export const VIDEO_PRODUCER_VISUAL_VOCABULARY: Record<VideoProducerVisualVocabul
 };
 
 const BIBLE_MOVIE_PATTERNS = [
-  /\bjesus\b.*\b(walking|standing|mountain|jerusalem|desert|crowd)/i,
+  /\bjesus\b.*\b(?:walking|standing|mountain|jerusalem|desert|crowd)\b/i,
   /\bmoses\b/i,
   /\bisraelites?\b/i,
-  /\bapostles?\b.*\bwalking|gathered|boat|road/i,
+  /\bapostles?\b.*\b(?:walking|gathered|boat|road)\b/i,
   /\bglowing bible\b/i,
   /\bcross silhouette\b/i,
   /\bbiblical reenactment\b/i,
-  /\bancient (?:hebrews?|jews?|people)\b.*\bwalking|camp|desert/i
+  /\bancient (?:hebrews?|jews?|people)\b.*\b(?:walking|camp|desert)\b/i
 ];
 
 function finite(value: number, fallback = 0) {
@@ -221,6 +221,16 @@ function clamp(value: number, min: number, max: number) {
 
 export function visualPromptLooksLikeBibleMovie(prompt: string) {
   return BIBLE_MOVIE_PATTERNS.some((pattern) => pattern.test(prompt));
+}
+
+export function visualBeatDirectionLooksLikeBibleMovie(
+  beat: Pick<VideoProducerVisualBeat, "intent" | "searchQueries" | "preferredStyle">
+) {
+  return visualPromptLooksLikeBibleMovie([
+    beat.intent,
+    beat.preferredStyle ?? "",
+    ...beat.searchQueries
+  ].filter(Boolean).join(" "));
 }
 
 export function normalizeVisualSearchQueries(values: unknown, max = 6) {
