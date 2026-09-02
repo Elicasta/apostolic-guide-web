@@ -16,7 +16,7 @@ export const maxDuration = 60;
 
 const schema = z.object({ candidateId: z.string().uuid() });
 const MAX_VISUAL_BYTES = 2 * 1024 * 1024 * 1024;
-const DEFAULT_PUBLIC_CALLBACK_ORIGIN = "https://apostolic-guide-web.vercel.app";
+const DEFAULT_PUBLIC_CALLBACK_ORIGIN = "https://www.apostolicguide.com";
 
 function callbackOrigin(request: Request) {
   const configured = process.env.VIDEO_PRODUCER_CALLBACK_ORIGIN?.trim().replace(/\/+$/, "");
@@ -34,6 +34,12 @@ function provisionalRange(beat: { source_start: number; duration: number }, sour
   const desired = Math.min(8, Math.max(1.5, Number(beat.duration)));
   const end = Math.min(sourceDuration, start + desired);
   return { start, end, duration: Math.max(0.5, end - start) };
+}
+
+function stockDerivativeId(providerAssetId: string, assetIn: number, duration: number) {
+  const start = Math.max(0, Number.isFinite(assetIn) ? assetIn : 0);
+  const length = Math.max(0.5, Number.isFinite(duration) ? duration : 0.5);
+  return `${providerAssetId}@${start.toFixed(3)}+${length.toFixed(3)}`;
 }
 
 async function invalidateApproval(service: NonNullable<ReturnType<typeof createServiceClient>>, projectId: string, userId: string) {
@@ -187,21 +193,27 @@ export async function POST(request: Request) {
     const outputPath = `video-producer/visuals/${project.id}/${jobId}.mp4`;
     const uploadUrl = await createPrivateBlobUploadUrl({ pathname: outputPath, contentType: "video/mp4", maxBytes: MAX_VISUAL_BYTES, ttlMs: 3 * 60 * 60 * 1000 });
     const callback = createWorkerCallbackToken();
+    const assetIn = Number(candidate.duration || 0) > range.duration + 2 ? Math.min(2, Number(candidate.duration) * 0.1) : 0;
+    const originalProviderAssetId = String(candidate.provider_asset_id || jobId);
+    const durableProviderAssetId = stockDerivativeId(originalProviderAssetId, assetIn, range.duration);
     const licenseSnapshot = JSON.stringify({
       provider: candidate.provider,
+      providerAssetId: originalProviderAssetId,
+      derivativeAssetId: durableProviderAssetId,
+      selectedAssetIn: assetIn,
+      selectedDuration: range.duration,
       licenseName: candidate.license_name,
       licenseUrl: candidate.license_url,
       sourceUrl: candidate.source_url,
       capturedAt: new Date().toISOString(),
-      note: "Provider/source/license metadata captured when this clip was selected for an Apostolic Guide production."
+      note: "Provider/source/license metadata captured when this specific trimmed derivative was selected for an Apostolic Guide production."
     });
-    const assetIn = Number(candidate.duration || 0) > range.duration + 2 ? Math.min(2, Number(candidate.duration) * 0.1) : 0;
     const job = await service.from("video_producer_visual_import_jobs").insert({
       id: jobId,
       project_id: project.id,
       beat_id: beat.id,
       provider: candidate.provider,
-      provider_asset_id: candidate.provider_asset_id,
+      provider_asset_id: durableProviderAssetId,
       source_url: candidate.source_url,
       download_url: candidate.download_url,
       creator: candidate.creator,
@@ -219,7 +231,9 @@ export async function POST(request: Request) {
         outputPath,
         sourceStart: range.start,
         sourceEnd: range.end,
-        candidateMetadata: metadata,
+        candidateMetadata: { ...metadata, originalProviderAssetId },
+        originalProviderAssetId,
+        derivativeAssetId: durableProviderAssetId,
         rightsReviewRequired: true
       },
       created_by: access.user.id
@@ -236,7 +250,7 @@ export async function POST(request: Request) {
         beat_id: beat.id,
         worker_ref: videoProducerWorkerRef(),
         provider: candidate.provider,
-        provider_asset_id: candidate.provider_asset_id,
+        provider_asset_id: durableProviderAssetId,
         download_url: candidate.download_url,
         output_upload_url: uploadUrl,
         output_path: outputPath,
