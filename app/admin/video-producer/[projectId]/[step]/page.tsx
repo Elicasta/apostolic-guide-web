@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getStudioPermission } from "@/auth";
+import { VideoProducerKineticReview } from "@/video-producer-kinetic-review";
 import { VideoProducerMulticamPanel } from "@/video-producer-multicam-panel";
 import { VideoProducerRegeneratePanel } from "@/video-producer-regenerate-panel";
 import { VideoProducerReelsHandoff } from "@/video-producer-reels-handoff";
@@ -21,6 +22,7 @@ export default async function VideoProducerProjectStepPage({ params }: { params:
       {step === "produce" ? <VideoProducerMulticamPanel projectId={projectId} mode="produce"/> : null}
       {step === "produce" ? <VideoProducerRegeneratePanel projectId={projectId}/> : null}
       {step === "finish" ? <VideoProducerVisualPassPanel projectId={projectId}/> : null}
+      {step === "review" ? <VideoProducerKineticReview projectId={projectId}/> : null}
       {step === "deliver" ? <VideoProducerReelsHandoff projectId={projectId}/> : null}
     </>
   );
