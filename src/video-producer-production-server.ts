@@ -141,6 +141,9 @@ export async function resolveVideoProducerProductionState(service: ServiceClient
     const asset = visualAsset(assetRecord);
     if (!asset.mimeType.startsWith("video/")) throw new Error(`Visual asset ${asset.filename} is not renderable video.`);
     if (asset.duration != null && placement.assetOut > asset.duration + 0.05) throw new Error(`Visual placement exceeds ${asset.filename} duration.`);
+    const placementDuration = placement.sourceEnd - placement.sourceStart;
+    const selectedAssetDuration = placement.assetOut - placement.assetIn;
+    if (placementDuration > selectedAssetDuration + 0.05) throw new Error(`Visual placement outlasts the selected range from ${asset.filename}. Shorten the placement or extend its asset range.`);
     return { placement, asset };
   });
   const compiledPlacements = compileVideoProducerVisualPlacements(rawVisuals.map((item) => item.placement), project.edit_plan.cuts, duration);
