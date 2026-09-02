@@ -239,6 +239,7 @@ export async function POST(request: Request) {
         provider_asset_id: candidate.provider_asset_id,
         download_url: candidate.download_url,
         output_upload_url: uploadUrl,
+        output_path: outputPath,
         callback_url: `${callbackOrigin(request)}/api/admin/video-producer/visual-pass/import-callback`,
         callback_token: callback.token,
         desired_duration: range.duration,
