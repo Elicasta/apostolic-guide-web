@@ -12,14 +12,13 @@ returning to the speaker.
 """
 from __future__ import annotations
 
-import math
-
-# ASS uses BGR byte order. Comments show the intended RGB tokens.
-AG_RED = "2D21B3"       # RGB #B3212D
-AG_BONE = "F2F9FF"      # RGB #FFF9F2
-AG_BLACK = "111111"     # RGB #111111
-AG_GRAY = "DCD9D7"      # RGB #D7D9DC
-AG_CHARCOAL = "332F2C"  # RGB #2C2F33
+# Canonical Apostolic Guide site tokens from app/globals.css.
+# ASS uses BGR byte order, so the stored values below are reversed RGB bytes.
+AG_RED = "3D2DA1"       # RGB #A12D3D -- var(--crimson)
+AG_BONE = "F4F7F5"      # RGB #F5F7F4 -- var(--paper)
+AG_BLACK = "2A2010"     # RGB #10202A -- var(--ink)
+AG_GRAY = "7D7766"      # RGB #66777D -- var(--muted)
+AG_CHARCOAL = "443A26"  # RGB #263A44 -- var(--ink-2)
 
 HEADLINE_FONT = "Bebas Neue"
 BODY_FONT = "Montserrat"
@@ -41,10 +40,10 @@ def clean(value) -> str:
     return " ".join(str(value or "").strip().split())
 
 
-def event(lines: list[str], start: float, end: float, text: str, *, layer: int = 20, style: str = "Base") -> None:
-    if end <= start or not text:
+def event(lines: list[str], start: float, end: float, text_value: str, *, layer: int = 20, style: str = "Base") -> None:
+    if end <= start or not text_value:
         return
-    lines.append(f"Dialogue: {layer},{ass_time(start)},{ass_time(end)},{style},,0,0,0,,{text}")
+    lines.append(f"Dialogue: {layer},{ass_time(start)},{ass_time(end)},{style},,0,0,0,,{text_value}")
 
 
 def rect(
@@ -99,32 +98,10 @@ def text(
     event(lines, start, end, tags + esc(value), layer=layer)
 
 
-def multiline(value: str, max_chars: int, max_lines: int) -> list[str]:
-    words = clean(value).split()
-    if not words:
-        return []
-    lines: list[str] = []
-    current: list[str] = []
-    for word in words:
-        candidate = " ".join([*current, word])
-        if current and len(candidate) > max_chars:
-            lines.append(" ".join(current))
-            current = [word]
-            if len(lines) >= max_lines:
-                break
-        else:
-            current.append(word)
-    if current and len(lines) < max_lines:
-        lines.append(" ".join(current))
-    if len(lines) > max_lines:
-        lines = lines[:max_lines]
-    return lines
-
-
 def fit_size(value: str, width: int, *, portrait: bool, max_size: int, min_size: int) -> int:
     chars = max(1, len(clean(value)))
-    # Bebas Neue is narrow. This heuristic keeps short phrases huge and prevents
-    # long doctrinal lines from silently shrinking into unreadable body copy.
+    # Bebas Neue is narrow. This keeps short phrases huge and prevents long
+    # doctrinal lines from silently shrinking into unreadable body copy.
     ratio = 0.52 if portrait else 0.48
     estimated = int(width / max(1.0, chars * ratio))
     return max(min_size, min(max_size, estimated))
@@ -150,8 +127,7 @@ def _phase_times(start: float, end: float) -> tuple[float, float, float]:
 
 def _a_roll_hit(lines: list[str], start: float, hit_end: float, width: int, height: int, title: str, *, accent: bool = False) -> None:
     portrait = height > width
-    # Dark transparent wash keeps the speaker visible while producing the high
-    # contrast editorial text-hit language the references use.
+    # Ink wash keeps the speaker visible while establishing AG contrast.
     rect(lines, start, hit_end, 0, 0, width, height, AG_BLACK, alpha="68", layer=18, fade=True)
     max_width = int(width * (0.86 if portrait else 0.82))
     size = fit_size(title, max_width, portrait=portrait, max_size=210 if portrait else 176, min_size=82 if portrait else 74)
