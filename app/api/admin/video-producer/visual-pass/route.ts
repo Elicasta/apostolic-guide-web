@@ -68,8 +68,10 @@ function visualDirectorRules(mode: "podcast" | "reels") {
     "The supplied timestamped transcript is the source of truth. Never invent dialogue or a theological claim.",
     "Every beat timestamp is in LOCAL source time. Dialogue must be a faithful excerpt from the supplied transcript near that timestamp.",
     "Apostolic Guide long-form pacing is fast, intentional and editorial. Keep forward momentum without hyperactive short-form editing.",
-    "Continuously evaluate whether the viewer has been looking at a substantially unchanged composition for roughly 6-12 seconds. A visual reset may be A-roll, subtle punch-in, Camera B, Scripture, key typography, diagram, B-roll, or a chapter/objection graphic. Do not force a reset just because time passed. Stillness is valid when the sentence earns it.",
+    "Continuously evaluate whether the viewer has been looking at a substantially unchanged composition for roughly 6-12 seconds. A visual reset may be A-roll, subtle punch-in, Camera B, Scripture, kinetic typography, diagram, B-roll, or a chapter/objection graphic. Do not force a reset just because time passed. Stillness is valid when the sentence earns it.",
     "Prefer evidence and clarity over decoration. For doctrine, objections, comparisons, quoted phrases, verse relationships, timelines, or claims that need proof, GRAPHIC or SCRIPTURE often beats B-ROLL.",
+    "Apostolic Guide now has a deterministic Kinetic Graphics system: oversized exact-phrase text over A-roll can resolve into deep-red/bone/black impact, split, strike, band, stack, or question-stack cards. When a strong spoken phrase should become that kind of typography, choose GRAPHIC rather than B-ROLL and say KINETIC TEXT in the intent. Do not try to generate text inside AI video.",
+    "The user-supplied EXISTING EDIT-DIRECTOR GRAPHICS block is authoritative. Do not add a competing B-roll beat over an already-planned Scripture, chapter, statement, or kinetic graphic unless the transcript clearly needs a separate visual immediately before or after it.",
     "Use B-ROLL only when it explains, demonstrates, locates, contrasts, provides meaningful texture, or gives the viewer a useful visual reset.",
     "Never propose literal AI Bible-movie imagery: no actor portraying Jesus, Moses, apostles, prophets, ancient Israelites, or biblical events; no glowing Bible; no cross silhouette at sunset; no fantasy church-stock imagery.",
     "When a concept would require pretending generated footage depicts a historical biblical event, choose scripture, graphic, A-roll, or an abstract/documentary fragment instead.",
@@ -84,6 +86,24 @@ function visualDirectorRules(mode: "podcast" | "reels") {
     ...vocabularyLines,
     "Return decisions only. Search, generation, licensing, download, placement and rendering are handled by code."
   ];
+}
+
+function plannedGraphicsContext(editPlan: unknown) {
+  const plan = editPlan && typeof editPlan === "object" ? editPlan as Record<string, unknown> : {};
+  if (!Array.isArray(plan.overlays)) return "EXISTING EDIT-DIRECTOR GRAPHICS:\nnone";
+  const lines = plan.overlays.flatMap((item) => {
+    if (!item || typeof item !== "object") return [];
+    const cue = item as Record<string, unknown>;
+    const kind = typeof cue.kind === "string" ? cue.kind : "graphic";
+    const start = Number(cue.start);
+    const duration = Number(cue.duration);
+    const title = typeof cue.title === "string" ? cue.title.replace(/\s+/g, " ").trim() : "";
+    const treatment = typeof cue.treatment === "string" ? ` / ${cue.treatment}` : "";
+    if (!Number.isFinite(start) || !title) return [];
+    const end = Number.isFinite(duration) ? start + Math.max(0, duration) : start;
+    return [`[${start.toFixed(2)}-${end.toFixed(2)}] ${kind}${treatment}: ${title}`];
+  }).slice(0, 120);
+  return `EXISTING EDIT-DIRECTOR GRAPHICS:\n${lines.length ? lines.join("\n") : "none"}`;
 }
 
 export async function GET(request: Request) {
@@ -161,6 +181,7 @@ export async function POST(request: Request) {
             `PROJECT: ${project.title}`,
             `MODE: ${project.mode}`,
             `DURATION: ${localTranscript.duration.toFixed(2)} seconds`,
+            plannedGraphicsContext(project.edit_plan),
             "TIMESTAMPED TRANSCRIPT:",
             transcriptForModel(localTranscript)
           ].join("\n\n") }] }
