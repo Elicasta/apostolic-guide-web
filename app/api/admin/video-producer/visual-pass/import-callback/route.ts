@@ -23,6 +23,14 @@ function object(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
 }
 
+function stringTags(...values: unknown[]) {
+  return [...new Set(values.flatMap((value) => {
+    if (typeof value === "string") return value.split(/[;,]/).map((part) => part.replace(/\s+/g, " ").trim()).filter(Boolean);
+    if (Array.isArray(value)) return value.filter((part): part is string => typeof part === "string").map((part) => part.replace(/\s+/g, " ").trim()).filter(Boolean);
+    return [];
+  }))].slice(0, 24);
+}
+
 export async function POST(request: Request) {
   const token = request.headers.get("x-video-producer-worker-token")?.trim() || "";
   const parsed = schema.safeParse(await request.json().catch(() => null));
@@ -69,19 +77,28 @@ export async function POST(request: Request) {
     if (!assetId) {
       const candidateMetadata = object(metadata.candidateMetadata);
       const generationMetadata = object(metadata.generationMetadata);
+      const assetTags = job.generation_job_id
+        ? stringTags(generationMetadata.tags, "ai-generated")
+        : stringTags(candidateMetadata.tags, candidateMetadata.query);
       const asset = await service.from("video_producer_visual_assets").insert({
         source_provider: job.provider, provider_asset_id: job.provider_asset_id, source_url: job.source_url, creator: job.creator,
         license_name: job.license_name, license_url: job.license_url, license_snapshot: job.license_snapshot,
         retrieved_at: new Date().toISOString(), storage_provider: "vercel_blob", storage_locator: output.storageLocator,
         filename: output.filename, mime_type: output.mimeType, size_bytes: output.sizeBytes, sha256: output.sha256,
         duration: output.duration, width: output.width, height: output.height, fps: output.fps,
-        tags: typeof candidateMetadata.tags === "string" ? candidateMetadata.tags.split(",").map((value) => value.trim()).filter(Boolean).slice(0, 24) : [],
+        tags: assetTags,
         description: job.title || null,
         generation_prompt: job.generation_job_id && typeof generationMetadata.prompt === "string" ? generationMetadata.prompt : null,
         generation_model: job.generation_job_id && typeof generationMetadata.model === "string" ? generationMetadata.model : null,
         reusable: Boolean(job.reusable),
         rights_flags: job.provider === "pexels" || job.provider === "pixabay" ? { thirdPartyRightsReviewRequired: true } : {},
-        metadata: { importedFromJobId: job.id, originalProviderMetadata: candidateMetadata, providerSourceAssetIn: output.assetIn, providerSourceAssetOut: output.assetOut },
+        metadata: {
+          importedFromJobId: job.id,
+          originalProviderMetadata: candidateMetadata,
+          ...(job.generation_job_id ? { generationMetadata } : {}),
+          providerSourceAssetIn: output.assetIn,
+          providerSourceAssetOut: output.assetOut
+        },
         revision: 1, created_by: job.created_by, updated_by: job.created_by
       }).select("id,duration").single();
       if (asset.error) throw new Error(asset.error.message);
