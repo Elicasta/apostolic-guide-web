@@ -20,7 +20,7 @@ export const maxDuration = 60;
 const postSchema = z.object({ beatId: z.string().uuid(), sourceImageAssetId: z.string().uuid().nullable().optional() });
 const getSchema = z.object({ jobId: z.string().uuid() });
 const MAX_VISUAL_BYTES = 2 * 1024 * 1024 * 1024;
-const DEFAULT_PUBLIC_CALLBACK_ORIGIN = "https://apostolic-guide-web.vercel.app";
+const DEFAULT_PUBLIC_CALLBACK_ORIGIN = "https://www.apostolicguide.com";
 
 function callbackOrigin(request: Request) {
   const configured = process.env.VIDEO_PRODUCER_CALLBACK_ORIGIN?.trim().replace(/\/+$/, "");
@@ -46,6 +46,14 @@ function provisionalRange(beat: { source_start: number; duration: number }, sour
   return { start, end: Math.min(sourceDuration, start + desired), duration: Math.min(desired, Math.max(0.5, sourceDuration - start)) };
 }
 
+function uniqueTags(values: unknown[]) {
+  return [...new Set(values.flatMap((value) => {
+    if (typeof value === "string") return value.split(/[;,]/).map((part) => part.replace(/\s+/g, " ").trim()).filter(Boolean);
+    if (Array.isArray(value)) return value.filter((part): part is string => typeof part === "string").map((part) => part.replace(/\s+/g, " ").trim()).filter(Boolean);
+    return [];
+  }))].slice(0, 24);
+}
+
 async function dispatchGeneratedImport(input: {
   request: Request;
   service: NonNullable<ReturnType<typeof createServiceClient>>;
@@ -63,7 +71,7 @@ async function dispatchGeneratedImport(input: {
   if (existing.data) return existing.data;
 
   const [beatResult, projectResult] = await Promise.all([
-    input.service.from("video_producer_visual_beats").select("source_start,duration").eq("id", beatId).maybeSingle(),
+    input.service.from("video_producer_visual_beats").select("source_start,duration,vocabulary,search_queries,intent").eq("id", beatId).maybeSingle(),
     input.service.from("video_producer_projects").select("source_duration").eq("id", projectId).maybeSingle()
   ]);
   if (beatResult.error) throw new Error(beatResult.error.message);
@@ -77,27 +85,57 @@ async function dispatchGeneratedImport(input: {
   const outputPath = `video-producer/visuals/${projectId}/${importJobId}.mp4`;
   const uploadUrl = await createPrivateBlobUploadUrl({ pathname: outputPath, contentType: "video/mp4", maxBytes: MAX_VISUAL_BYTES, ttlMs: 3 * 60 * 60 * 1000 });
   const callback = createWorkerCallbackToken();
-  const metadata = input.generationJob.metadata && typeof input.generationJob.metadata === "object" ? input.generationJob.metadata as Record<string, unknown> : {};
+  const providerJobMetadata = input.generationJob.metadata && typeof input.generationJob.metadata === "object"
+    ? input.generationJob.metadata as Record<string, unknown>
+    : {};
+  const providerTaskId = String(input.generationJob.provider_task_id || generationJobId);
+  const generationProvenance = {
+    provider: "runway",
+    providerTaskId,
+    model: typeof input.generationJob.model === "string" ? input.generationJob.model : null,
+    prompt: typeof input.generationJob.prompt === "string" ? input.generationJob.prompt : null,
+    generationMode: typeof input.generationJob.generation_mode === "string" ? input.generationJob.generation_mode : null,
+    sourceImageAssetId: typeof input.generationJob.source_image_asset_id === "string" ? input.generationJob.source_image_asset_id : null,
+    createdAt: typeof input.generationJob.created_at === "string" ? input.generationJob.created_at : null,
+    providerJobMetadata,
+    tags: uniqueTags(["ai-generated", beatResult.data.vocabulary, beatResult.data.search_queries])
+  };
   const created = await input.service.from("video_producer_visual_import_jobs").insert({
     id: importJobId,
     project_id: projectId,
     beat_id: beatId,
     generation_job_id: generationJobId,
     provider: "runway",
-    provider_asset_id: String(input.generationJob.provider_task_id || generationJobId),
+    provider_asset_id: providerTaskId,
     source_url: null,
     download_url: input.downloadUrl,
     creator: "Apostolic Guide / Runway",
     license_name: "AI generated for Apostolic Guide",
     license_url: "https://runwayml.com/",
-    license_snapshot: JSON.stringify({ provider: "runway", generatedAt: new Date().toISOString(), model: input.generationJob.model, prompt: input.generationJob.prompt }),
-    title: `Runway visual ${String(input.generationJob.provider_task_id || generationJobId).slice(0, 12)}`,
+    license_snapshot: JSON.stringify({
+      provider: "runway",
+      providerTaskId,
+      generatedAt: new Date().toISOString(),
+      model: generationProvenance.model,
+      generationMode: generationProvenance.generationMode,
+      prompt: generationProvenance.prompt
+    }),
+    title: `Runway visual ${providerTaskId.slice(0, 12)}`,
     desired_duration: range.duration,
     requested_asset_in: 0,
     reusable: true,
     status: "queued",
     progress: { percent: 0, stage: "Queued" },
-    metadata: { callbackTokenHash: callback.hash, outputPath, sourceStart: range.start, sourceEnd: range.end, generationJobId, generationMetadata: metadata, rightsReviewRequired: false },
+    metadata: {
+      callbackTokenHash: callback.hash,
+      outputPath,
+      sourceStart: range.start,
+      sourceEnd: range.end,
+      generationJobId,
+      generationMetadata: generationProvenance,
+      beatIntent: beatResult.data.intent,
+      rightsReviewRequired: false
+    },
     created_by: input.userId
   }).select("id,status,progress").single();
   if (created.error) throw new Error(created.error.message);
@@ -110,7 +148,7 @@ async function dispatchGeneratedImport(input: {
       beat_id: beatId,
       worker_ref: videoProducerWorkerRef(),
       provider: "runway",
-      provider_asset_id: input.generationJob.provider_task_id,
+      provider_asset_id: providerTaskId,
       download_url: input.downloadUrl,
       output_upload_url: uploadUrl,
       output_path: outputPath,
