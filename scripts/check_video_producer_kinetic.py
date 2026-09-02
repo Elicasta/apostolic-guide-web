@@ -87,8 +87,9 @@ def main():
         ]:
             if expected not in text:
                 raise RuntimeError(f"kinetic ASS missing {expected}")
-        if "2D21B3" not in text:
-            raise RuntimeError("kinetic ASS is missing the AG deep-red token")
+        for token, label in [("3D2DA1", "crimson"), ("F4F7F5", "paper"), ("2A2010", "ink")]:
+            if token not in text:
+                raise RuntimeError(f"kinetic ASS is missing the canonical AG {label} token")
         if "\\move(" not in text or "\\fscx112" not in text:
             raise RuntimeError("kinetic ASS is missing expected motion primitives")
         command = worker.build_ffmpeg_v3(m, src, ass, out)
