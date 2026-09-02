@@ -30,10 +30,10 @@ function directorRules(mode: "podcast" | "reels", hasPathway: boolean) {
     "All timestamps must refer to the supplied LOCAL transcript timeline, starting at 0.00 seconds.",
     "Cuts remove source time. Only cut ranges that are clearly expendable from the spoken material.",
     "Scripture overlays may quote only references or ideas actually present in the transcript. Do not fabricate a Bible reference.",
-    "Apostolic Guide owns a fixed Broadcast Graphics System V2. You choose semantic overlay kind, timing, copy, placement and restrained animation; code owns typography, colors, scale, framing and visual execution. Never describe a design inside overlay copy.",
-    "The opening must never fall visually empty after the title/brand card. Return one concise opening statement or pathway overlay in roughly the first 0.25-1.25 seconds of source footage, lasting about 3-5 seconds. It must express the actual spoken hook, central question, or episode promise without inventing a claim.",
+    "Apostolic Guide owns a fixed Broadcast Graphics + Kinetic Graphics system. You choose semantic overlay kind, timing, exact copy, placement, treatment and restrained animation; code owns typography, colors, scale, framing and visual execution. Never describe a design inside overlay copy.",
+    "The opening must never fall visually empty after the title/brand card. Return one concise opening kinetic, statement, or pathway overlay in roughly the first 0.25-1.25 seconds of source footage, lasting about 3-5 seconds. It must express the actual spoken hook, central question, or episode promise without inventing a claim.",
     "Apostolic Guide pacing is fast, intentional modern editorial teaching. Preserve strong forward momentum without turning the edit into frantic short-form content.",
-    "Continuously evaluate whether the composition has remained substantially unchanged for roughly 6-12 seconds. A useful visual reset may be a clean cut, subtle punch-in, Camera B, Scripture, key typography, diagram, chapter or objection card, or a b-roll cue for the later Visual Pass.",
+    "Continuously evaluate whether the composition has remained substantially unchanged for roughly 6-12 seconds. A useful visual reset may be a clean cut, subtle punch-in, Camera B, Scripture, kinetic typography, diagram, chapter or objection card, or a b-roll cue for the later Visual Pass.",
     "Do not force a visual change merely because time passed. Stillness is allowed when the speaker's delivery or the theological point earns it.",
     "A b-roll cue is an editorial request only. Never pretend media exists, never describe fake historical footage as fact, and never use a b-roll cue as a substitute for Scripture or a graphic when the claim needs evidence. The later Visual Pass resolves real or generated media.",
     "Use lower-third for a speaker/name identifier only when the identity or role is actually known from project/transcript context.",
@@ -41,7 +41,11 @@ function directorRules(mode: "podcast" | "reels", hasPathway: boolean) {
     "SCRIPTURE V2: a short, readable Scripture claim should use lower-third and normally stay under about 70 characters. A longer passage, anchor verse, or verse that would need tiny text must use full-frame or center. Never solve a long verse by shrinking it.",
     "Scripture title contains the readable verse/claim in normal sentence case. reference contains the Bible reference. Do not put the reference into title.",
     "Use chapter only for a genuine pathway/teaching section transition. When pathway context is supplied, chapter means PATHWAY STOP; align the chapter title and reference to the closest supplied pathway step rather than inventing generic chapter numbers.",
-    "Use statement for one especially strong key point. Use quote for a short direct quotable line. Use cta only for a real next action supported by context.",
+    "Use statement for a normal broadcast key point card. Use kinetic when the spoken phrase deserves an oversized editorial text hit that can transition into a graphic card. Use quote for a short direct quotable line. Use cta only for a real next action supported by context.",
+    "KINETIC COPY MUST stay faithful to words actually spoken. Prefer exact short phrases from the transcript. You may split one spoken sentence between title and body, but do not rewrite it into a stronger claim.",
+    "KINETIC TREATMENTS: impact = huge phrase over the speaker with dark editorial wash; split = title in bone plus second phrase in deep AG red resolving to a full-frame card; strike = one short word or claim crossed by a red diagonal slash; band = one short word centered inside a warm bone horizontal band; stack = oversized red title plus bone supporting phrase and underline marks; question-stack = two or three short questions/prompts stacked as a full-frame transition. For question-stack, separate body lines with | characters.",
+    "Kinetic graphics use Apostolic Guide colors only: deep AG red, warm bone/off-white, black/near-black, and restrained neutral gray. Never request orange, neon, blue, gradients, random icons, social-platform UI, subscribe buttons, or another creator's branding.",
+    "Use kinetic graphics as authored punctuation, not permanent captions. A few strong hits per long-form section are better than covering every sentence.",
     "Graphics should support the speaker, not cover every sentence. Titles must be concise enough for broadcast typography.",
     "Return decisions only. Code performs the edit."
   ];
@@ -50,19 +54,20 @@ function directorRules(mode: "podcast" | "reels", hasPathway: boolean) {
     "PODCAST MODE: prioritize doctrinal continuity, clarity and controlled momentum. This is polished long-form editorial video, not a captured sermon and not a hyperactive social edit.",
     "Cut false starts, obvious repeated takes, accidental dead air, verbal resets, weak sentence starts and expendable hesitation aggressively enough that the delivery feels intentional. Preserve every substantive teaching step and do not reorder speech.",
     "Normally keep total removed source under 20 percent. The system will reject a plan over 35 percent.",
-    "Use the opening overlay as an immediate editorial promise, then keep the frame and spoken argument moving with purposeful visual resets.",
+    "Use the opening overlay as an immediate editorial promise. Prefer kinetic impact when the opening contains a clean, short spoken phrase; otherwise use statement or pathway.",
     "Use full-frame pathway-stop cards only at meaningful transitions. Between stops, the renderer will maintain a compact left-side follower automatically.",
     "Use Scripture lower-thirds for short lines while teaching; promote anchor or longer Scripture to a full-frame card.",
     "Motion should feel authored and restrained rather than sleepy. Use subtle punch-ins and reframes at sentence turns, emphasis beats and moments where a single-camera frame would otherwise drag. Do not use strong creator-style zooms.",
+    "Use kinetic split/strike/band/stack cards at major verbal pivots, objection setups, decisive contrasts and memorable one-line conclusions. Let the text hit begin over A-roll when useful and resolve into a full graphic rather than making every graphic a disconnected title card.",
     "Use b-roll cues selectively when a later real-footage or editorial insert would explain, locate, contrast, or create a meaningful visual reset. Do not use decorative b-roll merely to make the frame move.",
     "Do not return music decisions. Music is selected separately from the approved AG library."
   ];
   return [...shared,
     "REELS MODE: optimize a self-contained short clip for retention without making it frantic or generic.",
     "Protect the actual spoken hook. Tighten dead air, repeated phrases, stumbles, and unnecessary setup, but preserve the logical sentence that makes the claim understandable.",
-    "The opening statement is mandatory: make the viewer understand the question or promise before the first visual beat goes quiet.",
+    "The opening kinetic or statement is mandatory: make the viewer understand the question or promise before the first visual beat goes quiet.",
     "Use punch-ins and reframes at meaningful emphasis beats. focusX and focusY are normalized 0 to 1. scale should usually stay between 1.04 and 1.22.",
-    "Use animated captions separately from overlays. Overlays are for Scripture, one key statement, a pathway/topic marker, or the final CTA.",
+    "Use animated captions separately from overlays. Overlays are for Scripture, one key kinetic phrase, a pathway/topic marker, or the final CTA.",
     "Never fake B-roll. A b-roll cue is only an editorial request for the later Visual Pass, which will search owned or licensed real footage before generation.",
     "Do not return music decisions. Music is selected separately from the approved AG library."
   ];
@@ -97,17 +102,18 @@ function firstVisibleSourceTime(plan: VideoProducerEditPlan) {
 }
 
 function ensureOpeningHook(plan: VideoProducerEditPlan, hook: string) {
-  const hasOpeningGraphic = plan.overlays.some((overlay) => overlay.start <= 1.5 && ["statement", "quote", "pathway", "chapter"].includes(overlay.kind));
+  const hasOpeningGraphic = plan.overlays.some((overlay) => overlay.start <= 1.5 && ["statement", "kinetic", "quote", "pathway", "chapter"].includes(overlay.kind));
   if (hasOpeningGraphic || plan.sourceDuration <= 1) return;
   const start = Math.max(0, firstVisibleSourceTime(plan));
   plan.overlays.unshift({
     id: "opening-hook",
-    kind: "statement",
+    kind: "kinetic",
     start,
     duration: Math.min(4.2, Math.max(0.8, plan.sourceDuration - start)),
     title: hook,
-    animation: plan.mode === "reels" ? "rise" : "fade",
-    placement: "center"
+    animation: "pop",
+    placement: "full-frame",
+    treatment: "impact"
   });
 }
 
