@@ -32,6 +32,10 @@ function directorRules(mode: "podcast" | "reels", hasPathway: boolean) {
     "Scripture overlays may quote only references or ideas actually present in the transcript. Do not fabricate a Bible reference.",
     "Apostolic Guide owns a fixed Broadcast Graphics System V2. You choose semantic overlay kind, timing, copy, placement and restrained animation; code owns typography, colors, scale, framing and visual execution. Never describe a design inside overlay copy.",
     "The opening must never fall visually empty after the title/brand card. Return one concise opening statement or pathway overlay in roughly the first 0.25-1.25 seconds of source footage, lasting about 3-5 seconds. It must express the actual spoken hook, central question, or episode promise without inventing a claim.",
+    "Apostolic Guide pacing is fast, intentional modern editorial teaching. Preserve strong forward momentum without turning the edit into frantic short-form content.",
+    "Continuously evaluate whether the composition has remained substantially unchanged for roughly 6-12 seconds. A useful visual reset may be a clean cut, subtle punch-in, Camera B, Scripture, key typography, diagram, chapter or objection card, or a b-roll cue for the later Visual Pass.",
+    "Do not force a visual change merely because time passed. Stillness is allowed when the speaker's delivery or the theological point earns it.",
+    "A b-roll cue is an editorial request only. Never pretend media exists, never describe fake historical footage as fact, and never use a b-roll cue as a substitute for Scripture or a graphic when the claim needs evidence. The later Visual Pass resolves real or generated media.",
     "Use lower-third for a speaker/name identifier only when the identity or role is actually known from project/transcript context.",
     "Use pathway for one compact pathway introduction near the beginning when pathway context is supplied. Do not repeatedly emit pathway bugs; the renderer owns the persistent left-side pathway follower.",
     "SCRIPTURE V2: a short, readable Scripture claim should use lower-third and normally stay under about 70 characters. A longer passage, anchor verse, or verse that would need tiny text must use full-frame or center. Never solve a long verse by shrinking it.",
@@ -43,22 +47,23 @@ function directorRules(mode: "podcast" | "reels", hasPathway: boolean) {
   ];
   if (hasPathway) shared.push("A PATHWAY CONTEXT block is supplied. Treat its step order, step titles and Bible references as authoritative for pathway-stop structure.");
   if (mode === "podcast") return [...shared,
-    "PODCAST MODE: prioritize professional long-form clarity, natural pacing, and doctrinal continuity over aggressive retention editing.",
-    "Cuts may remove false starts, obvious repeated takes, accidental dead air, and verbal resets. Do not remove substantive teaching merely to shorten runtime.",
+    "PODCAST MODE: prioritize doctrinal continuity, clarity and controlled momentum. This is polished long-form editorial video, not a captured sermon and not a hyperactive social edit.",
+    "Cut false starts, obvious repeated takes, accidental dead air, verbal resets, weak sentence starts and expendable hesitation aggressively enough that the delivery feels intentional. Preserve every substantive teaching step and do not reorder speech.",
     "Normally keep total removed source under 20 percent. The system will reject a plan over 35 percent.",
-    "Use the opening overlay as an editorial promise immediately after the title bumper, then let the teaching breathe.",
+    "Use the opening overlay as an immediate editorial promise, then keep the frame and spoken argument moving with purposeful visual resets.",
     "Use full-frame pathway-stop cards only at meaningful transitions. Between stops, the renderer will maintain a compact left-side follower automatically.",
-    "Use Scripture lower-thirds for short lines while teaching; promote anchor/long Scripture to a full-frame card.",
-    "Motion should be restrained. Use subtle punch-ins or reframes only when useful. Avoid strong social-media style motion.",
+    "Use Scripture lower-thirds for short lines while teaching; promote anchor or longer Scripture to a full-frame card.",
+    "Motion should feel authored and restrained rather than sleepy. Use subtle punch-ins and reframes at sentence turns, emphasis beats and moments where a single-camera frame would otherwise drag. Do not use strong creator-style zooms.",
+    "Use b-roll cues selectively when a later real-footage or editorial insert would explain, locate, contrast, or create a meaningful visual reset. Do not use decorative b-roll merely to make the frame move.",
     "Do not return music decisions. Music is selected separately from the approved AG library."
   ];
   return [...shared,
     "REELS MODE: optimize a self-contained short clip for retention without making it frantic or generic.",
     "Protect the actual spoken hook. Tighten dead air, repeated phrases, stumbles, and unnecessary setup, but preserve the logical sentence that makes the claim understandable.",
-    "The opening statement is mandatory: make the viewer understand the question/promise before the first visual beat goes quiet.",
+    "The opening statement is mandatory: make the viewer understand the question or promise before the first visual beat goes quiet.",
     "Use punch-ins and reframes at meaningful emphasis beats. focusX and focusY are normalized 0 to 1. scale should usually stay between 1.04 and 1.22.",
     "Use animated captions separately from overlays. Overlays are for Scripture, one key statement, a pathway/topic marker, or the final CTA.",
-    "Never fake B-roll. A b-roll cue may only be a note for later human/asset selection.",
+    "Never fake B-roll. A b-roll cue is only an editorial request for the later Visual Pass, which will search owned or licensed real footage before generation.",
     "Do not return music decisions. Music is selected separately from the approved AG library."
   ];
 }
