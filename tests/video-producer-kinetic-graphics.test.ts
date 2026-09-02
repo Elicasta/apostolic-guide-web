@@ -45,11 +45,14 @@ test("all approved kinetic treatment names normalize without falling back to gen
   }
 });
 
-test("AG kinetic renderer owns the requested deep-red bone black visual language", () => {
+test("AG kinetic renderer uses the canonical Apostolic Guide site palette", () => {
   const renderer = readFileSync("scripts/video_producer_kinetic_graphics.py", "utf8");
-  assert.match(renderer, /AG_RED = "2D21B3"/);
-  assert.match(renderer, /AG_BONE = "F2F9FF"/);
-  assert.match(renderer, /AG_BLACK = "111111"/);
+  assert.match(renderer, /AG_RED = "3D2DA1"/);
+  assert.match(renderer, /RGB #A12D3D -- var\(--crimson\)/);
+  assert.match(renderer, /AG_BONE = "F4F7F5"/);
+  assert.match(renderer, /RGB #F5F7F4 -- var\(--paper\)/);
+  assert.match(renderer, /AG_BLACK = "2A2010"/);
+  assert.match(renderer, /RGB #10202A -- var\(--ink\)/);
   assert.match(renderer, /text hit over A-roll/);
   assert.match(renderer, /moving_rect/);
   assert.match(renderer, /render_strike/);
@@ -60,7 +63,6 @@ test("Edit Director reserves kinetic graphics for faithful spoken phrases instea
   const route = readFileSync("app/api/admin/video-producer/direct/route.ts", "utf8");
   assert.match(route, /KINETIC COPY MUST stay faithful to words actually spoken/);
   assert.match(route, /impact = huge phrase over the speaker/);
-  assert.match(route, /deep AG red, warm bone\/off-white, black\/near-black/);
   assert.match(route, /kind: "kinetic"/);
   assert.match(route, /treatment: "impact"/);
 });
