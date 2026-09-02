@@ -3,7 +3,7 @@ import type { ServiceClient } from "./video-producer-server";
 import {
   buildEditorialGenerationPrompt,
   normalizeVisualSearchQueries,
-  visualPromptLooksLikeBibleMovie,
+  visualBeatDirectionLooksLikeBibleMovie,
   type VideoProducerVisualBeat,
   type VideoProducerVisualCandidate,
   type VideoProducerVisualProvider
@@ -300,8 +300,10 @@ export async function createRunwayVisualTask(input: {
 }) {
   const apiKey = process.env.RUNWAYML_API_SECRET?.trim();
   if (!apiKey) throw new Error("RUNWAYML_API_SECRET is not configured.");
+  if (visualBeatDirectionLooksLikeBibleMovie(input.beat)) {
+    throw new Error("Visual direction violates the AG no-Bible-movie rule. Use Scripture, graphics, real documentary footage, or an editorial fragment instead.");
+  }
   const promptText = buildEditorialGenerationPrompt({ beat: input.beat, mode: input.mode, imageToVideo: Boolean(input.promptImage) });
-  if (visualPromptLooksLikeBibleMovie(promptText)) throw new Error("Generation prompt violates the AG no-Bible-movie rule.");
   const body: Record<string, unknown> = {
     model: "gen4.5",
     promptText,
@@ -383,10 +385,12 @@ export async function createFireflyVisualTask(input: {
   if (!clientId) throw new Error("FIREFLY_SERVICES_CLIENT_ID is not configured.");
   const configuredEndpoint = process.env.FIREFLY_VIDEO_GENERATE_ENDPOINT?.trim();
   if (!configuredEndpoint) {
-    throw new Error("Firefly Generate Video is available as the safe fallback, but FIREFLY_VIDEO_GENERATE_ENDPOINT must be set from the current Adobe Generate Video API reference before enabling it.");
+    throw new Error("Firefly is reserved as a future provider seam. Set the current Adobe Generate Video endpoint only when the full generation and polling path is enabled.");
+  }
+  if (visualBeatDirectionLooksLikeBibleMovie(input.beat)) {
+    throw new Error("Visual direction violates the AG no-Bible-movie rule. Use Scripture, graphics, real documentary footage, or an editorial fragment instead.");
   }
   const prompt = buildEditorialGenerationPrompt({ beat: input.beat, mode: input.mode, imageToVideo: Boolean(input.promptImage) });
-  if (visualPromptLooksLikeBibleMovie(prompt)) throw new Error("Generation prompt violates the AG no-Bible-movie rule.");
   const token = await fireflyAccessToken();
   const size = input.mode === "reels" ? { width: 1080, height: 1920 } : { width: 1920, height: 1080 };
   const payload: Record<string, unknown> = { prompt, size };
