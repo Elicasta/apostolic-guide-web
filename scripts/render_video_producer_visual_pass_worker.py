@@ -39,11 +39,26 @@ def validate_manifest_v3(manifest):
         raise RuntimeError("Visual Pass must preserve the production audio master")
 
 
-def visual_scale_chain(mode, fit):
+def clamp(value, low, high):
+    try:
+        return min(high, max(low, float(value)))
+    except (TypeError, ValueError):
+        return low
+
+
+def visual_scale_chain(mode, fit, scale):
     width, height = (1080, 1920) if mode == "reels" else (1920, 1080)
     if fit == "contain":
-        return f"fps=30,scale={width}:{height}:force_original_aspect_ratio=decrease:flags=lanczos,setsar=1"
-    return f"fps=30,scale={width}:{height}:force_original_aspect_ratio=increase:flags=lanczos,crop={width}:{height},setsar=1"
+        base = f"fps=30,scale={width}:{height}:force_original_aspect_ratio=decrease:flags=lanczos,setsar=1"
+    else:
+        base = f"fps=30,scale={width}:{height}:force_original_aspect_ratio=increase:flags=lanczos,crop={width}:{height},setsar=1"
+    visual_scale = clamp(scale, 0.25, 4.0)
+    if abs(visual_scale - 1.0) <= 0.001:
+        return base
+    return (
+        f"{base},scale=w='max(2,trunc(iw*{visual_scale:.6f}/2)*2)':"
+        f"h='max(2,trunc(ih*{visual_scale:.6f}/2)*2)':flags=lanczos,setsar=1"
+    )
 
 
 def build_ffmpeg_v3(manifest, source, ass_file, output_file):
@@ -86,11 +101,22 @@ def build_ffmpeg_v3(manifest, source, ass_file, output_file):
     pieces = [graph]
     current = "vpre"
     segment_index = 0
-    for item in sorted(visuals, key=lambda value: (int((value.get("placement") or {}).get("layer") or 2), float((value.get("placement") or {}).get("sourceStart") or 0))):
+    ordered = sorted(
+        visuals,
+        key=lambda value: (
+            int((value.get("placement") or {}).get("layer") or 2),
+            float((value.get("placement") or {}).get("sourceStart") or 0)
+        )
+    )
+    for item in ordered:
         placement = item.get("placement") or {}
         asset = item.get("asset") or {}
         input_index = input_by_asset[str(asset.get("id"))]
         ranges = placement.get("outputRanges") or []
+        fit = placement.get("fit") or "cover"
+        position_x = clamp(placement.get("positionX", 0.5), 0.0, 1.0)
+        position_y = clamp(placement.get("positionY", 0.5), 0.0, 1.0)
+        scale = clamp(placement.get("scale", 1.0), 0.25, 4.0)
         for visible in ranges:
             output_start = float(visible.get("outputStart") or 0)
             output_end = float(visible.get("outputEnd") or output_start)
@@ -102,19 +128,21 @@ def build_ffmpeg_v3(manifest, source, ass_file, output_file):
             asset_end = asset_start + (output_end - output_start)
             visual_label = f"agvis{segment_index}"
             overlay_label = f"agvo{segment_index}"
-            chain = visual_scale_chain(manifest["renderPlan"]["mode"], placement.get("fit") or "cover")
+            chain = visual_scale_chain(manifest["renderPlan"]["mode"], fit, scale)
             pieces.append(
                 f"[{input_index}:v]trim=start={asset_start:.4f}:end={asset_end:.4f},"
                 f"setpts=PTS-STARTPTS+{output_start:.4f}/TB,{chain}[{visual_label}]"
             )
-            pieces.append(f"[{current}][{visual_label}]overlay=(W-w)/2:(H-h)/2:eof_action=pass:shortest=0[{overlay_label}]")
+            pieces.append(
+                f"[{current}][{visual_label}]overlay="
+                f"x='(W-w)*{position_x:.6f}':y='(H-h)*{position_y:.6f}':"
+                f"enable='between(t,{output_start:.4f},{output_end:.4f})':"
+                f"eof_action=pass:shortest=0[{overlay_label}]"
+            )
             current = overlay_label
             segment_index += 1
 
-    if not segment_index:
-        pieces.append(f"[{current}]ass='{ass_file}'[vout]")
-    else:
-        pieces.append(f"[{current}]ass='{ass_file}'[vout]")
+    pieces.append(f"[{current}]ass='{ass_file}'[vout]")
     command[graph_index] = ";".join(pieces)
     return command
 
