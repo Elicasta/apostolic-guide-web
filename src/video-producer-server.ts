@@ -38,10 +38,15 @@ export function videoProducerPlanFingerprint(value: unknown) {
 }
 
 export function videoProducerWorkerRef() {
-  // Rendering must use a ref that contains the stable worker workflow. A Vercel
-  // preview branch may change UI code without containing a runnable worker, so
-  // never infer the renderer ref from VERCEL_GIT_COMMIT_REF.
-  return process.env.VIDEO_PRODUCER_WORKER_REF?.trim() || "main";
+  // Production stays pinned to main. Preview deployments deliberately use the
+  // allowlisted staging alias so unfinished renderer work can be exercised
+  // without merging the feature branch or weakening repository-dispatch ref
+  // validation. A preview-level explicit non-main worker ref still wins.
+  const configured = process.env.VIDEO_PRODUCER_WORKER_REF?.trim() || "";
+  if (process.env.VERCEL_ENV === "preview" && (!configured || configured === "main")) {
+    return "codex/video-producer";
+  }
+  return configured || "main";
 }
 
 export function videoProducerOpenAIKey() {
