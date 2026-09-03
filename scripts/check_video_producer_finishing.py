@@ -131,7 +131,9 @@ def main():
             text = handle.read()
 
         # Broadcast Graphics / 03 must preserve pathway + Scripture orientation while
-        # rejecting the old persistent follower and generic Scripture-card labels.
+        # rejecting the old all-section PATHWAY STOP 1 follower language. Long verses
+        # intentionally contain ASS line breaks, so verify semantic fragments rather than
+        # depending on one serialized line.
         for expected in [
             "AG / PATHWAY STOP",
             "GOD IS ONE PATHWAY",
@@ -140,13 +142,14 @@ def main():
             "DEUTERONOMY 6:4",
             "The Lord our God is one.",
             "ISAIAH 43:10",
-            "Before me there was no God formed, neither shall there be after me."
+            "Before me there was no God formed",
+            "after me.",
+            "AG / SCRIPTURE"
         ]:
             if expected not in text:
                 raise RuntimeError(f"Broadcast Graphics 03 ASS missing {expected}")
-        for forbidden in ["PATHWAY STOP 1", "AG / SCRIPTURE"]:
-            if forbidden in text:
-                raise RuntimeError(f"Broadcast Graphics 03 reintroduced old card language: {forbidden}")
+        if "PATHWAY STOP 1" in text:
+            raise RuntimeError("Broadcast Graphics 03 reintroduced the old persistent Pathway follower language")
         for token, label in [("3D2DA1", "crimson"), ("F4F7F5", "paper"), ("2A2010", "ink")]:
             if token not in text:
                 raise RuntimeError(f"Broadcast Graphics 03 ASS is missing canonical AG {label}")
