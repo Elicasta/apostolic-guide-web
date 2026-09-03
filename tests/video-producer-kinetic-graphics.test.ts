@@ -59,6 +59,14 @@ test("AG kinetic renderer uses the canonical Apostolic Guide site palette", () =
   assert.match(renderer, /render_question_stack/);
 });
 
+test("stack treatment renders intentional support rows without the old scribble decoration", () => {
+  const renderer = readFileSync("scripts/video_producer_kinetic_graphics.py", "utf8");
+  assert.match(renderer, /def split_support_lines/);
+  assert.match(renderer, /support = split_support_lines\(cue\.get\("body"\) or "", 4\)/);
+  assert.match(renderer, /for index, line in enumerate\(support\)/);
+  assert.doesNotMatch(renderer, /_underline_scribble/);
+});
+
 test("Edit Director reserves kinetic graphics for faithful spoken phrases instead of decorative captions", () => {
   const route = readFileSync("app/api/admin/video-producer/direct/route.ts", "utf8");
   assert.match(route, /KINETIC COPY MUST stay faithful to words actually spoken/);
