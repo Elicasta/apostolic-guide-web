@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import Image from "next/image";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Check, Film, Loader2, Search, SkipForward, Sparkles } from "lucide-react";
 import { formatProducerTime } from "@/video-producer";
 import styles from "./video-producer-visual-pass.module.css";
@@ -52,6 +53,10 @@ type VisualState = {
   providers: { pexels: boolean; pixabay: boolean; runway: boolean; firefly: boolean };
 };
 
+const AUTO_MIN_SCORE = 84;
+const ACTIVE_IMPORTS = new Set(["queued", "downloading", "normalizing", "uploading"]);
+const ACTIVE_GENERATION = new Set(["queued", "generating", "succeeded", "importing"]);
+
 async function api<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, { ...init, cache: "no-store", headers: { "content-type": "application/json", ...(init?.headers ?? {}) } });
   const data = await response.json().catch(() => ({}));
@@ -76,6 +81,20 @@ function providerLabel(value: Candidate["provider"] | string) {
   return value.toUpperCase();
 }
 
+function unresolvedBroll(state: VisualState) {
+  const placed = new Set(state.placements.map((placement) => placement.beat_id));
+  const working = new Set([
+    ...state.importJobs.filter((job) => ACTIVE_IMPORTS.has(job.status)).map((job) => job.beat_id),
+    ...state.generationJobs.filter((job) => ACTIVE_GENERATION.has(job.status)).map((job) => job.beat_id)
+  ]);
+  return state.beats.filter((beat) =>
+    beat.recommendation === "b-roll" &&
+    beat.status !== "skipped" &&
+    !placed.has(beat.id) &&
+    !working.has(beat.id)
+  );
+}
+
 export function VideoProducerVisualPassPanel({ projectId }: { projectId: string }) {
   const [state, setState] = useState<VisualState | null>(null);
   const [candidates, setCandidates] = useState<Record<string, Candidate[]>>({});
@@ -83,6 +102,7 @@ export function VideoProducerVisualPassPanel({ projectId }: { projectId: string 
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [pollingGeneration, setPollingGeneration] = useState<Record<string, string>>({});
+  const autoPassRef = useRef(false);
 
   const load = useCallback(async () => {
     try {
@@ -90,17 +110,19 @@ export function VideoProducerVisualPassPanel({ projectId }: { projectId: string 
       setState(data);
       setError("");
       const active = Object.fromEntries((data.generationJobs ?? [])
-        .filter((job) => ["queued", "generating", "succeeded", "importing"].includes(job.status))
+        .filter((job) => ACTIVE_GENERATION.has(job.status))
         .map((job) => [job.beat_id, job.id]));
       setPollingGeneration((current) => ({ ...active, ...current }));
+      return data;
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Visual Pass could not be loaded.");
+      return null;
     }
   }, [projectId]);
 
   useEffect(() => { void load(); }, [load]);
 
-  const hasWorkingImports = useMemo(() => Boolean(state?.importJobs.some((job) => ["queued", "downloading", "normalizing", "uploading"].includes(job.status))), [state?.importJobs]);
+  const hasWorkingImports = useMemo(() => Boolean(state?.importJobs.some((job) => ACTIVE_IMPORTS.has(job.status))), [state?.importJobs]);
   useEffect(() => {
     if (!hasWorkingImports) return;
     const timer = window.setInterval(() => void load(), 3500);
@@ -131,8 +153,83 @@ export function VideoProducerVisualPassPanel({ projectId }: { projectId: string 
     return () => window.clearInterval(timer);
   }, [load, pollingGeneration]);
 
+  const autoResolve = useCallback(async (beats: Beat[]) => {
+    const broll = beats.filter((beat) => beat.recommendation === "b-roll" && beat.status !== "skipped");
+    if (!broll.length) {
+      setMessage("Visual Pass ready. Sol did not call for documentary B-roll in this edit; graphics, Scripture, camera changes and A-roll carry the visual argument.");
+      await load();
+      return;
+    }
+
+    let selected = 0;
+    let needsTaste = 0;
+    for (let index = 0; index < broll.length; index += 1) {
+      const beat = broll[index];
+      setMessage(`Searching real footage ${index + 1}/${broll.length} · AG Library first…`);
+      try {
+        const result = await api<{ candidates: Candidate[] }>("/api/admin/video-producer/visual-pass/search", {
+          method: "POST",
+          body: JSON.stringify({ beatId: beat.id })
+        });
+        setCandidates((current) => ({ ...current, [beat.id]: result.candidates }));
+        const best = result.candidates.find((candidate) => Number(candidate.score ?? 0) >= AUTO_MIN_SCORE);
+        if (!best) {
+          needsTaste += 1;
+          continue;
+        }
+        await api("/api/admin/video-producer/visual-pass/use", {
+          method: "POST",
+          body: JSON.stringify({ candidateId: best.id })
+        });
+        setCandidates((current) => ({ ...current, [beat.id]: [] }));
+        selected += 1;
+      } catch {
+        needsTaste += 1;
+      }
+    }
+    setMessage(
+      needsTaste
+        ? `Visual Pass selected ${selected}/${broll.length} real-footage beats automatically. ${needsTaste} beat${needsTaste === 1 ? " needs" : "s need"} your choice: pick footage, generate, or stay on A-roll.`
+        : `Visual Pass selected ${selected} real-footage beat${selected === 1 ? "" : "s"}. Imports are being normalized into the AG media bin before Review unlocks.`
+    );
+    await load();
+  }, [load]);
+
+  const prepareEpisode = useCallback(async (current: VisualState) => {
+    setBusy("auto-pass");
+    setError("");
+    try {
+      let beats = current.beats;
+      if (!beats.length) {
+        setMessage("Sol is mapping the full episode for B-roll, Scripture, graphics and visual resets…");
+        const result = await api<{ beats: Beat[]; summary: string }>("/api/admin/video-producer/visual-pass", {
+          method: "POST",
+          body: JSON.stringify({ projectId })
+        });
+        beats = result.beats;
+      } else {
+        beats = unresolvedBroll(current);
+      }
+      await autoResolve(beats);
+    } catch (actionError) {
+      setError(actionError instanceof Error ? actionError.message : "Automatic Visual Pass failed.");
+      await load();
+    } finally {
+      setBusy(null);
+    }
+  }, [autoResolve, load, projectId]);
+
+  useEffect(() => {
+    if (!state || autoPassRef.current || state.project.status === "rendering") return;
+    const unresolved = unresolvedBroll(state);
+    if (!state.beats.length || unresolved.length) {
+      autoPassRef.current = true;
+      void prepareEpisode(state);
+    }
+  }, [prepareEpisode, state]);
+
   async function analyze() {
-    setBusy("analyze"); setError(""); setMessage("Sol is mapping visual beats across the timestamped teaching…");
+    setBusy("analyze"); setError(""); setMessage("Sol is rebuilding the visual map across the timestamped teaching…");
     try {
       const result = await api<{ beats: Beat[]; summary: string }>("/api/admin/video-producer/visual-pass", { method: "POST", body: JSON.stringify({ projectId }) });
       setMessage(`Visual Pass ready · ${result.beats.length} editorial decisions.`);
@@ -179,7 +276,7 @@ export function VideoProducerVisualPassPanel({ projectId }: { projectId: string 
     try {
       await api("/api/admin/video-producer/visual-pass/beat", { method: "PATCH", body: JSON.stringify({ beatId, status: "skipped" }) });
       setCandidates((current) => ({ ...current, [beatId]: [] }));
-      setMessage("Beat skipped. A-roll remains authoritative.");
+      setMessage("Beat explicitly kept on A-roll.");
       await load();
     } catch (actionError) { setError(actionError instanceof Error ? actionError.message : "Beat could not be skipped."); }
     finally { setBusy(null); }
@@ -189,17 +286,19 @@ export function VideoProducerVisualPassPanel({ projectId }: { projectId: string 
   const placementByBeat = new Map(state.placements.map((placement) => [placement.beat_id, placement]));
   const importByBeat = new Map(state.importJobs.map((job) => [job.beat_id, job]));
   const generatedByBeat = new Map(state.generationJobs.map((job) => [job.beat_id, job]));
+  const totalBroll = state.beats.filter((beat) => beat.recommendation === "b-roll").length;
+  const unresolvedCount = unresolvedBroll(state).length;
 
   return (
     <section className={styles.panel}>
       <header className={styles.header}>
         <div>
           <div className={styles.eyebrow}>VISUAL PASS</div>
-          <h2>Assembly authority, not final-cut authority.</h2>
-          <p>Sol maps the teaching, searches AG-owned footage first, then Pexels and Pixabay. Generate only when real footage or a graphic will not do the job.</p>
+          <h2>Real footage is part of the default edit now.</h2>
+          <p>Sol maps the episode, searches AG-owned footage first, then Pexels and Pixabay, and provisionally selects strong real-footage matches. Runway stays fallback only. Every unresolved B-roll beat must be selected, generated, or explicitly kept on A-roll before Review.</p>
         </div>
-        <button className={styles.primary} onClick={analyze} disabled={Boolean(busy) || state.project.status === "rendering"}>
-          {busy === "analyze" ? <Loader2 size={16}/> : <Sparkles size={16}/>} {state.beats.length ? "Re-analyze" : "Analyze episode"}
+        <button className={styles.primary} onClick={analyze} disabled={Boolean(busy) || state.project.status === "rendering" || state.placements.length > 0}>
+          {busy === "analyze" || busy === "auto-pass" ? <Loader2 size={16}/> : <Sparkles size={16}/>} {busy === "auto-pass" ? "Preparing visuals" : state.beats.length ? "Re-analyze" : "Analyze episode"}
         </button>
       </header>
 
@@ -211,14 +310,15 @@ export function VideoProducerVisualPassPanel({ projectId }: { projectId: string 
         <span className={styles.providerOff}>FIREFLY · {state.providers.firefly ? "CONFIGURED, NOT ACTIVE" : "NOT ACTIVE"}</span>
       </div>
 
+      {state.beats.length ? <div className={styles.message}>{totalBroll} B-roll beat{totalBroll === 1 ? "" : "s"} · {state.placements.length} placed · {unresolvedCount} need a decision</div> : null}
       {message ? <div className={styles.message}>{message}</div> : null}
       {error ? <div className={styles.error}>{error}</div> : null}
 
       {!state.beats.length ? (
         <div className={styles.empty}>
-          <Film size={22}/>
-          <strong>No visual beat map yet.</strong>
-          <span>Run this after the Sol edit pass. It uses the timestamped A-roll transcript and current pacing rules.</span>
+          {busy === "auto-pass" ? <Loader2 size={22}/> : <Film size={22}/>} 
+          <strong>{busy === "auto-pass" ? "Building the visual edit…" : "No visual beat map yet."}</strong>
+          <span>{busy === "auto-pass" ? "Sol is analyzing the episode and will search real footage automatically." : "The automatic Visual Pass starts here after the Sol edit pass."}</span>
         </div>
       ) : (
         <div className={styles.beats}>
@@ -227,7 +327,7 @@ export function VideoProducerVisualPassPanel({ projectId }: { projectId: string 
             const importJob = importByBeat.get(beat.id);
             const generationJob = generatedByBeat.get(beat.id);
             const beatCandidates = candidates[beat.id] ?? [];
-            const isWorking = Boolean(importJob && ["queued", "downloading", "normalizing", "uploading"].includes(importJob.status)) || Boolean(pollingGeneration[beat.id]);
+            const isWorking = Boolean(importJob && ACTIVE_IMPORTS.has(importJob.status)) || Boolean(pollingGeneration[beat.id]);
             return (
               <article className={`${styles.beat} ${beat.status === "skipped" ? styles.skipped : ""}`} key={beat.id}>
                 <div className={styles.time}>{formatProducerTime(beat.source_start)}</div>
@@ -236,7 +336,7 @@ export function VideoProducerVisualPassPanel({ projectId }: { projectId: string 
                     <span className={`${styles.recommendation} ${beat.recommendation === "b-roll" ? styles.broll : ""}`}>{recommendationLabel(beat.recommendation)}</span>
                     <span>{beat.vocabulary.replaceAll("-", " ")}</span>
                     {beat.status === "resolved" ? <span className={styles.resolved}><Check size={13}/> resolved</span> : null}
-                    {beat.status === "skipped" ? <span>skipped</span> : null}
+                    {beat.status === "skipped" ? <span>A-roll chosen</span> : null}
                   </div>
                   <blockquote>“{beat.dialogue}”</blockquote>
                   <p className={styles.intent}>{beat.intent}</p>
@@ -245,13 +345,13 @@ export function VideoProducerVisualPassPanel({ projectId }: { projectId: string 
                   {placement ? (
                     <div className={styles.placement}>
                       <Check size={16}/>
-                      <div><strong>{placement.asset?.filename || "Visual selected"}</strong><span>{placement.asset?.source_provider?.toUpperCase()} · V2 provisional placement · A-roll audio continues</span></div>
+                      <div><strong>{placement.asset?.filename || "Visual selected"}</strong><span>{placement.asset?.source_provider?.toUpperCase()} · provisional V2 placement · A-roll audio continues</span></div>
                     </div>
                   ) : null}
-                  {importJob && ["queued", "downloading", "normalizing", "uploading"].includes(importJob.status) ? (
+                  {importJob && ACTIVE_IMPORTS.has(importJob.status) ? (
                     <div className={styles.working}><Loader2 size={15}/><span>{importJob.progress?.stage || "Preparing media"} · {Math.round(importJob.progress?.percent || 0)}%</span></div>
                   ) : null}
-                  {generationJob && ["queued", "generating", "succeeded", "importing"].includes(generationJob.status) ? (
+                  {generationJob && ACTIVE_GENERATION.has(generationJob.status) ? (
                     <div className={styles.working}><Loader2 size={15}/><span>AI insert · {generationJob.status}</span></div>
                   ) : null}
 
@@ -267,7 +367,7 @@ export function VideoProducerVisualPassPanel({ projectId }: { projectId: string 
                     <div className={styles.candidates}>
                       {beatCandidates.map((candidate) => (
                         <div className={styles.candidate} key={candidate.id}>
-                          {candidate.preview_url ? <img src={candidate.preview_url} alt=""/> : <div className={styles.noPreview}><Film size={22}/></div>}
+                          {candidate.preview_url ? <Image src={candidate.preview_url} alt="" width={640} height={360} unoptimized/> : <div className={styles.noPreview}><Film size={22}/></div>}
                           <div className={styles.candidateBody}>
                             <div className={styles.candidateProvider}>{providerLabel(candidate.provider)}</div>
                             <strong>{candidate.title}</strong>
