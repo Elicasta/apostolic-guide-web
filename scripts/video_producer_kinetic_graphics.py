@@ -4,7 +4,7 @@
 Deterministic long-form motion typography inspired by premium editorial YouTube
 pacing without copying another creator's branding. Sol chooses semantic text and
 one treatment. This renderer owns the Apostolic Guide palette, type scale,
-transition timing, slashes, bands, washes, and full-frame graphic resolution.
+transition timing, bands, washes, and full-frame graphic resolution.
 
 Kinetic overlays are intentionally authored punctuation, not captions. Each cue
 starts as a text hit over A-roll, then resolves into a graphic treatment before
@@ -100,11 +100,19 @@ def text(
 
 def fit_size(value: str, width: int, *, portrait: bool, max_size: int, min_size: int) -> int:
     chars = max(1, len(clean(value)))
-    # Bebas Neue is narrow. This keeps short phrases huge and prevents long
-    # doctrinal lines from silently shrinking into unreadable body copy.
     ratio = 0.52 if portrait else 0.48
     estimated = int(width / max(1.0, chars * ratio))
     return max(min_size, min(max_size, estimated))
+
+
+def split_support_lines(body: str, limit: int = 4) -> list[str]:
+    raw = str(body or "").strip()
+    if not raw:
+        return []
+    if "|" not in raw:
+        one = clean(raw)
+        return [one] if one else []
+    return [clean(item) for item in raw.split("|") if clean(item)][:limit]
 
 
 def split_questions(body: str) -> list[str]:
@@ -112,7 +120,7 @@ def split_questions(body: str) -> list[str]:
     if not raw:
         return []
     if "|" in raw:
-        return [clean(item) for item in raw.split("|") if clean(item)][:3]
+        return split_support_lines(raw, 3)
     chunks = [clean(item) for item in raw.replace("? ", "?| ").split("|") if clean(item)]
     return chunks[:3]
 
@@ -127,7 +135,6 @@ def _phase_times(start: float, end: float) -> tuple[float, float, float]:
 
 def _a_roll_hit(lines: list[str], start: float, hit_end: float, width: int, height: int, title: str, *, accent: bool = False) -> None:
     portrait = height > width
-    # Ink wash keeps the speaker visible while establishing AG contrast.
     rect(lines, start, hit_end, 0, 0, width, height, AG_BLACK, alpha="68", layer=18, fade=True)
     max_width = int(width * (0.86 if portrait else 0.82))
     size = fit_size(title, max_width, portrait=portrait, max_size=210 if portrait else 176, min_size=82 if portrait else 74)
@@ -146,16 +153,6 @@ def _accent_slash(lines: list[str], start: float, end: float, width: int, height
         moving_rect(lines, start + 0.10, end, width * 0.48, height * 0.18, width * 0.15, height * 0.28, width * 1.0, 15 if height < width else 20, AG_RED, layer=31, angle=28)
 
 
-def _underline_scribble(lines: list[str], start: float, end: float, width: int, height: int, y: float) -> None:
-    base_x = width * 0.36
-    for index, angle in enumerate((-2.5, 1.6, -1.0)):
-        moving_rect(
-            lines, start + index * 0.05, end, base_x - width * 0.10, y + index * 7,
-            base_x, y + index * 7, width * 0.31, 5 if height < width else 7,
-            AG_BONE, layer=32, angle=angle, move_ms=250
-        )
-
-
 def render_impact(lines: list[str], cue: dict, start: float, end: float, width: int, height: int) -> None:
     title = clean(cue.get("title"))
     body = clean(cue.get("body"))
@@ -164,10 +161,10 @@ def render_impact(lines: list[str], cue: dict, start: float, end: float, width: 
     _full_black(lines, card_start, card_end, width, height)
     portrait = height > width
     size = fit_size(title, int(width * 0.84), portrait=portrait, max_size=196 if portrait else 168, min_size=80 if portrait else 72)
-    text(lines, card_start, card_end, width / 2, height * (0.47 if body else 0.53), title.upper(), size=size, color=AG_BONE, impact=True, spacing=1.0)
+    text(lines, card_start, card_end, width / 2, height * (0.45 if body else 0.53), title.upper(), size=size, color=AG_BONE, impact=True, spacing=1.0)
     if body:
-        body_size = fit_size(body, int(width * 0.80), portrait=portrait, max_size=126 if portrait else 104, min_size=56 if portrait else 50)
-        text(lines, card_start + 0.12, card_end, width / 2, height * 0.66, body.upper(), size=body_size, color=AG_RED, impact=True, spacing=0.8)
+        body_size = fit_size(body, int(width * 0.80), portrait=portrait, max_size=118 if portrait else 96, min_size=54 if portrait else 48)
+        text(lines, card_start + 0.12, card_end, width / 2, height * 0.66, body.upper(), size=body_size, color=AG_RED, impact=True, spacing=0.6)
     _accent_slash(lines, card_start + 0.12, card_end, width, height)
 
 
@@ -178,11 +175,11 @@ def render_split(lines: list[str], cue: dict, start: float, end: float, width: i
     _a_roll_hit(lines, start, hit_end, width, height, title)
     _full_black(lines, card_start, card_end, width, height)
     portrait = height > width
-    title_size = fit_size(title, int(width * 0.78), portrait=portrait, max_size=174 if portrait else 146, min_size=72 if portrait else 68)
-    text(lines, card_start, card_end, width / 2, height * 0.40, title.upper(), size=title_size, color=AG_BONE, impact=True)
+    title_size = fit_size(title, int(width * 0.78), portrait=portrait, max_size=168 if portrait else 140, min_size=70 if portrait else 64)
+    text(lines, card_start, card_end, width / 2, height * 0.38, title.upper(), size=title_size, color=AG_BONE, impact=True)
     if body:
-        body_size = fit_size(body, int(width * 0.86), portrait=portrait, max_size=196 if portrait else 160, min_size=72 if portrait else 66)
-        text(lines, card_start + 0.10, card_end, width / 2, height * 0.61, body.upper(), size=body_size, color=AG_RED, impact=True)
+        body_size = fit_size(body, int(width * 0.84), portrait=portrait, max_size=174 if portrait else 144, min_size=68 if portrait else 62)
+        text(lines, card_start + 0.10, card_end, width / 2, height * 0.64, body.upper(), size=body_size, color=AG_RED, impact=True)
     _accent_slash(lines, card_start + 0.16, card_end, width, height)
 
 
@@ -218,19 +215,48 @@ def render_band(lines: list[str], cue: dict, start: float, end: float, width: in
 
 def render_stack(lines: list[str], cue: dict, start: float, end: float, width: int, height: int) -> None:
     title = clean(cue.get("title"))
-    body = clean(cue.get("body"))
+    support = split_support_lines(cue.get("body") or "", 4)
     hit_end, card_start, card_end = _phase_times(start, end)
     _a_roll_hit(lines, start, hit_end, width, height, title, accent=True)
     _full_black(lines, card_start, card_end, width, height)
     portrait = height > width
-    title_size = fit_size(title, int(width * 0.92), portrait=portrait, max_size=220 if portrait else 194, min_size=94 if portrait else 84)
-    text(lines, card_start, card_end, width / 2, height * 0.38, title.upper(), size=title_size, color=AG_RED, impact=True)
-    if body:
-        body_size = fit_size(body, int(width * 0.72), portrait=portrait, max_size=134 if portrait else 108, min_size=62 if portrait else 56)
-        text(lines, card_start + 0.12, card_end, width / 2, height * 0.61, body.upper(), size=body_size, color=AG_BONE, impact=True)
-        _underline_scribble(lines, card_start + 0.20, card_end, width, height, height * 0.70)
+    title_size = fit_size(title, int(width * 0.86), portrait=portrait, max_size=194 if portrait else 174, min_size=82 if portrait else 76)
+    title_y = 0.33 if support else 0.50
+    text(lines, card_start, card_end, width / 2, height * title_y, title.upper(), size=title_size, color=AG_RED, impact=True, spacing=0.4)
+    if not support:
+        return
+
+    count = len(support)
+    if count == 1:
+        top, gap = 0.62, 0.0
+    elif count == 2:
+        top, gap = 0.57, 0.12
+    elif count == 3:
+        top, gap = 0.54, 0.105
     else:
-        _underline_scribble(lines, card_start + 0.20, card_end, width, height, height * 0.59)
+        top, gap = 0.51, 0.09
+
+    for index, line in enumerate(support):
+        line_size = fit_size(
+            line,
+            int(width * 0.78),
+            portrait=portrait,
+            max_size=94 if portrait else 78,
+            min_size=48 if portrait else 44
+        )
+        text(
+            lines,
+            card_start + 0.10,
+            card_end,
+            width / 2,
+            height * (top + index * gap),
+            line.upper(),
+            size=line_size,
+            color=AG_BONE,
+            impact=True,
+            delay=index * 0.06,
+            spacing=0.35
+        )
 
 
 def render_question_stack(lines: list[str], cue: dict, start: float, end: float, width: int, height: int) -> None:
