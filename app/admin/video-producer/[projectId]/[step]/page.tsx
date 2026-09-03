@@ -20,14 +20,15 @@ export default async function VideoProducerProjectStepPage({ params }: { params:
 
   if (step === "review" || step === "deliver") {
     const service = createServiceClient();
+    let visualPassReady = false;
     if (service) {
       try {
-        const visualPass = await resolveVideoProducerVisualPassReadiness(service, projectId);
-        if (!visualPass.ready) redirect(`/admin/video-producer/${projectId}/finish`);
+        visualPassReady = (await resolveVideoProducerVisualPassReadiness(service, projectId)).ready;
       } catch {
-        redirect(`/admin/video-producer/${projectId}/finish`);
+        visualPassReady = false;
       }
     }
+    if (!visualPassReady) redirect(`/admin/video-producer/${projectId}/finish`);
   }
 
   return (
