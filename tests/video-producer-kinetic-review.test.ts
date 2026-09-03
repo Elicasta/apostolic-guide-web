@@ -13,10 +13,12 @@ test("Video Producer Review exposes exact kinetic phrase, treatment, and timing 
   assert.match(panel, /Treatment/);
   assert.match(panel, /Start · sec/);
   assert.match(panel, /Duration · sec/);
-  assert.match(panel, /A-roll hit →/);
-  for (const treatment of ["impact", "split", "strike", "band", "stack", "question-stack"]) {
+  assert.match(panel, /A-roll phrase → moving field/);
+  for (const treatment of ["impact", "split", "band", "stack", "question-stack"]) {
     assert.match(panel, new RegExp(`id: "${treatment}"`));
   }
+  assert.match(panel, /normalizeReviewCue/);
+  assert.match(panel, /cue\.treatment === "strike" \? \{ \.\.\.cue, treatment: "impact" \}/);
 });
 
 test("source page exposes Camera B and External Audio before the long source workspace", () => {
@@ -28,13 +30,15 @@ test("source page exposes Camera B and External Audio before the long source wor
   assert.ok(sourceMedia < flow, "source synchronized-media controls appear before the long Source workspace");
 });
 
-test("kinetic preview uses clean support rows and removes the stack scribble", () => {
+test("kinetic preview communicates field-based Motion 02 and removes strike/scribble choices", () => {
   const panel = readFileSync("src/video-producer-kinetic-review.tsx", "utf8");
   const css = readFileSync("src/video-producer-kinetic-review.module.css", "utf8");
-  assert.match(panel, /function supportLines/);
-  assert.match(panel, /Deep-red headline \+ clean bone support/);
-  assert.match(css, /\.preview\[data-treatment="stack"\] i \{\s*display: none;/);
+  assert.match(panel, /KINETIC GRAPHICS \/ 02/);
+  assert.match(panel, /field wipes, split frames, oversized type and staggered support/);
+  assert.match(panel, /Crimson headline \+ staggered paper support/);
+  assert.doesNotMatch(panel, /id: "strike", label:/);
   assert.match(css, /\.preview\[data-treatment="stack"\] b \{/);
+  assert.doesNotMatch(css, /rotate\(/);
 });
 
 test("manual kinetic changes invalidate old production approval", () => {
