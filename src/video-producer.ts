@@ -147,11 +147,11 @@ export const VIDEO_PRODUCER_MODE_DEFAULTS: Record<VideoProducerMode, {
 }> = {
   podcast: {
     label: "Podcast Mode",
-    description: "Long-form editorial polish, structure, branded references, clean audio and a professional 16:9 master.",
+    description: "Long-form editorial polish that starts on the spoken hook, with structure, references, clean audio and a professional 16:9 master.",
     audioPreset: "ag-voice-clean",
     colorPreset: "ag-studio",
     captions: { enabled: false, style: "minimal", animation: "none", maxWordsPerCard: 8, position: "lower", highlightCurrentWord: false },
-    intro: true,
+    intro: false,
     outro: true
   },
   reels: {
@@ -263,7 +263,6 @@ export function mapSourceRangeToOutputRanges(start: number, end: number, cuts: V
     }
     outputCursor += keep.end - keep.start;
   }
-
   return ranges;
 }
 
@@ -276,46 +275,44 @@ export function sanitizeVideoProducerTransform(transform: VideoProducerMotionTra
 }
 
 export function compileVideoProducerRenderPlan(plan: VideoProducerEditPlan): VideoProducerRenderPlan {
-  const sourceDuration = Math.max(0, finiteNumber(plan.sourceDuration));
-  const cuts = normalizeVideoProducerCuts(plan.cuts, sourceDuration);
-  const output = plan.mode === "reels"
-    ? { format: "mp4" as const, width: 1080 as const, height: 1920 as const, fps: 30 as const }
-    : { format: "mp4" as const, width: 1920 as const, height: 1080 as const, fps: 30 as const };
-
+  const keepSegments = buildKeepSegments(plan.cuts, plan.sourceDuration);
+  const outputDuration = keepSegments.reduce((sum, segment) => sum + segment.end - segment.start, 0);
+  const overlays = plan.overlays.map((cue) => {
+    const outputRanges = mapSourceRangeToOutputRanges(cue.start, cue.start + cue.duration, plan.cuts, plan.sourceDuration);
+    return { ...cue, outputStart: outputRanges[0]?.outputStart ?? null, outputRanges };
+  });
+  const motion = plan.motion.map((cue) => {
+    const outputRanges = mapSourceRangeToOutputRanges(cue.start, cue.start + cue.duration, plan.cuts, plan.sourceDuration);
+    return { ...cue, transform: cue.transform ? sanitizeVideoProducerTransform(cue.transform) : undefined, outputStart: outputRanges[0]?.outputStart ?? null, outputRanges };
+  });
+  const music = plan.music.map((cue) => ({
+    ...cue,
+    outputRanges: mapSourceRangeToOutputRanges(cue.start, cue.end, plan.cuts, plan.sourceDuration)
+  }));
   return {
     version: 2,
     mode: plan.mode,
-    sourceDuration,
-    outputDuration: outputDurationForPlan({ sourceDuration, cuts }),
-    keepSegments: buildKeepSegments(cuts, sourceDuration),
-    overlays: plan.overlays.map((overlay) => ({
-      ...overlay,
-      outputStart: sourceTimeToOutputTime(overlay.start, cuts, sourceDuration),
-      outputRanges: mapSourceRangeToOutputRanges(overlay.start, overlay.start + Math.max(0, finiteNumber(overlay.duration)), cuts, sourceDuration)
-    })),
-    motion: plan.motion.map((cue) => ({
-      ...cue,
-      transform: cue.transform ? sanitizeVideoProducerTransform(cue.transform) : undefined,
-      outputStart: sourceTimeToOutputTime(cue.start, cuts, sourceDuration),
-      outputRanges: mapSourceRangeToOutputRanges(cue.start, cue.start + Math.max(0, finiteNumber(cue.duration)), cuts, sourceDuration)
-    })),
-    music: plan.music.map((cue) => ({
-      ...cue,
-      outputRanges: mapSourceRangeToOutputRanges(cue.start, cue.end, cuts, sourceDuration)
-    })),
-    captions: { ...plan.captions },
+    sourceDuration: plan.sourceDuration,
+    outputDuration,
+    keepSegments,
+    overlays,
+    motion,
+    music,
+    captions: plan.captions,
     audioPreset: plan.audioPreset,
     colorPreset: plan.colorPreset,
     intro: plan.intro,
     outro: plan.outro,
-    output
+    output: plan.mode === "reels"
+      ? { format: "mp4", width: 1080, height: 1920, fps: 30 }
+      : { format: "mp4", width: 1920, height: 1080, fps: 30 }
   };
 }
 
 export function formatProducerTime(seconds: number) {
-  const safe = Math.max(0, Math.floor(finiteNumber(seconds)));
-  const h = Math.floor(safe / 3600);
-  const m = Math.floor((safe % 3600) / 60);
-  const s = safe % 60;
-  return h ? `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}` : `${m}:${String(s).padStart(2, "0")}`;
+  const safe = Math.max(0, finiteNumber(seconds));
+  const minutes = Math.floor(safe / 60);
+  const secs = Math.floor(safe % 60);
+  const tenths = Math.floor((safe - Math.floor(safe)) * 10);
+  return `${minutes}:${String(secs).padStart(2, "0")}.${tenths}`;
 }
