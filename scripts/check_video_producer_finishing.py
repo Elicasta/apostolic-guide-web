@@ -129,9 +129,26 @@ def main():
             raise RuntimeError("finishing smoke master missing")
         with open(ass, "r", encoding="utf-8") as handle:
             text = handle.read()
-        for expected in ["PATHWAY STOP 1", "GOD IS ONE", "STOP 1", "THE CONTROLLING CONFESSION"]:
+
+        # Broadcast Graphics / 03 must preserve pathway + Scripture orientation while
+        # rejecting the old all-section PATHWAY STOP 1 follower/card language.
+        for expected in [
+            "AG / PATHWAY STOP",
+            "GOD IS ONE PATHWAY",
+            "AG / SECTION",
+            "THE CONTROLLING CONFESSION",
+            "DEUTERONOMY 6:4",
+            "The Lord our God is one.",
+            "ISAIAH 43:10",
+            "AG / SCRIPTURE"
+        ]:
             if expected not in text:
-                raise RuntimeError(f"Graphics V2 ASS missing {expected}")
+                raise RuntimeError(f"Broadcast Graphics 03 ASS missing {expected}")
+        if "PATHWAY STOP 1" in text:
+            raise RuntimeError("Broadcast Graphics 03 reintroduced the old persistent Pathway follower language")
+        for token, label in [("3D2DA1", "crimson"), ("F4F7F5", "paper"), ("2A2010", "ink")]:
+            if token not in text:
+                raise RuntimeError(f"Broadcast Graphics 03 ASS is missing canonical AG {label}")
 
         reel = reel_manifest()
         finishing.bw.base.validate_manifest(reel)
