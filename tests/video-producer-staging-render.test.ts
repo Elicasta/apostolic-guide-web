@@ -7,8 +7,8 @@ const worker = readFileSync("scripts/render_video_producer_visual_pass_worker.py
 test("staging Video Producer renders use a runner-safe inspection profile only", () => {
   assert.match(worker, /payload\.get\("worker_ref"\) == "codex\/video-producer"/);
   assert.match(worker, /if not STAGED_INSPECTION_ENCODE:\n\s+return/);
-  assert.match(worker, /output\["width"\], output\["height"\] = 640, 360/);
-  assert.match(worker, /output\["width"\], output\["height"\] = 360, 640/);
+  assert.match(worker, /return \(360, 640\) if mode == "reels" else \(640, 360\)/);
+  assert.match(worker, /output\["width"\], output\["height"\] = width, height/);
   assert.match(worker, /command\[preset_index\] = "ultrafast"/);
   assert.match(worker, /command\[crf_index\] = "23"/);
 });
