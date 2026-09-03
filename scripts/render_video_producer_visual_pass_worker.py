@@ -22,6 +22,8 @@ SPEC.loader.exec_module(fw)
 from video_producer_kinetic_graphics import append_kinetic_graphics  # noqa: E402
 
 ORIGINAL_BUILD = fw.build_ffmpeg_v2
+ORIGINAL_VIDEO_NORMALIZE_CHAIN = fw.video_normalize_chain
+ORIGINAL_APPEND_REEL_MOTION_GRAPH = fw.append_reel_motion_graph
 STAGED_INSPECTION_ENCODE = False
 
 
@@ -49,8 +51,17 @@ def clamp(value, low, high):
         return low
 
 
+def staged_dimensions(mode):
+    return (360, 640) if mode == "reels" else (640, 360)
+
+
 def staged_inspection_command(command):
-    """Speed up only the isolated staging lane so hosted-runner previews finish quickly."""
+    """Speed up only the isolated staging lane so hosted-runner previews finish quickly.
+
+    The legacy finishing worker still contains one single-camera landscape geometry
+    literal. Rewrite that literal here only for staging. Multicam and Reels geometry
+    are handled by the staging wrappers installed below.
+    """
     if not STAGED_INSPECTION_ENCODE:
         return command
     command = list(command)
@@ -62,6 +73,16 @@ def staged_inspection_command(command):
     try:
         crf_index = command.index("-crf") + 1
         command[crf_index] = "23"
+    except ValueError:
+        pass
+    try:
+        graph_index = command.index("-filter_complex") + 1
+        graph = command[graph_index]
+        graph = graph.replace(
+            "scale=1920:1080:force_original_aspect_ratio=decrease:flags=fast_bilinear,pad=1920:1080:(ow-iw)/2:(oh-ih)/2:black",
+            "scale=640:360:force_original_aspect_ratio=decrease:flags=fast_bilinear,pad=640:360:(ow-iw)/2:(oh-ih)/2:black",
+        )
+        command[graph_index] = graph
     except ValueError:
         pass
     return command
@@ -78,14 +99,92 @@ def apply_staged_inspection_profile(manifest):
         return
     plan = manifest.get("renderPlan") or {}
     output = plan.get("output") or {}
-    if plan.get("mode") == "reels":
-        output["width"], output["height"] = 360, 640
-    else:
-        output["width"], output["height"] = 640, 360
-    print(
-        f"Video Producer staged inspection resolution: {output['width']}x{output['height']}",
-        flush=True,
+    width, height = staged_dimensions(plan.get("mode"))
+    output["width"], output["height"] = width, height
+    print(f"Video Producer staged inspection resolution: {width}x{height}", flush=True)
+
+
+def staging_video_normalize_chain(mode):
+    """Give the finishing worker real low-resolution geometry during staging."""
+    if not STAGED_INSPECTION_ENCODE:
+        return ORIGINAL_VIDEO_NORMALIZE_CHAIN(mode)
+    width, height = staged_dimensions(mode)
+    if mode == "reels":
+        ratio = width / height
+        return (
+            f"fps=30,crop=w='min(iw,ih*{ratio:.8f})':h=ih:"
+            f"x='(iw-min(iw,ih*{ratio:.8f}))*0.5':y=0,"
+            f"scale={width}:{height}:flags=fast_bilinear,setsar=1"
+        )
+    return (
+        f"fps=30,scale={width}:{height}:force_original_aspect_ratio=decrease:"
+        f"flags=fast_bilinear,pad={width}:{height}:(ow-iw)/2:(oh-ih)/2:black,setsar=1"
     )
+
+
+def staging_motion_crop(scale, fx, fy, width, height):
+    crop_w = min(width, fw._even(width / scale))
+    crop_h = min(height, fw._even(height / scale))
+    max_x = max(0, width - crop_w)
+    max_y = max(0, height - crop_h)
+    x = fw._even(max_x * fx, 0) if max_x else 0
+    y = fw._even(max_y * fy, 0) if max_y else 0
+    x = min(max_x, max(0, x))
+    y = min(max_y, max(0, y))
+    return crop_w, crop_h, x, y
+
+
+def staging_append_reel_motion_graph(graph, plan):
+    """Preserve Reels punch-ins while rendering the staging proof at 360x640."""
+    if not STAGED_INSPECTION_ENCODE:
+        return ORIGINAL_APPEND_REEL_MOTION_GRAPH(graph, plan)
+    output = plan.get("output") or {}
+    width = int(output.get("width") or 360)
+    height = int(output.get("height") or 640)
+    ratio = width / height
+    graph.append(
+        f"[vcat]fps=30,crop=w='min(iw,ih*{ratio:.8f})':h=ih:"
+        f"x='(iw-min(iw,ih*{ratio:.8f}))*0.5':y=0,"
+        f"scale={width}:{height}:flags=fast_bilinear,setsar=1[vbase]"
+    )
+    intervals = fw.reel_motion_intervals(plan)
+    if not intervals:
+        return "vbase"
+    if len(intervals) == 1:
+        _start, _end, scale, fx, fy = intervals[0]
+        if scale <= 1.001:
+            return "vbase"
+        crop_w, crop_h, x, y = staging_motion_crop(scale, fx, fy, width, height)
+        graph.append(
+            f"[vbase]crop={crop_w}:{crop_h}:{x}:{y},"
+            f"scale={width}:{height}:flags=fast_bilinear,setsar=1[vmotion]"
+        )
+        return "vmotion"
+
+    split_labels = "".join(f"[vm{i}]" for i in range(len(intervals)))
+    graph.append(f"[vbase]split={len(intervals)}{split_labels}")
+    segment_labels = []
+    for index, (start, end, scale, fx, fy) in enumerate(intervals):
+        chain = f"trim=start={start:.4f}:end={end:.4f},setpts=PTS-STARTPTS"
+        if scale > 1.001:
+            crop_w, crop_h, x, y = staging_motion_crop(scale, fx, fy, width, height)
+            chain += (
+                f",crop={crop_w}:{crop_h}:{x}:{y},"
+                f"scale={width}:{height}:flags=fast_bilinear"
+            )
+        chain += ",setsar=1"
+        label = f"vms{index}"
+        graph.append(f"[vm{index}]{chain}[{label}]")
+        segment_labels.append(f"[{label}]")
+    graph.append("".join(segment_labels) + f"concat=n={len(segment_labels)}:v=1:a=0[vmotion]")
+    return "vmotion"
+
+
+# The finishing worker resolves these globals at render-command build time, so the
+# wrappers preserve production behavior and only switch geometry when the allowlisted
+# staging worker ref is active.
+fw.video_normalize_chain = staging_video_normalize_chain
+fw.append_reel_motion_graph = staging_append_reel_motion_graph
 
 
 def visual_scale_chain(width, height, fit, scale):
@@ -226,7 +325,7 @@ def main():
 
     STAGED_INSPECTION_ENCODE = payload.get("worker_ref") == "codex/video-producer"
     if STAGED_INSPECTION_ENCODE:
-        print("Video Producer staged inspection encode: libx264 ultrafast / CRF 23", flush=True)
+        print("Video Producer staged inspection encode: 640x360/360x640 · libx264 ultrafast / CRF 23", flush=True)
 
     fw.bw.base.callback(payload, "rendering", 2, "Downloading render manifest")
     with tempfile.TemporaryDirectory(prefix="ag-video-producer-v3-") as directory:
