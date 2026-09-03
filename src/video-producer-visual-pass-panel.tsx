@@ -44,24 +44,43 @@ type Placement = {
 
 type ImportJob = { id: string; beat_id: string; provider: string; status: string; progress?: { percent?: number; stage?: string } | null; error?: string | null };
 type GenerationJob = { id: string; beat_id: string; provider: string; status: string; error?: string | null };
+type ProviderState = { pexels: boolean; pixabay: boolean; runway: boolean; firefly: boolean };
 type VisualState = {
   project: { id: string; title: string; mode: "podcast" | "reels"; status: string };
   beats: Beat[];
   placements: Placement[];
   importJobs: ImportJob[];
   generationJobs: GenerationJob[];
-  providers: { pexels: boolean; pixabay: boolean; runway: boolean; firefly: boolean };
+  providers: ProviderState;
 };
 
 const AUTO_MIN_SCORE = 84;
 const ACTIVE_IMPORTS = new Set(["queued", "downloading", "normalizing", "uploading"]);
 const ACTIVE_GENERATION = new Set(["queued", "generating", "succeeded", "importing"]);
+const DEFAULT_API_TIMEOUT_MS = 45_000;
+const DIRECTOR_API_TIMEOUT_MS = 150_000;
 
-async function api<T>(url: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(url, { ...init, cache: "no-store", headers: { "content-type": "application/json", ...(init?.headers ?? {}) } });
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data.error || `Request failed (${response.status}).`);
-  return data as T;
+async function api<T>(url: string, init?: RequestInit, timeoutMs = DEFAULT_API_TIMEOUT_MS): Promise<T> {
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(url, {
+      ...init,
+      cache: "no-store",
+      signal: init?.signal ?? controller.signal,
+      headers: { "content-type": "application/json", ...(init?.headers ?? {}) }
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || `Request failed (${response.status}).`);
+    return data as T;
+  } catch (requestError) {
+    if (requestError instanceof DOMException && requestError.name === "AbortError") {
+      throw new Error("Visual Pass request timed out. The existing edit was kept; refresh and try again.");
+    }
+    throw requestError;
+  } finally {
+    window.clearTimeout(timeout);
+  }
 }
 
 function recommendationLabel(value: Beat["recommendation"]) {
@@ -153,7 +172,7 @@ export function VideoProducerVisualPassPanel({ projectId }: { projectId: string 
     return () => window.clearInterval(timer);
   }, [load, pollingGeneration]);
 
-  const autoResolve = useCallback(async (beats: Beat[]) => {
+  const autoResolve = useCallback(async (beats: Beat[], providers: ProviderState) => {
     const broll = beats.filter((beat) => beat.recommendation === "b-roll" && beat.status !== "skipped");
     if (!broll.length) {
       setMessage("Visual Pass ready. Sol did not call for documentary B-roll in this edit; graphics, Scripture, camera changes and A-roll carry the visual argument.");
@@ -163,6 +182,8 @@ export function VideoProducerVisualPassPanel({ projectId }: { projectId: string 
 
     let selected = 0;
     let needsTaste = 0;
+    let blockedByProviderConfig = false;
+    const stockConnected = providers.pexels || providers.pixabay;
     for (let index = 0; index < broll.length; index += 1) {
       const beat = broll[index];
       setMessage(`Searching real footage ${index + 1}/${broll.length} · AG Library first…`);
@@ -172,6 +193,11 @@ export function VideoProducerVisualPassPanel({ projectId }: { projectId: string 
           body: JSON.stringify({ beatId: beat.id })
         });
         setCandidates((current) => ({ ...current, [beat.id]: result.candidates }));
+        if (!result.candidates.length && !stockConnected) {
+          needsTaste = broll.length - selected;
+          blockedByProviderConfig = true;
+          break;
+        }
         const best = result.candidates.find((candidate) => Number(candidate.score ?? 0) >= AUTO_MIN_SCORE);
         if (!best) {
           needsTaste += 1;
@@ -187,11 +213,16 @@ export function VideoProducerVisualPassPanel({ projectId }: { projectId: string 
         needsTaste += 1;
       }
     }
-    setMessage(
-      needsTaste
-        ? `Visual Pass selected ${selected}/${broll.length} real-footage beats automatically. ${needsTaste} beat${needsTaste === 1 ? " needs" : "s need"} your choice: pick footage, generate, or stay on A-roll.`
-        : `Visual Pass selected ${selected} real-footage beat${selected === 1 ? "" : "s"}. Imports are being normalized into the AG media bin before Review unlocks.`
-    );
+    if (blockedByProviderConfig) {
+      setError("No stock-video provider is connected in this preview deployment. Add PEXELS_API_KEY or PIXABAY_API_KEY to Preview before automatic B-roll can resolve these beats.");
+      setMessage(`Visual map is ready · ${broll.length} B-roll beats remain unresolved because this preview has no stock-video provider.`);
+    } else {
+      setMessage(
+        needsTaste
+          ? `Visual Pass selected ${selected}/${broll.length} real-footage beats automatically. ${needsTaste} beat${needsTaste === 1 ? " needs" : "s need"} your choice: pick footage, generate, or stay on A-roll.`
+          : `Visual Pass selected ${selected} real-footage beat${selected === 1 ? "" : "s"}. Imports are being normalized into the AG media bin before Review unlocks.`
+      );
+    }
     await load();
   }, [load]);
 
@@ -205,12 +236,12 @@ export function VideoProducerVisualPassPanel({ projectId }: { projectId: string 
         const result = await api<{ beats: Beat[]; summary: string }>("/api/admin/video-producer/visual-pass", {
           method: "POST",
           body: JSON.stringify({ projectId })
-        });
+        }, DIRECTOR_API_TIMEOUT_MS);
         beats = result.beats;
       } else {
         beats = unresolvedBroll(current);
       }
-      await autoResolve(beats);
+      await autoResolve(beats, current.providers);
     } catch (actionError) {
       setError(actionError instanceof Error ? actionError.message : "Automatic Visual Pass failed.");
       await load();
@@ -229,9 +260,15 @@ export function VideoProducerVisualPassPanel({ projectId }: { projectId: string 
   }, [prepareEpisode, state]);
 
   async function analyze() {
+    if (!state) return;
+    const unresolved = unresolvedBroll(state);
+    if (unresolved.length) {
+      setError(`Resolve the current ${unresolved.length} B-roll beat${unresolved.length === 1 ? "" : "s"} before rebuilding the visual map. Re-analysis will not fix missing media providers.`);
+      return;
+    }
     setBusy("analyze"); setError(""); setMessage("Sol is rebuilding the visual map across the timestamped teaching…");
     try {
-      const result = await api<{ beats: Beat[]; summary: string }>("/api/admin/video-producer/visual-pass", { method: "POST", body: JSON.stringify({ projectId }) });
+      const result = await api<{ beats: Beat[]; summary: string }>("/api/admin/video-producer/visual-pass", { method: "POST", body: JSON.stringify({ projectId }) }, DIRECTOR_API_TIMEOUT_MS);
       setMessage(`Visual Pass ready · ${result.beats.length} editorial decisions.`);
       await load();
     } catch (actionError) { setError(actionError instanceof Error ? actionError.message : "Visual Pass analysis failed."); }
@@ -243,7 +280,7 @@ export function VideoProducerVisualPassPanel({ projectId }: { projectId: string 
     try {
       const result = await api<{ candidates: Candidate[] }>("/api/admin/video-producer/visual-pass/search", { method: "POST", body: JSON.stringify({ beatId }) });
       setCandidates((current) => ({ ...current, [beatId]: result.candidates }));
-      setMessage(result.candidates.length ? `Found ${result.candidates.length} real-footage options. AG-owned media is ranked first.` : "No useful real-footage match. Generate an editorial insert or keep the A-roll.");
+      setMessage(result.candidates.length ? `Found ${result.candidates.length} real-footage options. AG-owned media is ranked first.` : "No useful real-footage match. Connect Pexels/Pixabay, generate an editorial insert, or keep the A-roll.");
       await load();
     } catch (actionError) { setError(actionError instanceof Error ? actionError.message : "Footage search failed."); }
     finally { setBusy(null); }
@@ -288,6 +325,7 @@ export function VideoProducerVisualPassPanel({ projectId }: { projectId: string 
   const generatedByBeat = new Map(state.generationJobs.map((job) => [job.beat_id, job]));
   const totalBroll = state.beats.filter((beat) => beat.recommendation === "b-roll").length;
   const unresolvedCount = unresolvedBroll(state).length;
+  const noStockProvider = !state.providers.pexels && !state.providers.pixabay;
 
   return (
     <section className={styles.panel}>
@@ -297,8 +335,8 @@ export function VideoProducerVisualPassPanel({ projectId }: { projectId: string 
           <h2>Real footage is part of the default edit now.</h2>
           <p>Sol maps the episode, searches AG-owned footage first, then Pexels and Pixabay, and provisionally selects strong real-footage matches. Runway stays fallback only. Every unresolved B-roll beat must be selected, generated, or explicitly kept on A-roll before Review.</p>
         </div>
-        <button className={styles.primary} onClick={analyze} disabled={Boolean(busy) || state.project.status === "rendering" || state.placements.length > 0}>
-          {busy === "analyze" || busy === "auto-pass" ? <Loader2 size={16}/> : <Sparkles size={16}/>} {busy === "auto-pass" ? "Preparing visuals" : state.beats.length ? "Re-analyze" : "Analyze episode"}
+        <button className={styles.primary} onClick={analyze} disabled={Boolean(busy) || state.project.status === "rendering" || state.placements.length > 0 || unresolvedCount > 0}>
+          {busy === "analyze" || busy === "auto-pass" ? <Loader2 size={16}/> : <Sparkles size={16}/>} {busy === "auto-pass" ? "Preparing visuals" : unresolvedCount > 0 ? "Resolve current pass" : state.beats.length ? "Re-analyze" : "Analyze episode"}
         </button>
       </header>
 
@@ -310,6 +348,7 @@ export function VideoProducerVisualPassPanel({ projectId }: { projectId: string 
         <span className={styles.providerOff}>FIREFLY · {state.providers.firefly ? "CONFIGURED, NOT ACTIVE" : "NOT ACTIVE"}</span>
       </div>
 
+      {totalBroll > 0 && noStockProvider ? <div className={styles.error}>This deployment has no stock-video provider connected. AG Library can still match owned footage, but Pexels/Pixabay search is unavailable until Preview credentials are configured.</div> : null}
       {state.beats.length ? <div className={styles.message}>{totalBroll} B-roll beat{totalBroll === 1 ? "" : "s"} · {state.placements.length} placed · {unresolvedCount} need a decision</div> : null}
       {message ? <div className={styles.message}>{message}</div> : null}
       {error ? <div className={styles.error}>{error}</div> : null}
