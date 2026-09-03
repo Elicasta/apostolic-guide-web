@@ -8,6 +8,7 @@ import { compileVideoProducerRenderPlan, type VideoProducerEditPlan } from "@/vi
 import { normalizeVideoProducerTranscript, sliceVideoProducerTranscript } from "@/video-producer-ai";
 import type { VideoProducerAudioPlan, VideoProducerCameraPlan } from "@/video-producer-multicam";
 import { resolveVideoProducerProductionState } from "@/video-producer-production-server";
+import { requireVideoProducerVisualPassReady } from "@/video-producer-visual-pass-server";
 import { buildVideoProducerLicenseManifest } from "@/video-producer-visuals";
 import {
   createPrivateBlobDownloadUrl,
@@ -25,7 +26,7 @@ export const maxDuration = 60;
 
 const schema = z.object({ projectId: z.string().uuid() });
 const MAX_RENDER_BYTES = 20 * 1024 * 1024 * 1024;
-const DEFAULT_PUBLIC_CALLBACK_ORIGIN = "https://apostolic-guide-web.vercel.app";
+const DEFAULT_PUBLIC_CALLBACK_ORIGIN = "https://www.apostolicguide.com";
 
 type MusicManifestTrack = { id: string; title: string; url: string; gainDb: number; duckUnderVoice: boolean };
 
@@ -52,6 +53,11 @@ export async function POST(request: Request) {
   if (!project?.source_locator || !project.edit_plan) return NextResponse.json({ error: "Source and edit plan are required before rendering." }, { status: 409 });
   if (project.status !== "approved" || !project.approval_fingerprint) return NextResponse.json({ error: "Approve the current edit before rendering." }, { status: 409 });
   if (project.source_provider !== "vercel_blob") return NextResponse.json({ error: "This source provider is not renderable yet." }, { status: 409 });
+  try {
+    await requireVideoProducerVisualPassReady(service, project.id);
+  } catch (error) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Visual Pass is not ready." }, { status: 409 });
+  }
 
   const plan = project.edit_plan as VideoProducerEditPlan;
   let renderPlan;
