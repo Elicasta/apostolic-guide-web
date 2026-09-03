@@ -114,7 +114,13 @@ jobs:
           RENDER_PAYLOAD: ${{ toJson(github.event.client_payload) }}
         run: printf '%s' "$RENDER_PAYLOAD" > /tmp/video-producer-render.json
       - name: Render, upload, and report status
-        run: python3 scripts/render_video_producer_visual_pass_worker.py /tmp/video-producer-render.json /tmp/video-producer.mp4
+        shell: bash
+        run: |
+          if [ -f scripts/render_video_producer_visual_pass_worker.py ]; then
+            python3 scripts/render_video_producer_visual_pass_worker.py /tmp/video-producer-render.json /tmp/video-producer.mp4
+          else
+            python3 scripts/render_video_producer_finishing_worker.py /tmp/video-producer-render.json /tmp/video-producer.mp4
+          fi
       - name: Keep failed render for diagnostics
         if: failure()
         uses: actions/upload-artifact@v4
