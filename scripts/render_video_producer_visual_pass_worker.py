@@ -50,12 +50,7 @@ def clamp(value, low, high):
 
 
 def staged_inspection_command(command):
-    """Speed up only the isolated staging lane so hosted-runner previews finish quickly.
-
-    The normal production/master path keeps the finishing worker's quality preset.
-    This profile exists to review timing, typography, cuts, B-roll placement, and
-    graphics without spending a full master encode on every preview iteration.
-    """
+    """Speed up only the isolated staging lane so hosted-runner previews finish quickly."""
     if not STAGED_INSPECTION_ENCODE:
         return command
     command = list(command)
@@ -72,18 +67,38 @@ def staged_inspection_command(command):
     return command
 
 
-def visual_scale_chain(mode, fit, scale):
-    width, height = (1080, 1920) if mode == "reels" else (1920, 1080)
-    if fit == "contain":
-        base = f"fps=30,scale={width}:{height}:force_original_aspect_ratio=decrease:flags=lanczos,setsar=1"
+def apply_staged_inspection_profile(manifest):
+    """Downscale only staging proofs after ASS is authored at master coordinates.
+
+    The ASS file is intentionally built before this mutation. That preserves the
+    1920x1080/1080x1920 design coordinate system while libass scales it onto the
+    small inspection frame. Production manifests are never changed.
+    """
+    if not STAGED_INSPECTION_ENCODE:
+        return
+    plan = manifest.get("renderPlan") or {}
+    output = plan.get("output") or {}
+    if plan.get("mode") == "reels":
+        output["width"], output["height"] = 360, 640
     else:
-        base = f"fps=30,scale={width}:{height}:force_original_aspect_ratio=increase:flags=lanczos,crop={width}:{height},setsar=1"
+        output["width"], output["height"] = 640, 360
+    print(
+        f"Video Producer staged inspection resolution: {output['width']}x{output['height']}",
+        flush=True,
+    )
+
+
+def visual_scale_chain(width, height, fit, scale):
+    if fit == "contain":
+        base = f"fps=30,scale={width}:{height}:force_original_aspect_ratio=decrease:flags=fast_bilinear,setsar=1"
+    else:
+        base = f"fps=30,scale={width}:{height}:force_original_aspect_ratio=increase:flags=fast_bilinear,crop={width}:{height},setsar=1"
     visual_scale = clamp(scale, 0.25, 4.0)
     if abs(visual_scale - 1.0) <= 0.001:
         return base
     return (
         f"{base},scale=w='max(2,trunc(iw*{visual_scale:.6f}/2)*2)':"
-        f"h='max(2,trunc(ih*{visual_scale:.6f}/2)*2)':flags=lanczos,setsar=1"
+        f"h='max(2,trunc(ih*{visual_scale:.6f}/2)*2)':flags=fast_bilinear,setsar=1"
     )
 
 
@@ -134,6 +149,9 @@ def build_ffmpeg_v3(manifest, source, ass_file, output_file):
             float((value.get("placement") or {}).get("sourceStart") or 0)
         )
     )
+    output = (manifest.get("renderPlan") or {}).get("output") or {}
+    output_width = int(output.get("width") or 1920)
+    output_height = int(output.get("height") or 1080)
     for item in ordered:
         placement = item.get("placement") or {}
         asset = item.get("asset") or {}
@@ -154,7 +172,7 @@ def build_ffmpeg_v3(manifest, source, ass_file, output_file):
             asset_end = asset_start + (output_end - output_start)
             visual_label = f"agvis{segment_index}"
             overlay_label = f"agvo{segment_index}"
-            chain = visual_scale_chain(manifest["renderPlan"]["mode"], fit, scale)
+            chain = visual_scale_chain(output_width, output_height, fit, scale)
             pieces.append(
                 f"[{input_index}:v]trim=start={asset_start:.4f}:end={asset_end:.4f},"
                 f"setpts=PTS-STARTPTS+{output_start:.4f}/TB,{chain}[{visual_label}]"
@@ -261,6 +279,7 @@ def main():
 
         fw.bw.base.callback(payload, "rendering", 12, "Building Visual Pass + AG Kinetic Graphics")
         kinetic_count = build_graphics_ass(manifest, ass_path)
+        apply_staged_inspection_profile(manifest)
         stage = "Encoding A-roll + B-roll + kinetic assembly · estimating" if kinetic_count else "Encoding A-roll + B-roll assembly · estimating"
         fw.bw.safe_progress_callback(payload, 18, stage)
         fw.bw.run_main_render_with_progress(payload, manifest, source_path, ass_path, main_path)
