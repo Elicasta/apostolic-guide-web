@@ -7,6 +7,8 @@ on:
       - 'scripts/render_video_producer_broadcast_worker.py'
       - 'scripts/render_video_producer_finishing_worker.py'
       - 'scripts/render_video_producer_visual_pass_worker.py'
+      - 'scripts/render_video_producer_preview_chunk_worker.py'
+      - 'scripts/assemble_video_producer_preview_worker.py'
       - 'scripts/video_producer_visual_import_worker.py'
       - 'scripts/video_producer_broadcast_graphics.py'
       - 'scripts/video_producer_broadcast_graphics_v2.py'
@@ -24,6 +26,7 @@ on:
       - 'public/brand/**'
       - '.github/workflows/video-producer-worker-check.yml'
       - '.github/workflows/video-producer-dispatch.yml'
+      - '.github/workflows/video-producer-preview-render.yml'
       - '.github/workflows/video-producer-visual-import.yml'
 
 permissions:
@@ -71,6 +74,8 @@ jobs:
             scripts/render_video_producer_broadcast_worker.py \
             scripts/render_video_producer_finishing_worker.py \
             scripts/render_video_producer_visual_pass_worker.py \
+            scripts/render_video_producer_preview_chunk_worker.py \
+            scripts/assemble_video_producer_preview_worker.py \
             scripts/video_producer_visual_import_worker.py \
             scripts/video_producer_broadcast_graphics.py \
             scripts/video_producer_broadcast_graphics_v2.py \
