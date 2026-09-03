@@ -63,9 +63,9 @@ test("AG kinetic renderer uses canonical palette and moving field transitions", 
   assert.match(renderer, /RGB #F5F7F4/);
   assert.match(renderer, /AG_BLACK = "2A2010"/);
   assert.match(renderer, /RGB #10202A/);
+  assert.match(renderer, /def _a_roll_hit/);
   assert.match(renderer, /def _field_wipe/);
   assert.match(renderer, /moving_rect/);
-  assert.match(renderer, /text hit over A-roll/i);
   assert.match(renderer, /render_question_stack/);
 });
 
