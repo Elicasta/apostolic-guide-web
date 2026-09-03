@@ -69,7 +69,7 @@ def manifest(music_path):
                 {"id": "path", "kind": "pathway", "start": .2, "duration": .6, "title": "GOD IS ONE PATHWAY", "body": "Follow along through the Scriptures", "reference": None, "animation": "rise", "placement": "lower-third", "outputStart": .2, "outputRanges": visible(.2,.8)},
                 {"id": "chapter", "kind": "chapter", "start": .9, "duration": .7, "title": "THE CONTROLLING CONFESSION", "body": None, "reference": "Deuteronomy 6:4", "animation": "wipe", "placement": "full-frame", "outputStart": .9, "outputRanges": visible(.9,1.6)},
                 {"id": "verse-short", "kind": "scripture", "start": 1.8, "duration": .8, "title": "The Lord our God is one.", "body": None, "reference": "Deuteronomy 6:4", "animation": "fade", "placement": "lower-third", "outputStart": 1.8, "outputRanges": visible(1.8,2.6)},
-                {"id": "verse-long", "kind": "scripture", "start": 3.0, "duration": .8, "title": "Before me there was no God formed, neither shall there be after me.", "body": None, "reference": "Isaiah 43:10", "animation": "fade", "placement": "lower-third", "outputStart": 3.0, "outputRanges": visible(3.0,3.8)}
+                {"id": "verse-long", "kind": "scripture", "start": 3.0, "duration": .8, "title": "Before me there was no God formed, neither shall there be after me.", "body": None, "reference": "Isaiah 43:10", "animation": "fade", "placement": "full-frame", "outputStart": 3.0, "outputRanges": visible(3.0,3.8)}
             ],
             "motion": [],
             "music": [{"id":"ag-music-bed","trackId":"music","start":0,"end":6,"gainDb":-28,"duckUnderVoice":True,"outputRanges":visible(0,6)}],
