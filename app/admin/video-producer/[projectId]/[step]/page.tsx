@@ -17,8 +17,8 @@ export default async function VideoProducerProjectStepPage({ params }: { params:
   if (!STEPS.has(step as VideoProducerStep)) redirect(`/admin/video-producer/${projectId}/source`);
   return (
     <>
-      <VideoProducerSequentialFlow projectId={projectId} step={step as VideoProducerStep}/>
       {step === "source" ? <VideoProducerMulticamPanel projectId={projectId} mode="source"/> : null}
+      <VideoProducerSequentialFlow projectId={projectId} step={step as VideoProducerStep}/>
       {step === "produce" ? <VideoProducerMulticamPanel projectId={projectId} mode="produce"/> : null}
       {step === "produce" ? <VideoProducerRegeneratePanel projectId={projectId}/> : null}
       {step === "finish" ? <VideoProducerVisualPassPanel projectId={projectId}/> : null}
