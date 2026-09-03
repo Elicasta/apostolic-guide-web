@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation";
 import { getStudioPermission } from "@/auth";
+import { createServiceClient } from "@/supabase";
+import { resolveVideoProducerVisualPassReadiness } from "@/video-producer-visual-pass-server";
 import { VideoProducerKineticReview } from "@/video-producer-kinetic-review";
 import { VideoProducerMulticamPanel } from "@/video-producer-multicam-panel";
 import { VideoProducerRegeneratePanel } from "@/video-producer-regenerate-panel";
@@ -15,6 +17,19 @@ export default async function VideoProducerProjectStepPage({ params }: { params:
   const { projectId, step } = await params;
   if (!/^[0-9a-f-]{36}$/i.test(projectId)) redirect("/admin/video-producer");
   if (!STEPS.has(step as VideoProducerStep)) redirect(`/admin/video-producer/${projectId}/source`);
+
+  if (step === "review" || step === "deliver") {
+    const service = createServiceClient();
+    if (service) {
+      try {
+        const visualPass = await resolveVideoProducerVisualPassReadiness(service, projectId);
+        if (!visualPass.ready) redirect(`/admin/video-producer/${projectId}/finish`);
+      } catch {
+        redirect(`/admin/video-producer/${projectId}/finish`);
+      }
+    }
+  }
+
   return (
     <>
       {step === "source" ? <VideoProducerMulticamPanel projectId={projectId} mode="source"/> : null}
