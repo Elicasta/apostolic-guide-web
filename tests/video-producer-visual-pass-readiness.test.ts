@@ -33,5 +33,7 @@ test("Finish auto-runs Visual Pass and searches real footage before generation",
 test("Review and Deliver redirect to Finish until Visual Pass readiness is true", () => {
   const page = readFileSync("app/admin/video-producer/[projectId]/[step]/page.tsx", "utf8");
   assert.match(page, /resolveVideoProducerVisualPassReadiness/);
-  assert.match(page, /if \(!visualPass\.ready\) redirect\(`\/admin\/video-producer\/\$\{projectId\}\/finish`\)/);
+  assert.match(page, /let visualPassReady = false/);
+  assert.match(page, /visualPassReady = \(await resolveVideoProducerVisualPassReadiness\(service, projectId\)\)\.ready/);
+  assert.match(page, /if \(!visualPassReady\) redirect\(`\/admin\/video-producer\/\$\{projectId\}\/finish`\)/);
 });
