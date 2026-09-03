@@ -69,19 +69,22 @@ function visualDirectorRules(mode: "podcast" | "reels") {
     "Every beat timestamp is in LOCAL source time. Dialogue must be a faithful excerpt from the supplied transcript near that timestamp.",
     "Apostolic Guide long-form pacing is fast, intentional and editorial. Keep forward momentum without hyperactive short-form editing.",
     "Continuously evaluate whether the viewer has been looking at a substantially unchanged composition for roughly 6-12 seconds. A visual reset may be A-roll, subtle punch-in, Camera B, Scripture, kinetic typography, diagram, B-roll, or a chapter/objection graphic. Do not force a reset just because time passed. Stillness is valid when the sentence earns it.",
+    "Balance the episode across three visual jobs: PROOF (Scripture/diagram/quote), PRESENCE (speaker/Camera B/punch-in), and TEXTURE (real B-roll/documentary insert). Do not let one category monopolize the entire episode.",
     "Prefer evidence and clarity over decoration. For doctrine, objections, comparisons, quoted phrases, verse relationships, timelines, or claims that need proof, GRAPHIC or SCRIPTURE often beats B-ROLL.",
-    "Apostolic Guide now has a deterministic Kinetic Graphics system: oversized exact-phrase text over A-roll can resolve into deep-red/bone/black impact, split, strike, band, stack, or question-stack cards. When a strong spoken phrase should become that kind of typography, choose GRAPHIC rather than B-ROLL and say KINETIC TEXT in the intent. Do not try to generate text inside AI video.",
-    "The user-supplied EXISTING EDIT-DIRECTOR GRAPHICS block is authoritative. Do not add a competing B-roll beat over an already-planned Scripture, chapter, statement, or kinetic graphic unless the transcript clearly needs a separate visual immediately before or after it.",
-    "Use B-ROLL only when it explains, demonstrates, locates, contrasts, provides meaningful texture, or gives the viewer a useful visual reset.",
+    "Apostolic Guide has a deterministic Kinetic Graphics system: oversized exact-phrase text over A-roll can transform through impact, split, band, stack, or question-stack compositions. When a strong spoken phrase deserves that treatment, choose GRAPHIC rather than B-ROLL and say KINETIC TEXT in the intent. Do not request strike-throughs, scribbles, diagonal slashes, or text inside AI video.",
+    "The EXISTING EDIT-DIRECTOR GRAPHICS block is authoritative. Do not place B-roll directly over an existing Scripture, chapter, statement, or kinetic beat. Use the visual space immediately before or after it when another reset is useful.",
+    "Use B-ROLL when it explains, demonstrates, locates, contrasts, humanizes, provides tactile documentary texture, or gives the viewer a useful visual reset that typography cannot provide.",
+    "For a four-to-six-minute LONG FORM episode with concrete visual opportunities, normally return about 5-9 genuine B-ROLL beats distributed across the episode. Do not return zero B-roll merely because graphics already exist. Zero B-roll is acceptable only when the transcript truly offers nothing that can be shown honestly.",
+    "B-roll beats should usually last about 3-7 seconds. Prefer several distinct useful shots over one long generic stock montage.",
     "Never propose literal AI Bible-movie imagery: no actor portraying Jesus, Moses, apostles, prophets, ancient Israelites, or biblical events; no glowing Bible; no cross silhouette at sunset; no fantasy church-stock imagery.",
-    "When a concept would require pretending generated footage depicts a historical biblical event, choose scripture, graphic, A-roll, or an abstract/documentary fragment instead.",
-    "For B-roll search, write concrete stock-friendly queries such as 'ancient manuscript macro', 'Bible page turning natural light', 'ink on parchment', 'old stone church detail'. Avoid theological search phrases that stock APIs will not understand.",
+    "When a concept would require pretending generated footage depicts a historical biblical event, choose Scripture, graphic, A-roll, or an abstract/documentary fragment instead.",
+    "For B-roll search, write two or three concrete stock-friendly queries per beat. Prefer physical nouns, location, action and photographic treatment such as 'ancient manuscript macro', 'Bible page turning natural window light', 'ink on parchment close up', 'old stone church detail', 'hands reading Bible desk'. Avoid theological search phrases stock APIs will not understand.",
     "For generated inserts, think cinematic fragments: archival paper, ink, dust in a light shaft, stone, fabric, skin, hands, maps, glass, water, shadow, or abstract physical phenomena. No visible generated text.",
     "Image-to-video is preferred when an art-directed still can control composition. Generated motion should be subtle and physically believable.",
-    "Do not cover every sentence. The speaker remains the primary visual. Use visual beats where they materially help pacing or comprehension.",
+    "Do not cover every sentence. The speaker remains the primary visual, but a long-form episode should not collapse into one uninterrupted talking-head composition when meaningful real footage exists.",
     mode === "reels"
-      ? "REELS: favor tighter reset intervals and concise full-frame evidence, but do not create generic creator-caption chaos."
-      : "LONG FORM: controlled momentum. Clean A-roll can hold longer when delivery is strong; visual changes should feel authored, not automatic.",
+      ? "REELS: favor tighter reset intervals and concise full-frame evidence. Usually 1-3 B-roll beats is enough for a short clip; do not create generic creator-caption chaos."
+      : "LONG FORM: controlled momentum. Clean A-roll can hold longer when delivery is strong, but distribute useful B-roll across early, middle and late sections rather than clustering every insert in one minute.",
     "VISUAL VOCABULARY:",
     ...vocabularyLines,
     "Return decisions only. Search, generation, licensing, download, placement and rendering are handled by code."
@@ -232,7 +235,7 @@ export async function POST(request: Request) {
     const saved = await service.from("video_producer_projects").update({
       director_metadata: {
         ...metadata,
-        visualPass: { model, analyzedAt: new Date().toISOString(), summary: output.summary, beatCount: rows.length, assemblyAuthority: true, finalCutAuthority: false }
+        visualPass: { model, analyzedAt: new Date().toISOString(), summary: output.summary, beatCount: rows.length, brollCount: rows.filter((row) => row.recommendation === "b-roll").length, assemblyAuthority: true, finalCutAuthority: false }
       },
       updated_by: access.user.id
     }).eq("id", project.id);
