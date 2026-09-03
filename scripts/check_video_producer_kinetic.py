@@ -81,12 +81,16 @@ def main():
             raise RuntimeError(f"expected 5 kinetic ranges, got {count}")
         with open(ass, "r", encoding="utf-8") as handle:
             text = handle.read()
+        # Kinetic copy is intentionally wrapped with ASS \\N breaks. Normalize those
+        # display breaks before asserting the authored phrases so this tests content,
+        # not one specific line-wrap decision.
+        searchable = text.replace("\\N", " ")
         for expected in [
             "ONE GOD", "THE SCRIPTURE STARTS HERE", "REVEALED IN JESUS", "THE WORD",
             "WAS WITH GOD", "WAS GOD", "BECAME FLESH", "WATCH THE TEXT",
             "WHAT PREEXISTED?", "WHEN DID THE SON BEGIN?"
         ]:
-            if expected not in text:
+            if expected not in searchable:
                 raise RuntimeError(f"kinetic ASS missing {expected}")
         for token, label in [("3D2DA1", "crimson"), ("F4F7F5", "paper"), ("2A2010", "ink")]:
             if token not in text:
