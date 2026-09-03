@@ -24,11 +24,15 @@ type State = {
 const TREATMENTS: Array<{ id: VideoProducerKineticTreatment; label: string; note: string }> = [
   { id: "impact", label: "Impact", note: "Huge phrase over A-roll → dark AG card" },
   { id: "split", label: "Split", note: "Bone phrase + deep-red response" },
-  { id: "strike", label: "Strike", note: "Short claim + animated diagonal slash" },
+  { id: "strike", label: "Strike", note: "Short claim + deliberate diagonal slash" },
   { id: "band", label: "Band", note: "Single word inside a bone horizontal band" },
-  { id: "stack", label: "Stack", note: "Deep-red headline + bone support + underline" },
+  { id: "stack", label: "Stack", note: "Deep-red headline + clean bone support" },
   { id: "question-stack", label: "Question stack", note: "2–3 stacked prompts; use | between lines" }
 ];
+
+function supportLines(value?: string | null) {
+  return (value ?? "").split("|").map((line) => line.trim()).filter(Boolean).slice(0, 4);
+}
 
 async function api<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, {
@@ -97,7 +101,7 @@ export function VideoProducerKineticReview({ projectId }: { projectId: string })
         <div>
           <div className={styles.eyebrow}>KINETIC GRAPHICS / 01</div>
           <h2>Text hits → animated AG graphics</h2>
-          <p>These are the oversized editorial moments inspired by the pacing reference. Sol chooses the faithful phrase. The renderer owns the deep-red, bone, black, slashes, bands and motion.</p>
+          <p>These are the oversized editorial moments inspired by the pacing reference. Sol chooses the faithful phrase. The renderer owns the deep-red, bone, black, bands and controlled motion.</p>
         </div>
         <span className={styles.count}>{state.kinetics.length} cue{state.kinetics.length === 1 ? "" : "s"}</span>
       </header>
@@ -109,6 +113,7 @@ export function VideoProducerKineticReview({ projectId }: { projectId: string })
         {state.kinetics.map((sourceCue, index) => {
           const cue = drafts[sourceCue.id] ?? sourceCue;
           const treatment = TREATMENTS.find((item) => item.id === cue.treatment) ?? TREATMENTS[0];
+          const secondaryLines = supportLines(cue.body);
           return (
             <article className={styles.card} key={sourceCue.id}>
               <div className={styles.cardTop}>
@@ -120,13 +125,13 @@ export function VideoProducerKineticReview({ projectId }: { projectId: string })
               <div className={styles.preview} data-treatment={cue.treatment}>
                 <span className={styles.previewLabel}>AG MOTION PREVIEW</span>
                 <strong>{cue.title || "KINETIC PHRASE"}</strong>
-                {cue.body ? <b>{cue.body.split("|").map((line, lineIndex) => <span key={`${line}-${lineIndex}`}>{line.trim()}</span>)}</b> : null}
+                {secondaryLines.length ? <b>{secondaryLines.map((line, lineIndex) => <span key={`${cue.id}-secondary-${lineIndex}`}>{line}</span>)}</b> : null}
                 <i aria-hidden="true"/>
               </div>
 
               <div className={styles.fields}>
                 <label><span>Primary phrase</span><input value={cue.title} maxLength={120} onChange={(event) => setDrafts((current) => ({ ...current, [cue.id]: { ...cue, title: event.target.value } }))}/></label>
-                <label><span>Secondary line</span><input value={cue.body ?? ""} maxLength={320} placeholder={cue.treatment === "question-stack" ? "QUESTION ONE? | QUESTION TWO?" : "Optional second phrase"} onChange={(event) => setDrafts((current) => ({ ...current, [cue.id]: { ...cue, body: event.target.value } }))}/></label>
+                <label><span>Secondary line</span><input value={cue.body ?? ""} maxLength={320} placeholder={cue.treatment === "question-stack" ? "QUESTION ONE? | QUESTION TWO?" : "Use | to make intentional line breaks"} onChange={(event) => setDrafts((current) => ({ ...current, [cue.id]: { ...cue, body: event.target.value } }))}/></label>
                 <label><span>Treatment</span><select value={cue.treatment} onChange={(event) => setDrafts((current) => ({ ...current, [cue.id]: { ...cue, treatment: event.target.value as VideoProducerKineticTreatment } }))}>{TREATMENTS.map((item) => <option value={item.id} key={item.id}>{item.label} · {item.note}</option>)}</select></label>
                 <div className={styles.timingFields}>
                   <label><span>Start · sec</span><input type="number" step="0.1" min="0" value={cue.start} onChange={(event) => setDrafts((current) => ({ ...current, [cue.id]: { ...cue, start: Number(event.target.value) } }))}/></label>
