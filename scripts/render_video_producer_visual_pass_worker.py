@@ -22,6 +22,7 @@ SPEC.loader.exec_module(fw)
 from video_producer_kinetic_graphics import append_kinetic_graphics  # noqa: E402
 
 ORIGINAL_BUILD = fw.build_ffmpeg_v2
+STAGED_INSPECTION_ENCODE = False
 
 
 def validate_manifest_v3(manifest):
@@ -48,6 +49,29 @@ def clamp(value, low, high):
         return low
 
 
+def staged_inspection_command(command):
+    """Speed up only the isolated staging lane so hosted-runner previews finish quickly.
+
+    The normal production/master path keeps the finishing worker's quality preset.
+    This profile exists to review timing, typography, cuts, B-roll placement, and
+    graphics without spending a full master encode on every preview iteration.
+    """
+    if not STAGED_INSPECTION_ENCODE:
+        return command
+    command = list(command)
+    try:
+        preset_index = command.index("-preset") + 1
+        command[preset_index] = "ultrafast"
+    except ValueError:
+        pass
+    try:
+        crf_index = command.index("-crf") + 1
+        command[crf_index] = "23"
+    except ValueError:
+        pass
+    return command
+
+
 def visual_scale_chain(mode, fit, scale):
     width, height = (1080, 1920) if mode == "reels" else (1920, 1080)
     if fit == "contain":
@@ -66,7 +90,7 @@ def visual_scale_chain(mode, fit, scale):
 def build_ffmpeg_v3(manifest, source, ass_file, output_file):
     visuals = ((manifest.get("visuals") or {}).get("placements") or [])
     if not visuals:
-        return ORIGINAL_BUILD(manifest, source, ass_file, output_file)
+        return staged_inspection_command(ORIGINAL_BUILD(manifest, source, ass_file, output_file))
 
     legacy = dict(manifest)
     legacy["version"] = 2 if manifest.get("multicam") else 1
@@ -146,7 +170,7 @@ def build_ffmpeg_v3(manifest, source, ass_file, output_file):
 
     pieces.append(f"[{current}]ass='{ass_file}'[vout]")
     command[graph_index] = ";".join(pieces)
-    return command
+    return staged_inspection_command(command)
 
 
 fw.bw.base.build_ffmpeg = build_ffmpeg_v3
@@ -172,6 +196,7 @@ def build_graphics_ass(manifest, target):
 
 
 def main():
+    global STAGED_INSPECTION_ENCODE
     if len(sys.argv) != 3:
         raise SystemExit("usage: render_video_producer_visual_pass_worker.py payload.json output.mp4")
     with open(sys.argv[1], "r", encoding="utf-8") as handle:
@@ -180,6 +205,10 @@ def main():
     for key in required:
         if not payload.get(key):
             raise RuntimeError(f"missing payload field: {key}")
+
+    STAGED_INSPECTION_ENCODE = payload.get("worker_ref") == "codex/video-producer"
+    if STAGED_INSPECTION_ENCODE:
+        print("Video Producer staged inspection encode: libx264 ultrafast / CRF 23", flush=True)
 
     fw.bw.base.callback(payload, "rendering", 2, "Downloading render manifest")
     with tempfile.TemporaryDirectory(prefix="ag-video-producer-v3-") as directory:
