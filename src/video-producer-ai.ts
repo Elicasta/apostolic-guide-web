@@ -28,9 +28,10 @@ export type VideoProducerReelCandidate = {
   reason: string;
 };
 
-const overlayKind = z.enum(["scripture", "pathway", "lower-third", "chapter", "statement", "quote", "cta"]);
+const overlayKind = z.enum(["scripture", "pathway", "lower-third", "chapter", "statement", "kinetic", "quote", "cta"]);
 const overlayAnimation = z.enum(["fade", "rise", "slide", "pop", "wipe", "none"]);
 const overlayPlacement = z.enum(["top", "center", "lower-third", "full-frame"]);
+const kineticTreatment = z.enum(["impact", "split", "strike", "band", "stack", "question-stack"]);
 const motionKind = z.enum(["punch-in", "reframe", "emphasis", "b-roll"]);
 const intensity = z.enum(["subtle", "medium", "strong"]);
 
@@ -49,7 +50,8 @@ const directorSchema = z.object({
     body: z.string().max(320).nullable().optional(),
     reference: z.string().max(80).nullable().optional(),
     animation: overlayAnimation.nullable().optional(),
-    placement: overlayPlacement.nullable().optional()
+    placement: overlayPlacement.nullable().optional(),
+    treatment: kineticTreatment.nullable().optional()
   })).max(80).default([]),
   motion: z.array(z.object({
     kind: motionKind,
@@ -92,13 +94,14 @@ export const VIDEO_PRODUCER_DIRECTOR_JSON_SCHEMA = {
       type: "array",
       items: {
         type: "object", additionalProperties: false,
-        required: ["kind", "start", "duration", "title", "body", "reference", "animation", "placement"],
+        required: ["kind", "start", "duration", "title", "body", "reference", "animation", "placement", "treatment"],
         properties: {
           kind: { type: "string", enum: overlayKind.options },
           start: { type: "number" }, duration: { type: "number" }, title: { type: "string" },
           body: { type: ["string", "null"] }, reference: { type: ["string", "null"] },
           animation: { type: ["string", "null"], enum: [...overlayAnimation.options, null] },
-          placement: { type: ["string", "null"], enum: [...overlayPlacement.options, null] }
+          placement: { type: ["string", "null"], enum: [...overlayPlacement.options, null] },
+          treatment: { type: ["string", "null"], enum: [...kineticTreatment.options, null] }
         }
       }
     },
@@ -207,7 +210,8 @@ export function normalizeVideoProducerDirectorOutput(input: unknown, mode: Video
       id: `ai-overlay-${index + 1}`, kind: cue.kind, start, duration: Math.min(cueDuration, duration - start), title: cue.title.trim(),
       body: nullableString(cue.body), reference: nullableString(cue.reference),
       animation: cue.animation ?? (mode === "reels" ? "rise" : "fade"),
-      placement: cue.placement ?? (mode === "reels" ? "center" : "lower-third")
+      placement: cue.kind === "kinetic" ? "full-frame" : cue.placement ?? (mode === "reels" ? "center" : "lower-third"),
+      treatment: cue.kind === "kinetic" ? (cue.treatment ?? "impact") : undefined
     }];
   });
 

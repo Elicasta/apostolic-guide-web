@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
-"""Pathway-aware Apostolic Guide Broadcast Graphics System V2.
+"""Apostolic Guide Broadcast Graphics System / 03.
 
-V2 keeps the approved Broadcast Graphics System / 01 look while optimizing the
-actual rendered master for phone readability and pathway orientation.
+Editorial, pathway-aware graphics for long-form teaching. V3 removes persistent
+corner bugs and white corporate cards. Orientation appears briefly after genuine
+section changes; Scripture and Pathway beats use the canonical AG ink, crimson,
+paper and muted palette with strong broadcast scale.
 """
 import importlib.util
 import os
@@ -13,6 +15,13 @@ SPEC = importlib.util.spec_from_file_location("ag_broadcast_v1", V1_PATH)
 g = importlib.util.module_from_spec(SPEC)
 assert SPEC and SPEC.loader
 SPEC.loader.exec_module(g)
+
+# Canonical app/globals.css tokens in ASS BGR order.
+g.NAVY = "2A2010"       # #10202A ink
+g.RED = "3D2DA1"        # #A12D3D crimson
+g.WARM = "F4F7F5"       # #F5F7F4 paper
+g.CONCRETE = "7D7766"   # #66777D muted
+g.CHARCOAL = "443A26"   # #263A44 ink-2
 
 
 def _clean(value):
@@ -48,138 +57,175 @@ def _step_title(pathway, number, fallback):
     return fallback
 
 
-def render_left_follower(lines, start, end, width, height, pathway, stop_number, segment_title):
+def _step_reference(pathway, number):
+    steps = pathway.get("steps") or [] if pathway else []
+    if 1 <= number <= len(steps):
+        return _clean(steps[number - 1].get("reference"))
+    return ""
+
+
+def _utility(lines, start, end, x, y, label, portrait=False, color=None):
+    g.add_rect(lines, start, end, x, y - (10 if portrait else 7), 7 if portrait else 5, 34 if portrait else 26, g.RED, layer=6, animation="fade")
+    g.add_text(lines, start, end, x + (22 if portrait else 17), y, label.upper(), size=24 if portrait else 18, color=color or g.CONCRETE, font=g.BODY_FONT, align=4, bold=True, spacing=2.1, layer=7, animation="fade")
+
+
+def render_orientation_strip(lines, start, end, width, height, pathway, stop_number, segment_title):
+    """A short post-transition orientation cue. Never persistent."""
     if not pathway or end <= start:
         return
     portrait = height > width
+    x = 64 if portrait else 76
+    y = 142 if portrait else 92
+    panel_w = min(width * .78, 650 if portrait else 720)
+    panel_h = 126 if portrait else 92
+    g.add_rect(lines, start, end, x, y, panel_w, panel_h, g.NAVY, alpha="20", layer=3, animation="rise")
+    g.add_rect(lines, start, end, x, y, 8 if portrait else 6, panel_h, g.RED, layer=4, animation="rise")
+    label = f"{_clean(pathway.get('title')).upper()}  /  {stop_number:02d}"
+    title = g.multiline(_clean(segment_title or _step_title(pathway, stop_number, "PATHWAY")), 26 if portrait else 38, 1, upper=True)
+    g.add_text(lines, start, end, x + 28, y + panel_h * .30, label, size=23 if portrait else 17, color=g.CONCRETE, font=g.BODY_FONT, align=4, bold=True, spacing=2.0, layer=5, animation="rise")
+    g.add_text(lines, start, end, x + 28, y + panel_h * .67, title, size=43 if portrait else 34, color=g.WARM, font=g.HEADLINE_FONT, align=4, bold=True, spacing=.35, layer=5, animation="rise")
+
+
+def render_pathway_card(lines, cue, start, end, width, height, ordinal, pathway):
+    portrait = height > width
+    stop = _step_number(cue, pathway, ordinal)
+    title = _clean(cue.get("title")) or _step_title(pathway, stop, "PATHWAY")
+    body = _clean(cue.get("body")) or _clean(pathway.get("title") if pathway else "Apostolic Guide")
+    reference = _clean(cue.get("reference")) or _step_reference(pathway, stop)
+    animation = cue.get("animation") or "wipe"
+    g.add_rect(lines, start, end, 0, 0, width, height, g.NAVY, layer=2, animation=animation)
+    field_w = width * (.30 if not portrait else 1.0)
+    field_h = height if not portrait else height * .28
+    g.add_rect(lines, start, end, 0, 0, field_w, field_h, g.RED, layer=3, animation="wipe")
     if portrait:
-        # Reels already use captions and more aggressive framing. Keep orientation compact.
-        x, y, panel_w, panel_h = 48, 120, 560, 142
-        label_size, title_size = 25, 38
+        g.add_text(lines, start, end, width * .08, field_h * .55, f"{stop:02d}", size=190, color=g.WARM, font=g.HEADLINE_FONT, align=4, bold=True, layer=4, animation="rise")
+        tx, ty = width * .08, height * .49
+        max_chars = 22
     else:
-        x, y, panel_w, panel_h = 54, 58, 510, 112
-        label_size, title_size = 20, 31
-    pathway_title = _clean(pathway.get("title")).upper()
-    segment = _clean(segment_title or _step_title(pathway, stop_number, "PATHWAY TEACHING")).upper()
-    g.add_rect(lines, start, end, x, y, panel_w, panel_h, g.NAVY, alpha="12", layer=2, animation="none")
-    g.add_rect(lines, start, end, x, y, 7, panel_h, g.RED, layer=3, animation="none")
-    g.add_text(lines, start, end, x + 22, y + 29, f"{pathway_title}  ·  STOP {stop_number}", size=label_size, color=g.CONCRETE, font=g.BODY_FONT, align=7, bold=True, spacing=1.7, layer=4, animation="none")
-    title = g.multiline(segment, 30 if portrait else 34, 2, upper=False)
-    g.add_text(lines, start, end, x + 22, y + 67, title, size=title_size, color=g.WARM, font=g.HEADLINE_FONT, align=7, bold=True, spacing=.7, layer=4, animation="none")
-
-
-def render_pathway_bug(lines, cue, start, end, width, height):
-    d = g.dimensions(width, height)
-    portrait = d["portrait"]
-    panel_w = min(width - d["safe_x"] * 2, 980 if portrait else 850)
-    panel_h = 170 if portrait else 124
-    x = d["safe_x"]
-    y = height - (410 if portrait else 198)
-    tile = panel_h
-    animation = cue.get("animation") or "rise"
-    g.add_rect(lines, start, end, x, y, panel_w, panel_h, g.WARM, layer=3, animation=animation)
-    g.logo_tile(lines, start, end, x, y, tile, animation=animation)
-    g.add_rect(lines, start, end, x + panel_w - 26, y, 26, panel_h, g.RED, layer=4, animation=animation)
-    title = g.multiline(cue.get("title"), 28, 1, upper=True)
-    body = g.multiline(cue.get("body") or "Follow along through the Scriptures", 48, 1, upper=False)
-    tx = x + tile + (34 if portrait else 30)
-    g.add_text(lines, start, end, tx, y + panel_h * .39, title, size=58 if portrait else 48, color=g.NAVY, font=g.HEADLINE_FONT, align=4, bold=True, animation=animation)
+        g.add_text(lines, start, end, field_w * .50, height * .51, f"{stop:02d}", size=280, color=g.WARM, font=g.HEADLINE_FONT, align=5, bold=True, layer=4, animation="rise")
+        tx, ty = width * .36, height * .43
+        max_chars = 28
+    _utility(lines, start, end, tx, ty - height * .17, "AG / PATHWAY STOP", portrait)
+    title_text = g.multiline(title, max_chars, 3, upper=True)
+    g.add_text(lines, start, end, tx, ty, title_text, size=112 if portrait else 104, color=g.WARM, font=g.HEADLINE_FONT, align=4, bold=True, spacing=.3, layer=5, animation="rise")
     if body:
-        g.add_text(lines, start, end, tx, y + panel_h * .72, body, size=27 if portrait else 23, color=g.CHARCOAL, font=g.BODY_FONT, align=4, animation=animation)
+        body_text = g.multiline(body, 35 if portrait else 52, 2, upper=False)
+        g.add_text(lines, start, end, tx, height * (.70 if portrait else .72), body_text, size=31 if portrait else 26, color=g.CONCRETE, font=g.BODY_FONT, align=4, bold=True, spacing=.2, layer=5, animation="fade")
+    if reference:
+        g.add_text(lines, start, end, tx, height * (.82 if portrait else .82), reference.upper(), size=28 if portrait else 22, color=g.RED if portrait else g.WARM, font=g.BODY_FONT, align=4, bold=True, spacing=2.0, layer=5, animation="fade")
 
 
 def _scripture_needs_full_frame(cue, width, height):
     if cue.get("placement") in ("full-frame", "center"):
         return True
     text = _clean(cue.get("title"))
-    threshold = 72 if height <= width else 54
+    threshold = 70 if height <= width else 52
     return len(text) > threshold
 
 
 def render_scripture_lower(lines, cue, start, end, width, height):
-    d = g.dimensions(width, height)
-    portrait = d["portrait"]
-    x = d["safe_x"]
-    panel_w = min(width - d["safe_x"] * 2, 1050 if portrait else 1390)
-    panel_h = 260 if portrait else 190
-    y = height - (520 if portrait else 272)
-    ref_w = 230 if portrait else 250
-    animation = cue.get("animation") or "fade"
-    g.add_rect(lines, start, end, x, y, panel_w, panel_h, g.WARM, layer=3, animation=animation)
-    g.add_rect(lines, start, end, x, y, ref_w, panel_h, g.NAVY, layer=4, animation=animation)
-    g.add_rect(lines, start, end, x + ref_w, y, 8, panel_h, g.RED, layer=5, animation=animation)
-
-    reference = g.multiline(cue.get("reference") or "SCRIPTURE", 18, 2, upper=True)
-    g.add_text(lines, start, end, x + 28, y + panel_h * .50, reference, size=38 if portrait else 31, color=g.WARM, font=g.HEADLINE_FONT, align=4, bold=True, spacing=1.3, animation=animation)
-
-    raw = _clean(cue.get("title"))
-    size = 66 if portrait else 58
-    wrap = 22 if portrait else 38
-    if len(raw) > 52:
-        size -= 6
-        wrap += 5
-    verse = g.multiline(raw, wrap, 2, upper=False)
-    g.add_text(lines, start, end, x + ref_w + 44, y + panel_h * .50, verse, size=size, color=g.NAVY, font=g.BODY_FONT, align=4, bold=True, spacing=.1, animation=animation)
+    portrait = height > width
+    x = width * (.06 if portrait else .055)
+    panel_w = width * (.88 if portrait else .78)
+    panel_h = height * (.29 if portrait else .27)
+    y = height - panel_h - height * (.10 if portrait else .075)
+    animation = cue.get("animation") or "rise"
+    g.add_rect(lines, start, end, x, y, panel_w, panel_h, g.NAVY, alpha="10", layer=3, animation=animation)
+    g.add_rect(lines, start, end, x, y, 8 if portrait else 6, panel_h, g.RED, layer=4, animation=animation)
+    reference = _clean(cue.get("reference")) or "SCRIPTURE"
+    verse = g.multiline(_clean(cue.get("title")), 24 if portrait else 47, 3 if portrait else 2, upper=False)
+    g.add_text(lines, start, end, x + 34, y + panel_h * .24, reference.upper(), size=28 if portrait else 22, color=g.RED, font=g.BODY_FONT, align=4, bold=True, spacing=2.0, layer=5, animation=animation)
+    g.add_text(lines, start, end, x + 34, y + panel_h * .61, verse, size=61 if portrait else 51, color=g.WARM, font=g.BODY_FONT, align=4, bold=True, spacing=0, layer=5, animation=animation)
 
 
 def render_scripture_full(lines, cue, start, end, width, height):
-    d = g.dimensions(width, height)
+    portrait = height > width
     animation = cue.get("animation") or "fade"
-    g.add_rect(lines, start, end, 0, 0, width, height, g.NAVY, alpha="02", layer=2, animation=animation)
-    margin = 82 if d["portrait"] else 96
-    g.add_corner_marks(lines, start, end, margin, margin, width - margin * 2, height - margin * 2, color=g.WARM, animation=animation)
-    bookmark_w = 44 if d["portrait"] else 34
-    bookmark_h = 78 if d["portrait"] else 58
-    g.add_rect(lines, start, end, width / 2 - bookmark_w / 2, margin - 2, bookmark_w, bookmark_h, g.RED, layer=4, animation=animation)
-
+    g.add_rect(lines, start, end, 0, 0, width, height, g.NAVY, layer=2, animation=animation)
+    x = width * (.08 if portrait else .075)
+    reference = _clean(cue.get("reference")) or "SCRIPTURE"
+    _utility(lines, start, end, x, height * .13, reference, portrait, color=g.RED)
     raw = _clean(cue.get("title"))
-    title_size = 94 if d["portrait"] else 82
-    if len(raw) > 105:
-        title_size -= 10
-    if len(raw) > 160:
-        title_size -= 8
-    verse = g.multiline(raw, 24 if d["portrait"] else 38, 5, upper=False)
-    g.add_text(lines, start, end, width / 2, height * .48, verse, size=title_size, color=g.WARM, font=g.BODY_FONT, align=5, bold=True, spacing=.15, animation=animation)
-    g.add_line(lines, start, end, width / 2 - (90 if d["portrait"] else 70), height * .70, 180 if d["portrait"] else 140, 5, g.RED, animation=animation)
-    reference = g.multiline(cue.get("reference") or "SCRIPTURE", 38, 1, upper=True)
-    g.add_text(lines, start, end, width / 2, height * .78, reference, size=36 if d["portrait"] else 30, color=g.CONCRETE, font=g.BODY_FONT, align=5, bold=True, spacing=2, animation=animation)
+    verse = g.multiline(raw, 22 if portrait else 43, 5 if portrait else 4, upper=False)
+    size = 91 if portrait else 79
+    if len(raw) > 120:
+        size -= 9
+    if len(raw) > 175:
+        size -= 8
+    g.add_text(lines, start, end, x, height * .48, verse, size=size, color=g.WARM, font=g.BODY_FONT, align=4, bold=True, spacing=0, layer=5, animation="rise")
+    g.add_rect(lines, start, end, x, height * .79, width * (.34 if portrait else .22), 7 if portrait else 5, g.RED, layer=5, animation="wipe")
+    g.add_text(lines, start, end, width * .92, height * .88, "AG / SCRIPTURE", size=24 if portrait else 18, color=g.CONCRETE, font=g.BODY_FONT, align=6, bold=True, spacing=2.2, layer=5, animation="fade")
 
 
 def render_chapter(lines, cue, start, end, width, height, number, pathway):
-    d = g.dimensions(width, height)
-    animation = cue.get("animation") or "wipe"
+    portrait = height > width
     stop = _step_number(cue, pathway, number)
-    g.add_rect(lines, start, end, 0, 0, width, height, g.NAVY, alpha="02", layer=2, animation=animation)
-    title = g.multiline(cue.get("title") or _step_title(pathway, stop, "PATHWAY TEACHING"), 24 if d["portrait"] else 31, 3, upper=True)
-    g.add_text(lines, start, end, width / 2, height * .35, f"PATHWAY STOP {stop}", size=34 if d["portrait"] else 29, color=g.CONCRETE, font=g.BODY_FONT, align=5, bold=True, spacing=4, animation=animation)
-    g.add_text(lines, start, end, width / 2, height * .52, title, size=116 if d["portrait"] else 96, color=g.WARM, font=g.HEADLINE_FONT, align=5, bold=True, spacing=1.4, animation=animation)
-    g.add_line(lines, start, end, width / 2 - 105, height * .67, 210, 5, g.RED, animation=animation)
-    reference = _clean(cue.get("reference"))
-    if not reference and pathway:
-        steps = pathway.get("steps") or []
-        if 1 <= stop <= len(steps):
-            reference = _clean(steps[stop - 1].get("reference"))
+    title = _clean(cue.get("title")) or _step_title(pathway, stop, "PATHWAY TEACHING")
+    reference = _clean(cue.get("reference")) or _step_reference(pathway, stop)
+    animation = cue.get("animation") or "wipe"
+    g.add_rect(lines, start, end, 0, 0, width, height, g.NAVY, layer=2, animation=animation)
+    number_x = width * (.04 if portrait else .035)
+    g.add_text(lines, start, end, number_x, height * .50, f"{stop:02d}", size=310 if portrait else 330, color=g.RED, font=g.HEADLINE_FONT, align=4, bold=True, layer=3, animation="rise")
+    tx = width * (.11 if portrait else .34)
+    _utility(lines, start, end, tx, height * .25, "AG / SECTION", portrait)
+    title_text = g.multiline(title, 20 if portrait else 31, 3, upper=True)
+    g.add_text(lines, start, end, tx, height * .48, title_text, size=118 if portrait else 105, color=g.WARM, font=g.HEADLINE_FONT, align=4, bold=True, spacing=.25, layer=5, animation="rise")
     if reference:
-        g.add_text(lines, start, end, width / 2, height * .76, reference.upper(), size=28 if d["portrait"] else 24, color=g.CONCRETE, font=g.BODY_FONT, align=5, bold=True, spacing=1.8, animation=animation)
+        g.add_text(lines, start, end, tx, height * .74, reference.upper(), size=29 if portrait else 24, color=g.CONCRETE, font=g.BODY_FONT, align=4, bold=True, spacing=2.0, layer=5, animation="fade")
+
+
+def render_statement(lines, cue, start, end, width, height, quote=False):
+    portrait = height > width
+    placement = cue.get("placement") or "center"
+    full = placement in ("full-frame", "center") or len(_clean(cue.get("title"))) > 54
+    animation = cue.get("animation") or "rise"
+    title = _clean(cue.get("title"))
+    body = _clean(cue.get("body") or cue.get("reference"))
+    if full:
+        g.add_rect(lines, start, end, 0, 0, width, height, g.NAVY, layer=2, animation=animation)
+        x = width * (.08 if portrait else .075)
+        _utility(lines, start, end, x, height * .16, "AG / QUOTE" if quote else "AG / IDEA", portrait)
+        title_text = g.multiline(title, 18 if portrait else 28, 4, upper=True)
+        g.add_text(lines, start, end, x, height * .50, title_text, size=122 if portrait else 110, color=g.WARM, font=g.HEADLINE_FONT, align=4, bold=True, spacing=.2, layer=5, animation="rise")
+        if body:
+            g.add_text(lines, start, end, x, height * .78, g.multiline(body, 34 if portrait else 55, 2, upper=False), size=31 if portrait else 25, color=g.RED, font=g.BODY_FONT, align=4, bold=True, layer=5, animation="fade")
+        return
+    x = width * (.055 if portrait else .06)
+    y = height * (.62 if portrait else .58)
+    panel_w = width * (.82 if portrait else .62)
+    panel_h = height * (.23 if portrait else .22)
+    g.add_rect(lines, start, end, x, y, panel_w, panel_h, g.NAVY, alpha="18", layer=3, animation=animation)
+    g.add_rect(lines, start, end, x, y, 7 if portrait else 5, panel_h, g.RED, layer=4, animation=animation)
+    title_text = g.multiline(title, 22 if portrait else 39, 2, upper=True)
+    g.add_text(lines, start, end, x + 30, y + panel_h * .52, title_text, size=72 if portrait else 58, color=g.WARM, font=g.HEADLINE_FONT, align=4, bold=True, layer=5, animation=animation)
 
 
 def render_overlay(lines, cue, start, end, width, height, ordinal, pathway):
     kind = cue.get("kind") or "statement"
     if kind == "pathway":
-        return render_pathway_bug(lines, cue, start, end, width, height)
+        return render_pathway_card(lines, cue, start, end, width, height, ordinal, pathway)
     if kind == "scripture":
         if _scripture_needs_full_frame(cue, width, height):
             return render_scripture_full(lines, cue, start, end, width, height)
         return render_scripture_lower(lines, cue, start, end, width, height)
     if kind == "chapter":
         return render_chapter(lines, cue, start, end, width, height, ordinal, pathway)
+    if kind == "statement":
+        return render_statement(lines, cue, start, end, width, height)
+    if kind == "quote":
+        return render_statement(lines, cue, start, end, width, height, quote=True)
     return g.render_overlay(lines, cue, start, end, width, height, ordinal)
 
 
 def _full_frame_ranges(plan):
     result = []
     for cue in plan.get("overlays") or []:
-        full = cue.get("kind") == "chapter" or (cue.get("kind") == "scripture" and _scripture_needs_full_frame(cue, plan["output"]["width"], plan["output"]["height"]))
+        kind = cue.get("kind")
+        full = (
+            kind in ("chapter", "pathway", "kinetic") or
+            (kind == "scripture" and _scripture_needs_full_frame(cue, plan["output"]["width"], plan["output"]["height"])) or
+            (kind in ("statement", "quote") and cue.get("placement") in ("full-frame", "center"))
+        )
         if not full:
             continue
         for visible in cue.get("outputRanges") or []:
@@ -187,23 +233,12 @@ def _full_frame_ranges(plan):
     return sorted(result)
 
 
-def _subtract_ranges(start, end, blocked):
-    ranges = [(start, end)]
-    for bstart, bend in blocked:
-        next_ranges = []
-        for rstart, rend in ranges:
-            if bend <= rstart or bstart >= rend:
-                next_ranges.append((rstart, rend))
-                continue
-            if bstart > rstart:
-                next_ranges.append((rstart, bstart))
-            if bend < rend:
-                next_ranges.append((bend, rend))
-        ranges = next_ranges
-    return [(a, b) for a, b in ranges if b - a >= .25]
+def _overlaps(start, end, blocked):
+    return any(not (end <= bstart or start >= bend) for bstart, bend in blocked)
 
 
-def add_pathway_followers(lines, manifest, width, height):
+def add_pathway_orientation(lines, manifest, width, height):
+    """Show orientation briefly after chapter changes, never for whole sections."""
     plan = manifest["renderPlan"]
     pathway = _pathway(manifest)
     if not pathway or plan.get("mode") != "podcast":
@@ -211,7 +246,7 @@ def add_pathway_followers(lines, manifest, width, height):
     output_duration = float(plan.get("outputDuration") or 0)
     if output_duration <= 0:
         return
-    chapters = []
+    blocked = _full_frame_ranges(plan)
     ordinal = 0
     for cue in plan.get("overlays") or []:
         if cue.get("kind") != "chapter":
@@ -221,26 +256,13 @@ def add_pathway_followers(lines, manifest, width, height):
         if not ranges:
             continue
         stop = _step_number(cue, pathway, ordinal)
-        first_start = float(ranges[0].get("outputStart", 0))
-        last_end = max(float(item.get("outputEnd", first_start)) for item in ranges)
-        chapters.append({"start": first_start, "end": last_end, "stop": stop, "title": _clean(cue.get("title"))})
-    chapters.sort(key=lambda item: item["start"])
-    blocked = _full_frame_ranges(plan)
-
-    if not chapters:
-        title = _step_title(pathway, 1, _clean(pathway.get("title")))
-        for start, end in _subtract_ranges(0, output_duration, blocked):
-            render_left_follower(lines, start, end, width, height, pathway, 1, title)
-        return
-
-    for index, chapter in enumerate(chapters):
-        section_start = chapter["end"]
-        section_end = chapters[index + 1]["start"] if index + 1 < len(chapters) else output_duration
-        if section_end <= section_start:
+        chapter_end = max(float(item.get("outputEnd", 0)) for item in ranges)
+        start = chapter_end + .16
+        end = min(output_duration, start + 3.0)
+        if end - start < .5 or _overlaps(start, end, blocked):
             continue
-        title = chapter["title"] or _step_title(pathway, chapter["stop"], _clean(pathway.get("title")))
-        for start, end in _subtract_ranges(section_start, section_end, blocked):
-            render_left_follower(lines, start, end, width, height, pathway, chapter["stop"], title)
+        title = _clean(cue.get("title")) or _step_title(pathway, stop, _clean(pathway.get("title")))
+        render_orientation_strip(lines, start, end, width, height, pathway, stop, title)
 
 
 def build_broadcast_ass_v2(manifest, target):
@@ -285,13 +307,12 @@ def build_broadcast_ass_v2(manifest, target):
                 animation_tag = "{\\fad(60,70)}" if animation in ("rise", "pop", "highlight") else ""
                 g.event(lines, cstart, cend, "Caption", animation_tag + g.caption_markup(group, index, style, highlight), layer=8)
 
-    output_duration = float(plan.get("outputDuration") or 0)
-    if output_duration > 0 and not pathway:
-        g.render_brand_bug(lines, 0, output_duration, width, height)
-
     ordinal = 0
     for cue in plan.get("overlays") or []:
         if not _clean(cue.get("title")):
+            continue
+        if cue.get("kind") == "kinetic":
+            # Dedicated Kinetic Graphics / 02 owns this cue after Broadcast V3.
             continue
         if cue.get("kind") == "chapter":
             ordinal += 1
@@ -302,7 +323,7 @@ def build_broadcast_ass_v2(manifest, target):
             if end > start:
                 render_overlay(lines, cue, start, end, width, height, display_ordinal, pathway)
 
-    add_pathway_followers(lines, manifest, width, height)
+    add_pathway_orientation(lines, manifest, width, height)
 
     with open(target, "w", encoding="utf-8") as handle:
         handle.write("\n".join(lines) + "\n")

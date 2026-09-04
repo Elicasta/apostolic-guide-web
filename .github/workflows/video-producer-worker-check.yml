@@ -6,8 +6,13 @@ on:
       - 'scripts/render_video_producer_worker.py'
       - 'scripts/render_video_producer_broadcast_worker.py'
       - 'scripts/render_video_producer_finishing_worker.py'
+      - 'scripts/render_video_producer_visual_pass_worker.py'
+      - 'scripts/render_video_producer_preview_chunk_worker.py'
+      - 'scripts/assemble_video_producer_preview_worker.py'
+      - 'scripts/video_producer_visual_import_worker.py'
       - 'scripts/video_producer_broadcast_graphics.py'
       - 'scripts/video_producer_broadcast_graphics_v2.py'
+      - 'scripts/video_producer_kinetic_graphics.py'
       - 'scripts/video_producer_thumbnail_worker.py'
       - 'scripts/video_producer_publisher_handoff_worker.py'
       - 'scripts/transcribe_video_producer_worker.py'
@@ -16,9 +21,13 @@ on:
       - 'scripts/check_video_producer_finishing.py'
       - 'scripts/check_video_producer_sync.py'
       - 'scripts/check_video_producer_multicam.py'
+      - 'scripts/check_video_producer_visual_pass.py'
+      - 'scripts/check_video_producer_kinetic.py'
       - 'public/brand/**'
       - '.github/workflows/video-producer-worker-check.yml'
       - '.github/workflows/video-producer-dispatch.yml'
+      - '.github/workflows/video-producer-preview-render.yml'
+      - '.github/workflows/video-producer-visual-import.yml'
 
 permissions:
   contents: read
@@ -64,8 +73,13 @@ jobs:
             scripts/render_video_producer_worker.py \
             scripts/render_video_producer_broadcast_worker.py \
             scripts/render_video_producer_finishing_worker.py \
+            scripts/render_video_producer_visual_pass_worker.py \
+            scripts/render_video_producer_preview_chunk_worker.py \
+            scripts/assemble_video_producer_preview_worker.py \
+            scripts/video_producer_visual_import_worker.py \
             scripts/video_producer_broadcast_graphics.py \
             scripts/video_producer_broadcast_graphics_v2.py \
+            scripts/video_producer_kinetic_graphics.py \
             scripts/video_producer_thumbnail_worker.py \
             scripts/video_producer_publisher_handoff_worker.py \
             scripts/transcribe_video_producer_worker.py \
@@ -73,7 +87,9 @@ jobs:
             scripts/check_video_producer_worker.py \
             scripts/check_video_producer_finishing.py \
             scripts/check_video_producer_sync.py \
-            scripts/check_video_producer_multicam.py
+            scripts/check_video_producer_multicam.py \
+            scripts/check_video_producer_visual_pass.py \
+            scripts/check_video_producer_kinetic.py
 
       - name: Verify waveform synchronization math
         run: python3 scripts/check_video_producer_sync.py
@@ -104,5 +120,31 @@ jobs:
           if [ "$status" -ne 0 ]; then
             diagnostic=$(tail -c 7000 /tmp/ag-multicam-smoke.log | tr '\n' ' ' | sed 's/%/%25/g; s/\r/%0D/g')
             echo "::error title=Multicam FFmpeg diagnostics::$diagnostic"
+            exit "$status"
+          fi
+
+      - name: Render Visual Pass V3 smoke file
+        shell: bash
+        run: |
+          set +e
+          python3 scripts/check_video_producer_visual_pass.py > /tmp/ag-visual-pass-smoke.log 2>&1
+          status=$?
+          cat /tmp/ag-visual-pass-smoke.log
+          if [ "$status" -ne 0 ]; then
+            diagnostic=$(tail -c 7000 /tmp/ag-visual-pass-smoke.log | tr '\n' ' ' | sed 's/%/%25/g; s/\r/%0D/g')
+            echo "::error title=Visual Pass V3 FFmpeg diagnostics::$diagnostic"
+            exit "$status"
+          fi
+
+      - name: Render AG kinetic text-to-graphic smoke file
+        shell: bash
+        run: |
+          set +e
+          python3 scripts/check_video_producer_kinetic.py > /tmp/ag-kinetic-smoke.log 2>&1
+          status=$?
+          cat /tmp/ag-kinetic-smoke.log
+          if [ "$status" -ne 0 ]; then
+            diagnostic=$(tail -c 7000 /tmp/ag-kinetic-smoke.log | tr '\n' ' ' | sed 's/%/%25/g; s/\r/%0D/g')
+            echo "::error title=Kinetic Graphics FFmpeg diagnostics::$diagnostic"
             exit "$status"
           fi

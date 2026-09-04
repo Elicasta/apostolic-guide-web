@@ -17,6 +17,9 @@ function session(slideCount = 9): TeleprompterSessionState {
     mode: "script",
     fontScale: 1,
     locked: false,
+    scrolling: false,
+    scrollSpeed: 55,
+    scrollTopSequence: 0,
     slides: Array.from({ length: slideCount }, (_, index) => ({
       id: `section-${index + 1}`,
       heading: `Section ${index + 1}`,

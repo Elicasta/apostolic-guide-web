@@ -8,6 +8,8 @@ import { compileVideoProducerRenderPlan, type VideoProducerEditPlan } from "@/vi
 import { normalizeVideoProducerTranscript, sliceVideoProducerTranscript } from "@/video-producer-ai";
 import type { VideoProducerAudioPlan, VideoProducerCameraPlan } from "@/video-producer-multicam";
 import { resolveVideoProducerProductionState } from "@/video-producer-production-server";
+import { requireVideoProducerVisualPassReady } from "@/video-producer-visual-pass-server";
+import { buildVideoProducerLicenseManifest } from "@/video-producer-visuals";
 import {
   createPrivateBlobDownloadUrl,
   createPrivateBlobUploadUrl,
@@ -24,15 +26,9 @@ export const maxDuration = 60;
 
 const schema = z.object({ projectId: z.string().uuid() });
 const MAX_RENDER_BYTES = 20 * 1024 * 1024 * 1024;
-const DEFAULT_PUBLIC_CALLBACK_ORIGIN = "https://apostolic-guide-web.vercel.app";
+const DEFAULT_PUBLIC_CALLBACK_ORIGIN = "https://www.apostolicguide.com";
 
-type MusicManifestTrack = {
-  id: string;
-  title: string;
-  url: string;
-  gainDb: number;
-  duckUnderVoice: boolean;
-};
+type MusicManifestTrack = { id: string; title: string; url: string; gainDb: number; duckUnderVoice: boolean };
 
 function videoProducerCallbackOrigin(request: Request) {
   const configured = process.env.VIDEO_PRODUCER_CALLBACK_ORIGIN?.trim().replace(/\/+$/, "");
@@ -57,6 +53,11 @@ export async function POST(request: Request) {
   if (!project?.source_locator || !project.edit_plan) return NextResponse.json({ error: "Source and edit plan are required before rendering." }, { status: 409 });
   if (project.status !== "approved" || !project.approval_fingerprint) return NextResponse.json({ error: "Approve the current edit before rendering." }, { status: 409 });
   if (project.source_provider !== "vercel_blob") return NextResponse.json({ error: "This source provider is not renderable yet." }, { status: 409 });
+  try {
+    await requireVideoProducerVisualPassReady(service, project.id);
+  } catch (error) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Visual Pass is not ready." }, { status: 409 });
+  }
 
   const plan = project.edit_plan as VideoProducerEditPlan;
   let renderPlan;
@@ -94,8 +95,7 @@ export async function POST(request: Request) {
   const musicTrackId = musicCue?.trackId || project.selected_music_track_id || null;
   if (musicTrackId) {
     const trackResult = await service.from("video_producer_music_tracks")
-      .select("id,title,storage_provider,storage_locator,active")
-      .eq("id", musicTrackId).maybeSingle();
+      .select("id,title,storage_provider,storage_locator,active").eq("id", musicTrackId).maybeSingle();
     if (trackResult.error) return NextResponse.json({ error: trackResult.error.message }, { status: 500 });
     const track = trackResult.data;
     if (!track?.active || track.storage_provider !== "vercel_blob" || !track.storage_locator) return NextResponse.json({ error: "The selected AG music track is unavailable." }, { status: 409 });
@@ -120,21 +120,41 @@ export async function POST(request: Request) {
     : null;
 
   try {
-    const [sourceUrl, cameraBUrl, externalAudioUrl] = await Promise.all([
+    const [sourceUrl, cameraBUrl, externalAudioUrl, visualMedia] = await Promise.all([
       createPrivateBlobDownloadUrl(project.source_locator, 8 * 60 * 60 * 1000),
       production.cameraB ? createPrivateBlobDownloadUrl(production.cameraB.storage_locator, 8 * 60 * 60 * 1000) : Promise.resolve(null),
-      production.externalAudio ? createPrivateBlobDownloadUrl(production.externalAudio.storage_locator, 8 * 60 * 60 * 1000) : Promise.resolve(null)
+      production.externalAudio ? createPrivateBlobDownloadUrl(production.externalAudio.storage_locator, 8 * 60 * 60 * 1000) : Promise.resolve(null),
+      Promise.all(production.visuals.map(async ({ placement, asset }) => ({
+        placement,
+        asset: {
+          id: asset.id,
+          provider: asset.sourceProvider,
+          providerAssetId: asset.providerAssetId ?? null,
+          filename: asset.filename,
+          url: await createPrivateBlobDownloadUrl(asset.storageLocator, 8 * 60 * 60 * 1000),
+          duration: asset.duration,
+          width: asset.width,
+          height: asset.height,
+          fps: asset.fps,
+          revision: asset.revision,
+          sha256: asset.sha256 ?? null
+        }
+      })))
     ]);
+    const manifestVersion = production.usesVisuals ? 3 : production.usesMulticam ? 2 : 1;
+    const licenseManifest = buildVideoProducerLicenseManifest({
+      projectId: project.id,
+      placements: production.visuals.map((item) => item.placement),
+      assets: production.visuals.map((item) => item.asset)
+    });
     const manifest = {
-      version: production.usesMulticam ? 2 : 1,
+      version: manifestVersion,
       project: {
         id: project.id,
         title: project.title,
         mode: project.mode,
         pathway: pathway ? {
-          slug: pathway.slug,
-          title: pathway.title,
-          summary: pathway.summary,
+          slug: pathway.slug, title: pathway.title, summary: pathway.summary,
           steps: pathway.steps.map((step) => ({ title: step.title, reference: step.reference, explanation: step.explanation }))
         } : null
       },
@@ -149,26 +169,26 @@ export async function POST(request: Request) {
           cameraPlan: production.cameraPlan,
           cameraRanges: production.cameraRanges,
           cameraB: production.cameraB && cameraBUrl ? {
-            assetId: production.cameraB.id,
-            url: cameraBUrl,
-            duration: production.cameraB.duration,
-            offsetSeconds: production.cameraB.offset_seconds,
-            syncRevision: production.cameraB.revision
+            assetId: production.cameraB.id, url: cameraBUrl, duration: production.cameraB.duration,
+            offsetSeconds: production.cameraB.offset_seconds, syncRevision: production.cameraB.revision
           } : null,
           audioPlan: production.audioPlan,
           externalAudio: production.externalAudio && externalAudioUrl ? {
-            assetId: production.externalAudio.id,
-            url: externalAudioUrl,
-            duration: production.externalAudio.duration,
-            offsetSeconds: production.externalAudio.offset_seconds,
-            syncRevision: production.externalAudio.revision
+            assetId: production.externalAudio.id, url: externalAudioUrl, duration: production.externalAudio.duration,
+            offsetSeconds: production.externalAudio.offset_seconds, syncRevision: production.externalAudio.revision
           } : null
         }
       } : {}),
-      brand: {
-        logo: "public/brand/apostolic-guide-mark-reversed.png",
-        wordmark: "public/brand/apostolic-guide-wordmark-reversed.png"
-      }
+      ...(production.usesVisuals ? {
+        visuals: {
+          version: 1,
+          authority: "assembly",
+          audioPolicy: "a-roll-continues",
+          placements: visualMedia,
+          licenseManifest
+        }
+      } : {}),
+      brand: { logo: "public/brand/apostolic-guide-mark-reversed.png", wordmark: "public/brand/apostolic-guide-wordmark-reversed.png" }
     };
 
     let uploadedManifestPath: string | null = null;
@@ -178,7 +198,7 @@ export async function POST(request: Request) {
       uploadedManifestPath = manifestBlob.pathname;
       const manifestUrl = await createPrivateBlobDownloadUrl(manifestBlob.pathname, 8 * 60 * 60 * 1000);
       const snapshot = {
-        version: production.usesMulticam ? 2 : 1,
+        version: manifestVersion,
         approvalFingerprint: production.fingerprint,
         mode: project.mode,
         pathwaySlug: pathway?.slug ?? null,
@@ -192,38 +212,30 @@ export async function POST(request: Request) {
           audioSource: production.audioPlan.source,
           cameraDecisionCount: production.cameraPlan?.decisions.length ?? 0
         } : null,
+        visuals: production.usesVisuals ? {
+          placementCount: production.visuals.length,
+          assets: production.visuals.map(({ placement, asset }) => ({ placementId: placement.id, placementRevision: placement.revision, assetId: asset.id, assetRevision: asset.revision, sha256: asset.sha256 ?? null }))
+        } : null,
         rendererBridge: { callbackTokenHash: callback.hash, callbackOrigin, manifestPath: manifestBlob.pathname, outputPath }
       };
       const created = await service.from("video_producer_renders").insert({
-        id: renderId,
-        project_id: project.id,
-        status: "queued",
-        manifest_storage_path: manifestBlob.pathname,
-        config_snapshot: snapshot,
-        progress: { percent: 0, stage: "Queued", heartbeatAt: new Date().toISOString() },
-        requested_by: access.user.id
+        id: renderId, project_id: project.id, status: "queued", manifest_storage_path: manifestBlob.pathname,
+        config_snapshot: snapshot, progress: { percent: 0, stage: "Queued", heartbeatAt: new Date().toISOString() }, requested_by: access.user.id
       }).select("*").single();
       if (created.error) throw new Error(created.error.message);
 
       await dispatchVideoProducerWorker({
-        token: githubToken,
-        repository,
-        eventType: "video-producer-render",
+        token: githubToken, repository, eventType: "video-producer-render",
         payload: {
-          job_id: renderId,
-          project_id: project.id,
-          worker_ref: workerRef,
-          source_url: sourceUrl,
-          manifest_url: manifestUrl,
-          output_upload_url: outputUploadUrl,
-          callback_url: `${callbackOrigin}/api/admin/video-producer/render-callback`,
-          callback_token: callback.token
+          job_id: renderId, project_id: project.id, worker_ref: workerRef, source_url: sourceUrl,
+          manifest_url: manifestUrl, output_upload_url: outputUploadUrl,
+          callback_url: `${callbackOrigin}/api/admin/video-producer/render-callback`, callback_token: callback.token
         }
       });
       uploadedManifestPath = null;
       const projectUpdate = await service.from("video_producer_projects").update({ status: "rendering", updated_by: access.user.id }).eq("id", project.id);
       if (projectUpdate.error) console.error("Video Producer project status update failed after render dispatch", projectUpdate.error.message);
-      return NextResponse.json({ render: created.data, workerRef, multicam: production.usesMulticam });
+      return NextResponse.json({ render: created.data, workerRef, multicam: production.usesMulticam, visuals: production.visuals.length });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Render could not be queued.";
       if (uploadedManifestPath) await deletePrivateVideoProducerBlob(uploadedManifestPath);
@@ -231,6 +243,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: message, code: message.toLowerCase().includes("blob") ? "blob_not_connected" : "render_dispatch_failed" }, { status: 502 });
     }
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Multicam media URLs could not be signed." }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Production media URLs could not be signed." }, { status: 500 });
   }
 }

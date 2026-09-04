@@ -14,9 +14,12 @@ on:
       - 'src/creative-*.tsx'
       - 'src/sol-*.ts'
       - 'src/sol-*.tsx'
+      - 'src/video-producer-*.ts'
+      - 'src/video-producer-*.tsx'
       - 'supabase/migrations/**'
       - 'supabase/rollback/**'
       - 'tests/studio-*.test.ts'
+      - 'tests/video-producer-*.test.ts'
       - '.github/workflows/ag-studio-checks.yml'
   workflow_dispatch:
 
