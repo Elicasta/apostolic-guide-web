@@ -180,7 +180,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ placement, imported: false, assemblyAuthority: true });
     }
 
-    if (!candidate.download_url || !["pexels", "pixabay"].includes(candidate.provider)) {
+    const publicCommons = candidate.provider === "upload" && metadata.originProvider === "wikimedia-commons";
+    if (!candidate.download_url || (!["pexels", "pixabay"].includes(candidate.provider) && !publicCommons)) {
       return NextResponse.json({ error: "This result must be generated or re-searched before it can be used." }, { status: 409 });
     }
 
@@ -196,8 +197,10 @@ export async function POST(request: Request) {
     const assetIn = Number(candidate.duration || 0) > range.duration + 2 ? Math.min(2, Number(candidate.duration) * 0.1) : 0;
     const originalProviderAssetId = String(candidate.provider_asset_id || jobId);
     const durableProviderAssetId = stockDerivativeId(originalProviderAssetId, assetIn, range.duration);
+    const provenanceProvider = typeof metadata.originProvider === "string" ? metadata.originProvider : candidate.provider;
     const licenseSnapshot = JSON.stringify({
-      provider: candidate.provider,
+      provider: provenanceProvider,
+      storageProviderCode: candidate.provider,
       providerAssetId: originalProviderAssetId,
       derivativeAssetId: durableProviderAssetId,
       selectedAssetIn: assetIn,
@@ -231,7 +234,7 @@ export async function POST(request: Request) {
         outputPath,
         sourceStart: range.start,
         sourceEnd: range.end,
-        candidateMetadata: { ...metadata, originalProviderAssetId },
+        candidateMetadata: { ...metadata, originalProviderAssetId, provenanceProvider },
         originalProviderAssetId,
         derivativeAssetId: durableProviderAssetId,
         rightsReviewRequired: true
