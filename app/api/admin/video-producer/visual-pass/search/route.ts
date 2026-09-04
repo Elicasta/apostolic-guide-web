@@ -4,6 +4,7 @@ import { getStudioPermission } from "@/auth";
 import { createServiceClient } from "@/supabase";
 import { createPrivateBlobDownloadUrl } from "@/video-producer-server";
 import { searchRealVisualCandidates } from "@/video-producer-visual-providers";
+import { searchWikimediaCommonsVideos } from "@/video-producer-public-stock";
 import type { VideoProducerVisualBeat } from "@/video-producer-visuals";
 
 export const runtime = "nodejs";
@@ -52,13 +53,24 @@ export async function POST(request: Request) {
 
   try {
     await service.from("video_producer_visual_beats").update({ status: "searching", updated_by: access.user.id }).eq("id", parsed.data.beatId);
-    const candidates = await searchRealVisualCandidates({
+    const beat = toBeat(beatResult.data as Record<string, unknown>);
+    let candidates = await searchRealVisualCandidates({
       service,
-      beat: toBeat(beatResult.data as Record<string, unknown>),
+      beat,
       pathwaySlug: projectResult.data.pathway_slug,
       mode: projectResult.data.mode,
       limit: 6
     });
+
+    if (candidates.length < 6) {
+      const query = beat.searchQueries[0] || beat.intent || beat.dialogue;
+      const publicFallback = await searchWikimediaCommonsVideos(query, { limit: 6 - candidates.length });
+      const existingSources = new Set(candidates.map((candidate) => candidate.sourceUrl).filter(Boolean));
+      candidates = [
+        ...candidates,
+        ...publicFallback.filter((candidate) => !candidate.sourceUrl || !existingSources.has(candidate.sourceUrl))
+      ].slice(0, 6);
+    }
 
     const cleared = await service.from("video_producer_visual_candidates").delete().eq("beat_id", parsed.data.beatId);
     if (cleared.error) throw new Error(cleared.error.message);
@@ -90,7 +102,7 @@ export async function POST(request: Request) {
       return { ...candidate, download_url: undefined, preview_url: previewUrl };
     }));
     await service.from("video_producer_visual_beats").update({ status: "open", updated_by: access.user.id }).eq("id", parsed.data.beatId);
-    return NextResponse.json({ candidates: responseCandidates, searchedRealFirst: true, limit: 6 });
+    return NextResponse.json({ candidates: responseCandidates, searchedRealFirst: true, publicFallback: "wikimedia-commons", limit: 6 });
   } catch (error) {
     await service.from("video_producer_visual_beats").update({ status: "open", updated_by: access.user.id }).eq("id", parsed.data.beatId);
     return NextResponse.json({ error: error instanceof Error ? error.message : "Visual search failed." }, { status: 502 });
