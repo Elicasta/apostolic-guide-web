@@ -9,6 +9,8 @@ import { VideoProducerReelsHandoff } from "@/video-producer-reels-handoff";
 import { VideoProducerSequentialFlow, type VideoProducerStep } from "@/video-producer-sequential-flow";
 import { VideoProducerVisualPassPanel } from "@/video-producer-visual-pass-panel";
 
+import { VideoProducerSceneEditor } from "@/video-producer-scene-editor";
+
 const STEPS = new Set<VideoProducerStep>(["source", "produce", "finish", "review", "deliver"]);
 
 export default async function VideoProducerProjectStepPage({ params }: { params: Promise<{ projectId: string; step: string }> }) {
@@ -16,6 +18,7 @@ export default async function VideoProducerProjectStepPage({ params }: { params:
   if (!allowed || access.state !== "allowed") redirect("/admin");
   const { projectId, step } = await params;
   if (!/^[0-9a-f-]{36}$/i.test(projectId)) redirect("/admin/video-producer");
+  if (step === "edit") return <VideoProducerSceneEditor projectId={projectId}/>;
   if (!STEPS.has(step as VideoProducerStep)) redirect(`/admin/video-producer/${projectId}/source`);
 
   if (step === "review" || step === "deliver") {

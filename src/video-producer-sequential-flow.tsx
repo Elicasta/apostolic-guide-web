@@ -362,6 +362,7 @@ export function VideoProducerSequentialFlow({ projectId: initialProjectId = "", 
       <div className={styles.flowShell}>
         <div className={styles.flowTopline}>
           <Link className={styles.backLink} href="/admin/video-producer"><ArrowLeft size={14}/> Projects</Link>
+          {projectId ? <Link className={styles.backLink} href={`/admin/video-producer/${projectId}/edit`}>Open scene editor <ArrowRight size={14}/></Link> : null}
           <span className={styles.projectBadge}>{project?.title || title || "New project"}</span>
         </div>
 

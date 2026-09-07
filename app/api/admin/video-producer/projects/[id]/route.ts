@@ -23,7 +23,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
 
   const [projectResult, rendersResult] = await Promise.all([
     service.from("video_producer_projects").select("*").eq("id", id).is("deleted_at", null).maybeSingle(),
-    service.from("video_producer_renders").select("id,status,progress,output_storage_path,error,requested_at,started_at,completed_at").eq("project_id", id).order("requested_at", { ascending: false }).limit(20)
+    service.from("video_producer_renders").select("id,status,progress,output_storage_path,config_snapshot,error,requested_at,started_at,completed_at").eq("project_id", id).order("requested_at", { ascending: false }).limit(20)
   ]);
   if (projectResult.error) return NextResponse.json({ error: projectResult.error.message }, { status: 500 });
   if (rendersResult.error) return NextResponse.json({ error: rendersResult.error.message }, { status: 500 });
@@ -46,8 +46,9 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
     console.error("Video Producer preview signing failed", error);
   }
   return NextResponse.json({
-    project: { ...project, transcript_local_text: localTranscript.text, transcript_local_duration: localTranscript.duration },
-    renders: rendersResult.data ?? [],
+    project: { ...project, transcript_local: localTranscript, transcript_local_text: localTranscript.text, transcript_local_duration: localTranscript.duration },
+    renderIsCurrent: Boolean(project.approval_fingerprint && rendersResult.data?.[0]?.status === "completed" && rendersResult.data[0].config_snapshot?.approvalFingerprint === project.approval_fingerprint),
+    renders: (rendersResult.data ?? []).map(({ config_snapshot: _snapshot, ...render }) => render),
     sourcePreviewUrl,
     renderPreviewUrl
   });

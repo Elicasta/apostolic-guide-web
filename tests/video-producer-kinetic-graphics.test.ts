@@ -80,7 +80,7 @@ test("stack treatment uses staggered support rows without scribble decoration", 
 });
 
 test("Edit Director reserves kinetic graphics for spoken phrases and rejects production metadata as copy", () => {
-  const route = readFileSync("app/api/admin/video-producer/direct/route.ts", "utf8");
+  const route = readFileSync("src/video-producer-operation-direct.ts", "utf8");
   assert.match(route, /KINETIC COPY MUST stay faithful to words actually spoken/);
   assert.match(route, /PROJECT title is metadata only/);
   assert.match(route, /Never use the project title as fallback copy/);

@@ -17,7 +17,7 @@ test("long-form Video Producer cannot approve with a skipped or zero-B-roll Visu
 
 test("Finish auto-runs Visual Pass and searches real footage before generation", () => {
   const panel = readFileSync("src/video-producer-visual-pass-panel.tsx", "utf8");
-  const visualRoute = readFileSync("app/api/admin/video-producer/visual-pass/route.ts", "utf8");
+  const visualRoute = readFileSync("src/video-producer-operation-visual-pass.ts", "utf8");
 
   assert.match(panel, /autoPassRef/);
   assert.match(panel, /void prepareEpisode\(state\)/);
