@@ -285,6 +285,7 @@ export function VideoProducerSceneEditor({ projectId }: { projectId: string }) {
   useEffect(() => {
     const interval = window.setInterval(
       () => {
+        if (actionLock.current) return;
         void load().catch((e) => setError(e.message));
         if (working || tab === "visuals") void loadVisuals().catch(() => {});
       },
@@ -402,6 +403,7 @@ export function VideoProducerSceneEditor({ projectId }: { projectId: string }) {
   async function action(name: string, work: () => Promise<unknown>) {
     if (actionLock.current) return;
     actionLock.current = true;
+    loadSequence.current++;
     setBusy(name);
     setError("");
     setNotice("");
@@ -433,6 +435,7 @@ export function VideoProducerSceneEditor({ projectId }: { projectId: string }) {
       d
         ? {
             ...d,
+            renderIsCurrent: false,
             project: {
               ...d.project,
               status: "planned",
