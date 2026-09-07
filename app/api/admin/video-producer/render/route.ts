@@ -46,7 +46,7 @@ export async function POST(request: Request) {
   if (!service) return NextResponse.json({ error: "Supabase service access is not configured." }, { status: 503 });
 
   const result = await service.from("video_producer_projects")
-    .select("id,title,mode,status,parent_project_id,pathway_slug,selected_music_track_id,source_provider,source_locator,source_filename,source_duration,source_range_start,source_range_end,transcript,edit_plan,camera_plan,audio_plan,approval_fingerprint,approved_at")
+    .select("id,title,mode,status,parent_project_id,pathway_slug,selected_music_track_id,source_provider,source_locator,source_filename,source_duration,source_range_start,source_range_end,transcript,edit_plan,camera_plan,audio_plan,approval_fingerprint,approved_at,updated_at")
     .eq("id", parsed.data.projectId).is("deleted_at", null).maybeSingle();
   if (result.error) return NextResponse.json({ error: result.error.message }, { status: 500 });
   const project = result.data;
@@ -192,6 +192,7 @@ export async function POST(request: Request) {
     };
 
     let uploadedManifestPath: string | null = null;
+    let claimedRevision: string | null = null;
     try {
       const outputUploadUrl = await createPrivateBlobUploadUrl({ pathname: outputPath, contentType: "video/mp4", maxBytes: MAX_RENDER_BYTES, ttlMs: 8 * 60 * 60 * 1000 });
       const manifestBlob = await storeVideoProducerManifest(manifestPath, manifest);
@@ -218,6 +219,15 @@ export async function POST(request: Request) {
         } : null,
         rendererBridge: { callbackTokenHash: callback.hash, callbackOrigin, manifestPath: manifestBlob.pathname, outputPath }
       };
+      const claimed = await service.from("video_producer_projects").update({ status: "rendering", updated_by: access.user.id })
+        .eq("id", project.id).eq("status", "approved").eq("updated_at", project.updated_at).eq("approval_fingerprint", production.fingerprint).is("deleted_at", null).select("updated_at").maybeSingle();
+      if (claimed.error) throw new Error(claimed.error.message);
+      if (!claimed.data) {
+        await deletePrivateVideoProducerBlob(manifestBlob.pathname);
+        uploadedManifestPath = null;
+        return NextResponse.json({ error: "A render already started or the project changed. Reload the project." }, { status: 409 });
+      }
+      claimedRevision = claimed.data.updated_at;
       const created = await service.from("video_producer_renders").insert({
         id: renderId, project_id: project.id, status: "queued", manifest_storage_path: manifestBlob.pathname,
         config_snapshot: snapshot, progress: { percent: 0, stage: "Queued", heartbeatAt: new Date().toISOString() }, requested_by: access.user.id
@@ -233,13 +243,13 @@ export async function POST(request: Request) {
         }
       });
       uploadedManifestPath = null;
-      const projectUpdate = await service.from("video_producer_projects").update({ status: "rendering", updated_by: access.user.id }).eq("id", project.id);
-      if (projectUpdate.error) console.error("Video Producer project status update failed after render dispatch", projectUpdate.error.message);
+
       return NextResponse.json({ render: created.data, workerRef, multicam: production.usesMulticam, visuals: production.visuals.length });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Render could not be queued.";
       if (uploadedManifestPath) await deletePrivateVideoProducerBlob(uploadedManifestPath);
       await service.from("video_producer_renders").update({ status: "failed", error: message, completed_at: new Date().toISOString() }).eq("id", renderId);
+      if (claimedRevision) await service.from("video_producer_projects").update({ status: "approved" }).eq("id", project.id).eq("status", "rendering").eq("updated_at", claimedRevision);
       return NextResponse.json({ error: message, code: message.toLowerCase().includes("blob") ? "blob_not_connected" : "render_dispatch_failed" }, { status: 502 });
     }
   } catch (error) {

@@ -63,12 +63,7 @@ function statusState(project: LibraryProject) {
 }
 
 function projectStep(project: LibraryProject) {
-  if (["draft", "uploading", "transcribing"].includes(project.status)) return "source";
-  if (["uploaded", "directing"].includes(project.status)) return "produce";
-  if (project.status === "planned") return "finish";
-  if (["approved", "rendering", "review", "completed"].includes(project.status)) return "deliver";
-  if (project.status === "failed" && project.approval_fingerprint) return "deliver";
-  return project.source_filename ? "produce" : "source";
+  return project.source_filename || !["draft", "uploading"].includes(project.status) ? "edit" : "source";
 }
 
 async function getJson<T>(url: string, init?: RequestInit): Promise<T> {
