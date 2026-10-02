@@ -181,20 +181,58 @@ export function diagnosePathwayReaderFunnel(input: {
     };
   }
 
-  const largestFromStep = largestDrop.from.match(/^Step (\d+)$/);
-  const largestToStep = largestDrop.to.match(/^Step (\d+)$/);
-  const fromNumber = largestFromStep ? Number(largestFromStep[1]) : null;
-  const toNumber = largestToStep ? Number(largestToStep[1]) : null;
-  const fromReached = fromNumber ? steps[fromNumber - 1]?.reached ?? 0 : 0;
-  if (fromNumber && toNumber && fromNumber >= 2 && fromReached >= 5 && largestDrop.retentionRate < 70 && largestDrop.lost >= 2) {
+  const transitions = steps.slice(0, -1).map((step, index) => {
+    const next = steps[index + 1];
+    return {
+      from: `Step ${step.stepNumber}`,
+      to: `Step ${next.stepNumber}`,
+      fromReached: step.reached,
+      toReached: next.reached,
+      lost: Math.max(0, step.reached - next.reached),
+      retentionRate: rate(next.reached, step.reached)
+    };
+  });
+  const weakMidTransitions = transitions.filter((transition, index) =>
+    index >= 1
+    && transition.fromReached > 0
+    && transition.lost >= 1
+    && transition.retentionRate < 70
+  );
+  const firstWeakMid = weakMidTransitions[0] ?? null;
+  const compoundIndex = transitions.findIndex((transition, index) => {
+    if (index < 1 || index >= transitions.length - 1) return false;
+    const next = transitions[index + 1];
+    return transition.fromReached > 0
+      && next.fromReached > 0
+      && transition.lost >= 1
+      && next.lost >= 1
+      && transition.retentionRate <= 75
+      && next.retentionRate <= 75;
+  });
+
+  if (compoundIndex >= 0) {
+    const compound = transitions[compoundIndex];
+    const next = transitions[compoundIndex + 1];
+    return {
+      kind: "mid",
+      label: "Mid-path compound decline",
+      detail: `${compound.from} → ${compound.to} retains ${compound.retentionRate}%, then ${next.from} → ${next.to} retains ${next.retentionRate}%. The Pathway has enough starting readers to treat this consecutive decline as a review signal even though the later-step counts are smaller.`,
+      review: true,
+      confidence,
+      focusFrom: compound.from,
+      focusTo: next.to
+    };
+  }
+
+  if (firstWeakMid) {
     return {
       kind: "mid",
       label: "Mid-path problem",
-      detail: `${largestDrop.from} → ${largestDrop.to} retains ${largestDrop.retentionRate}%. Review that exact handoff for argument order, length, repetition, or a Scripture/explanation mismatch.`,
+      detail: `${firstWeakMid.from} → ${firstWeakMid.to} retains ${firstWeakMid.retentionRate}% (${firstWeakMid.lost} reader${firstWeakMid.lost === 1 ? "" : "s"} lost). Because ${began} readers began the Pathway, inspect this handoff even though fewer readers remain by this point.`,
       review: true,
       confidence,
-      focusFrom: largestDrop.from,
-      focusTo: largestDrop.to
+      focusFrom: firstWeakMid.from,
+      focusTo: firstWeakMid.to
     };
   }
 

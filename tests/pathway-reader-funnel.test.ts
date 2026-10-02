@@ -192,3 +192,31 @@ test("Analytics mounts a conservative Needs Review decision layer", () => {
   assert.match(page, /row\.diagnosis\.label/);
   assert.match(page, /Inspect Pathway/);
 });
+
+
+test("five starters can expose a later compound decline after the cohort shrinks", () => {
+  const step = (stepNumber: number, reached: number) => ({ stepNumber, title: String(stepNumber), reference: String(stepNumber), reached, retentionFromPrevious: 100, retentionFromOpen: 100 });
+  const diagnosis = diagnosePathwayReaderFunnel({
+    opens: 5, began: 5, completions: 1,
+    steps: [step(1, 5), step(2, 4), step(3, 4), step(4, 2), step(5, 1), step(6, 1)],
+    largestDrop: { from: "Step 3", to: "Step 4", lost: 2, retentionRate: 50 }
+  });
+  assert.equal(diagnosis.kind, "mid");
+  assert.equal(diagnosis.review, true);
+  assert.equal(diagnosis.label, "Mid-path compound decline");
+  assert.equal(diagnosis.focusFrom, "Step 3");
+  assert.equal(diagnosis.focusTo, "Step 5");
+});
+
+test("a single later collapse remains reviewable once five readers began", () => {
+  const step = (stepNumber: number, reached: number) => ({ stepNumber, title: String(stepNumber), reference: String(stepNumber), reached, retentionFromPrevious: 100, retentionFromOpen: 100 });
+  const diagnosis = diagnosePathwayReaderFunnel({
+    opens: 5, began: 5, completions: 2,
+    steps: [step(1, 5), step(2, 5), step(3, 4), step(4, 2), step(5, 2)],
+    largestDrop: { from: "Step 3", to: "Step 4", lost: 2, retentionRate: 50 }
+  });
+  assert.equal(diagnosis.kind, "mid");
+  assert.equal(diagnosis.review, true);
+  assert.equal(diagnosis.focusFrom, "Step 3");
+  assert.equal(diagnosis.focusTo, "Step 4");
+});
