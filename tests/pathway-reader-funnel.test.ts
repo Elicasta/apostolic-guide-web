@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
   buildPathwayReaderFunnels,
+  diagnosePathwayReaderFunnel,
   publicReaderEvents,
   type PathwayReaderEvent
 } from "../src/pathway-reader-funnel";
@@ -134,4 +135,60 @@ test("Analytics page labels legacy pathway_started as opens and mounts the exact
   assert.match(server, /pathway_step_completed/);
   assert.match(server, /app_link_clicked/);
   assert.match(server, /range\(from, to\)/);
+});
+
+
+test("diagnosis waits for a usable reader sample instead of overreacting to tiny counts", () => {
+  const diagnosis = diagnosePathwayReaderFunnel({
+    opens: 4,
+    began: 4,
+    completions: 0,
+    largestDrop: { from: "Step 1", to: "Step 2", lost: 4, retentionRate: 0 },
+    steps: [
+      { stepNumber: 1, title: "One", reference: "A", reached: 4, retentionFromPrevious: 100, retentionFromOpen: 100 },
+      { stepNumber: 2, title: "Two", reference: "B", reached: 0, retentionFromPrevious: 0, retentionFromOpen: 0 }
+    ]
+  });
+  assert.equal(diagnosis.kind, "collecting");
+  assert.equal(diagnosis.review, false);
+});
+
+test("diagnosis distinguishes entry, early, mid-path, finish, and healthy patterns", () => {
+  const step = (stepNumber: number, reached: number) => ({
+    stepNumber, title: String(stepNumber), reference: String(stepNumber), reached,
+    retentionFromPrevious: 100, retentionFromOpen: 100
+  });
+
+  assert.equal(diagnosePathwayReaderFunnel({
+    opens: 10, began: 6, completions: 5, steps: [step(1, 6), step(2, 5)],
+    largestDrop: { from: "Opened", to: "Step 1", lost: 4, retentionRate: 60 }
+  }).kind, "entry");
+
+  assert.equal(diagnosePathwayReaderFunnel({
+    opens: 10, began: 10, completions: 5, steps: [step(1, 10), step(2, 6), step(3, 5)],
+    largestDrop: { from: "Step 1", to: "Step 2", lost: 4, retentionRate: 60 }
+  }).kind, "early");
+
+  assert.equal(diagnosePathwayReaderFunnel({
+    opens: 10, began: 10, completions: 5, steps: [step(1, 10), step(2, 10), step(3, 6), step(4, 5)],
+    largestDrop: { from: "Step 2", to: "Step 3", lost: 4, retentionRate: 60 }
+  }).kind, "mid");
+
+  assert.equal(diagnosePathwayReaderFunnel({
+    opens: 10, began: 10, completions: 5, steps: [step(1, 10), step(2, 10), step(3, 10)],
+    largestDrop: { from: "Opened", to: "Step 1", lost: 0, retentionRate: 100 }
+  }).kind, "finish");
+
+  assert.equal(diagnosePathwayReaderFunnel({
+    opens: 10, began: 10, completions: 8, steps: [step(1, 10), step(2, 9), step(3, 8)],
+    largestDrop: { from: "Step 1", to: "Step 2", lost: 1, retentionRate: 90 }
+  }).kind, "healthy");
+});
+
+test("Analytics mounts a conservative Needs Review decision layer", () => {
+  const page = readFileSync("app/admin/analytics/page.tsx", "utf8");
+  assert.match(page, /NEEDS REVIEW/);
+  assert.match(page, /Five readers can surface a usable warning/);
+  assert.match(page, /row\.diagnosis\.label/);
+  assert.match(page, /Inspect Pathway/);
 });

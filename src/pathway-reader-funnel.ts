@@ -23,6 +23,18 @@ export type PathwayReaderStep = {
   retentionFromOpen: number;
 };
 
+export type PathwayReaderDiagnosisKind = "collecting" | "entry" | "early" | "mid" | "finish" | "healthy";
+
+export type PathwayReaderDiagnosis = {
+  kind: PathwayReaderDiagnosisKind;
+  label: string;
+  detail: string;
+  review: boolean;
+  confidence: "collecting" | "usable" | "strong";
+  focusFrom: string | null;
+  focusTo: string | null;
+};
+
 export type PathwayReaderFunnel = {
   slug: string;
   title: string;
@@ -39,6 +51,7 @@ export type PathwayReaderFunnel = {
     lost: number;
     retentionRate: number;
   };
+  diagnosis: PathwayReaderDiagnosis;
   steps: PathwayReaderStep[];
 };
 
@@ -110,6 +123,104 @@ export function publicReaderEvents(events: PathwayReaderEvent[]) {
   }
 
   return sorted.filter((event) => event.session_id && !internalSessions.has(event.session_id));
+}
+
+function readerConfidence(began: number): PathwayReaderDiagnosis["confidence"] {
+  if (began < 5) return "collecting";
+  return began >= 10 ? "strong" : "usable";
+}
+
+export function diagnosePathwayReaderFunnel(input: {
+  opens: number;
+  began: number;
+  completions: number;
+  steps: PathwayReaderStep[];
+  largestDrop: PathwayReaderFunnel["largestDrop"];
+}): PathwayReaderDiagnosis {
+  const { opens, began, completions, steps, largestDrop } = input;
+  const confidence = readerConfidence(began);
+  if (began < 5) {
+    return {
+      kind: "collecting",
+      label: "Collecting",
+      detail: `${began} reader${began === 1 ? "" : "s"} began this Pathway. Wait for at least 5 before diagnosing content, and prefer 10+ before rewriting.`,
+      review: false,
+      confidence,
+      focusFrom: null,
+      focusTo: null
+    };
+  }
+
+  const openToBegin = rate(began, opens);
+  const beginToComplete = rate(completions, began);
+  if (opens >= 5 && openToBegin < 70) {
+    return {
+      kind: "entry",
+      label: "Entry problem",
+      detail: `Only ${openToBegin}% of opens reached Step 1. Review the promise, intro, first-screen friction, and Step 1 transition before rewriting later content.`,
+      review: true,
+      confidence,
+      focusFrom: "Opened",
+      focusTo: "Step 1"
+    };
+  }
+
+  const first = steps[0];
+  const second = steps[1];
+  const earlyLoss = first && second ? first.reached - second.reached : 0;
+  const earlyRetention = first && second ? rate(second.reached, first.reached) : 100;
+  if (first && second && first.reached >= 5 && earlyRetention < 70 && earlyLoss >= 2) {
+    return {
+      kind: "early",
+      label: "Early-content problem",
+      detail: `Step 1 → Step 2 retains ${earlyRetention}%. Inspect whether the opening argument is too dense, repetitive, unclear, or asks for too much before momentum is established.`,
+      review: true,
+      confidence,
+      focusFrom: "Step 1",
+      focusTo: "Step 2"
+    };
+  }
+
+  const largestFromStep = largestDrop.from.match(/^Step (\d+)$/);
+  const largestToStep = largestDrop.to.match(/^Step (\d+)$/);
+  const fromNumber = largestFromStep ? Number(largestFromStep[1]) : null;
+  const toNumber = largestToStep ? Number(largestToStep[1]) : null;
+  const fromReached = fromNumber ? steps[fromNumber - 1]?.reached ?? 0 : 0;
+  if (fromNumber && toNumber && fromNumber >= 2 && fromReached >= 5 && largestDrop.retentionRate < 70 && largestDrop.lost >= 2) {
+    return {
+      kind: "mid",
+      label: "Mid-path problem",
+      detail: `${largestDrop.from} → ${largestDrop.to} retains ${largestDrop.retentionRate}%. Review that exact handoff for argument order, length, repetition, or a Scripture/explanation mismatch.`,
+      review: true,
+      confidence,
+      focusFrom: largestDrop.from,
+      focusTo: largestDrop.to
+    };
+  }
+
+  const lastStep = steps.at(-1);
+  const finishRetention = lastStep ? rate(completions, lastStep.reached) : 100;
+  if (lastStep && lastStep.reached >= 5 && finishRetention < 70) {
+    return {
+      kind: "finish",
+      label: "Finish problem",
+      detail: `Readers reach the final step, but only ${finishRetention}% register a reading completion. Review the ending, completion affordance, and next action before changing the teaching itself.`,
+      review: true,
+      confidence,
+      focusFrom: `Step ${lastStep.stepNumber}`,
+      focusTo: "Reading complete"
+    };
+  }
+
+  return {
+    kind: "healthy",
+    label: "Healthy",
+    detail: `${beginToComplete}% of readers who began completed the Pathway, with no sampled transition below the review threshold.`,
+    review: false,
+    confidence,
+    focusFrom: null,
+    focusTo: null
+  };
 }
 
 export function buildPathwayReaderFunnels(
@@ -203,6 +314,14 @@ export function buildPathwayReaderFunnels(
       }
     }
 
+    const diagnosis = diagnosePathwayReaderFunnel({
+      opens,
+      began,
+      completions,
+      steps,
+      largestDrop
+    });
+
     rows.push({
       slug: item.slug,
       title: item.title,
@@ -214,13 +333,16 @@ export function buildPathwayReaderFunnels(
       beginToCompleteRate: rate(completions, began),
       openToCompleteRate: rate(completions, opens),
       largestDrop,
+      diagnosis,
       steps
     });
   }
 
   return rows.sort((a, b) =>
-    b.began - a.began
-    || b.opens - a.opens
+    Number(b.diagnosis.review) - Number(a.diagnosis.review)
+    || (b.diagnosis.confidence === "strong" ? 2 : b.diagnosis.confidence === "usable" ? 1 : 0)
+      - (a.diagnosis.confidence === "strong" ? 2 : a.diagnosis.confidence === "usable" ? 1 : 0)
+    || b.began - a.began
     || b.largestDrop.lost - a.largestDrop.lost
     || a.title.localeCompare(b.title)
   );
