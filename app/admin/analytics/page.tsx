@@ -111,7 +111,7 @@ function ReaderPathwayCard({ row }: { row: PathwayReaderFunnel }) {
 
   return <article className="analytics-v3-pathway">
     <div className="analytics-v3-pathway-head">
-      <div><span>30-DAY READER WATERFALL</span><h3>{row.title}</h3></div>
+      <div><span>30-DAY READER WATERFALL</span><h3>{row.title}</h3><small>{row.diagnosis.label} · {row.diagnosis.confidence} signal</small></div>
       <Link href={`/pathways/${row.slug}`}>Open →</Link>
     </div>
     <div className="analytics-v3-pathway-stats">
@@ -124,6 +124,7 @@ function ReaderPathwayCard({ row }: { row: PathwayReaderFunnel }) {
       <div><span>{stage.label}</span><b>{stage.value} · {stage.percent}% of opens</b></div>
       <i><em style={{ width: `${stage.percent}%` }}/></i>
     </div>)}</div>
+    <p className={`analytics-v3-drop ${row.diagnosis.review ? "is-review" : ""}`}><strong>{row.diagnosis.review ? "Needs review:" : "Diagnosis:"}</strong> {row.diagnosis.detail}</p>
     <p className="analytics-v3-drop"><strong>Largest exact loss:</strong> {row.largestDrop.from} → {row.largestDrop.to} · {row.largestDrop.lost} session{row.largestDrop.lost === 1 ? "" : "s"} lost · {row.largestDrop.retentionRate}% retained</p>
     <p className="analytics-v3-pathway-change">{row.appTransitions} session{row.appTransitions === 1 ? "" : "s"} intentionally moved into the app during this Pathway. App movement is shown separately so it is not automatically treated as reader failure.</p>
   </article>;
@@ -167,6 +168,8 @@ export default async function AdminAnalyticsPage() {
     .sort((a, b) => b.uniqueSessions - a.uniqueSessions)
     .slice(0, 8);
   const googleOpportunities = searchConsoleOpportunities(searchConsole);
+  const reviewRows = readerFunnels.rows.filter((row) => row.diagnosis.review);
+  const collectingRows = readerFunnels.rows.filter((row) => row.diagnosis.kind === "collecting");
   const c = snapshot.period.current;
   const p = snapshot.period.previous;
   const searchSuccess = Math.max(0, c.searchSessions - c.noResultSearchSessions);
@@ -227,6 +230,17 @@ export default async function AdminAnalyticsPage() {
     <section className="analytics-v3-section">
       <div className="analytics-v3-section-head"><div><span>PATHWAY FUNNELS</span><h2>Where readers continue or stop</h2></div><p>Counts and percentages stay together so mobile can never turn “3 completions · 19%” into “319%.”</p></div>
       {pathwayRows.length ? <div className="analytics-v3-pathways">{pathwayRows.map((row) => <PathwayCard key={row.slug} row={row} title={row.title}/>)}</div> : <div className="analytics-v3-empty"><strong>No Pathway opens in this period.</strong></div>}
+    </section>
+
+    <section className="analytics-v3-section">
+      <div className="analytics-v3-section-head"><div><span>NEEDS REVIEW</span><h2>Pathways with enough evidence to inspect</h2></div><p>Diagnosis is intentionally conservative. Five readers can surface a usable warning; 10+ is preferred before rewriting content.</p></div>
+      {reviewRows.length ? <div className="analytics-v3-signals">{reviewRows.map((row) => <article className="analytics-v3-signal is-warning" key={row.slug}>
+        <div className="analytics-v3-signal-top"><span>{row.diagnosis.label}</span><b>{row.diagnosis.confidence} signal</b></div>
+        <h3>{row.title}</h3>
+        <p>{row.diagnosis.detail}</p>
+        <div className="analytics-v3-evidence-row"><span><b>{row.began}</b><small>began</small></span><span><b>{row.beginToCompleteRate}%</b><small>finish after beginning</small></span><span><b>{row.largestDrop.retentionRate}%</b><small>largest-transition retention</small></span></div>
+        <Link href={`/pathways/${row.slug}`}>Inspect Pathway →</Link>
+      </article>)}</div> : <div className="analytics-v3-empty"><strong>No Pathway currently crosses the review threshold.</strong><span>{collectingRows.length} Pathway{collectingRows.length === 1 ? "" : "s"} still collecting reader volume.</span></div>}
     </section>
 
     <section className="analytics-v3-section">
