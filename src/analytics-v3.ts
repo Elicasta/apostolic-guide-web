@@ -241,8 +241,8 @@ export function buildAnalyticsV3Signals(snapshot: AnalyticsV3Snapshot, pathwayRo
     signals.push({
       id: `pathway-dropoff:${highTrafficWeakCompletion.slug}`,
       severity: "attention",
-      title: `${highTrafficWeakCompletion.title} is attracting starts but losing readers`,
-      detail: `${highTrafficWeakCompletion.starts} started and ${highTrafficWeakCompletion.completions} completed. The completion rate is ${highTrafficWeakCompletion.completionRate}% with ${highTrafficWeakCompletion.averageProgress}% average depth.`,
+      title: `${highTrafficWeakCompletion.title} is attracting opens but losing readers`,
+      detail: `${highTrafficWeakCompletion.starts} opened and ${highTrafficWeakCompletion.completions} completed. The completion rate is ${highTrafficWeakCompletion.completionRate}% with ${highTrafficWeakCompletion.averageProgress}% average depth.`,
       confidence: analyticsConfidence(highTrafficWeakCompletion.starts),
       evidence: [
         { label: "Starts", value: String(highTrafficWeakCompletion.starts) },
