@@ -90,7 +90,7 @@ test("intentional app handoff is reported separately from reading completion", (
   assert.equal(row.completions, 0);
 });
 
-test("known Studio and Vercel preview sessions are excluded with the same first-touch rule as Analytics V3", () => {
+test("known Studio and Vercel preview sessions are excluded using the V3 internal-referrer rule", () => {
   const events = [
     event("internal", "pathway_started", "2026-10-01T10:00:00Z", {}, { referrer_host: "studio.apostolicguide.com" }),
     event("internal", "pathway_step_completed", "2026-10-01T10:00:05Z", { stepNumber: 1 }, { referrer_host: "studio.apostolicguide.com" }),
@@ -129,6 +129,8 @@ test("Analytics page labels legacy pathway_started as opens and mounts the exact
   assert.match(page, /READER WATERFALL/);
   assert.match(page, /Largest exact loss/);
   assert.match(page, /open → Step 1/);
+  assert.match(page, /current Pathway step order/);
+  assert.doesNotMatch(page, /database-side reader funnel migration/);
   assert.match(server, /pathway_step_completed/);
   assert.match(server, /app_link_clicked/);
   assert.match(server, /range\(from, to\)/);
