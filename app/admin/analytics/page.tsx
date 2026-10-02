@@ -60,7 +60,7 @@ function SignalCard({ signal }: { signal: AnalyticsV3Signal }) {
 
 function biggestPathwayLoss(row: AnalyticsV3PathwayRow) {
   const stages = [
-    { label: "Start → 25%", lost: row.starts - row.reach25 },
+    { label: "Open → 25%", lost: row.starts - row.reach25 },
     { label: "25% → 50%", lost: row.reach25 - row.reach50 },
     { label: "50% → 75%", lost: row.reach50 - row.reach75 },
     { label: "75% → complete", lost: row.reach75 - row.completions }
@@ -208,7 +208,7 @@ export default async function AdminAnalyticsPage() {
         <strong>{new Date(`${day.date}T12:00:00`).toLocaleDateString("en-US", { weekday: "short" })}</strong>
         <span><b>{day.visitors}</b><small>visitors</small></span>
         <span><b>{day.engagedStudySessions}</b><small>study</small></span>
-        <span><b>{day.pathwayStarts}</b><small>starts</small></span>
+        <span><b>{day.pathwayStarts}</b><small>opens</small></span>
         <span><b>{day.pageViews}</b><small>views</small></span>
       </article>)}</div> : <div className="analytics-v3-empty"><strong>Daily V3 series is waiting for the new database snapshot.</strong></div>}
     </section>
@@ -230,9 +230,9 @@ export default async function AdminAnalyticsPage() {
     </section>
 
     <section className="analytics-v3-section">
-      <div className="analytics-v3-section-head"><div><span>READER WATERFALL</span><h2>Exactly where Pathway readers stop</h2></div><p>This 30-day view reconstructs the full sequence from the existing event ledger: open → Step 1 → Step 2 → every remaining step → reading completion.</p></div>
+      <div className="analytics-v3-section-head"><div><span>READER WATERFALL</span><h2>Exactly where Pathway readers stop</h2></div><p>This 30-day view reconstructs the full sequence from the existing event ledger: open → Step 1 → Step 2 → every remaining step → reading completion. It uses the current Pathway step order, so review recent structural edits before interpreting older events.</p></div>
       {readerFunnels.error ? <div className="analytics-v3-inline-error"><strong>Exact reader waterfall could not load.</strong><span>{readerFunnels.error}</span></div> : readerFunnels.rows.length ? <>
-        {readerFunnels.truncated ? <div className="analytics-v3-baseline-note"><strong>Reader event query reached its safety cap.</strong><span>The visible counts are a partial sample. Apply the database-side reader funnel migration before making content edits from this view.</span></div> : null}
+        {readerFunnels.truncated ? <div className="analytics-v3-baseline-note"><strong>Reader event query reached its safety cap.</strong><span>The visible counts are a partial sample. Increase the server-side aggregation capacity before making content edits from this view.</span></div> : null}
         <div className="analytics-v3-pathways">{readerFunnels.rows.map((row) => <ReaderPathwayCard key={row.slug} row={row}/>)}</div>
       </> : <div className="analytics-v3-empty"><strong>No Pathway reading activity in the last 30 days.</strong><span>Pathway opens alone are not counted as reading. A reader must reach at least Step 1.</span></div>}
     </section>
