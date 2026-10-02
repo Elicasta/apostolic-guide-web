@@ -181,10 +181,13 @@ export default async function AdminAnalyticsPage() {
       <h1>Analytics V3</h1>
       <p>Know who arrived, where they came from, what they studied, where they stopped, and what deserves attention next.</p>
       <div className="analytics-v3-period"><strong>LAST 7 DAYS</strong><span>vs previous 7 days</span><b>{snapshot.period.trackingDays} tracked days</b></div>
+      <nav className="analytics-v3-nav" aria-label="Analytics sections">
+        <a href="#overview">Overview</a><a href="#attention">Needs review{reviewRows.length ? ` · ${reviewRows.length}` : ""}</a><a href="#pathways">Pathways</a><a href="#growth">Growth</a><a href="#content">Content</a><a href="#system">System</a>
+      </nav>
       {fallback ? <div className="analytics-v3-baseline-note"><strong>V3 database migration pending.</strong><span>The page is safely using V2 exact aggregates until the new snapshot is available. Full comparisons and daily V3 analysis stay disabled.</span></div> : null}
     </header>
 
-    <section className="analytics-v3-section">
+    <section className="analytics-v3-section" id="overview">
       <div className="analytics-v3-section-head"><div><span>OPERATING VIEW</span><h2>This week</h2></div><p>Exact counts first. Every comparison shows the actual current and prior values.</p></div>
       <div className="analytics-v3-metrics">
         <MetricCard label="Public visitors" value={c.visitors} current={c.visitors} previous={p.visitors} ready={snapshot.period.trendReady} confidenceBase={c.visitors + p.visitors} definition="Distinct anonymous browser identities that viewed at least one public page during the period. This is a tracked browser count, not a guaranteed count of individual humans."/>
@@ -198,6 +201,9 @@ export default async function AdminAnalyticsPage() {
       </div>
     </section>
 
+    <details className="analytics-v3-group" open>
+      <summary><span>Overview</span><strong>Signals, AI brief, daily rhythm, collections</strong></summary>
+      <div className="analytics-v3-group-body">
     <section className="analytics-v3-section">
       <div className="analytics-v3-section-head"><div><span>DECISION LAYER</span><h2>What changed</h2></div><p>Rules interpret exact facts before Sol ever sees them.</p></div>
       {signals.length ? <div className="analytics-v3-signals">{signals.map((signal) => <SignalCard key={signal.id} signal={signal}/>)}</div> : <div className="analytics-v3-empty"><strong>No major rule-based warning yet.</strong><span>Keep collecting clean traffic and study behavior. V3 will surface movement when the sample supports it.</span></div>}
@@ -226,21 +232,25 @@ export default async function AdminAnalyticsPage() {
         <p>{row.activePathways} active Pathway{row.activePathways === 1 ? "" : "s"} in this period.</p>
       </article>)}</div>
     </section>
+      </div>
+    </details>
 
-    <section className="analytics-v3-section">
-      <div className="analytics-v3-section-head"><div><span>PATHWAY FUNNELS</span><h2>Where readers continue or stop</h2></div><p>Counts and percentages stay together so mobile can never turn “3 completions · 19%” into “319%.”</p></div>
-      {pathwayRows.length ? <div className="analytics-v3-pathways">{pathwayRows.map((row) => <PathwayCard key={row.slug} row={row} title={row.title}/>)}</div> : <div className="analytics-v3-empty"><strong>No Pathway opens in this period.</strong></div>}
-    </section>
-
-    <section className="analytics-v3-section">
+    <section className="analytics-v3-section analytics-v3-priority" id="attention">
       <div className="analytics-v3-section-head"><div><span>NEEDS REVIEW</span><h2>Pathways with enough evidence to inspect</h2></div><p>Diagnosis is intentionally conservative. Five readers can surface a usable warning; 10+ is preferred before rewriting content.</p></div>
       {reviewRows.length ? <div className="analytics-v3-signals">{reviewRows.map((row) => <article className="analytics-v3-signal is-warning" key={row.slug}>
         <div className="analytics-v3-signal-top"><span>{row.diagnosis.label}</span><b>{row.diagnosis.confidence} signal</b></div>
-        <h3>{row.title}</h3>
-        <p>{row.diagnosis.detail}</p>
+        <h3>{row.title}</h3><p>{row.diagnosis.detail}</p>
         <div className="analytics-v3-evidence-row"><span><b>{row.began}</b><small>began</small></span><span><b>{row.beginToCompleteRate}%</b><small>finish after beginning</small></span><span><b>{row.largestDrop.retentionRate}%</b><small>largest-transition retention</small></span></div>
         <Link href={`/pathways/${row.slug}`}>Inspect Pathway →</Link>
       </article>)}</div> : <div className="analytics-v3-empty"><strong>No Pathway currently crosses the review threshold.</strong><span>{collectingRows.length} Pathway{collectingRows.length === 1 ? "" : "s"} still collecting reader volume.</span></div>}
+    </section>
+
+    <details className="analytics-v3-group" id="pathways">
+      <summary><span>Pathway detail</span><strong>Funnels and exact reader waterfalls</strong></summary>
+      <div className="analytics-v3-group-body">
+    <section className="analytics-v3-section">
+      <div className="analytics-v3-section-head"><div><span>PATHWAY FUNNELS</span><h2>Where readers continue or stop</h2></div><p>Counts and percentages stay together so mobile can never turn “3 completions · 19%” into “319%.”</p></div>
+      {pathwayRows.length ? <div className="analytics-v3-pathways">{pathwayRows.map((row) => <PathwayCard key={row.slug} row={row} title={row.title}/>)}</div> : <div className="analytics-v3-empty"><strong>No Pathway opens in this period.</strong></div>}
     </section>
 
     <section className="analytics-v3-section">
@@ -251,6 +261,12 @@ export default async function AdminAnalyticsPage() {
       </> : <div className="analytics-v3-empty"><strong>No Pathway reading activity in the last 30 days.</strong><span>Pathway opens alone are not counted as reading. A reader must reach at least Step 1.</span></div>}
     </section>
 
+      </div>
+    </details>
+
+    <details className="analytics-v3-group" id="growth">
+      <summary><span>Growth</span><strong>Acquisition, search demand, Google</strong></summary>
+      <div className="analytics-v3-group-body">
     <section className="analytics-v3-section">
       <div className="analytics-v3-section-head"><div><span>ACQUISITION QUALITY</span><h2>Where useful traffic comes from</h2></div><p>Traffic volume alone is weak. Compare each source by study, completion, and app movement.</p></div>
       {snapshot.acquisition.length ? <div className="analytics-v3-acquisition">{snapshot.acquisition.map((row) => {
@@ -297,6 +313,12 @@ export default async function AdminAnalyticsPage() {
       </>}
     </section>
 
+      </div>
+    </details>
+
+    <details className="analytics-v3-group" id="content">
+      <summary><span>Audience + content</span><strong>Devices, geography, pages, campaigns, articles</strong></summary>
+      <div className="analytics-v3-group-body">
     <section className="analytics-v3-section analytics-v3-split">
       <div><div className="analytics-v3-section-head"><div><span>DEVICE QUALITY</span><h2>Does mobile behavior differ?</h2></div></div><div className="analytics-v3-quality-grid">{snapshot.devices.length ? snapshot.devices.map((row) => <QualityCard key={row.label} row={row}/>) : <div className="analytics-v3-empty"><strong>Device quality is collecting.</strong></div>}</div></div>
       <div><div className="analytics-v3-section-head"><div><span>GEOGRAPHY</span><h2>Where useful sessions come from</h2></div></div><div className="analytics-v3-quality-grid">{snapshot.countries.length ? snapshot.countries.slice(0, 8).map((row) => <QualityCard key={row.label} row={row}/>) : <div className="analytics-v3-empty"><strong>Geographic quality is collecting.</strong></div>}</div></div>
@@ -312,6 +334,12 @@ export default async function AdminAnalyticsPage() {
       {currentArticles.length ? <div className="analytics-v3-articles">{currentArticles.map((row) => <article key={row.slug}><h3>{row.title}</h3><div><span><b>{row.uniqueSessions}</b><small>sessions</small></span><span><b>{row.completions}</b><small>completions</small></span><span><b>{row.completionRate}%</b><small>completion</small></span><span><b>{row.appTransitions}</b><small>app</small></span></div></article>)}</div> : <div className="analytics-v3-empty"><strong>No article study telemetry yet.</strong></div>}
     </section>
 
+      </div>
+    </details>
+
+    <details className="analytics-v3-group" id="system">
+      <summary><span>System</span><strong>Live telemetry and data quality</strong></summary>
+      <div className="analytics-v3-group-body">
     <section className="analytics-v3-section">
       <div className="analytics-v3-section-head"><div><span>LIVE + DATA QUALITY</span><h2>Can we trust what we are seeing?</h2></div><p>Known Studio and Vercel-preview sessions stay outside public acquisition metrics.</p></div>
       <AdminLiveMetrics/>
@@ -322,5 +350,7 @@ export default async function AdminAnalyticsPage() {
         <span><b>{searchConsole.configured ? (searchConsole.error ? "Needs attention" : "Connected") : "Optional"}</b><small>Google Search Console</small></span>
       </div>
     </section>
+      </div>
+    </details>
   </main>;
 }
