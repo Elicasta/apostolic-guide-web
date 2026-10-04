@@ -29,7 +29,7 @@ export function PathwayStudyTracker({ slug, stepCount }: { slug: string; stepCou
               stepCount,
               reference: element.dataset.pathwayReference ?? null
             });
-            if (!pathwayCompletionSent && index + 1 >= stepCount) {
+            if (!pathwayCompletionSent && completed.size >= stepCount) {
               pathwayCompletionSent = true;
               trackEvent("pathway_completed", {
                 contentKey: slug,
