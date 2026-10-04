@@ -4,7 +4,6 @@ import Link from "next/link";
 import { ArrowLeft, ArrowRight, BookOpen, Check, List, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { BibleReferenceLink } from "./bible-links";
-import { pathwayKjvEmphasisPattern, pathwayKjvEmphasisPhrases } from "./pathway-kjv-emphasis";
 import styles from "./pathway-card-reader.module.css";
 
 export type PathwayReaderStep = {
@@ -13,6 +12,7 @@ export type PathwayReaderStep = {
   explanation: string;
   hook?: string;
   scriptureVerses?: Array<{ number: number; text: string }>;
+  scriptureEmphasis?: string[];
   scripturePath?: string | null;
 };
 
@@ -23,10 +23,19 @@ type PathwayCardReaderProps = {
   nextPathway?: { title: string; href: string } | null;
 };
 
-function renderKjvText(text: string) {
-  return text.split(pathwayKjvEmphasisPattern).map((part, index) => {
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function renderKjvText(text: string, emphasis: string[] = []) {
+  if (!emphasis.length) return text;
+
+  const phrases = [...emphasis].sort((a, b) => b.length - a.length);
+  const pattern = new RegExp(`(${phrases.map(escapeRegExp).join("|")})`, "gi");
+
+  return text.split(pattern).map((part, index) => {
     if (!part) return null;
-    const emphasized = pathwayKjvEmphasisPhrases.some((phrase) => phrase.toLowerCase() === part.toLowerCase());
+    const emphasized = phrases.some((phrase) => phrase.toLowerCase() === part.toLowerCase());
     return emphasized
       ? <strong className={styles.emphasis} key={`${part}-${index}`}>{part}</strong>
       : part;
@@ -206,7 +215,7 @@ export function PathwayCardReader({ slug, title, steps, nextPathway }: PathwayCa
               {step.scriptureVerses.map((verse) => (
                 <p key={verse.number}>
                   <sup>{verse.number}</sup>
-                  <span>{renderKjvText(verse.text)}</span>
+                  <span>{renderKjvText(verse.text, step.scriptureEmphasis)}</span>
                 </p>
               ))}
             </div>
