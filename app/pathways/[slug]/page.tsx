@@ -82,7 +82,7 @@ export default async function PathwayPage({ params }: Props) {
         </div>
       </section>
 
-      <section className="section pathway-core-section">
+      <section className="pathway-core-section">
         <div className="shell pathway-study-layout">
           <PathwayCardReader
             slug={pathway.slug}
