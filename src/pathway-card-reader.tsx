@@ -37,6 +37,19 @@ export function PathwayCardReader({ slug, title, steps, nextPathway }: PathwayCa
   const touchStart = useRef<{ x: number; y: number } | null>(null);
   const storageKey = `apostolic-guide:pathway:${slug}:step`;
 
+  const scrollReaderIntoPlace = useCallback(() => {
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        const reader = readerRef.current;
+        if (!reader) return;
+        const stickyHeader = document.querySelector<HTMLElement>(".site-header");
+        const headerHeight = stickyHeader?.getBoundingClientRect().height ?? 0;
+        const top = reader.getBoundingClientRect().top + window.scrollY - headerHeight - 12;
+        window.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
+      });
+    });
+  }, []);
+
   const setStep = useCallback((index: number, options: { push?: boolean; scroll?: boolean } = {}) => {
     const clamped = Math.max(0, Math.min(index, steps.length - 1));
     setActive(clamped);
@@ -47,13 +60,9 @@ export function PathwayCardReader({ slug, title, steps, nextPathway }: PathwayCa
         const url = `${window.location.pathname}${window.location.search}#step-${clamped + 1}`;
         window.history.pushState({ pathwayStep: clamped }, "", url);
       }
-      if (options.scroll !== false) {
-        window.requestAnimationFrame(() => {
-          readerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-        });
-      }
+      if (options.scroll !== false) scrollReaderIntoPlace();
     }
-  }, [steps.length, storageKey]);
+  }, [scrollReaderIntoPlace, steps.length, storageKey]);
 
   useEffect(() => {
     const hashStep = stepFromHash(steps.length);
@@ -130,37 +139,6 @@ export function PathwayCardReader({ slug, title, steps, nextPathway }: PathwayCa
         if (deltaX > 0 && !isFirst) setStep(active - 1);
       }}
     >
-      <div className={styles.toolbar}>
-        <button
-          type="button"
-          className={styles.arrowButton}
-          onClick={() => setStep(active - 1)}
-          disabled={isFirst}
-          aria-label="Previous study step"
-        >
-          <ArrowLeft size={19} />
-        </button>
-
-        <div className={styles.progressBlock}>
-          <span className={styles.progressLabel}>Step {String(active + 1).padStart(2, "0")} of {String(steps.length).padStart(2, "0")}</span>
-          <div className={styles.dots} aria-hidden="true">
-            {steps.map((item, index) => (
-              <span key={`${item.reference}-${index}`} className={index === active ? styles.dotActive : styles.dot} />
-            ))}
-          </div>
-        </div>
-
-        <button
-          type="button"
-          className={styles.arrowButton}
-          onClick={() => setStep(active + 1)}
-          disabled={isLast}
-          aria-label="Next study step"
-        >
-          <ArrowRight size={19} />
-        </button>
-      </div>
-
       <article
         key={`${slug}-${active}`}
         id={`step-${active + 1}`}
@@ -169,6 +147,37 @@ export function PathwayCardReader({ slug, title, steps, nextPathway }: PathwayCa
         data-pathway-reference={step.reference}
         aria-live="polite"
       >
+        <div className={styles.toolbar}>
+          <button
+            type="button"
+            className={styles.arrowButton}
+            onClick={() => setStep(active - 1)}
+            disabled={isFirst}
+            aria-label="Previous study step"
+          >
+            <ArrowLeft size={19} />
+          </button>
+
+          <div className={styles.progressBlock}>
+            <span className={styles.progressLabel}>Step {String(active + 1).padStart(2, "0")} of {String(steps.length).padStart(2, "0")}</span>
+            <div className={styles.dots} aria-hidden="true">
+              {steps.map((item, index) => (
+                <span key={`${item.reference}-${index}`} className={index === active ? styles.dotActive : styles.dot} />
+              ))}
+            </div>
+          </div>
+
+          <button
+            type="button"
+            className={styles.arrowButton}
+            onClick={() => setStep(active + 1)}
+            disabled={isLast}
+            aria-label="Next study step"
+          >
+            <ArrowRight size={19} />
+          </button>
+        </div>
+
         <header className={styles.cardHeader}>
           <span className={styles.reference}>{step.reference}</span>
           <span className={styles.stepNumber}>{String(active + 1).padStart(2, "0")}</span>
@@ -196,13 +205,13 @@ export function PathwayCardReader({ slug, title, steps, nextPathway }: PathwayCa
 
         {step.hook ? (
           <div className={styles.hook}>
-            <span>{isLast ? "Where this leads" : "Why go here next?"}</span>
+            <span>{isLast ? "Where this leads" : "Next question"}</span>
             <p>{step.hook}</p>
           </div>
         ) : nextStep ? (
           <div className={styles.hook}>
-            <span>Why go here next?</span>
-            <p>Now carry that question into {nextStep.reference}: {nextStep.title}.</p>
+            <span>Next question</span>
+            <p>{nextStep.reference} takes the next step in the study: {nextStep.title}.</p>
           </div>
         ) : null}
 
