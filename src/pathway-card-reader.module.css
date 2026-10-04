@@ -442,7 +442,8 @@
 
   .cardFooter {
     display: grid;
-    grid-template-columns: auto 1fr;
+    grid-template-columns: 1fr;
+    gap: 10px;
     position: sticky;
     bottom: max(10px, env(safe-area-inset-bottom));
     z-index: 4;
@@ -451,9 +452,24 @@
     background: linear-gradient(to bottom, rgba(255,255,255,0), var(--white) 30%);
   }
 
+  .previousButton,
+  .nextButton {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .previousButton {
+    min-height: 50px;
+    justify-content: center;
+  }
+
   .nextButton {
     min-width: 0;
-    width: 100%;
+    min-height: 64px;
+  }
+
+  .nextButton span {
+    min-width: 0;
   }
 
   .readerUtility span {
