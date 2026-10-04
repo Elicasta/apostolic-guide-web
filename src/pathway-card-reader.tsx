@@ -69,7 +69,7 @@ const emphasisPhrases = [
 ].sort((a, b) => b.length - a.length);
 
 function escapeRegExp(value: string) {
-  return value.replace(/[.*+?^$()|[\]\\]/g, "\\function stepFromHash(stepCount: number) {");
+  return value.replace(/[.*+?^$()|[\]\\]/g, "\\$&");
 }
 
 const emphasisPattern = new RegExp(
