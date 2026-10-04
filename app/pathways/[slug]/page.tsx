@@ -57,6 +57,7 @@ export default async function PathwayPage({ params }: Props) {
     return {
       ...step,
       scriptureVerses: kjvPassage?.verses ?? [],
+      scriptureEmphasis: kjvPassage?.emphasis ?? [],
       scripturePath: scripture?.path ?? null
     };
   });
