@@ -24,15 +24,7 @@ type PathwayCardReaderProps = {
 };
 
 function escapeRegExp(value: string) {
-  return value.replace(/[.*+?^$()|[\]\\]/g, "\\function renderKjvText(text: string) {
-  return text.split(pathwayKjvEmphasisPattern).map((part, index) => {
-    if (!part) return null;
-    const emphasized = pathwayKjvEmphasisPhrases.some((phrase) => phrase.toLowerCase() === part.toLowerCase());
-    return emphasized
-      ? <strong className={styles.emphasis} key={`${part}-${index}`}>{part}</strong>
-      : part;
-  });
-}");
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function renderKjvText(text: string, emphasis: string[] = []) {
