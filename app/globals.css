@@ -313,11 +313,12 @@ img { max-width: 100%; height: auto; }
 .pathway-number { position:absolute; right:16px; top:4px; color:#edf0ed; font-size:100px; font-weight:950; letter-spacing:-.08em; pointer-events:none; }
 .pathway-meta { display:flex; gap:8px; margin:20px 0; }
 .pathway-meta span { padding:6px 9px; border-radius:999px; background:var(--paper); color:var(--muted); font-size:11px; font-weight:800; }
-.pathway-hero { padding:88px 0; color:white; background:var(--ink); }
+.pathway-hero { padding:72px 0 34px; color:white; background:var(--ink); }
 .pathway-hero .shell { max-width:900px; }
 .pathway-hero h1 { max-width:800px; margin:14px 0 20px; font-size:clamp(58px,8vw,100px); line-height:.92; letter-spacing:-.07em; }
 .pathway-hero p { max-width:660px; color:#b6c5ca; font-size:21px; line-height:1.6; }
-.pathway-study-layout { display:grid; grid-template-columns:minmax(0,760px) 280px; justify-content:center; gap:70px; }
+.pathway-core-section { margin-top:-1px; padding:26px 0 96px; background:linear-gradient(to bottom,var(--ink) 0,var(--ink) 116px,var(--paper) 116px,var(--paper) 100%); }
+.pathway-study-layout { display:grid; grid-template-columns:minmax(0,760px) 280px; justify-content:center; align-items:start; gap:70px; }
 .pathway-timeline { position:relative; }
 .pathway-timeline:before { content:""; position:absolute; top:22px; bottom:22px; left:24px; width:1px; background:var(--line); }
 .pathway-study-step { position:relative; display:grid; grid-template-columns:50px 1fr; gap:22px; padding-bottom:62px; }
@@ -418,6 +419,13 @@ body:has(.admin-layout) main { min-height:100vh; }
   .article-index-grid, .pathway-grid, .media-grid { grid-template-columns:1fr; }
   .article-header { padding:62px 0; }
   .article-header h1, .pathway-hero h1 { font-size:54px; }
+  .pathway-hero { padding:48px 0 20px; }
+  .pathway-hero h1 { margin-top:12px; margin-bottom:16px; }
+  .pathway-hero p { font-size:18px; line-height:1.52; }
+  .pathway-hero .study-metrics { margin:22px 0 18px; gap:8px; }
+  .pathway-hero .study-metrics span { padding:8px 11px; font-size:11px; }
+  .pathway-core-section { padding:18px 0 70px; background:linear-gradient(to bottom,var(--ink) 0,var(--ink) 78px,var(--paper) 78px,var(--paper) 100%); }
+  .pathway-study-layout { gap:34px; }
   .reading-layout { padding-block:55px; }
   .media-card { grid-template-columns:1fr; }
   .media-art { min-height:170px; }
