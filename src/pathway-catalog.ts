@@ -18,31 +18,31 @@ export const allPathways: WebsitePathway[] = [
       title: "Begin with the confession",
       reference: "Deuteronomy 6:4",
       explanation: "Scripture does not begin by asking Israel to solve a philosophical puzzle about God's inner life. It commands them to hear and confess: the LORD our God is one LORD. That statement becomes the controlling confession for everything that follows. Whatever Scripture later reveals about God's Word, Spirit, Father, Son, or His manifestation in Christ must agree with this starting point rather than overturn it.",
-      hook: "Deuteronomy gives us the confession: the LORD is one. The next question is how exclusive that claim is. Isaiah answers whether another God could exist before Him or after Him."
+      hook: "Deuteronomy gives us the confession: the LORD is one. Now Scripture itself defines how exclusive that confession is. Isaiah 43:10 asks whether any God could exist before Him or after Him."
     },
     {
       title: "No God before or after",
       reference: "Isaiah 43:10",
       explanation: "The LORD speaks in exclusive terms: no God was formed before Him, and none will exist after Him. This is stronger than a command to prefer one deity over competing deities. God denies a succession of gods around Himself. He is not one member of a divine class. His identity is unique, uncreated, and without another God before or after Him.",
-      hook: "If no God exists before Him or after Him, could another God still exist beside Him at the same time? Isaiah pushes the claim further."
+      hook: "That removes any God before Him or after Him. The next question is whether another God could exist beside Him now. Isaiah 44:8 answers that directly."
     },
     {
       title: "No God beside Him",
       reference: "Isaiah 44:8",
       explanation: "God asks whether there is a God beside Him and answers His own question: He knows no other God or Rock. The force of the passage is not merely that Israel should ignore other gods. The LORD denies another divine being alongside Himself. Biblical monotheism is therefore more than exclusive worship. Scripture presents one God without a second God beside Him.",
-      hook: "Does Jesus soften that Old Testament confession? When He is asked for the greatest commandment, He begins exactly where Moses did."
+      hook: "The prophets have defined the claim clearly. Now move into the New Testament: does Jesus preserve that same confession? Mark 12:29 gives His answer."
     },
     {
       title: "Jesus preserves the Shema",
       reference: "Mark 12:29",
       explanation: "Jesus quotes Israel's confession directly: “Hear, O Israel; The Lord our God is one Lord.” He does not replace the Shema with a new numerical confession after His coming. He places the same declaration of one LORD at the head of the greatest commandment. Any Christian understanding of Jesus must therefore preserve, not cancel, the one-God confession He Himself affirmed.",
-      hook: "After the resurrection and the birth of the church, do the apostles teach a different doctrine of God? Paul answers that directly."
+      hook: "Jesus preserves Israel’s confession of one LORD. The final question is whether the apostles continue it after the resurrection. Paul states the answer in 1 Corinthians 8:4."
     },
     {
       title: "The apostles continue it",
       reference: "1 Corinthians 8:4",
       explanation: "Paul states that there is none other God but one. The confession of one God is not merely Old Testament background that Christianity leaves behind. It remains part of apostolic teaching inside the church. The next question is not whether Scripture has one God, but how every later revelation about Christ must be understood without creating another God beside Him.",
-      hook: "Now test that confession against Scripture's repeated statements that there is none beside, with, before, or after the LORD."
+      hook: "The confession remains intact from Moses, through the prophets, through Jesus, and into the apostolic church. From here, the next pathway tests that claim against Scripture’s strongest statements that none is beside, with, before, or after the LORD."
     }
   ]}),
   pathway({ slug: "no-god-beside-him", title: "No God Beside Him", summary: "Follow the Bible's clearest denials of another God with, beside, before, or after the LORD.", estimatedMinutes: 9, level: "Foundational", topicSlug: "god-is-one", collection: "One God and divine identity", steps: [
