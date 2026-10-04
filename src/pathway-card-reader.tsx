@@ -11,7 +11,7 @@ export type PathwayReaderStep = {
   reference: string;
   explanation: string;
   hook?: string;
-  scriptureText?: string | null;
+  scriptureVerses?: Array<{ number: number; text: string }>;
   scripturePath?: string | null;
 };
 
@@ -21,6 +21,71 @@ type PathwayCardReaderProps = {
   steps: PathwayReaderStep[];
   nextPathway?: { title: string; href: string } | null;
 };
+
+const emphasisPhrases = [
+  "fullness of the Godhead bodily",
+  "none other God but one",
+  "before me there was no God formed",
+  "neither shall there be after me",
+  "beside me there is no God",
+  "I am the first, and I am the last",
+  "he that hath seen me hath seen the Father",
+  "the Father that dwelleth in me",
+  "born of water and of the Spirit",
+  "faith, if it hath not works, is dead",
+  "faith which worketh by love",
+  "speak with other tongues",
+  "speaking with tongues",
+  "spake with tongues",
+  "the Word was made flesh",
+  "the Word was God",
+  "image of the invisible God",
+  "the man Christ Jesus",
+  "called the Son of God",
+  "the everlasting Father",
+  "the mighty God",
+  "God with us",
+  "God was in Christ",
+  "My Lord and my God",
+  "name of Jesus Christ",
+  "name of the Lord Jesus",
+  "baptized in the name",
+  "gift of the Holy Ghost",
+  "Holy Ghost",
+  "born again",
+  "saved through faith",
+  "by grace",
+  "obedience to the faith",
+  "one Spirit",
+  "one LORD",
+  "one God",
+  "there is none else",
+  "there is no God",
+  "by myself",
+  "right hand",
+  "be baptized",
+  "Repent",
+  "all in all"
+].sort((a, b) => b.length - a.length);
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^$()|[\]\\]/g, "\\function stepFromHash(stepCount: number) {");
+}
+
+const emphasisPattern = new RegExp(
+  `(${emphasisPhrases.map(escapeRegExp).join("|")})`,
+  "gi"
+);
+
+function renderKjvText(text: string) {
+  return text.split(emphasisPattern).map((part, index) => {
+    if (!part) return null;
+    const emphasized = emphasisPhrases.some((phrase) => phrase.toLowerCase() === part.toLowerCase());
+    return emphasized
+      ? <strong className={styles.emphasis} key={`${part}-${index}`}>{part}</strong>
+      : part;
+  });
+}
 
 function stepFromHash(stepCount: number) {
   if (typeof window === "undefined") return null;
@@ -185,8 +250,21 @@ export function PathwayCardReader({ slug, title, steps, nextPathway }: PathwayCa
 
         <h2>{step.title}</h2>
 
-        {step.scriptureText ? (
-          <blockquote className={styles.verse}>“{step.scriptureText}”</blockquote>
+        {step.scriptureVerses?.length ? (
+          <blockquote className={styles.verse}>
+            <div className={styles.verseHeading}>
+              <span>King James Version</span>
+              <small>Full passage</small>
+            </div>
+            <div className={styles.verseBody}>
+              {step.scriptureVerses.map((verse) => (
+                <p key={verse.number}>
+                  <sup>{verse.number}</sup>
+                  <span>{renderKjvText(verse.text)}</span>
+                </p>
+              ))}
+            </div>
+          </blockquote>
         ) : null}
 
         <div className={styles.explanation}>
