@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { pathwayBySlug } from "../src/pathway-catalog";
+import { allPathways, pathwayBySlug } from "../src/pathway-catalog";
 
 test("God Is One is authored as a guided card study", () => {
   const pathway = pathwayBySlug("god-is-one");
