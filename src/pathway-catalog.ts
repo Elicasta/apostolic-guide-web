@@ -18,7 +18,7 @@ export const allPathways: WebsitePathway[] = [
       title: "Begin with the confession",
       reference: "Deuteronomy 6:4",
       explanation: "Scripture does not begin by asking Israel to solve a philosophical puzzle about God's inner life. It commands them to hear and confess: the LORD our God is one LORD. That statement becomes the controlling confession for everything that follows. Whatever Scripture later reveals about God's Word, Spirit, Father, Son, or His manifestation in Christ must agree with this starting point rather than overturn it.",
-      hook: "But could “one LORD” simply mean Israel worships one God while other divine gods still exist? Isaiah answers by closing that door."
+      hook: "Deuteronomy gives us the confession: the LORD is one. The next question is how exclusive that claim is. Isaiah answers whether another God could exist before Him or after Him."
     },
     {
       title: "No God before or after",
