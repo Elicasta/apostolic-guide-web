@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { allPathways } from "../src/pathway-catalog";
-import { getPathwayKjvPassage } from "../src/pathway-kjv";
+import { getPathwayKjvPassage, pathwayKjvPassages } from "../src/pathway-kjv";
+import { hasPathwayKjvEmphasis } from "../src/pathway-kjv-emphasis";
 
 function expectedVerseCount(reference: string) {
   const match = reference.match(/\d+:(\d+)(?:[–—-](\d+))?$/);
@@ -29,5 +30,13 @@ test("every pathway step includes its complete local KJV passage", () => {
         assert.ok(!verse.text.includes("…"), `${step.reference} contains truncated text`);
       }
     }
+  }
+});
+
+
+test("every local pathway passage has at least one intentional emphasis target", () => {
+  for (const passage of Object.values(pathwayKjvPassages)) {
+    const text = passage.verses.map((verse) => verse.text).join(" ");
+    assert.ok(hasPathwayKjvEmphasis(text), `${passage.reference} has no bold red emphasis target`);
   }
 });
