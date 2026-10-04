@@ -57,7 +57,7 @@ export type Pathway = {
   estimatedMinutes: number;
   level: "Foundational" | "Intermediate";
   topicSlug: string;
-  steps: { title: string; reference: string; explanation: string }[];
+  steps: { title: string; reference: string; explanation: string; hook?: string }[];
 };
 
 export const topics: Topic[] = [

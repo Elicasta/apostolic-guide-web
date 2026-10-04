@@ -14,150 +14,175 @@ function pathway(input: Omit<WebsitePathway, "appSlug"> & { appSlug?: string }):
 
 export const allPathways: WebsitePathway[] = [
   pathway({ slug: "god-is-one", title: "God Is One", summary: "Begin with Scripture's controlling confession of one indivisible God.", estimatedMinutes: 10, level: "Foundational", topicSlug: "god-is-one", collection: "One God and divine identity", steps: [
-    { title: "Begin with the confession", reference: "Deuteronomy 6:4", explanation: "Israel's central confession names the LORD as one." },
-    { title: "No God before or after", reference: "Isaiah 43:10", explanation: "The LORD denies any formed God before Him or after Him." },
-    { title: "No God beside Him", reference: "Isaiah 44:8", explanation: "God says He knows no other God or Rock." },
-    { title: "Jesus preserves the Shema", reference: "Mark 12:29", explanation: "Jesus keeps the confession of one LORD as the first commandment." },
-    { title: "The apostles continue it", reference: "1 Corinthians 8:4", explanation: "Paul carries the same confession into the church." }
+    {
+      title: "Begin with the confession",
+      reference: "Deuteronomy 6:4",
+      explanation: "Scripture does not begin by asking Israel to solve a philosophical puzzle about God's inner life. It commands them to hear and confess: the LORD our God is one LORD. That statement becomes the controlling confession for everything that follows. Whatever Scripture later reveals about God's Word, Spirit, Father, Son, or His manifestation in Christ must agree with this starting point rather than overturn it.",
+      hook: "Deuteronomy gives us the confession: the LORD is one. Now Scripture itself defines how exclusive that confession is. Isaiah 43:10 asks whether any God could exist before Him or after Him."
+    },
+    {
+      title: "No God before or after",
+      reference: "Isaiah 43:10",
+      explanation: "The LORD speaks in exclusive terms: no God was formed before Him, and none will exist after Him. This is stronger than a command to prefer one deity over competing deities. God denies a succession of gods around Himself. He is not one member of a divine class. His identity is unique, uncreated, and without another God before or after Him.",
+      hook: "That removes any God before Him or after Him. The next question is whether another God could exist beside Him now. Isaiah 44:8 answers that directly."
+    },
+    {
+      title: "No God beside Him",
+      reference: "Isaiah 44:8",
+      explanation: "God asks whether there is a God beside Him and answers His own question: He knows no other God or Rock. The force of the passage is not merely that Israel should ignore other gods. The LORD denies another divine being alongside Himself. Biblical monotheism is therefore more than exclusive worship. Scripture presents one God without a second God beside Him.",
+      hook: "The prophets have defined the claim clearly. Now move into the New Testament: does Jesus preserve that same confession? Mark 12:29 gives His answer."
+    },
+    {
+      title: "Jesus preserves the Shema",
+      reference: "Mark 12:29",
+      explanation: "Jesus quotes Israel's confession directly: “Hear, O Israel; The Lord our God is one Lord.” He does not replace the Shema with a new numerical confession after His coming. He places the same declaration of one LORD at the head of the greatest commandment. Any Christian understanding of Jesus must therefore preserve, not cancel, the one-God confession He Himself affirmed.",
+      hook: "Jesus preserves Israel’s confession of one LORD. The final question is whether the apostles continue it after the resurrection. Paul states the answer in 1 Corinthians 8:4."
+    },
+    {
+      title: "The apostles continue it",
+      reference: "1 Corinthians 8:4",
+      explanation: "Paul states that there is none other God but one. The confession of one God is not merely Old Testament background that Christianity leaves behind. It remains part of apostolic teaching inside the church. The next question is not whether Scripture has one God, but how every later revelation about Christ must be understood without creating another God beside Him.",
+      hook: "The confession remains intact from Moses, through the prophets, through Jesus, and into the apostolic church. From here, the next pathway tests that claim against Scripture’s strongest statements that none is beside, with, before, or after the LORD."
+    }
   ]}),
   pathway({ slug: "no-god-beside-him", title: "No God Beside Him", summary: "Follow the Bible's clearest denials of another God with, beside, before, or after the LORD.", estimatedMinutes: 9, level: "Foundational", topicSlug: "god-is-one", collection: "One God and divine identity", steps: [
-    { title: "None beside Him", reference: "Deuteronomy 4:35", explanation: "The exodus revealed that the LORD is God and there is none else." },
-    { title: "No God with Him", reference: "Deuteronomy 32:39", explanation: "God says there is no god with Him." },
-    { title: "None before or after", reference: "Isaiah 43:10", explanation: "No God was formed before the LORD and none will be after Him." },
-    { title: "First, Last, and only God", reference: "Isaiah 44:6", explanation: "The LORD joins eternal titles with the denial of any God beside Him." },
-    { title: "Apostolic continuity", reference: "1 Corinthians 8:4", explanation: "The New Testament does not abandon the prophetic confession." }
+    { title: "None beside Him", reference: "Deuteronomy 4:35", explanation: "The exodus revealed that the LORD is God and there is none else.", hook: "Deuteronomy 4:35 says there is none else. The next question is even more direct: does God describe any other god as existing with Him?" },
+    { title: "No God with Him", reference: "Deuteronomy 32:39", explanation: "God says there is no god with Him.", hook: "Deuteronomy 32:39 removes another god from God's side. Isaiah 43:10 now extends the claim across time: none before Him and none after Him." },
+    { title: "None before or after", reference: "Isaiah 43:10", explanation: "No God was formed before the LORD and none will be after Him.", hook: "Isaiah has ruled out a God before or after the LORD. Isaiah 44:6 gathers the argument into God's own titles as First and Last and denies any God beside Him." },
+    { title: "First, Last, and only God", reference: "Isaiah 44:6", explanation: "The LORD joins eternal titles with the denial of any God beside Him.", hook: "The prophetic witness is clear. The next question is whether the apostolic church keeps the same confession after Christ." },
+    { title: "Apostolic continuity", reference: "1 Corinthians 8:4", explanation: "The New Testament does not abandon the prophetic confession.", hook: "The apostles preserve the prophetic confession of one God. From here, ask what that means for creation: did this one God create alone?" }
   ]}),
   pathway({ slug: "god-alone-creator", title: "God Alone Is Creator", summary: "Compare the LORD creating alone with New Testament creation language about Christ.", estimatedMinutes: 10, level: "Intermediate", topicSlug: "god-is-one", collection: "One God and divine identity", steps: [
-    { title: "One Creator acts", reference: "Genesis 1:1", explanation: "The Bible begins with God as the single acting Creator." },
-    { title: "He creates alone", reference: "Isaiah 44:24", explanation: "The LORD says He made all things alone and by Himself." },
-    { title: "God creates by His Word", reference: "Psalm 33:6", explanation: "God's Word and breath are His own effective action." },
-    { title: "All things through the Word", reference: "John 1:3", explanation: "Nothing created came into being without the Word." },
-    { title: "All things in Christ", reference: "Colossians 1:16", explanation: "Creation language places Christ within the identity of the one Creator." }
+    { title: "One Creator acts", reference: "Genesis 1:1", explanation: "The Bible begins with God as the single acting Creator.", hook: "Genesis presents one acting Creator. Isaiah now lets the LORD describe that act in His own words and tells us whether anyone created alongside Him." },
+    { title: "He creates alone", reference: "Isaiah 44:24", explanation: "The LORD says He made all things alone and by Himself.", hook: "The LORD says He stretched out the heavens by Himself. The next question is how Scripture speaks about the means of that creation: His Word and breath." },
+    { title: "God creates by His Word", reference: "Psalm 33:6", explanation: "God's Word and breath are His own effective action.", hook: "Psalm 33 shows God's Word as His own effective creative action. John 1 now uses that same Word-language at the opening of the Gospel." },
+    { title: "All things through the Word", reference: "John 1:3", explanation: "Nothing created came into being without the Word.", hook: "John says nothing created came into being without the Word. Colossians then applies creation language directly to Christ." },
+    { title: "All things in Christ", reference: "Colossians 1:16", explanation: "Creation language places Christ within the identity of the one Creator.", hook: "The New Testament places Christ inside the identity and work of the one Creator. That raises the next pathway's question directly: who, then, is Jesus?" }
   ]}),
   pathway({ slug: "jesus-is-god", title: "Jesus Is God", summary: "Build a direct biblical case for the absolute deity of Jesus Christ.", estimatedMinutes: 12, level: "Foundational", topicSlug: "jesus-is-god", collection: "Jesus Christ and the incarnation", steps: [
-    { title: "The promised child's identity", reference: "Isaiah 9:6", explanation: "The born child bears the titles Mighty God and Everlasting Father." },
-    { title: "God with us", reference: "Matthew 1:23", explanation: "Matthew identifies Jesus as Immanuel." },
-    { title: "The Word was God", reference: "John 1:1", explanation: "God's eternal Word is fully divine." },
-    { title: "God in Christ", reference: "2 Corinthians 5:19", explanation: "God is the saving actor present in Christ." },
-    { title: "All divine fullness", reference: "Colossians 2:9", explanation: "All the fullness of deity dwells bodily in Christ." },
-    { title: "My Lord and my God", reference: "John 20:28", explanation: "Thomas directly confesses the risen Jesus as God." }
+    { title: "The promised child's identity", reference: "Isaiah 9:6", explanation: "The born child bears the titles Mighty God and Everlasting Father.", hook: "Isaiah gives the promised child divine titles. Matthew now identifies the child who arrives in history as Immanuel, God with us." },
+    { title: "God with us", reference: "Matthew 1:23", explanation: "Matthew identifies Jesus as Immanuel.", hook: "Matthew tells us God is with us in Jesus. John goes behind the birth and identifies the Word who becomes flesh as God." },
+    { title: "The Word was God", reference: "John 1:1", explanation: "God's eternal Word is fully divine.", hook: "John establishes the deity of the Word. Paul next describes the saving event itself as God acting in Christ." },
+    { title: "God in Christ", reference: "2 Corinthians 5:19", explanation: "God is the saving actor present in Christ.", hook: "If God Himself is reconciling the world in Christ, Colossians tells us how fully the divine presence dwells in Him." },
+    { title: "All divine fullness", reference: "Colossians 2:9", explanation: "All the fullness of deity dwells bodily in Christ.", hook: "Paul says all the fullness of deity dwells bodily in Christ. Thomas then gives the personal confession that matches that claim." },
+    { title: "My Lord and my God", reference: "John 20:28", explanation: "Thomas directly confesses the risen Jesus as God.", hook: "Thomas calls the risen Jesus his Lord and his God. The next pathway asks how Scripture explains this: the Word who was God became flesh." }
   ]}),
   pathway({ slug: "word-became-flesh", title: "The Word Became Flesh", summary: "Follow God's eternal Word into the genuine humanity of Jesus Christ.", estimatedMinutes: 11, level: "Intermediate", topicSlug: "the-word-became-flesh", collection: "Jesus Christ and the incarnation", steps: [
-    { title: "The Word was God", reference: "John 1:1", explanation: "The Word belongs to God and is God." },
-    { title: "Creation through the Word", reference: "John 1:3", explanation: "Everything created comes through the Word." },
-    { title: "The Old Testament background", reference: "Psalm 33:6", explanation: "God creates by His own Word and breath." },
-    { title: "The turning point", reference: "John 1:14", explanation: "The Word becomes flesh." },
-    { title: "The holy child called Son", reference: "Luke 1:35", explanation: "The angel connects Son of God to conception and birth." }
+    { title: "The Word was God", reference: "John 1:1", explanation: "The Word belongs to God and is God.", hook: "John begins by identifying the Word as God. The next verse in the argument asks what relationship this Word has to creation." },
+    { title: "Creation through the Word", reference: "John 1:3", explanation: "Everything created comes through the Word.", hook: "Everything created comes through the Word. Psalm 33 supplies the Old Testament pattern for understanding God's Word as His own creative self-expression." },
+    { title: "The Old Testament background", reference: "Psalm 33:6", explanation: "God creates by His own Word and breath.", hook: "The Old Testament shows God creating by His own Word and breath. John 1:14 is the turning point: that Word becomes flesh." },
+    { title: "The turning point", reference: "John 1:14", explanation: "The Word becomes flesh.", hook: "The Word does not merely visit flesh. The Word becomes flesh. Luke 1:35 then explains how the holy child is called the Son of God." },
+    { title: "The holy child called Son", reference: "Luke 1:35", explanation: "The angel connects Son of God to conception and birth.", hook: "Luke ties the title Son of God to the miraculous conception and birth. The next pathway follows Sonship through that real human life." }
   ]}),
   pathway({ slug: "son-was-born", title: "The Son Was Born", summary: "Trace Sonship through conception, birth, human life, and saving mission.", estimatedMinutes: 10, level: "Intermediate", topicSlug: "the-son-of-god", collection: "Jesus Christ and the incarnation", steps: [
-    { title: "A child born, a Son given", reference: "Isaiah 9:6", explanation: "The prophecy locates Sonship in the born child while naming divine identity." },
-    { title: "Therefore called Son", reference: "Luke 1:35", explanation: "The angel connects the title to the miraculous conception." },
-    { title: "Made of a woman", reference: "Galatians 4:4", explanation: "The Son enters history under the law." },
-    { title: "The Son truly grows", reference: "Luke 2:52", explanation: "Jesus lives a real human life." },
-    { title: "The man Christ Jesus", reference: "1 Timothy 2:5", explanation: "The mediator genuinely represents humanity before the one God." }
+    { title: "A child born, a Son given", reference: "Isaiah 9:6", explanation: "The prophecy locates Sonship in the born child while naming divine identity.", hook: "Isaiah joins a born child with divine identity. Luke now tells us how that promised Son enters history." },
+    { title: "Therefore called Son", reference: "Luke 1:35", explanation: "The angel connects the title to the miraculous conception.", hook: "The angel connects the title Son of God to the holy child conceived by the Holy Ghost. Paul next anchors that Sonship in real human birth." },
+    { title: "Made of a woman", reference: "Galatians 4:4", explanation: "The Son enters history under the law.", hook: "The Son is made of a woman and enters human history under the law. Luke then shows that this humanity is not an appearance: Jesus truly grows." },
+    { title: "The Son truly grows", reference: "Luke 2:52", explanation: "Jesus lives a real human life.", hook: "Jesus increases in wisdom and stature. The next question is what that real humanity means for His role between God and humanity." },
+    { title: "The man Christ Jesus", reference: "1 Timothy 2:5", explanation: "The mediator genuinely represents humanity before the one God.", hook: "Paul calls Him the man Christ Jesus, the true human mediator before the one God. The next pathway asks how the Father is present and working in that Son." }
   ]}),
   pathway({ slug: "father-dwells-in-son", title: "The Father Dwells in the Son", summary: "Use Jesus' own explanation of the Father's presence and work in Him.", estimatedMinutes: 9, level: "Foundational", topicSlug: "the-father-in-the-son", collection: "Jesus Christ and the incarnation", steps: [
-    { title: "Knowing Jesus, knowing the Father", reference: "John 14:7", explanation: "Jesus says truly knowing Him brings knowledge of the Father." },
-    { title: "Seeing Jesus, seeing the Father", reference: "John 14:9", explanation: "Jesus points to His own life as the Father's visible revelation." },
-    { title: "The Father dwells and works", reference: "John 14:10", explanation: "Jesus explains that the Father in Him performs the works." },
-    { title: "God reconciling in Christ", reference: "2 Corinthians 5:19", explanation: "The saving mission is God present in Christ." },
-    { title: "All fullness bodily", reference: "Colossians 2:9", explanation: "The complete divine fullness dwells bodily in Christ." }
+    { title: "Knowing Jesus, knowing the Father", reference: "John 14:7", explanation: "Jesus says truly knowing Him brings knowledge of the Father.", hook: "Jesus says knowing Him brings knowledge of the Father. Philip's request to see the Father lets Jesus make the claim even more explicit." },
+    { title: "Seeing Jesus, seeing the Father", reference: "John 14:9", explanation: "Jesus points to His own life as the Father's visible revelation.", hook: "Jesus answers the desire to see the Father by pointing to Himself. He then explains why: the Father dwells in Him and performs the works." },
+    { title: "The Father dwells and works", reference: "John 14:10", explanation: "Jesus explains that the Father in Him performs the works.", hook: "The works are the Father's works from within Christ. Paul carries that same pattern into salvation and says God was in Christ reconciling the world." },
+    { title: "God reconciling in Christ", reference: "2 Corinthians 5:19", explanation: "The saving mission is God present in Christ.", hook: "Reconciliation is God's own action in Christ. Colossians now states the extent of that indwelling without qualification." },
+    { title: "All fullness bodily", reference: "Colossians 2:9", explanation: "The complete divine fullness dwells bodily in Christ.", hook: "All the fullness of deity dwells bodily in Christ. The next pathway asks how the invisible God can therefore be seen and known in Jesus." }
   ]}),
   pathway({ slug: "jesus-image-of-god", title: "Jesus Is the Image of God", summary: "See how the invisible God becomes visible and knowable in Christ.", estimatedMinutes: 9, level: "Intermediate", topicSlug: "the-father-in-the-son", collection: "Jesus Christ and the incarnation", steps: [
-    { title: "The unseen God declared", reference: "John 1:18", explanation: "The Son makes the invisible God known." },
-    { title: "The Father seen in Jesus", reference: "John 14:9", explanation: "Jesus answers the desire to see the Father by pointing to Himself." },
-    { title: "Image of the invisible God", reference: "Colossians 1:15", explanation: "Christ gives visible expression to the invisible God." },
-    { title: "Fullness dwelling", reference: "Colossians 1:19", explanation: "The image is complete because divine fullness dwells in Christ." },
-    { title: "Exact expression", reference: "Hebrews 1:3", explanation: "The Son radiates God's glory and expresses His being." }
+    { title: "The unseen God declared", reference: "John 1:18", explanation: "The Son makes the invisible God known.", hook: "John begins with the invisible God being made known. Jesus' answer to Philip shows what that revelation looks like in a human life." },
+    { title: "The Father seen in Jesus", reference: "John 14:9", explanation: "Jesus answers the desire to see the Father by pointing to Himself.", hook: "Jesus says seeing Him is seeing the Father. Paul gives that same truth a compact title: Christ is the image of the invisible God." },
+    { title: "Image of the invisible God", reference: "Colossians 1:15", explanation: "Christ gives visible expression to the invisible God.", hook: "Christ is the visible image of the invisible God. The next question is whether that image is partial or complete." },
+    { title: "Fullness dwelling", reference: "Colossians 1:19", explanation: "The image is complete because divine fullness dwells in Christ.", hook: "Paul says all fullness dwells in Christ. Hebrews then describes the Son as the radiance and exact expression of God's being." },
+    { title: "Exact expression", reference: "Hebrews 1:3", explanation: "The Son radiates God's glory and expresses His being.", hook: "Hebrews presents the Son as the exact expression of divine glory. The next pathway focuses on the reason this revelation is complete: all the Godhead dwells bodily in Christ." }
   ]}),
   pathway({ slug: "fullness-of-godhead", title: "The Fullness of the Godhead", summary: "Build Paul's case that God's complete fullness dwells bodily in Jesus Christ.", estimatedMinutes: 9, level: "Intermediate", topicSlug: "jesus-is-god", collection: "Jesus Christ and the incarnation", steps: [
-    { title: "God in Christ", reference: "2 Corinthians 5:19", explanation: "Reconciliation is God's own action in Christ." },
-    { title: "The Father dwelling", reference: "John 14:10", explanation: "Jesus says the Father in Him performs the works." },
-    { title: "The visible image", reference: "Colossians 1:15", explanation: "Christ is the visible revelation of the invisible God." },
-    { title: "All fullness", reference: "Colossians 1:19", explanation: "Paul says all fullness was pleased to dwell in Christ." },
-    { title: "All fullness bodily", reference: "Colossians 2:9", explanation: "Paul removes ambiguity: all deity dwells bodily in Christ." }
+    { title: "God in Christ", reference: "2 Corinthians 5:19", explanation: "Reconciliation is God's own action in Christ.", hook: "Paul begins with God acting in Christ. Jesus Himself explains that action as the Father dwelling and working in Him." },
+    { title: "The Father dwelling", reference: "John 14:10", explanation: "Jesus says the Father in Him performs the works.", hook: "Jesus identifies the indwelling Father as the source of the works. Colossians next describes Christ as the visible image of the invisible God." },
+    { title: "The visible image", reference: "Colossians 1:15", explanation: "Christ is the visible revelation of the invisible God.", hook: "Christ makes the invisible God visible. Paul then explains why the image lacks nothing: all fullness dwells in Him." },
+    { title: "All fullness", reference: "Colossians 1:19", explanation: "Paul says all fullness was pleased to dwell in Christ.", hook: "All fullness dwells in Christ. Colossians 2:9 removes any remaining ambiguity by saying that fullness is the fullness of deity dwelling bodily." },
+    { title: "All fullness bodily", reference: "Colossians 2:9", explanation: "Paul removes ambiguity: all deity dwells bodily in Christ.", hook: "The whole argument arrives here: all the fullness of the Godhead dwells bodily in Christ. From that identity, the next pathway follows the saving name revealed in Jesus." }
   ]}),
   pathway({ slug: "name-of-jesus", title: "The Name of Jesus", summary: "Follow the saving name through revelation, salvation, worship, and baptism.", estimatedMinutes: 11, level: "Foundational", topicSlug: "the-name-of-jesus", collection: "Salvation and new birth", steps: [
-    { title: "The saving name given", reference: "Matthew 1:21", explanation: "The child is named Jesus because He will save His people from their sins." },
-    { title: "The Father's name manifested", reference: "John 17:6", explanation: "Jesus says He manifested the Father's name." },
-    { title: "No other saving name", reference: "Acts 4:12", explanation: "The apostles center salvation in the name of Jesus." },
-    { title: "The name above every name", reference: "Philippians 2:9–11", explanation: "Universal confession and worship center on Jesus Christ as Lord." },
-    { title: "Everything in Jesus' name", reference: "Colossians 3:17", explanation: "Every word and deed comes under His name and authority." }
+    { title: "The saving name given", reference: "Matthew 1:21", explanation: "The child is named Jesus because He will save His people from their sins.", hook: "Matthew connects the name Jesus to His saving mission. John then shows that Jesus' ministry also reveals and manifests the Father's name." },
+    { title: "The Father's name manifested", reference: "John 17:6", explanation: "Jesus says He manifested the Father's name.", hook: "Jesus says He manifested the Father's name. Acts now shows where the apostles locate salvation after the resurrection." },
+    { title: "No other saving name", reference: "Acts 4:12", explanation: "The apostles center salvation in the name of Jesus.", hook: "The apostles declare no other saving name. Philippians expands the claim from salvation into universal confession and worship." },
+    { title: "The name above every name", reference: "Philippians 2:9–11", explanation: "Universal confession and worship center on Jesus Christ as Lord.", hook: "The name of Jesus stands above every name and every knee bows. Colossians then brings that authority into the believer's ordinary words and actions." },
+    { title: "Everything in Jesus' name", reference: "Colossians 3:17", explanation: "Every word and deed comes under His name and authority.", hook: "Everything is brought under the name of the Lord Jesus. The next pathway asks how Jesus' command to baptize into the singular name was carried out by His apostles." }
   ]}),
   pathway({ slug: "matthew-28-and-acts-2", title: "Matthew 28:19 and Acts 2:38", summary: "Read Jesus' command and its apostolic fulfillment together.", estimatedMinutes: 10, level: "Foundational", topicSlug: "the-name-of-jesus", collection: "Salvation and new birth", steps: [
-    { title: "Notice the singular name", reference: "Matthew 28:19", explanation: "Jesus commands baptism into one name." },
-    { title: "The commission in His name", reference: "Luke 24:46–47", explanation: "Repentance and remission are proclaimed in Jesus' name." },
-    { title: "The apostles begin the mission", reference: "Acts 2:38", explanation: "Peter commands baptism in the name of Jesus Christ." },
-    { title: "The pattern crosses boundaries", reference: "Acts 8:16", explanation: "Samaritan believers receive the same baptismal name." },
-    { title: "The pattern is corrected and repeated", reference: "Acts 19:5", explanation: "Paul baptizes disciples into the name of the Lord Jesus." }
+    { title: "Notice the singular name", reference: "Matthew 28:19", explanation: "Jesus commands baptism into one name.", hook: "Jesus commands baptism into a singular name. Luke's account of the same commission helps identify how that name functions in the gospel mission." },
+    { title: "The commission in His name", reference: "Luke 24:46–47", explanation: "Repentance and remission are proclaimed in Jesus' name.", hook: "Luke says repentance and remission are to be preached in His name. Acts 2 shows the apostles carrying out that commission for the first time." },
+    { title: "The apostles begin the mission", reference: "Acts 2:38", explanation: "Peter commands baptism in the name of Jesus Christ.", hook: "Peter commands baptism in the name of Jesus Christ. The next question is whether that wording was only for Pentecost or became the continuing apostolic pattern." },
+    { title: "The pattern crosses boundaries", reference: "Acts 8:16", explanation: "Samaritan believers receive the same baptismal name.", hook: "The Samaritan mission repeats baptism in the name of the Lord Jesus. Acts 19 shows the same pattern when Paul encounters disciples with an incomplete baptism." },
+    { title: "The pattern is corrected and repeated", reference: "Acts 19:5", explanation: "Paul baptizes disciples into the name of the Lord Jesus.", hook: "Paul baptizes them in the name of the Lord Jesus. The next pathway follows that baptismal language across Acts and then asks what baptism means in the epistles." }
   ]}),
   pathway({ slug: "baptism-in-jesus-name", title: "Baptism in Jesus' Name", summary: "Follow the explicit baptismal language and its meaning through Acts and the epistles.", estimatedMinutes: 12, level: "Foundational", topicSlug: "the-name-of-jesus", collection: "Salvation and new birth", steps: [
-    { title: "The risen Lord's commission", reference: "Luke 24:46–47", explanation: "Jesus commands repentance and remission in His name." },
-    { title: "The first apostolic response", reference: "Acts 2:38", explanation: "Peter joins repentance, Jesus-name baptism, and the Holy Ghost." },
-    { title: "The pattern continues", reference: "Acts 8:16", explanation: "Samaritans are baptized in the name of the Lord Jesus." },
-    { title: "Gentiles are commanded", reference: "Acts 10:47–48", explanation: "Spirit reception does not cancel water baptism." },
-    { title: "Buried with Christ", reference: "Romans 6:3–4", explanation: "Baptism identifies believers with Christ's death and burial." },
-    { title: "Faith in God's operation", reference: "Colossians 2:12", explanation: "Baptism works through faith in God's saving action." }
+    { title: "The risen Lord's commission", reference: "Luke 24:46–47", explanation: "Jesus commands repentance and remission in His name.", hook: "The risen Jesus commissions repentance and remission in His name. Acts 2 shows the first direct apostolic response to that command." },
+    { title: "The first apostolic response", reference: "Acts 2:38", explanation: "Peter joins repentance, Jesus-name baptism, and the Holy Ghost.", hook: "Peter joins repentance, Jesus-name baptism, and the gift of the Holy Ghost. Acts 8 tests whether the baptismal pattern continues beyond Jerusalem." },
+    { title: "The pattern continues", reference: "Acts 8:16", explanation: "Samaritans are baptized in the name of the Lord Jesus.", hook: "Samaritan believers are baptized in the name of the Lord Jesus. Acts 10 asks whether Spirit-filled Gentiles are exempt from water baptism." },
+    { title: "Gentiles are commanded", reference: "Acts 10:47–48", explanation: "Spirit reception does not cancel water baptism.", hook: "Peter still commands water baptism after the Gentiles receive the Spirit. Romans now explains the meaning of baptism by connecting it to Christ's death and burial." },
+    { title: "Buried with Christ", reference: "Romans 6:3–4", explanation: "Baptism identifies believers with Christ's death and burial.", hook: "Baptism joins the believer to Christ's death and burial. Colossians makes clear that this is not confidence in a ritual but faith in God's operation." },
+    { title: "Faith in God's operation", reference: "Colossians 2:12", explanation: "Baptism works through faith in God's saving action.", hook: "Baptism is an obedient act of faith in God's saving work. The next pathway places baptism inside Jesus' larger teaching about being born of water and Spirit." }
   ]}),
   pathway({ slug: "new-birth", title: "The New Birth", summary: "Connect Jesus' teaching about water and Spirit with the apostolic response in Acts.", estimatedMinutes: 12, level: "Foundational", topicSlug: "the-new-birth", collection: "Salvation and new birth", steps: [
-    { title: "Birth from above required", reference: "John 3:3", explanation: "Jesus says no one can see God's kingdom without being born again." },
-    { title: "Water and Spirit", reference: "John 3:5", explanation: "Entrance into the kingdom requires birth of water and Spirit." },
-    { title: "The apostolic answer", reference: "Acts 2:37–38", explanation: "Convicted hearers are told to repent, be baptized, and receive the Holy Ghost." },
-    { title: "The promise continues", reference: "Acts 2:39", explanation: "The promise extends to all whom God calls." },
-    { title: "Water and Spirit distinguished", reference: "Acts 8:14–17", explanation: "The Samaritans were baptized but still needed to receive the Spirit." },
-    { title: "Washing and renewal", reference: "Titus 3:5–6", explanation: "Paul joins washing and renewal by the Holy Ghost under God's mercy." }
+    { title: "Birth from above required", reference: "John 3:3", explanation: "Jesus says no one can see God's kingdom without being born again.", hook: "Jesus makes the new birth necessary for seeing the kingdom. He immediately defines that birth more specifically in terms of water and Spirit." },
+    { title: "Water and Spirit", reference: "John 3:5", explanation: "Entrance into the kingdom requires birth of water and Spirit.", hook: "Jesus says entrance into the kingdom requires birth of water and Spirit. Acts 2 shows how the apostles answer people who ask what they must do." },
+    { title: "The apostolic answer", reference: "Acts 2:37–38", explanation: "Convicted hearers are told to repent, be baptized, and receive the Holy Ghost.", hook: "Peter answers conviction with repentance, baptism, and the gift of the Holy Ghost. The next verse tells us whether that promise was limited to the first audience." },
+    { title: "The promise continues", reference: "Acts 2:39", explanation: "The promise extends to all whom God calls.", hook: "The promise reaches children, those far off, and all whom God calls. Acts 8 then shows that water baptism and receiving the Spirit can be distinguished in experience." },
+    { title: "Water and Spirit distinguished", reference: "Acts 8:14–17", explanation: "The Samaritans were baptized but still needed to receive the Spirit.", hook: "The Samaritans had been baptized but still needed to receive the Spirit. Titus brings washing and Spirit-renewal together under the saving mercy of God." },
+    { title: "Washing and renewal", reference: "Titus 3:5–6", explanation: "Paul joins washing and renewal by the Holy Ghost under God's mercy.", hook: "Paul joins washing and renewal by the Holy Ghost without making either a work of human merit. The next pathway isolates the first movement of that response: repentance." }
   ]}),
   pathway({ slug: "repentance", title: "Repentance", summary: "See repentance as a commanded turning toward God, not mere regret.", estimatedMinutes: 9, level: "Foundational", topicSlug: "the-new-birth", collection: "Salvation and new birth", steps: [
-    { title: "Jesus opens with repentance", reference: "Mark 1:15", explanation: "The kingdom announcement demands repentance and faith." },
-    { title: "Repentance is necessary", reference: "Luke 13:3", explanation: "Jesus warns against refusing to turn." },
-    { title: "Part of the commission", reference: "Luke 24:46–47", explanation: "The risen Christ commands repentance and remission to every nation." },
-    { title: "The first response", reference: "Acts 2:37–38", explanation: "Peter answers conviction with a direct command to repent." },
-    { title: "Godly sorrow produces change", reference: "2 Corinthians 7:10", explanation: "Godly grief produces repentance that leads toward salvation." }
+    { title: "Jesus opens with repentance", reference: "Mark 1:15", explanation: "The kingdom announcement demands repentance and faith.", hook: "Jesus opens His kingdom preaching with repentance and faith. Luke 13 shows that repentance is not optional language but a necessary turning." },
+    { title: "Repentance is necessary", reference: "Luke 13:3", explanation: "Jesus warns against refusing to turn.", hook: "Jesus warns that people must repent. After His resurrection, He places that same call inside the worldwide gospel commission." },
+    { title: "Part of the commission", reference: "Luke 24:46–47", explanation: "The risen Christ commands repentance and remission to every nation.", hook: "The risen Christ commands repentance and remission to be preached to all nations. Acts 2 shows what that command sounds like when hearers are convicted." },
+    { title: "The first response", reference: "Acts 2:37–38", explanation: "Peter answers conviction with a direct command to repent.", hook: "Peter's first answer is direct: repent. Paul then helps distinguish true repentance from emotion that never produces a changed direction." },
+    { title: "Godly sorrow produces change", reference: "2 Corinthians 7:10", explanation: "Godly grief produces repentance that leads toward salvation.", hook: "Godly sorrow produces repentance that leads toward salvation. The next pathway follows the promised gift that accompanies the apostolic response: receiving the Holy Ghost." }
   ]}),
   pathway({ slug: "receiving-the-holy-ghost", title: "Receiving the Holy Ghost", summary: "Trace the promise, reception, and recognizable experience of the Holy Ghost.", estimatedMinutes: 12, level: "Foundational", topicSlug: "the-new-birth", collection: "Salvation and new birth", steps: [
-    { title: "The promise", reference: "Joel 2:28–29", explanation: "God promises to pour out His Spirit across generations." },
-    { title: "With you and in you", reference: "John 14:16–18", explanation: "The Comforter will dwell in the disciples." },
-    { title: "The promise arrives", reference: "Acts 2:1–4", explanation: "All are filled and speak as the Spirit gives utterance." },
-    { title: "Promised to those God calls", reference: "Acts 2:38–39", explanation: "Peter extends the gift beyond the first audience." },
-    { title: "Gentiles visibly receive", reference: "Acts 10:44–46", explanation: "Their reception is recognized by what is heard." },
-    { title: "Believers asked and filled", reference: "Acts 19:1–6", explanation: "Paul asks about reception and the disciples receive the Spirit." }
+    { title: "The promise", reference: "Joel 2:28–29", explanation: "God promises to pour out His Spirit across generations.", hook: "Joel promises a future outpouring of God's Spirit across generations. Jesus then describes that promised Spirit as moving from being with the disciples to dwelling in them." },
+    { title: "With you and in you", reference: "John 14:16–18", explanation: "The Comforter will dwell in the disciples.", hook: "Jesus promises the Comforter will dwell in His people. Acts 2 records the moment that promise becomes an experienced reality." },
+    { title: "The promise arrives", reference: "Acts 2:1–4", explanation: "All are filled and speak as the Spirit gives utterance.", hook: "At Pentecost they are filled and speak as the Spirit gives utterance. Peter then tells the crowd whether this gift belongs only to the people in the upper room." },
+    { title: "Promised to those God calls", reference: "Acts 2:38–39", explanation: "Peter extends the gift beyond the first audience.", hook: "Peter extends the promise to all whom God calls. Acts 10 shows that promise crossing into the Gentile world in a way the Jewish believers can recognize." },
+    { title: "Gentiles visibly receive", reference: "Acts 10:44–46", explanation: "Their reception is recognized by what is heard.", hook: "The Gentiles' reception is recognized by what the believers hear. Acts 19 shows Paul still asking disciples whether they have received the Holy Ghost." },
+    { title: "Believers asked and filled", reference: "Acts 19:1–6", explanation: "Paul asks about reception and the disciples receive the Spirit.", hook: "The Ephesian disciples receive the Spirit in an observable way. The next pathway examines the repeated sign that accompanies Spirit reception in Acts." }
   ]}),
   pathway({ slug: "tongues-as-initial-sign", title: "Tongues as the Initial Sign", summary: "Distinguish the repeated reception sign in Acts from the public gift in Corinthians.", estimatedMinutes: 11, level: "Intermediate", topicSlug: "the-new-birth", collection: "Salvation and new birth", steps: [
-    { title: "All speak at Pentecost", reference: "Acts 2:1–4", explanation: "Every person filled speaks with other tongues." },
-    { title: "Seen and heard", reference: "Acts 2:33", explanation: "Peter calls the outpouring observable." },
-    { title: "The identifying sign", reference: "Acts 10:44–46", explanation: "The Gentiles' reception is recognized because they speak with tongues." },
-    { title: "The same gift as at the beginning", reference: "Acts 11:15–17", explanation: "Peter compares the Gentile experience directly to Pentecost." },
-    { title: "The pattern appears again", reference: "Acts 19:6", explanation: "The Ephesian disciples speak with tongues when the Spirit comes." },
-    { title: "The public gift is distributed", reference: "1 Corinthians 12:30", explanation: "Paul's question concerns ministry in the assembled body." }
+    { title: "All speak at Pentecost", reference: "Acts 2:1–4", explanation: "Every person filled speaks with other tongues.", hook: "At Pentecost everyone filled speaks with other tongues. Peter then describes the outpouring as something that could be seen and heard." },
+    { title: "Seen and heard", reference: "Acts 2:33", explanation: "Peter calls the outpouring observable.", hook: "Peter treats the Spirit's arrival as observable. Acts 10 gives the clearest example of how believers recognized that Gentiles had received the same gift." },
+    { title: "The identifying sign", reference: "Acts 10:44–46", explanation: "The Gentiles' reception is recognized because they speak with tongues.", hook: "The Jewish believers know the Gentiles received the Holy Ghost because they hear them speak with tongues. Peter later explains that event by comparing it directly to Pentecost." },
+    { title: "The same gift as at the beginning", reference: "Acts 11:15–17", explanation: "Peter compares the Gentile experience directly to Pentecost.", hook: "Peter says the Gentiles received the same gift as at the beginning. Acts 19 shows the pattern appearing again in another group of disciples." },
+    { title: "The pattern appears again", reference: "Acts 19:6", explanation: "The Ephesian disciples speak with tongues when the Spirit comes.", hook: "The Ephesian disciples speak with tongues when the Holy Ghost comes upon them. The remaining question is how this reception sign relates to Paul's teaching about the public gift of tongues in the church." },
+    { title: "The public gift is distributed", reference: "1 Corinthians 12:30", explanation: "Paul's question concerns ministry in the assembled body.", hook: "First Corinthians discusses distributed ministry gifts in the assembled body, not whether every believer can receive the Spirit in the Acts pattern. From here, the next pathway returns to the gospel itself and the believer's response to Christ's death, burial, and resurrection." }
   ]}),
   pathway({ slug: "gospel-pattern", title: "The Gospel Pattern", summary: "Move from Christ's death, burial, and resurrection into the believer's response.", estimatedMinutes: 10, level: "Foundational", topicSlug: "the-new-birth", collection: "Salvation and new birth", steps: [
-    { title: "The gospel events", reference: "1 Corinthians 15:1–4", explanation: "Christ died, was buried, and rose again." },
-    { title: "The risen Christ commissions the response", reference: "Luke 24:46–47", explanation: "The gospel leads into repentance and remission in His name." },
-    { title: "The apostolic response", reference: "Acts 2:38", explanation: "Repentance, baptism, and the Holy Ghost answer conviction." },
-    { title: "Death and burial applied", reference: "Romans 6:3–4", explanation: "Baptism joins believers to Christ's death and burial." },
-    { title: "Resurrection life by the Spirit", reference: "Romans 8:11", explanation: "The Spirit who raised Jesus gives life to believers." }
+    { title: "The gospel events", reference: "1 Corinthians 15:1–4", explanation: "Christ died, was buried, and rose again.", hook: "Paul defines the gospel events: Christ died, was buried, and rose again. Luke now shows the response the risen Christ commissions people to make to that gospel." },
+    { title: "The risen Christ commissions the response", reference: "Luke 24:46–47", explanation: "The gospel leads into repentance and remission in His name.", hook: "Jesus connects His death and resurrection to repentance and remission preached in His name. Acts 2 gives the apostolic answer when people are convicted by that message." },
+    { title: "The apostolic response", reference: "Acts 2:38", explanation: "Repentance, baptism, and the Holy Ghost answer conviction.", hook: "Repentance, baptism, and receiving the Holy Ghost answer the gospel proclamation. Romans then shows how baptism corresponds to Christ's death and burial." },
+    { title: "Death and burial applied", reference: "Romans 6:3–4", explanation: "Baptism joins believers to Christ's death and burial.", hook: "Baptism joins believers to Christ's death and burial. Romans 8 completes the pattern by locating resurrection life in the indwelling Spirit." },
+    { title: "Resurrection life by the Spirit", reference: "Romans 8:11", explanation: "The Spirit who raised Jesus gives life to believers.", hook: "The gospel is not only an event to affirm but a saving reality believers enter by faith. That prepares the next study question: how grace, faith, and obedient response belong together." }
   ]}),
   pathway({ slug: "faith-grace-and-obedience", title: "Faith, Grace, and Obedience", summary: "Answer the false choice between grace and an obedient response of faith.", estimatedMinutes: 11, level: "Intermediate", topicSlug: "the-new-birth", collection: "Questions and biblical interpretation", steps: [
-    { title: "Start with grace", reference: "Ephesians 2:8–10", explanation: "Salvation is God's gift and creates a life of obedience." },
-    { title: "The obedience of faith", reference: "Romans 1:5", explanation: "Paul joins grace, apostleship, faith, and obedience." },
-    { title: "Faith works through love", reference: "Galatians 5:6", explanation: "Biblical faith is active rather than lifeless." },
-    { title: "Dead faith", reference: "James 2:17", explanation: "Faith with no corresponding action is dead." },
-    { title: "Baptism through faith", reference: "Colossians 2:12", explanation: "Baptism is faith in God's operation, not confidence in human merit." }
+    { title: "Start with grace", reference: "Ephesians 2:8–10", explanation: "Salvation is God's gift and creates a life of obedience.", hook: "Paul starts with grace: salvation is God's gift, not human boasting. The same passage also says grace creates a people for good works, so Romans asks how faith and obedience relate." },
+    { title: "The obedience of faith", reference: "Romans 1:5", explanation: "Paul joins grace, apostleship, faith, and obedience.", hook: "Paul speaks of the obedience of faith rather than placing obedience against faith. Galatians then describes the kind of faith that matters as faith working through love." },
+    { title: "Faith works through love", reference: "Galatians 5:6", explanation: "Biblical faith is active rather than lifeless.", hook: "Biblical faith is active through love. James sharpens the point by naming a faith with no corresponding action as dead." },
+    { title: "Dead faith", reference: "James 2:17", explanation: "Faith with no corresponding action is dead.", hook: "James rejects a faith that remains only verbal. Colossians then gives baptism as a concrete example of obedient action resting on faith in God's operation." },
+    { title: "Baptism through faith", reference: "Colossians 2:12", explanation: "Baptism is faith in God's operation, not confidence in human merit.", hook: "Baptism does not compete with grace when the confidence is in God's operation rather than human merit. The next pathway applies the same Scripture-first method to another common question: the right hand of God." }
   ]}),
   pathway({ slug: "right-hand-of-god", title: "The Right Hand of God", summary: "Read right-hand language as power, victory, exaltation, and authority.", estimatedMinutes: 10, level: "Intermediate", topicSlug: "right-hand-of-god", collection: "Questions and biblical interpretation", steps: [
-    { title: "Scripture defines the symbol", reference: "Exodus 15:6", explanation: "God's right hand is glorious in power." },
-    { title: "The LORD's right hand acts", reference: "Psalm 118:16", explanation: "The symbol describes divine action and victory." },
-    { title: "Messianic exaltation", reference: "Psalm 110:1", explanation: "The Messiah is placed in supreme authority." },
-    { title: "Peter explains the exaltation", reference: "Acts 2:32–36", explanation: "The risen Jesus receives and exercises messianic authority." },
-    { title: "The kingdom reaches its goal", reference: "1 Corinthians 15:24–28", explanation: "Mediatorial rule completes its saving purpose under the one God." }
+    { title: "Scripture defines the symbol", reference: "Exodus 15:6", explanation: "God's right hand is glorious in power.", hook: "Exodus uses God's right hand as language for divine power. Psalm 118 repeats the image so Scripture itself can establish how the symbol functions." },
+    { title: "The LORD's right hand acts", reference: "Psalm 118:16", explanation: "The symbol describes divine action and victory.", hook: "The LORD's right hand acts valiantly, confirming that the phrase describes power and victory. Psalm 110 then applies right-hand language to messianic exaltation." },
+    { title: "Messianic exaltation", reference: "Psalm 110:1", explanation: "The Messiah is placed in supreme authority.", hook: "Psalm 110 places the Messiah at the right hand in supreme authority. Peter's Pentecost sermon explains how that prophecy is fulfilled in the risen Jesus." },
+    { title: "Peter explains the exaltation", reference: "Acts 2:32–36", explanation: "The risen Jesus receives and exercises messianic authority.", hook: "Peter interprets the right hand through resurrection, exaltation, and authority. First Corinthians then shows where that mediatorial reign is headed." },
+    { title: "The kingdom reaches its goal", reference: "1 Corinthians 15:24–28", explanation: "Mediatorial rule completes its saving purpose under the one God.", hook: "Christ's mediatorial kingdom reaches its saving goal under the one God. The next pathway uses the same incarnation framework to understand another common question: why Jesus prays." }
   ]}),
   pathway({ slug: "jesus-prayers-and-humanity", title: "Jesus' Prayers and Humanity", summary: "Keep Christ's genuine human life and the Father's full indwelling together.", estimatedMinutes: 12, level: "Intermediate", topicSlug: "the-son-of-god", collection: "Questions and biblical interpretation", steps: [
-    { title: "Begin with the incarnation", reference: "Luke 1:35", explanation: "The Son is the holy child conceived by the Holy Ghost." },
-    { title: "Real human growth", reference: "Luke 2:52", explanation: "Jesus develops in wisdom and stature." },
-    { title: "The Father dwelling in Him", reference: "John 14:10", explanation: "Humanity does not exclude deity." },
-    { title: "A genuine human will", reference: "Matthew 26:39", explanation: "Jesus' human will submits to the divine will." },
-    { title: "Prayer in the days of His flesh", reference: "Hebrews 5:7–8", explanation: "Hebrews locates prayer and learned obedience in His incarnate life." },
-    { title: "All fullness remains", reference: "Colossians 2:9", explanation: "The praying Son is still the bodily dwelling of all divine fullness." }
+    { title: "Begin with the incarnation", reference: "Luke 1:35", explanation: "The Son is the holy child conceived by the Holy Ghost.", hook: "Luke begins with the incarnation: the Son is the holy child conceived by the Holy Ghost. The next question is whether that humanity is complete enough to include real development." },
+    { title: "Real human growth", reference: "Luke 2:52", explanation: "Jesus develops in wisdom and stature.", hook: "Jesus truly grows in wisdom and stature. John 14 keeps that real humanity together with the equally real indwelling of the Father." },
+    { title: "The Father dwelling in Him", reference: "John 14:10", explanation: "Humanity does not exclude deity.", hook: "The Father dwells and works in Christ, so genuine humanity does not require denying deity. Gethsemane then shows that humanity expressing a real human will in submission." },
+    { title: "A genuine human will", reference: "Matthew 26:39", explanation: "Jesus' human will submits to the divine will.", hook: "Jesus' human will submits to the divine will. Hebrews places His prayers, cries, and learned obedience specifically in the days of His flesh." },
+    { title: "Prayer in the days of His flesh", reference: "Hebrews 5:7–8", explanation: "Hebrews locates prayer and learned obedience in His incarnate life.", hook: "Hebrews explains prayer within the incarnate life rather than as proof of a second divine being. Colossians closes the study by keeping all divine fullness in the same Christ." },
+    { title: "All fullness remains", reference: "Colossians 2:9", explanation: "The praying Son is still the bodily dwelling of all divine fullness.", hook: "The praying Son remains the bodily dwelling of all the fullness of deity. His genuine humanity and God's full indwelling must be held together rather than used to cancel one another." }
   ]})
 ];
 

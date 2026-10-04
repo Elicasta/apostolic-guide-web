@@ -2,9 +2,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft, ArrowRight, Clock3, ExternalLink } from "lucide-react";
 import { notFound } from "next/navigation";
-import { BibleReferenceLink, StudyScriptures } from "@/study-guidance";
+import { StudyScriptures } from "@/study-guidance";
 import { SmartNext } from "@/smart-next";
 import { PathwayStudyTracker } from "@/pathway-study-tracker";
+import { PathwayCardReader } from "@/pathway-card-reader";
 import { PathwayAudioPlayer } from "@/pathway-audio-player";
 import { getPathwayAudioAsset } from "@/pathway-audio";
 import { pathwaySuggestions } from "@/suggestion-data";
@@ -46,6 +47,17 @@ export default async function PathwayPage({ params }: Props) {
   const previous = currentIndex > 0 ? collectionItems[currentIndex - 1] : null;
   const next = currentIndex < collectionItems.length - 1 ? collectionItems[currentIndex + 1] : null;
   const pathwayReferences = pathway.steps.map((step) => step.reference);
+  const readerSteps = pathway.steps.map((step) => {
+    const scripture = scriptures.find((item) =>
+      item.reference === step.reference ||
+      item.reference.startsWith(step.reference.replace(/–.*/, ""))
+    );
+    return {
+      ...step,
+      scriptureText: scripture?.text ?? null,
+      scripturePath: scripture?.path ?? null
+    };
+  });
   const suggestions = pathwaySuggestions(pathway.slug);
   const breadcrumbs = breadcrumbJsonLd([
     { name: "Pathways", path: "/pathways" },
@@ -70,30 +82,16 @@ export default async function PathwayPage({ params }: Props) {
         </div>
       </section>
 
-      <section className="section pathway-core-section">
+      <section className="pathway-core-section">
         <div className="shell pathway-study-layout">
-          <div className="pathway-timeline">
-            {pathway.steps.map((step, index) => {
-              const scripture = scriptures.find((item) => item.reference === step.reference || item.reference.startsWith(step.reference.replace(/–.*/, "")));
-              return (
-                <article className="pathway-study-step" data-pathway-step={index} data-pathway-reference={step.reference} key={`${step.reference}-${index}`}>
-                  <div className="timeline-marker"><span>{String(index + 1).padStart(2, "0")}</span></div>
-                  <div>
-                    <span className="eyebrow">{step.reference}</span>
-                    <h2>{step.title}</h2>
-                    <p>{step.explanation}</p>
-                    {scripture && <blockquote>“{scripture.text}”</blockquote>}
-                    <div className="pathway-study-actions">
-                      {scripture && <Link className="text-link" href={`/scripture/${scripture.path}`}>Study passage <ArrowRight size={15} /></Link>}
-                      <BibleReferenceLink reference={step.reference} />
-                    </div>
-                  </div>
-                </article>
-              );
-            })}
-          </div>
+          <PathwayCardReader
+            slug={pathway.slug}
+            title={pathway.title}
+            steps={readerSteps}
+            nextPathway={next ? { title: next.title, href: `/pathways/${next.slug}` } : null}
+          />
 
-          <aside className="pathway-app-card">
+          <aside className="pathway-summary-card">
             <span className="eyebrow eyebrow-light">Continue this study in the app</span>
             <h2>Open the complete {pathway.title} pathway.</h2>
             <p>Continue with the expanded passage sequence, common objections, study branches, and deeper context.</p>
