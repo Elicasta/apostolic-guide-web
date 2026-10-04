@@ -10,6 +10,7 @@ import { PathwayAudioPlayer } from "@/pathway-audio-player";
 import { getPathwayAudioAsset } from "@/pathway-audio";
 import { pathwaySuggestions } from "@/suggestion-data";
 import { scriptures, topicBySlug } from "@/data";
+import { getPathwayKjvPassage } from "@/pathway-kjv";
 import { allPathways, pathwayBySlug } from "@/pathway-catalog";
 import { breadcrumbJsonLd, buildSeoMetadata } from "@/seo";
 import { SearchIntentCluster } from "@/search-intent-cluster";
@@ -52,9 +53,10 @@ export default async function PathwayPage({ params }: Props) {
       item.reference === step.reference ||
       item.reference.startsWith(step.reference.replace(/–.*/, ""))
     );
+    const kjvPassage = getPathwayKjvPassage(step.reference);
     return {
       ...step,
-      scriptureText: scripture?.text ?? null,
+      scriptureVerses: kjvPassage?.verses ?? [],
       scripturePath: scripture?.path ?? null
     };
   });

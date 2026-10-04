@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ArrowLeft, ArrowRight, BookOpen, Check, List, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { BibleReferenceLink } from "./bible-links";
+import { pathwayKjvEmphasisPattern, pathwayKjvEmphasisPhrases } from "./pathway-kjv-emphasis";
 import styles from "./pathway-card-reader.module.css";
 
 export type PathwayReaderStep = {
@@ -11,7 +12,7 @@ export type PathwayReaderStep = {
   reference: string;
   explanation: string;
   hook?: string;
-  scriptureText?: string | null;
+  scriptureVerses?: Array<{ number: number; text: string }>;
   scripturePath?: string | null;
 };
 
@@ -21,6 +22,16 @@ type PathwayCardReaderProps = {
   steps: PathwayReaderStep[];
   nextPathway?: { title: string; href: string } | null;
 };
+
+function renderKjvText(text: string) {
+  return text.split(pathwayKjvEmphasisPattern).map((part, index) => {
+    if (!part) return null;
+    const emphasized = pathwayKjvEmphasisPhrases.some((phrase) => phrase.toLowerCase() === part.toLowerCase());
+    return emphasized
+      ? <strong className={styles.emphasis} key={`${part}-${index}`}>{part}</strong>
+      : part;
+  });
+}
 
 function stepFromHash(stepCount: number) {
   if (typeof window === "undefined") return null;
@@ -185,8 +196,21 @@ export function PathwayCardReader({ slug, title, steps, nextPathway }: PathwayCa
 
         <h2>{step.title}</h2>
 
-        {step.scriptureText ? (
-          <blockquote className={styles.verse}>“{step.scriptureText}”</blockquote>
+        {step.scriptureVerses?.length ? (
+          <blockquote className={styles.verse}>
+            <div className={styles.verseHeading}>
+              <span>King James Version</span>
+              <small>Full passage</small>
+            </div>
+            <div className={styles.verseBody}>
+              {step.scriptureVerses.map((verse) => (
+                <p key={verse.number}>
+                  <sup>{verse.number}</sup>
+                  <span>{renderKjvText(verse.text)}</span>
+                </p>
+              ))}
+            </div>
+          </blockquote>
         ) : null}
 
         <div className={styles.explanation}>
