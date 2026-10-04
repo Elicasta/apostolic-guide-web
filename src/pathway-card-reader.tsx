@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ArrowLeft, ArrowRight, BookOpen, Check, List, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { BibleReferenceLink } from "./bible-links";
+import { pathwayKjvEmphasisPattern, pathwayKjvEmphasisPhrases } from "./pathway-kjv-emphasis";
 import styles from "./pathway-card-reader.module.css";
 
 export type PathwayReaderStep = {
@@ -22,107 +23,10 @@ type PathwayCardReaderProps = {
   nextPathway?: { title: string; href: string } | null;
 };
 
-const emphasisPhrases = [
-  "fulness of the Godhead bodily",
-  "God created the heaven and the earth",
-  "All things were made by him",
-  "all things created",
-  "word of the Lord",
-  "breath of his mouth",
-  "made of a woman",
-  "Jesus increased in wisdom and stature",
-  "known my Father",
-  "have seen him",
-  "only begotten Son",
-  "he hath declared him",
-  "all fulness dwell",
-  "call his name Jesus",
-  "save his people from their sins",
-  "manifested thy name",
-  "none other name under heaven",
-  "we must be saved",
-  "name which is above every name",
-  "name of Jesus",
-  "Jesus Christ is Lord",
-  "baptized into Jesus Christ",
-  "buried with him by baptism",
-  "walk in newness of life",
-  "faith of the operation of God",
-  "promise is unto you",
-  "as many as the Lord our God shall call",
-  "pour out my spirit",
-  "another Comforter",
-  "Spirit of truth",
-  "shall be in you",
-  "I will come to you",
-  "speak with tongues",
-  "Christ died for our sins",
-  "he was buried",
-  "he rose again",
-  "Spirit of him that raised up Jesus",
-  "Spirit that dwelleth in you",
-  "not as I will, but as thou wilt",
-  "days of his flesh",
-  "learned he obedience",
-  "the gospel",
-  "fullness of the Godhead bodily",
-  "none other God but one",
-  "before me there was no God formed",
-  "neither shall there be after me",
-  "beside me there is no God",
-  "I am the first, and I am the last",
-  "he that hath seen me hath seen the Father",
-  "the Father that dwelleth in me",
-  "born of water and of the Spirit",
-  "faith, if it hath not works, is dead",
-  "faith which worketh by love",
-  "speak with other tongues",
-  "speaking with tongues",
-  "spake with tongues",
-  "the Word was made flesh",
-  "the Word was God",
-  "image of the invisible God",
-  "the man Christ Jesus",
-  "called the Son of God",
-  "the everlasting Father",
-  "the mighty God",
-  "God with us",
-  "God was in Christ",
-  "My Lord and my God",
-  "name of Jesus Christ",
-  "name of the Lord Jesus",
-  "baptized in the name",
-  "gift of the Holy Ghost",
-  "Holy Ghost",
-  "born again",
-  "saved through faith",
-  "by grace",
-  "obedience to the faith",
-  "one Spirit",
-  "one LORD",
-  "one God",
-  "there is none else",
-  "there is no God",
-  "by myself",
-  "right hand",
-  "be baptized",
-  "Repent",
-  "all in all"
-].sort((a, b) => b.length - a.length);
-
-function escapeRegExp(value: string) {
-  return value.replace(/[.*+?^$()|[\]\\]/g, "\\$&");
-}
-
-const emphasisPattern = new RegExp(
-  `(${emphasisPhrases.map(escapeRegExp).join("|")})`,
-  "gi"
-);
-
 function renderKjvText(text: string) {
-  return text.split(emphasisPattern).map((part, index) => {
+  return text.split(pathwayKjvEmphasisPattern).map((part, index) => {
     if (!part) return null;
-    const emphasized = emphasisPhrases.some((phrase) => phrase.toLowerCase() === part.toLowerCase());
+    const emphasized = pathwayKjvEmphasisPhrases.some((phrase) => phrase.toLowerCase() === part.toLowerCase());
     return emphasized
       ? <strong className={styles.emphasis} key={`${part}-${index}`}>{part}</strong>
       : part;
