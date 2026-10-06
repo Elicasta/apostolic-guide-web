@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { cronRequestAuthorized } from "@/cron-auth";
 import { resumeApprovedForgeAudioRuns } from "@/forge-audio-production";
 import { drainForgeCarouselRenderQueue } from "@/forge-carousel-render-worker";
 import { executeSolRuns } from "@/sol-operator-executor";
@@ -9,8 +10,7 @@ export const runtime = "nodejs";
 export const maxDuration = 300;
 
 function authorized(request: Request) {
-  const secret = process.env.CRON_SECRET?.trim();
-  return Boolean(secret) && request.headers.get("authorization") === `Bearer ${secret}`;
+  return cronRequestAuthorized(request);
 }
 
 async function runtimePolicy() {
