@@ -59,6 +59,7 @@ export function decideSolControl(input: {
   }
   if (!MUTATION_ROLES.has(role)) return deny("ROLE", "Your role cannot change Sol work.");
   if (killed) return deny("SOL_STOPPED", "Sol is stopped by the administrator. Read-only chat remains available.");
+  if (action === "scan" && !enabled) return deny("SOL_PAUSED", "Sol is paused. Use the read-only Studio overview instead.");
   if (action === "scan") return allow;
   if (!enabled) return deny("SOL_PAUSED", "Sol is paused. It can answer questions but cannot change work.");
   if (mode === "watch") return deny("MODE", "Watch mode only reads and proposes. Switch to Assist for approvals.");
