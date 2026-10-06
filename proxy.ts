@@ -1,5 +1,6 @@
-import { createServerClient } from "@supabase/ssr";
+import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { permissionsPolicyForPaths } from "./src/security-headers";
 
 const APP_HOST = "app.apostolicguide.com";
 const STUDIO_HOST = "studio.apostolicguide.com";
@@ -46,6 +47,10 @@ export async function proxy(request: NextRequest) {
     : NextResponse.next({ request });
 
   const host = requestHost(request);
+  response.headers.set(
+    "Permissions-Policy",
+    permissionsPolicyForPaths([request.nextUrl.pathname, rewriteUrl?.pathname])
+  );
   if (host === APP_HOST) {
     response.headers.set("X-Robots-Tag", "noindex, follow");
   }
@@ -66,7 +71,7 @@ export async function proxy(request: NextRequest) {
   const supabase = createServerClient(url, key, {
     cookies: {
       getAll: () => request.cookies.getAll(),
-      setAll(values: Array<{ name: string; value: string; options?: any }>) {
+      setAll(values: Array<{ name: string; value: string; options?: CookieOptions }>) {
         values.forEach(({ name, value, options }) =>
           response.cookies.set(name, value, options)
         );

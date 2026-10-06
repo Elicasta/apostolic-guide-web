@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { cronRequestAuthorized } from "@/cron-auth";
 import { runSolManagerCycle } from "@/sol-agent-team";
 import { getSolOperatorSnapshot } from "@/sol-operator";
 import { runTrustedSolDrafts } from "@/sol-trusted-autopilot";
@@ -7,8 +8,7 @@ export const runtime = "nodejs";
 export const maxDuration = 300;
 
 function authorized(request: Request) {
-  const secret = process.env.CRON_SECRET?.trim();
-  return Boolean(secret) && request.headers.get("authorization") === `Bearer ${secret}`;
+  return cronRequestAuthorized(request);
 }
 
 export async function GET(request: Request) {

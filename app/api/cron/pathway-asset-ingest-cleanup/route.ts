@@ -1,5 +1,6 @@
 import { del } from "@vercel/blob";
 import { NextResponse } from "next/server";
+import { cronRequestAuthorized } from "@/cron-auth";
 import { PATHWAY_ASSET_STORAGE_PROVIDER } from "@/pathway-asset-ingest";
 import { createServiceClient } from "@/supabase";
 
@@ -7,8 +8,7 @@ export const runtime = "nodejs";
 export const maxDuration = 60;
 
 function authorized(request: Request) {
-  const secret = process.env.CRON_SECRET?.trim();
-  return Boolean(secret) && request.headers.get("authorization") === `Bearer ${secret}`;
+  return cronRequestAuthorized(request);
 }
 
 export async function GET(request: Request) {

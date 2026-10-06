@@ -1,14 +1,13 @@
 import { NextResponse } from "next/server";
 import { executePublication } from "@/creative-publication-executor";
+import { cronRequestAuthorized } from "@/cron-auth";
 import { createServiceClient } from "@/supabase";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
 
 function authorized(request: Request) {
-  const secret = process.env.CRON_SECRET?.trim();
-  if (!secret) return false;
-  return request.headers.get("authorization") === `Bearer ${secret}`;
+  return cronRequestAuthorized(request);
 }
 
 export async function GET(request: Request) {
