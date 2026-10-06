@@ -104,6 +104,14 @@ const answerRankingSections: Record<string, Section[]> = {
       ]
     },
     {
+      heading: "Does “in the name of Jesus” mean only by Jesus' authority?",
+      paragraphs: [
+        "Authority is part of the phrase, but the Acts passages do not make authority a reason to remove Jesus' name from baptism. The same inspired record repeatedly connects the baptism itself with the name of Jesus Christ or the Lord Jesus across Jews, Samaritans, Gentiles, and disciples at Ephesus. The Apostolic reading therefore keeps both truths together: baptism is performed under Jesus' authority and in the saving name the apostles actually used.",
+        "Acts 22:16 strengthens that connection by joining baptism with calling on the name of the Lord. The name is not treated as an empty verbal formula, but neither is it reduced to an unspoken idea of authority. Faith, invocation, identification with Christ, and obedience belong together in the apostolic pattern."
+      ],
+      scripture: { reference: "Acts 22:16", text: "Arise, and be baptized, and wash away thy sins, calling on the name of the Lord." }
+    },
+    {
       heading: "Baptism identifies the believer with Christ's death and burial",
       paragraphs: [
         "Romans 6 describes believers as baptized into Jesus Christ and into his death, then buried with him by baptism. Colossians 2:12 likewise joins burial with Christ, resurrection, and faith in the operation of God. The apostolic name and the theological meaning point in the same direction: baptism is centered in Jesus Christ."

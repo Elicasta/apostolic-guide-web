@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { cronRequestAuthorized } from "@/cron-auth";
 import { syncInstagramFeedToCalendar } from "@/instagram-feed-sync";
 import { createServiceClient } from "@/supabase";
 
@@ -6,8 +7,7 @@ export const runtime = "nodejs";
 export const maxDuration = 60;
 
 function authorized(request: Request) {
-  const secret = process.env.CRON_SECRET?.trim();
-  return Boolean(secret && request.headers.get("authorization") === `Bearer ${secret}`);
+  return cronRequestAuthorized(request);
 }
 
 async function recordSyncState(error: string | null) {

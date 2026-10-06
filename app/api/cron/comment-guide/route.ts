@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import { runCommentGuideCycle } from "@/comment-guide-runtime";
+import { cronRequestAuthorized } from "@/cron-auth";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
 
 function authorized(request: Request) {
-  const secret = process.env.CRON_SECRET?.trim();
-  return Boolean(secret) && request.headers.get("authorization") === `Bearer ${secret}`;
+  return cronRequestAuthorized(request);
 }
 
 export async function GET(request: Request) {

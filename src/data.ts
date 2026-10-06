@@ -57,7 +57,7 @@ export type Pathway = {
   estimatedMinutes: number;
   level: "Foundational" | "Intermediate";
   topicSlug: string;
-  steps: { title: string; reference: string; explanation: string }[];
+  steps: { title: string; reference: string; explanation: string; hook?: string }[];
 };
 
 export const topics: Topic[] = [
@@ -149,6 +149,19 @@ export const answers: Answer[] = [
     ]
   },
   {
+    slug: "what-does-colossians-2-9-mean",
+    question: "What does Colossians 2:9 mean?",
+    shortAnswer: "Colossians 2:9 means that all the fullness of deity dwells bodily in Jesus Christ. God is not partially present in Christ; the one God is fully revealed and dwelling in him in genuine humanity.",
+    summary: "Paul points believers away from competing philosophies and back to Christ, because the fullness of the Godhead dwells in him bodily and believers are complete in him.",
+    topicSlug: "jesus-is-god",
+    scriptures: ["Colossians 2:8–10", "Colossians 1:19", "John 14:9–11", "2 Corinthians 5:19"],
+    sections: [
+      { heading: "Read verse 9 in its context", paragraphs: ["Colossians 2:8 warns believers not to be carried away by philosophy, human tradition, or the rudiments of the world. Paul's answer is Christ: in him dwells all the fullness of the Godhead bodily, and verse 10 immediately says believers are complete in him."] },
+      { heading: "What does “all the fulness of the Godhead bodily” mean?", paragraphs: ["Paul does not describe Jesus as containing one part of God or merely displaying divine qualities. The language is total: all the fullness of deity dwells in Christ bodily. The invisible God has made himself known in a real human life."] },
+      { heading: "How this fits the rest of Scripture", paragraphs: ["Colossians 1:19 says all fullness dwells in Christ. Jesus says the Father dwelling in him does the works in John 14:10. Paul likewise writes that God was in Christ reconciling the world unto himself in 2 Corinthians 5:19. Colossians 2:9 belongs to that same biblical pattern of God fully revealing himself in Christ."] }
+    ]
+  },
+  {
     slug: "is-jesus-the-father",
     question: "Is Jesus the Father?",
     shortAnswer: "Jesus is not the Father as to his humanity as the Son, yet the Father is fully revealed and dwelling in him.",
@@ -223,8 +236,8 @@ export const answers: Answer[] = [
   {
     slug: "what-does-right-hand-of-god-mean",
     question: "What does the right hand of God mean?",
-    shortAnswer: "It means divine power, authority, victory, and exalted rule.",
-    summary: "Biblical right-hand language communicates position and authority rather than placing two divine bodies on adjacent seats.",
+    shortAnswer: "The right hand of God means divine power, authority, victory, honor, and exalted rule. When Scripture places Jesus at God's right hand, it describes the Messiah's supreme authority rather than a second divine body seated beside God.",
+    summary: "Scripture uses God's right hand as a biblical symbol of power, victory, honor, and authority; the exalted Christ reigns in that supreme messianic position.",
     topicSlug: "right-hand-of-god",
     scriptures: ["Exodus 15:6", "Psalm 118:16", "Acts 2:33–36"],
     sections: [
