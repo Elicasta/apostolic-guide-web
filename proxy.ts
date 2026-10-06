@@ -1,4 +1,4 @@
-import { createServerClient } from "@supabase/ssr";
+import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { permissionsPolicyForPaths } from "./src/security-headers";
 
@@ -71,7 +71,7 @@ export async function proxy(request: NextRequest) {
   const supabase = createServerClient(url, key, {
     cookies: {
       getAll: () => request.cookies.getAll(),
-      setAll(values: Array<{ name: string; value: string; options?: any }>) {
+      setAll(values: Array<{ name: string; value: string; options?: CookieOptions }>) {
         values.forEach(({ name, value, options }) =>
           response.cookies.set(name, value, options)
         );
