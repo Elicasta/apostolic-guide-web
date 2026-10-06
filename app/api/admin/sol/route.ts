@@ -94,11 +94,12 @@ export async function POST(request: Request) {
   const canOperate = hasStudioPermission(access.role, "manage_content");
   if (!canOperate) return NextResponse.json({ error: "Your Studio role can view Sol but cannot run it." }, { status: 403 });
 
-  const current = await getSolOperatorSnapshot();
-  if (!current.dbReady && body.action !== "chat") return NextResponse.json({ error: "Sol storage is unavailable. No changes were made." }, { status: 503 });
+  // Emergency stop must not depend on a healthy analytics or operator snapshot.
+  const current = body.action === "stop" ? null : await getSolOperatorSnapshot();
+  if (current && !current.dbReady && body.action !== "chat") return NextResponse.json({ error: "Sol storage is unavailable. No changes were made." }, { status: 503 });
   const action = body.action === "update_settings" ? "settings" : body.action === "agent_approval" ? "agent_approval" : body.action === "cancel_run" ? "cancel" : body.action === "retry_run" ? "retry" : body.action;
   const policy = decideSolControl({
-    role: access.role, action, enabled: current.settings.enabled, mode: current.settings.mode,
+    role: access.role, action, enabled: current?.settings.enabled ?? false, mode: current?.settings.mode ?? "watch",
     ...(body.action === "update_settings" ? { nextEnabled: body.enabled, nextMode: body.mode, acknowledged: body.acknowledged } : {}),
     via: "page"
   });
