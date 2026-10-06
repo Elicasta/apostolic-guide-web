@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getStudioPermission } from "@/auth";
 import { createServiceClient } from "@/supabase";
+import { localAssetWindow, provisionalVisualRange, selectedAssetIn } from "@/video-producer-local-broll";
 import {
   createPrivateBlobUploadUrl,
   createWorkerCallbackToken,
@@ -30,10 +31,7 @@ function object(value: unknown): Record<string, unknown> {
 }
 
 function provisionalRange(beat: { source_start: number; duration: number }, sourceDuration: number) {
-  const start = Math.max(0, Number(beat.source_start) - 0.35);
-  const desired = Math.min(8, Math.max(1.5, Number(beat.duration)));
-  const end = Math.min(sourceDuration, start + desired);
-  return { start, end, duration: Math.max(0.5, end - start) };
+  return provisionalVisualRange({ sourceStart: Number(beat.source_start), duration: Number(beat.duration) }, sourceDuration);
 }
 
 function stockDerivativeId(providerAssetId: string, assetIn: number, duration: number) {
@@ -169,9 +167,9 @@ export async function POST(request: Request) {
       const asset = await service.from("video_producer_visual_assets").select("id,duration").eq("id", assetId).maybeSingle();
       if (asset.error) throw new Error(asset.error.message);
       if (!asset.data) return NextResponse.json({ error: "Library asset is unavailable." }, { status: 409 });
-      const assetDuration = Number(asset.data.duration || range.duration);
-      const assetIn = assetDuration > range.duration + 2 ? Math.min(2, assetDuration * 0.1) : 0;
-      const assetOut = Math.min(assetDuration, assetIn + range.duration);
+      const window = localAssetWindow(asset.data.duration, range.duration);
+      const assetIn = window.assetIn;
+      const assetOut = window.assetOut;
       const placement = await placeExistingAsset({
         service, projectId: project.id, beatId: beat.id, assetId,
         sourceStart: range.start, sourceEnd: range.start + Math.max(0.5, assetOut - assetIn),
@@ -194,7 +192,7 @@ export async function POST(request: Request) {
     const outputPath = `video-producer/visuals/${project.id}/${jobId}.mp4`;
     const uploadUrl = await createPrivateBlobUploadUrl({ pathname: outputPath, contentType: "video/mp4", maxBytes: MAX_VISUAL_BYTES, ttlMs: 3 * 60 * 60 * 1000 });
     const callback = createWorkerCallbackToken();
-    const assetIn = Number(candidate.duration || 0) > range.duration + 2 ? Math.min(2, Number(candidate.duration) * 0.1) : 0;
+    const assetIn = selectedAssetIn(candidate.duration, range.duration);
     const originalProviderAssetId = String(candidate.provider_asset_id || jobId);
     const durableProviderAssetId = stockDerivativeId(originalProviderAssetId, assetIn, range.duration);
     const provenanceProvider = typeof metadata.originProvider === "string" ? metadata.originProvider : candidate.provider;

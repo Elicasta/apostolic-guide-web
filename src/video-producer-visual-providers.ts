@@ -1,5 +1,6 @@
 import "server-only";
 import type { ServiceClient } from "./video-producer-server";
+import { rankLocalVisualLibrary } from "./video-producer-local-broll";
 import {
   buildEditorialGenerationPrompt,
   normalizeVisualSearchQueries,
@@ -193,29 +194,38 @@ export async function searchOwnedVisualLibrary(
     .limit(120);
   if (result.error) throw new Error(result.error.message);
 
-  const owned = (result.data ?? []).map((asset) => {
-    const haystack = [asset.filename, asset.description, ...(Array.isArray(asset.tags) ? asset.tags : [])].filter(Boolean).join(" ").toLowerCase();
-    const matched = terms.reduce((sum, term) => sum + (haystack.includes(term) ? 1 : 0), 0);
-    return { asset, matched };
-  }).filter((row) => row.matched > 0 || terms.length === 0)
-    .sort((a, b) => b.matched - a.matched || String(b.asset.updated_at).localeCompare(String(a.asset.updated_at)))
-    .slice(0, limit)
-    .map(({ asset, matched }, index): VideoProducerVisualCandidate => ({
-      id: `ag-library:${asset.id}`,
-      beatId: "",
-      provider: "ag-library",
-      providerAssetId: asset.id,
-      title: asset.filename,
-      sourceUrl: asset.source_url,
-      creator: asset.creator,
-      duration: asset.duration,
-      width: asset.width,
-      height: asset.height,
-      score: Math.min(100, 96 + matched - index),
-      licenseName: asset.license_name,
-      licenseUrl: asset.license_url,
-      metadata: { storedAssetId: asset.id, storageLocator: asset.storage_locator, sha256: asset.sha256, revision: asset.revision }
-    }));
+  const owned = rankLocalVisualLibrary((result.data ?? []).map((asset) => ({
+    id: asset.id,
+    filename: asset.filename,
+    description: asset.description,
+    tags: Array.isArray(asset.tags) ? asset.tags.filter((tag): tag is string => typeof tag === "string") : [],
+    duration: asset.duration,
+    width: asset.width,
+    height: asset.height,
+    updatedAt: asset.updated_at,
+    sourceUrl: asset.source_url,
+    creator: asset.creator,
+    licenseName: asset.license_name,
+    licenseUrl: asset.license_url,
+    storageLocator: asset.storage_locator,
+    sha256: asset.sha256,
+    revision: asset.revision
+  })), queries, limit).map(({ asset, score }): VideoProducerVisualCandidate => ({
+    id: `ag-library:${asset.id}`,
+    beatId: "",
+    provider: "ag-library",
+    providerAssetId: asset.id,
+    title: asset.filename,
+    sourceUrl: asset.sourceUrl,
+    creator: asset.creator,
+    duration: asset.duration,
+    width: asset.width,
+    height: asset.height,
+    score,
+    licenseName: asset.licenseName,
+    licenseUrl: asset.licenseUrl,
+    metadata: { storedAssetId: asset.id, storageLocator: asset.storageLocator, sha256: asset.sha256, revision: asset.revision }
+  }));
 
   if (owned.length >= limit || !options.pathwaySlug) return owned;
 

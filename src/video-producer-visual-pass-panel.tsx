@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Check, Film, Loader2, Search, SkipForward, Sparkles } from "lucide-react";
+import { LOCAL_BROLL_AUTO_MIN_SCORE } from "@/video-producer-local-broll";
 import { formatProducerTime } from "@/video-producer";
 import styles from "./video-producer-visual-pass.module.css";
 
@@ -54,7 +55,7 @@ type VisualState = {
   providers: ProviderState;
 };
 
-const AUTO_MIN_SCORE = 84;
+const AUTO_MIN_SCORE = LOCAL_BROLL_AUTO_MIN_SCORE;
 const ACTIVE_IMPORTS = new Set(["queued", "downloading", "normalizing", "uploading"]);
 const ACTIVE_GENERATION = new Set(["queued", "generating", "succeeded", "importing"]);
 const DEFAULT_API_TIMEOUT_MS = 45_000;
