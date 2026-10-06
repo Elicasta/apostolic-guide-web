@@ -10,7 +10,7 @@ import { getSolManagerContentInventory, getSolManagerPeopleStatus } from "./sol-
 import type { SolManagerContentKind } from "./sol-manager-engine";
 import { cancelSolRunV3, retrySolRun } from "./sol-run-recovery";
 import { isTrustedAutoRunnableProposal } from "./sol-trusted-policy";
-import { solKillSwitchEnabled } from "./sol-control-policy";
+import { decideSolHardLock, solKillSwitchEnabled } from "./sol-control-policy";
 import {
   approveSolProposal,
   dismissSolProposal,
@@ -256,6 +256,8 @@ function currentStatus(snapshot: SolOperatorSnapshot) {
 
 export async function executeSolAgentTool(name: SolAgentToolName, rawArgs: unknown, context: ToolContext): Promise<SolAgentToolResult> {
   const args = record(rawArgs);
+  const hardLock = decideSolHardLock(name);
+  if (!hardLock.allow) return { ok: false, message: hardLock.message };
   // Model instructions are not an authorization boundary: check fresh state on every write.
   if (name === "set_mode") {
     return { ok: false, message: "Change execution mode on /admin/sol. Chat cannot enable Sol or raise its privileges." };
@@ -450,6 +452,8 @@ export async function executeApprovedSolAgentTool(input: {
 }): Promise<SolAgentToolResult> {
   const args = input.approval.toolArguments;
   const name = input.approval.toolName as SolAgentToolName;
+  const hardLock = decideSolHardLock(name);
+  if (!hardLock.allow) return { ok: false, message: hardLock.message };
 
   if (name !== "cancel_run") {
     if (solKillSwitchEnabled()) return { ok: false, message: "Sol is stopped. Nothing was changed." };
