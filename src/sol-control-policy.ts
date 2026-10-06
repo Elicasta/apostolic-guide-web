@@ -1,4 +1,4 @@
-import type { StudioRole } from "./studio-permissions";
+import { hasStudioPermission, type StudioRole, type StudioPermission } from "./studio-permissions";
 import type { SolMode } from "./sol-operator-engine";
 
 export type SolControlAction =
@@ -77,4 +77,53 @@ export function decideSolHardLock(action: string): SolPolicyDecision {
   return SOL_HARD_LOCKED_ACTIONS.has(action)
     ? { allow: false, code: "HARD_LOCK", message: "Sol cannot perform that action in any mode." }
     : { allow: true };
+}
+
+/**
+ * Read-only MCP v1: tool names and permissions are shared with Sol Core.
+ * This function does not validate OAuth tokens: validate the token and
+ * resolve the Studio role on the server before calling it.
+ *
+ * A paused Sol or an active kill switch must not prevent permitted reads.
+ * Proposal and run details are Owner/Admin-only until a redacted per-role
+ * representation exists (their inputs may contain sensitive contact data).
+ */
+export const SOL_MCP_READ_TOOLS = [
+  "get_workspace_status",
+  "get_content_inventory",
+  "get_people_journey_status",
+  "get_forge_status",
+  "list_creative_projects",
+  "list_proposals",
+  "list_runs"
+] as const;
+
+export type SolMcpReadTool = (typeof SOL_MCP_READ_TOOLS)[number];
+
+const SOL_MCP_READ_REQUIREMENTS: Record<SolMcpReadTool, readonly StudioPermission[]> = {
+  get_workspace_status: ["view_workspace"],
+  get_content_inventory: ["view_content"],
+  get_people_journey_status: ["view_people", "view_journeys"],
+  get_forge_status: ["view_content"],
+  list_creative_projects: ["view_content"],
+  list_proposals: ["view_workspace"],
+  list_runs: ["view_workspace"]
+};
+
+export function decideSolReadTool(input: {
+  role: StudioRole | null;
+  tool: string;
+}): SolPolicyDecision {
+  if (!input.role) return { allow: false, code: "ROLE", message: "Sign in with a Studio account to read Sol data." };
+  if (!Object.prototype.hasOwnProperty.call(SOL_MCP_READ_REQUIREMENTS, input.tool)) {
+    return { allow: false, code: "HARD_LOCK", message: "This MCP tool is not on the read-only allowlist." };
+  }
+  const name = input.tool as SolMcpReadTool;
+  if ((name === "list_proposals" || name === "list_runs") && !CONTROL_ROLES.has(input.role)) {
+    return { allow: false, code: "ROLE", message: "Only an Owner or Admin can read unredacted Sol work details." };
+  }
+  if (!SOL_MCP_READ_REQUIREMENTS[name].every(permission => hasStudioPermission(input.role, permission))) {
+    return { allow: false, code: "ROLE", message: "Your Studio role cannot read this information." };
+  }
+  return { allow: true };
 }
