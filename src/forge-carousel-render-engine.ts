@@ -89,8 +89,9 @@ export function renderForgeFrameSvg(input: {
   const head = headlineLayout(frame);
   const headline = wrapForgeText(frame.headline || input.projectTitle, head.chars, head.maxLines);
   const body = wrapForgeText(bodyText(frame), 42, frame.role === "hook" || frame.role === "statement" ? 5 : 8);
-  const headlineY = frame.role === "hook" || frame.role === "statement" ? 340 : 300;
-  const bodyY = Math.min(930, headlineY + (headline.length * head.lineHeight) + 92);
+  // Leave clear space below the role label even when the headline uses tall fonts.
+  const headlineY = 284 + head.size;
+  const bodyY = Math.min(930, headlineY + ((headline.length - 1) * head.lineHeight) + 120);
   const scripture = frame.scripture.trim();
   const roleLabel = frame.role.toUpperCase();
   const slide = `${String(index + 1).padStart(2, "0")} / ${String(total).padStart(2, "0")}`;
