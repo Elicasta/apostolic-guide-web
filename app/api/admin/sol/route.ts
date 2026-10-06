@@ -12,6 +12,8 @@ import {
 import { executeApprovedSolAgentTool } from "@/sol-agent-tools";
 import { getSolAgentTeamSnapshot, runSolManagerCycle } from "@/sol-agent-team";
 import { hasStudioPermission } from "@/studio-permissions";
+import { decideSolControl } from "@/sol-control-policy";
+import { stopSolOperator } from "@/sol-stop";
 import { executeSolRuns } from "@/sol-operator-executor";
 import { cancelSolRunV3, retrySolRun } from "@/sol-run-recovery";
 import { runTrustedSolDrafts } from "@/sol-trusted-autopilot";
@@ -29,11 +31,13 @@ const settingsSchema = z.object({
   action: z.literal("update_settings"),
   enabled: z.boolean(),
   mode: z.enum(["watch", "assist", "trusted"]),
-  weeklyTargets: z.record(z.string(), z.number().int().min(0).max(99)).optional()
+  weeklyTargets: z.record(z.string(), z.number().int().min(0).max(99)).optional(),
+  acknowledged: z.boolean().optional()
 });
 const actionSchema = z.discriminatedUnion("action", [
   settingsSchema,
   z.object({ action: z.literal("scan") }),
+  z.object({ action: z.literal("stop"), confirm: z.literal(true) }),
   z.object({ action: z.literal("approve"), proposalId: z.string().uuid(), constraints: z.array(z.string().trim().min(1).max(240)).max(12).default([]) }),
   z.object({ action: z.literal("dismiss"), proposalId: z.string().uuid() }),
   z.object({ action: z.literal("cancel_run"), runId: z.string().uuid() }),
@@ -82,13 +86,29 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const access = await requireAccess();
   if (!access) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const origin = request.headers.get("origin");
+  if (origin && origin !== new URL(request.url).origin) return NextResponse.json({ error: "Cross-origin Sol changes are not permitted." }, { status: 403 });
   const parsed = actionSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Invalid Sol Operator request." }, { status: 400 });
   const body = parsed.data;
   const canOperate = hasStudioPermission(access.role, "manage_content");
   if (!canOperate) return NextResponse.json({ error: "Your Studio role can view Sol but cannot run it." }, { status: 403 });
 
+  const current = await getSolOperatorSnapshot();
+  if (!current.dbReady && body.action !== "chat") return NextResponse.json({ error: "Sol storage is unavailable. No changes were made." }, { status: 503 });
+  const action = body.action === "update_settings" ? "settings" : body.action === "agent_approval" ? "agent_approval" : body.action === "cancel_run" ? "cancel" : body.action === "retry_run" ? "retry" : body.action;
+  const policy = decideSolControl({
+    role: access.role, action, enabled: current.settings.enabled, mode: current.settings.mode,
+    ...(body.action === "update_settings" ? { nextEnabled: body.enabled, nextMode: body.mode, acknowledged: body.acknowledged } : {}),
+    via: "page"
+  });
+  if (!policy.allow) return NextResponse.json({ code: policy.code, error: policy.message }, { status: policy.code === "CONFIRM_REQUIRED" || policy.code === "SOL_PAUSED" ? 409 : 403 });
+
   try {
+    if (body.action === "stop") {
+      const stopped = await stopSolOperator(access.user.id);
+      return NextResponse.json({ ok: true, stopped, message: "Sol was stopped. Queued work and pending approvals were cancelled.", ...await snapshotAndTeam() });
+    }
     if (body.action === "update_settings") {
       await updateSolSettings(body, access.user.id);
       return NextResponse.json({ ok: true, ...await snapshotAndTeam() });
@@ -152,6 +172,8 @@ export async function POST(request: Request) {
     const team = await getSolAgentTeamSnapshot();
     return NextResponse.json({ ok: true, message: turn.message, thread: turn.thread, snapshot: turn.snapshot, team, surface, agent: { turnId: turn.turnId, toolCount: turn.toolCount } });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Sol Operator request failed." }, { status: 500 });
+    const message = error instanceof Error ? error.message : "Sol Operator request failed.";
+    const conflict = /already|expired|no longer|changed|claimed|pending|paused/i.test(message);
+    return NextResponse.json({ error: message, ...(conflict ? { code: "PREVIEW_STALE" } : {}) }, { status: conflict ? 409 : 500 });
   }
 }
