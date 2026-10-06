@@ -1,8 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { pathwayBySlug } from "../src/pathway-catalog";
 import {
   buildPathwayReaderFunnels,
+  cardReaderStepProperties,
   diagnosePathwayReaderFunnel,
   publicReaderEvents,
   type PathwayReaderEvent
@@ -219,4 +221,80 @@ test("a single later collapse remains reviewable once five readers began", () =>
   assert.equal(diagnosis.review, true);
   assert.equal(diagnosis.focusFrom, "Step 3");
   assert.equal(diagnosis.focusTo, "Step 4");
+});
+
+test("God Is One card-reader events reconstruct the current step order", () => {
+  const pathway = pathwayBySlug("god-is-one");
+  assert.ok(pathway);
+  const catalogItem = {
+    slug: pathway.slug,
+    title: pathway.title,
+    steps: pathway.steps.map((step) => ({ title: step.title, reference: step.reference }))
+  };
+  const stepCount = pathway.steps.length;
+  const events: PathwayReaderEvent[] = [];
+
+  const open = (sessionId: string, at: string) => {
+    events.push({
+      event_name: "pathway_started",
+      session_id: sessionId,
+      occurred_at: at,
+      page_path: `/pathways/${pathway.slug}`,
+      referrer_host: "www.google.com",
+      utm_source: null,
+      properties: { contentKey: pathway.slug }
+    });
+  };
+  const dwell = (sessionId: string, stepIndex: number, at: string) => {
+    events.push({
+      event_name: "pathway_step_completed",
+      session_id: sessionId,
+      occurred_at: at,
+      page_path: `/pathways/${pathway.slug}`,
+      referrer_host: "www.google.com",
+      utm_source: null,
+      properties: cardReaderStepProperties({
+        slug: pathway.slug,
+        stepIndex,
+        stepCount,
+        reference: pathway.steps[stepIndex]?.reference ?? null
+      })
+    });
+  };
+
+  open("browse-1", "2026-10-01T12:00:00Z");
+  open("browse-2", "2026-10-01T12:01:00Z");
+  for (const sessionId of ["step-1-a", "step-1-b"]) {
+    open(sessionId, "2026-10-01T12:02:00Z");
+    dwell(sessionId, 0, "2026-10-01T12:02:02Z");
+  }
+  for (const sessionId of ["mid-a", "mid-b", "mid-c"]) {
+    open(sessionId, "2026-10-01T12:03:00Z");
+    dwell(sessionId, 0, "2026-10-01T12:03:02Z");
+    dwell(sessionId, 1, "2026-10-01T12:03:04Z");
+    dwell(sessionId, 2, "2026-10-01T12:03:06Z");
+  }
+  open("finisher", "2026-10-01T12:04:00Z");
+  for (let stepIndex = 0; stepIndex < stepCount; stepIndex += 1) {
+    dwell("finisher", stepIndex, `2026-10-01T12:04:${String(10 + stepIndex).padStart(2, "0")}Z`);
+  }
+
+  const [row] = buildPathwayReaderFunnels(events, [catalogItem]);
+  assert.equal(row.opens, 8);
+  assert.equal(row.began, 6);
+  assert.equal(row.completions, 1);
+  assert.equal(row.steps[0].reference, pathway.steps[0].reference);
+  assert.equal(row.steps[0].reference, "Deuteronomy 6:4");
+  assert.deepEqual(row.steps.map((step) => step.reached), [6, 4, 4, 1, 1]);
+  assert.equal(row.largestDrop.from, "Step 3");
+  assert.equal(row.largestDrop.to, "Step 4");
+  assert.equal(row.largestDrop.lost, 3);
+  assert.equal(row.steps[2].reference, pathway.steps[2].reference);
+  assert.equal(row.diagnosis.review, true);
+});
+
+test("reader review styles stay attached to the analytics decision layer", () => {
+  const css = readFileSync("app/admin/analytics-v3.css", "utf8");
+  assert.match(css, /\.analytics-v3-signal\.is-warning/);
+  assert.match(css, /\.analytics-v3-drop\.is-review/);
 });

@@ -88,6 +88,22 @@ export function pathwaySlugFromEvent(event: PathwayReaderEvent) {
     ?? slugFromPath(event.page_path);
 }
 
+export function cardReaderStepProperties(input: {
+  slug: string;
+  stepIndex: number;
+  stepCount: number;
+  reference?: string | null;
+}) {
+  return {
+    contentKey: input.slug,
+    pathwaySlug: input.slug,
+    stepIndex: input.stepIndex,
+    stepNumber: input.stepIndex + 1,
+    stepCount: input.stepCount,
+    reference: input.reference ?? null
+  };
+}
+
 function stepNumberFromEvent(event: PathwayReaderEvent) {
   const properties = event.properties ?? {};
   const direct = numericValue(properties.stepNumber);
