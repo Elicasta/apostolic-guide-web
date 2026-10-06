@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { cronRequestAuthorized } from "@/cron-auth";
 import { createServiceClient } from "@/supabase";
 import { publishScheduledThreadsPost } from "@/threads-publisher";
 
@@ -8,7 +9,7 @@ export const maxDuration = 300;
 export async function GET(request: Request) {
   const secret = process.env.CRON_SECRET?.trim();
   if (!secret) return NextResponse.json({ error: "CRON_SECRET is not configured." }, { status: 503 });
-  if (request.headers.get("authorization") !== `Bearer ${secret}`) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!cronRequestAuthorized(request)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const service = createServiceClient();
   if (!service) return NextResponse.json({ error: "Supabase service access is not configured." }, { status: 503 });
   const due = await service.from("studio_threads_posts")

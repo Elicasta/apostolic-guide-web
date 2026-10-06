@@ -21,6 +21,8 @@ Production branch: main
 Node.js: 22.x
 ```
 
+`package.json` `engines.node` is `22.x`. That field overrides the Vercel Project Settings dropdown. Vercel’s platform default is 24.x, and Node.js 20 was disabled for new deployments on October 1, 2026. Keep the engines pin on `22.x` and set the project dropdown to 22.x so they match. Do not pin an exact patch version; Vercel only selects a major version.
+
 Domains:
 
 ```text
@@ -28,7 +30,7 @@ apostolicguide.com
 www.apostolicguide.com
 ```
 
-Redirect `www` to the apex domain.
+The canonical public origin is `https://www.apostolicguide.com`. The apex domain redirects to `www`. Do not reverse that redirect without a separate SEO change.
 
 The existing app remains:
 
