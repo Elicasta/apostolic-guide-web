@@ -94,6 +94,12 @@ drop trigger if exists sol_guard_run_enqueue on public.sol_operator_runs;
 create trigger sol_guard_run_enqueue before insert on public.sol_operator_runs
 for each row execute function public.guard_sol_run_enqueue();
 
+-- Retrying, reopening or claiming an older run must obey the same stop barrier.
+drop trigger if exists sol_guard_run_reactivate on public.sol_operator_runs;
+create trigger sol_guard_run_reactivate before update of status on public.sol_operator_runs
+for each row when (old.status is distinct from new.status and new.status in ('queued','retrying','running'))
+execute function public.guard_sol_run_enqueue();
+
 -- Atomic kill switch: changes state, cancels jobs/approvals, and audits or rolls back.
 create or replace function public.stop_sol_operator(p_actor_user_id uuid)
 returns jsonb language plpgsql security definer set search_path = ''
