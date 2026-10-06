@@ -1,5 +1,6 @@
 import { setTimeout as wait } from "node:timers/promises";
 import "server-only";
+import { assertEditorialSourceCurrent } from "./editorial-engine";
 import { executeScheduledPublication } from "./scheduled-publishing";
 import { instagramGraphBase } from "./instagram-api";
 import { privateBlobReadUrl } from "./private-blob";
@@ -157,7 +158,7 @@ async function executeCreativePublication(publicationId: string) {
   const metadata = record(claimed.data.metadata) as CreativeMetadata;
   try {
     const project = await service.from("studio_creative_projects")
-      .select("id,state_version,status")
+      .select("id,state_version,status,pathway_slug,editor_state")
       .eq("id", claimed.data.creative_project_id)
       .maybeSingle();
     if (project.error) throw new Error(project.error.message);
@@ -165,6 +166,7 @@ async function executeCreativePublication(publicationId: string) {
     if (Number(metadata.project_state_version || 0) !== Number(project.data.state_version || 0)) {
       throw new Error("The Creative Project changed after it was scheduled. Review the current version and schedule it again.");
     }
+    assertEditorialSourceCurrent({ pathwaySlug: project.data.pathway_slug, editorState: record(project.data.editor_state) });
     if (claimed.data.platform !== "instagram") throw new Error(`Creative Project auto publishing is not implemented for ${claimed.data.platform}. Use Finish Manually instead.`);
     const result = await publishCreativeInstagram(metadata);
     const now = new Date().toISOString();

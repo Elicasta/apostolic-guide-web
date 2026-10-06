@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { assertEditorialSourceCurrent } from "@/editorial-engine";
 import { z } from "zod";
 import { getStudioPermission } from "@/auth";
 import { CREATIVE_STATUSES, assertCreativeStatusTransition } from "@/creative-project";
@@ -20,6 +21,7 @@ export async function POST(request: Request, context: { params: Promise<{ projec
     const current = await loadCreativeProject(service, projectId);
     if (!current) return NextResponse.json({ error: "Creative Project not found." }, { status: 404 });
     assertCreativeStatusTransition(current.status, parsed.data.status);
+    if (parsed.data.status === "ready") assertEditorialSourceCurrent(current);
     const now = new Date().toISOString();
     const saved = await service.from("studio_creative_projects").update({
       status: parsed.data.status,
