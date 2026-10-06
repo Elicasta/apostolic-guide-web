@@ -36,10 +36,6 @@
     {
       "path": "/api/cron/pathway-asset-ingest-cleanup",
       "schedule": "17 4 * * *"
-    },
-    {
-      "path": "/api/cron/video-producer",
-      "schedule": "* * * * *"
     }
   ]
 }

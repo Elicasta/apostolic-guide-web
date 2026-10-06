@@ -27,7 +27,7 @@ Private preview URLs refresh without replacing the playing source on every produ
 ## Background draft
 
 `POST /api/admin/video-producer/draft` requires the existing `manage_content` permission. It stores a job under `director_metadata.draftJob` and starts one stage using Next `after`.
-`GET /api/cron/video-producer`, protected by `CRON_SECRET`, advances one pending stage each minute. Jobs have a 10-minute lease, compare-and-swap claims, saved beat progress, and a six-hour timeout. Two kickoff requests reuse the active job.
+`GET /api/cron/video-producer` can advance one pending stage. It uses the shared timing-safe `CRON_SECRET` check. It is not listed in `vercel.json`, so production does not run it on a schedule. Jobs have a 10-minute lease, compare-and-swap claims, saved beat progress, and a six-hour timeout. Two kickoff requests reuse the active job.
 
 Stages reuse the existing implementation through server-only operation modules:
 
@@ -45,13 +45,13 @@ Operations cannot be called from the client directly. Public routes retain their
 
 This change stacks on `feat/video-producer-visual-pass` (PR #102). Its existing migrations, worker workflows, private Blob connection, dedicated producer model key, and media providers must be available. This layer adds no schema migration.
 
-Vercel cron runs in production. Preview jobs are excluded from the production queue by their saved environment. `Continue draft` advances a stage in a preview without a cron. Fully unattended processing must be verified on a deployment with the scheduled runner active.
+The video-producer cron route is present, but it is not scheduled. `Continue draft` advances a stage without a cron. Do not add `/api/cron/video-producer` to `vercel.json` until unattended processing has been verified on a non-production deployment. Preview jobs stay out of a future production queue by their saved environment.
 
 Local verification:
 
 - Repository test suite, including scene boundaries, trim reversal, cut/overlay output clocks, undo/redo, and malformed plan rejection.
 - Isolated SQLite checks for concurrent editor saves, stale revisions, and a single winning render claim.
-- A local FFmpeg render of a trimmed scene, with duration checked against the compiled keep ranges, and the download decision pointed at that master.
+- `npm run test:media` on Node 22, including the trimmed-scene master. Those FFmpeg tests are outside `npm test` and the Vercel build.
 - TypeScript typecheck.
 - Next production build.
 

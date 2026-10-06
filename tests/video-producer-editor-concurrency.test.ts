@@ -1,11 +1,10 @@
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { buildDefaultVideoProducerPlan, compileVideoProducerRenderPlan } from "../src/video-producer";
+import { buildDefaultVideoProducerPlan } from "../src/video-producer";
 import { replaceSceneCuts, trimProducerScene } from "../src/video-producer-editor";
 import {
   claimApprovedRender,
@@ -198,33 +197,27 @@ test("download decision follows the latest completed master in the isolated data
   }
 });
 
-test("a trimmed scene renders to a shorter local master that can be downloaded", () => {
-  const directory = mkdtempSync(path.join(tmpdir(), "ag-editor-render-"));
-  try {
-    const source = path.join(directory, "source.mp4");
-    const output = path.join(directory, "master.mp4");
-    const made = spawnSync("ffmpeg", [
-      "-hide_banner", "-loglevel", "error", "-y",
-      "-f", "lavfi", "-i", "color=c=blue:s=320x180:r=30:d=4",
-      "-f", "lavfi", "-i", "sine=frequency=440:sample_rate=48000:duration=4",
-      "-shortest", "-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p",
-      "-c:a", "aac", source
-    ], { encoding: "utf8" });
-    assert.equal(made.status, 0, made.stderr);
+test("stale editor saves surface the 409 message and keyboard undo stays wired", () => {
+  const editor = readFileSync("src/video-producer-scene-editor.tsx", "utf8");
+  const persistence = readFileSync("src/video-producer-editor-persistence.ts", "utf8");
+  const styles = readFileSync("src/video-producer-scene-editor.module.css", "utf8");
+  assert.match(persistence, /status: 409/);
+  assert.match(persistence, /This project changed in another window/);
+  assert.match(editor, /data\.error/);
+  assert.match(editor, /role="alert"/);
+  assert.match(editor, /event\.code === "Space"/);
+  assert.match(editor, /event\.shiftKey \? "redo" : "undo"/);
+  assert.match(styles, /@media \(max-width: 800px\)/);
+  assert.match(styles, /@media \(max-width: 480px\)/);
+  assert.match(styles, /grid-template-columns: 1fr;/);
+});
 
-    const plan = buildDefaultVideoProducerPlan("podcast", 4);
-    const trimmed = trimProducerScene(plan, { id: "scene-0", start: 0, end: 4, text: "Recording" }, 1, 3);
-    const compiled = compileVideoProducerRenderPlan(trimmed);
-    assert.ok(Math.abs(compiled.outputDuration - 2) < 0.05);
-    renderKeepSegments(source, compiled.keepSegments, output);
-    const duration = probeDuration(output);
-    assert.ok(Math.abs(duration - compiled.outputDuration) < 0.35, `rendered ${duration}, expected ${compiled.outputDuration}`);
-    const decision = producerDownloadDecision({ projectFound: true, status: "review", outputPath: output });
-    assert.equal(decision.ok, true);
-    if (decision.ok) assert.equal(decision.outputPath, output);
-  } finally {
-    rmSync(directory, { recursive: true, force: true });
-  }
+test("the unverified video producer cron stays off the production schedule", () => {
+  const vercel = JSON.parse(readFileSync("vercel.json", "utf8")) as { crons: Array<{ path: string }> };
+  assert.equal(vercel.crons.some((cron) => cron.path === "/api/cron/video-producer"), false);
+  const route = readFileSync("app/api/cron/video-producer/route.ts", "utf8");
+  assert.match(route, /cronRequestAuthorized/);
+  assert.doesNotMatch(route, /!== `Bearer/);
 });
 
 function sqliteEditorStore(file: string) {
@@ -302,33 +295,4 @@ function sqliteRenderStore(file: string): RenderClaimStore {
       }
     }
   };
-}
-
-function renderKeepSegments(source: string, segments: Array<{ start: number; end: number }>, output: string) {
-  const directory = path.dirname(output);
-  const list = path.join(directory, "concat.txt");
-  const parts = segments.map((segment, index) => {
-    const file = path.join(directory, `part-${index}.mp4`);
-    const result = spawnSync("ffmpeg", [
-      "-hide_banner", "-loglevel", "error", "-y",
-      "-ss", String(segment.start), "-to", String(segment.end), "-i", source,
-      "-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p", "-c:a", "aac", file
-    ], { encoding: "utf8" });
-    assert.equal(result.status, 0, result.stderr);
-    return file;
-  });
-  writeFileSync(list, parts.map((file) => `file '${file}'`).join("\n"));
-  const joined = spawnSync("ffmpeg", [
-    "-hide_banner", "-loglevel", "error", "-y",
-    "-f", "concat", "-safe", "0", "-i", list, "-c", "copy", output
-  ], { encoding: "utf8" });
-  assert.equal(joined.status, 0, joined.stderr);
-}
-
-function probeDuration(file: string) {
-  const result = spawnSync("ffprobe", [
-    "-v", "error", "-show_entries", "format=duration", "-of", "default=nw=1:nk=1", file
-  ], { encoding: "utf8" });
-  assert.equal(result.status, 0, result.stderr);
-  return Number(result.stdout.trim());
 }
