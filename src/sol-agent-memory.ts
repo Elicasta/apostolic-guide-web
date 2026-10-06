@@ -90,7 +90,7 @@ export async function getSolAgentThread(userId: string, pathname = "/admin", lim
     const thread = await ensureThread(service, userId, pathname);
     const [messages, approvals] = await Promise.all([
       service.from("sol_agent_messages").select("*").eq("thread_id", thread.id).order("created_at", { ascending: false }).limit(Math.max(10, Math.min(120, limit))),
-      service.from("sol_agent_approvals").select("*").eq("thread_id", thread.id).eq("status", "pending").order("created_at", { ascending: false }).limit(12)
+      service.from("sol_agent_approvals").select("*").eq("thread_id", thread.id).eq("status", "pending").gt("expires_at", new Date().toISOString()).order("created_at", { ascending: false }).limit(12)
     ]);
     if (messages.error) throw messages.error;
     if (approvals.error) throw approvals.error;
@@ -141,6 +141,7 @@ export async function createSolAgentApproval(input: {
     .eq("thread_id", input.threadId)
     .eq("tool_name", input.toolName)
     .eq("status", "pending")
+    .gt("expires_at", new Date().toISOString())
     .contains("tool_arguments", input.toolArguments)
     .order("created_at", { ascending: false })
     .limit(1)
