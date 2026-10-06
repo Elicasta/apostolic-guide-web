@@ -10,15 +10,14 @@ import { getSolManagerContentInventory, getSolManagerPeopleStatus } from "./sol-
 import type { SolManagerContentKind } from "./sol-manager-engine";
 import { cancelSolRunV3, retrySolRun } from "./sol-run-recovery";
 import { isTrustedAutoRunnableProposal } from "./sol-trusted-policy";
+import { solKillSwitchEnabled } from "./sol-control-policy";
 import {
   approveSolProposal,
   dismissSolProposal,
   getSolOperatorSnapshot,
-  updateSolSettings,
   type SolOperatorSnapshot,
   type SolProposal
 } from "./sol-operator";
-import type { SolMode } from "./sol-operator-engine";
 
 export type SolAgentToolName =
   | "get_workspace_status"
@@ -257,6 +256,16 @@ function currentStatus(snapshot: SolOperatorSnapshot) {
 
 export async function executeSolAgentTool(name: SolAgentToolName, rawArgs: unknown, context: ToolContext): Promise<SolAgentToolResult> {
   const args = record(rawArgs);
+  // Model instructions are not an authorization boundary: check fresh state on every write.
+  if (name === "set_mode") {
+    return { ok: false, message: "Change execution mode on /admin/sol. Chat cannot enable Sol or raise its privileges." };
+  }
+  if (["scan_workspace", "run_proposal", "dismiss_proposal", "retry_run"].includes(name)) {
+    if (solKillSwitchEnabled()) return { ok: false, message: "Sol is stopped by the administrator. Read-only chat still works." };
+    const fresh = await getSolOperatorSnapshot();
+    if (!fresh.dbReady || !fresh.settings.enabled) return { ok: false, message: "Sol is paused; this action cannot change your Studio." };
+    if (fresh.settings.mode === "watch" && name !== "scan_workspace") return { ok: false, message: "Watch mode cannot change your Studio." };
+  }
 
   if (name === "get_workspace_status") {
     const [snapshot, creativeProduction, forge, team] = await Promise.all([
@@ -368,16 +377,6 @@ export async function executeSolAgentTool(name: SolAgentToolName, rawArgs: unkno
     };
   }
 
-  if (name === "set_mode") {
-    const mode = String(args.mode || "") as SolMode;
-    const enabled = args.enabled === true;
-    if (!["watch", "assist", "trusted"].includes(mode) || !hasExplicitSolIntent(context.userMessage, "mode")) {
-      return { ok: false, message: "Execution mode changes require a direct request in the current user message." };
-    }
-    await updateSolSettings({ enabled, mode, weeklyTargets: context.snapshot.settings.weeklyTargets }, context.actorUserId);
-    return { ok: true, message: enabled ? `Sol execution is now in ${mode} mode. Intelligence remains active.` : "Sol execution is paused. Intelligence remains active.", data: { enabled, mode } };
-  }
-
   if (name === "run_proposal") {
     const proposalId = String(args.proposal_id || "");
     const freshSnapshot = await getSolOperatorSnapshot();
@@ -451,6 +450,14 @@ export async function executeApprovedSolAgentTool(input: {
 }): Promise<SolAgentToolResult> {
   const args = input.approval.toolArguments;
   const name = input.approval.toolName as SolAgentToolName;
+
+  if (name !== "cancel_run") {
+    if (solKillSwitchEnabled()) return { ok: false, message: "Sol is stopped. Nothing was changed." };
+    const fresh = await getSolOperatorSnapshot();
+    if (!fresh.dbReady || !fresh.settings.enabled || fresh.settings.mode === "watch") {
+      return { ok: false, message: "Sol is paused or in Watch mode. Nothing was changed." };
+    }
+  }
 
   if (name === "run_proposal") {
     const proposalId = String(args.proposal_id || "");
