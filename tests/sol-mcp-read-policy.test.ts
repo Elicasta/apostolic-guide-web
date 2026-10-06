@@ -29,7 +29,7 @@ test("read policy enforces Studio roles without a second MCP role model", () => 
       const allowed = role === "owner" || role === "admin" ||
         (role === "editor" && ["get_workspace_status", "get_content_inventory", "get_forge_status", "list_creative_projects"].includes(tool)) ||
         (role === "moderator" && ["get_workspace_status", "get_people_journey_status"].includes(tool)) ||
-        (role === "viewer" && tool === "get_workspace_status");
+        (role === "viewer" && ["get_workspace_status", "get_content_inventory", "get_forge_status", "list_creative_projects"].includes(tool));
       const decision = decideSolReadTool({ role, tool });
       assert.equal(decision.allow, allowed, role + " " + tool);
     }
