@@ -84,6 +84,7 @@ test("stop, proposal decision and approval transitions are audited inside SQL tr
   assert.match(sql, /create trigger sol_proposal_decision_audit/);
   assert.match(sql, /create trigger sol_agent_approval_audit/);
   assert.match(sql, /create trigger sol_guard_run_enqueue/);
+  assert.match(sql, /create trigger sol_guard_run_reactivate/);
   const memory = readFileSync("src/sol-agent-memory.ts", "utf8");
   assert.match(memory, /\.gt\("expires_at", now\)\.select\("id"\)/);
   const operator = readFileSync("src/sol-operator.ts", "utf8");
