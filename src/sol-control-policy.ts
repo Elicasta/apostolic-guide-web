@@ -46,7 +46,7 @@ export function decideSolControl(input: {
       if (nextEnabled && !enabled) return deny("HARD_LOCK", "Enable Sol from its admin page, not from chat or MCP.");
       if (MODE_ORDER[nextMode] > MODE_ORDER[mode]) return deny("HARD_LOCK", "Raise Sol's mode from its admin page.");
     }
-    if (nextMode === "trusted" && mode !== "trusted") {
+    if (nextMode === "trusted" && (mode !== "trusted" || (nextEnabled && !enabled))) {
       if (role !== "owner") return deny("ROLE", "Only the Owner may enter Trusted mode.");
       if (input.via !== "page" || input.acknowledged !== true) {
         return deny("CONFIRM_REQUIRED", "Trusted mode requires your explicit confirmation on the Sol page.");
