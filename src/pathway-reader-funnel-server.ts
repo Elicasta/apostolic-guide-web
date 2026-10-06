@@ -3,11 +3,12 @@ import { createServiceClient } from "./supabase";
 import { allPathways } from "./pathway-catalog";
 import {
   buildPathwayReaderFunnels,
+  PATHWAY_READER_LEDGER,
   type PathwayReaderEvent
 } from "./pathway-reader-funnel";
 
-const PAGE_SIZE = 1000;
-const MAX_PAGES = 50;
+const PAGE_SIZE = PATHWAY_READER_LEDGER.pageSize;
+const MAX_PAGES = PATHWAY_READER_LEDGER.maxPages;
 
 export async function loadPathwayReaderFunnels({ days = 30 }: { days?: number } = {}) {
   const service = createServiceClient();
@@ -31,8 +32,8 @@ export async function loadPathwayReaderFunnels({ days = 30 }: { days?: number } 
     const to = from + PAGE_SIZE - 1;
     const result = await analytics
       .from("events")
-      .select("event_name,session_id,occurred_at,page_path,referrer_host,utm_source,properties")
-      .in("event_name", ["pathway_started", "pathway_step_completed", "pathway_completed", "app_link_clicked"])
+      .select(PATHWAY_READER_LEDGER.columns)
+      .in("event_name", [...PATHWAY_READER_LEDGER.eventNames])
       .gte("occurred_at", since)
       .order("occurred_at", { ascending: true })
       .range(from, to);

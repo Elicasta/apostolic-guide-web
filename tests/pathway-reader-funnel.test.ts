@@ -128,14 +128,16 @@ test("largest loss points to the exact transition instead of a 25/50/75 bucket",
 test("Analytics page labels legacy pathway_started as opens and mounts the exact reader waterfall", () => {
   const page = readFileSync("app/admin/analytics/page.tsx", "utf8");
   const server = readFileSync("src/pathway-reader-funnel-server.ts", "utf8");
+  const ledger = readFileSync("src/pathway-reader-funnel.ts", "utf8");
   assert.match(page, /Pathway opens/);
   assert.match(page, /READER WATERFALL/);
   assert.match(page, /Largest exact loss/);
   assert.match(page, /open → Step 1/);
   assert.match(page, /current Pathway step order/);
   assert.doesNotMatch(page, /database-side reader funnel migration/);
-  assert.match(server, /pathway_step_completed/);
-  assert.match(server, /app_link_clicked/);
+  assert.match(ledger, /pathway_step_completed/);
+  assert.match(ledger, /app_link_clicked/);
+  assert.match(server, /PATHWAY_READER_LEDGER/);
   assert.match(server, /range\(from, to\)/);
 });
 

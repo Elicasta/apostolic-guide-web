@@ -1,3 +1,12 @@
+export const PATHWAY_READER_LEDGER = {
+  schema: "analytics",
+  table: "events",
+  columns: "event_name,session_id,occurred_at,page_path,referrer_host,utm_source,properties",
+  eventNames: ["pathway_started", "pathway_step_completed", "pathway_completed", "app_link_clicked"],
+  pageSize: 1000,
+  maxPages: 50
+} as const;
+
 export type PathwayReaderEvent = {
   event_name: string;
   session_id: string | null;
