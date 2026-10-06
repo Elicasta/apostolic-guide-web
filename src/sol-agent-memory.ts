@@ -19,6 +19,7 @@ export type SolAgentApproval = {
   status: "pending" | "approved" | "rejected" | "expired";
   createdAt: string;
   resolvedAt: string | null;
+  expiresAt: string | null;
 };
 
 export type SolAgentThread = {
@@ -54,7 +55,8 @@ function approvalFromRow(row: Record<string, unknown>): SolAgentApproval {
     risk: String(row.risk) as SolAgentApproval["risk"],
     status: String(row.status) as SolAgentApproval["status"],
     createdAt: String(row.created_at),
-    resolvedAt: row.resolved_at ? String(row.resolved_at) : null
+    resolvedAt: row.resolved_at ? String(row.resolved_at) : null,
+    expiresAt: row.expires_at ? String(row.expires_at) : null
   };
 }
 
@@ -193,13 +195,14 @@ export async function resolveSolAgentApproval(input: {
     .maybeSingle();
   if (owned.error) throw owned.error;
   if (!owned.data) throw new Error("Approval not found.");
-  if (owned.data.status !== "pending") return String(owned.data.thread_id);
+  if (owned.data.status !== "pending") throw new Error("This approval was already resolved. Refresh Sol.");
   const now = new Date().toISOString();
   const updated = await service.from("sol_agent_approvals").update({
     status: input.decision,
     resolved_at: now,
     resolved_by: input.userId
-  }).eq("id", input.approvalId).eq("status", "pending");
+  }).eq("id", input.approvalId).eq("thread_id", owned.data.thread_id).eq("requested_by", input.userId).eq("status", "pending").gt("expires_at", now).select("id").maybeSingle();
   if (updated.error) throw updated.error;
+  if (!updated.data) throw new Error("This approval expired or another request already resolved it. Refresh Sol.");
   return String(owned.data.thread_id);
 }
