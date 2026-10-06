@@ -5,6 +5,7 @@ import { createServiceClient } from "@/supabase";
 import { compileVideoProducerRenderPlan, type VideoProducerEditPlan } from "@/video-producer";
 import type { VideoProducerAudioPlan, VideoProducerCameraPlan } from "@/video-producer-multicam";
 import { resolveVideoProducerProductionState } from "@/video-producer-production-server";
+import { requireVideoProducerVisualPassReady } from "@/video-producer-visual-pass-server";
 
 export const runtime = "nodejs";
 
@@ -27,6 +28,7 @@ export async function POST(request: Request) {
     plan = project.data.edit_plan as VideoProducerEditPlan;
     const compiled = compileVideoProducerRenderPlan(plan);
     if (plan.version !== 2 || plan.mode !== project.data.mode || compiled.outputDuration <= 0 || !compiled.keepSegments.length) throw new Error("Edit plan is not renderable.");
+    await requireVideoProducerVisualPassReady(service, project.data.id);
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Edit plan is invalid." }, { status: 422 });
   }
