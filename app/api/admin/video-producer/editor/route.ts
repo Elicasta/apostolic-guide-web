@@ -2,6 +2,11 @@ import { NextResponse } from "next/server";
 import { getStudioPermission } from "@/auth";
 import { createServiceClient } from "@/supabase";
 import { producerEditorSaveSchema } from "@/video-producer-editor";
+import {
+  saveProducerEditorDocument,
+  type EditorMetadata,
+  type EditorProjectRecord
+} from "@/video-producer-editor-persistence";
 
 export const runtime = "nodejs";
 
@@ -24,78 +29,55 @@ export async function PATCH(request: Request) {
       { status: 503 },
     );
   const { projectId, expectedUpdatedAt, plan, lockedScenes } = parsed.data;
-  const result = await service
-    .from("video_producer_projects")
-    .select("id,mode,status,edit_plan,updated_at,director_metadata")
-    .eq("id", projectId)
-    .is("deleted_at", null)
-    .maybeSingle();
-  if (result.error)
-    return NextResponse.json({ error: result.error.message }, { status: 500 });
-  const project = result.data;
-  if (!project?.edit_plan)
-    return NextResponse.json(
-      { error: "Produce a draft before editing." },
-      { status: 409 },
-    );
-  if (
-    ["transcribing", "directing", "rendering"].includes(project.status) ||
-    project.director_metadata?.draftJob?.status === "running"
-  )
-    return NextResponse.json(
-      { error: "Wait for production to finish before saving changes." },
-      { status: 409 },
-    );
-  if (
-    plan.mode !== project.mode ||
-    Math.abs(plan.sourceDuration - Number(project.edit_plan.sourceDuration)) >
-      0.001
-  )
-    return NextResponse.json(
-      { error: "The source changed. Reload this project before editing." },
-      { status: 409 },
-    );
-  if (project.updated_at !== expectedUpdatedAt)
-    return NextResponse.json(
+  try {
+    const saved = await saveProducerEditorDocument(
       {
-        error:
-          "This project changed in another window. Your edits are still here. Reload the latest version before saving.",
+        async loadProject(id) {
+          const result = await service
+            .from("video_producer_projects")
+            .select("id,mode,status,edit_plan,updated_at,director_metadata")
+            .eq("id", id)
+            .is("deleted_at", null)
+            .maybeSingle();
+          if (result.error) throw new Error(result.error.message);
+          return (result.data as EditorProjectRecord | null) ?? null;
+        },
+        async saveIfUnchanged(input) {
+          const update = await service
+            .from("video_producer_projects")
+            .update({
+              edit_plan: input.patch.edit_plan,
+              selected_music_track_id: input.patch.selected_music_track_id,
+              status: input.patch.status,
+              approval_fingerprint: input.patch.approval_fingerprint,
+              approved_at: input.patch.approved_at,
+              director_metadata: input.patch.director_metadata as EditorMetadata,
+              updated_by: input.patch.updated_by,
+              updated_at: input.patch.updated_at
+            })
+            .eq("id", input.projectId)
+            .eq("updated_at", input.expectedUpdatedAt)
+            .is("deleted_at", null)
+            .select("updated_at")
+            .maybeSingle();
+          if (update.error) throw new Error(update.error.message);
+          return update.data ? { updatedAt: update.data.updated_at } : null;
+        }
       },
-      { status: 409 },
-    );
-  const metadata =
-    project.director_metadata && typeof project.director_metadata === "object"
-      ? project.director_metadata
-      : {};
-  const update = await service
-    .from("video_producer_projects")
-    .update({
-      edit_plan: plan,
-      selected_music_track_id: plan.music[0]?.trackId ?? null,
-      status: "planned",
-      approval_fingerprint: null,
-      approved_at: null,
-      director_metadata: {
-        ...metadata,
-        sceneEditor: { version: 1, lockedScenes: [...new Set(lockedScenes)] },
-      },
-      updated_by: access.user.id,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", projectId)
-    .eq("updated_at", expectedUpdatedAt)
-    .is("deleted_at", null)
-    .select("updated_at")
-    .maybeSingle();
-  if (update.error)
-    return NextResponse.json({ error: update.error.message }, { status: 500 });
-  if (!update.data)
-    return NextResponse.json(
       {
-        error:
-          "This project changed while saving. Your edits have not been overwritten.",
-      },
-      { status: 409 },
+        projectId,
+        expectedUpdatedAt,
+        plan,
+        lockedScenes,
+        userId: access.user.id
+      }
     );
-  return NextResponse.json({ updatedAt: update.data.updated_at });
+    if (!saved.ok) return NextResponse.json({ error: saved.error }, { status: saved.status });
+    return NextResponse.json({ updatedAt: saved.updatedAt });
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Edit could not be saved." },
+      { status: 500 }
+    );
+  }
 }

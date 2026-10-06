@@ -21,7 +21,8 @@ test("Finish auto-runs Visual Pass and searches real footage before generation",
 
   assert.match(panel, /autoPassRef/);
   assert.match(panel, /void prepareEpisode\(state\)/);
-  assert.match(panel, /AUTO_MIN_SCORE = 84/);
+  assert.match(panel, /AUTO_MIN_SCORE = LOCAL_BROLL_AUTO_MIN_SCORE/);
+  assert.match(readFileSync("src/video-producer-local-broll.ts", "utf8"), /LOCAL_BROLL_AUTO_MIN_SCORE = 84/);
   assert.match(panel, /AG LIBRARY · FIRST/);
   assert.match(panel, /RUNWAY · AI FALLBACK/);
   assert.match(panel, /visual-pass\/search/);

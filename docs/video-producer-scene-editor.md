@@ -50,13 +50,14 @@ Vercel cron runs in production. Preview jobs are excluded from the production qu
 Local verification:
 
 - Repository test suite, including scene boundaries, trim reversal, cut/overlay output clocks, undo/redo, and malformed plan rejection.
+- Isolated SQLite checks for concurrent editor saves, stale revisions, and a single winning render claim.
+- A local FFmpeg render of a trimmed scene, with duration checked against the compiled keep ranges, and the download decision pointed at that master.
 - TypeScript typecheck.
 - Next production build.
 
 Still required before merge:
 
-- Desktop and phone browser inspection, keyboard controls, playback, and save-conflict UI. The available browser could not reach the local server; an isolated preview transfer was rejected by automatic approval review for its size.
-- Authenticated database integration checks for stale saves, duplicate job claims, and duplicate renders.
-- One real uploaded recording through transcription, background draft, B-roll import, save, render, and download; verify the actual output and audio.
+- Desktop and phone browser inspection of the authenticated editing room, including keyboard controls, playback, and the save-conflict alert. The editor route requires a Studio session, so that pass cannot run without one.
+- One real uploaded recording through transcription, background draft, B-roll import, save, render, and download on a deployment that can sign private media.
 
 No live database changes, paid production calls, publication, or production merge were performed while building this PR.

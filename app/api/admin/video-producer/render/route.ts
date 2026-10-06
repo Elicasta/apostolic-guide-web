@@ -8,6 +8,7 @@ import { compileVideoProducerRenderPlan, type VideoProducerEditPlan } from "@/vi
 import { normalizeVideoProducerTranscript, sliceVideoProducerTranscript } from "@/video-producer-ai";
 import type { VideoProducerAudioPlan, VideoProducerCameraPlan } from "@/video-producer-multicam";
 import { resolveVideoProducerProductionState } from "@/video-producer-production-server";
+import { claimApprovedRender, RENDER_CLAIM_STATUS } from "@/video-producer-editor-persistence";
 import { requireVideoProducerVisualPassReady } from "@/video-producer-visual-pass-server";
 import { buildVideoProducerLicenseManifest } from "@/video-producer-visuals";
 import {
@@ -219,15 +220,31 @@ export async function POST(request: Request) {
         } : null,
         rendererBridge: { callbackTokenHash: callback.hash, callbackOrigin, manifestPath: manifestBlob.pathname, outputPath }
       };
-      const claimed = await service.from("video_producer_projects").update({ status: "rendering", updated_by: access.user.id })
-        .eq("id", project.id).eq("status", "approved").eq("updated_at", project.updated_at).eq("approval_fingerprint", production.fingerprint).is("deleted_at", null).select("updated_at").maybeSingle();
-      if (claimed.error) throw new Error(claimed.error.message);
-      if (!claimed.data) {
+      const claimed = await claimApprovedRender({
+        async claimApproved(claim) {
+          const result = await service.from("video_producer_projects").update({ status: "rendering", updated_by: claim.userId })
+            .eq("id", claim.projectId)
+            .eq("status", RENDER_CLAIM_STATUS)
+            .eq("updated_at", claim.expectedUpdatedAt)
+            .eq("approval_fingerprint", claim.fingerprint)
+            .is("deleted_at", null)
+            .select("updated_at")
+            .maybeSingle();
+          if (result.error) throw new Error(result.error.message);
+          return result.data ? { updatedAt: result.data.updated_at } : null;
+        }
+      }, {
+        projectId: project.id,
+        expectedUpdatedAt: project.updated_at,
+        fingerprint: production.fingerprint,
+        userId: access.user.id
+      });
+      if (!claimed.ok) {
         await deletePrivateVideoProducerBlob(manifestBlob.pathname);
         uploadedManifestPath = null;
-        return NextResponse.json({ error: "A render already started or the project changed. Reload the project." }, { status: 409 });
+        return NextResponse.json({ error: claimed.error }, { status: claimed.status });
       }
-      claimedRevision = claimed.data.updated_at;
+      claimedRevision = claimed.updatedAt;
       const created = await service.from("video_producer_renders").insert({
         id: renderId, project_id: project.id, status: "queued", manifest_storage_path: manifestBlob.pathname,
         config_snapshot: snapshot, progress: { percent: 0, stage: "Queued", heartbeatAt: new Date().toISOString() }, requested_by: access.user.id
