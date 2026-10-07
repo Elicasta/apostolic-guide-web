@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { trackEvent } from "./analytics";
+import { cardReaderStepProperties } from "./pathway-reader-funnel";
 
 export function PathwayStudyTracker({ slug, stepCount }: { slug: string; stepCount: number }) {
   useEffect(() => {
@@ -21,14 +22,12 @@ export function PathwayStudyTracker({ slug, stepCount }: { slug: string; stepCou
           const timer = window.setTimeout(() => {
             completed.add(index);
             timers.delete(index);
-            trackEvent("pathway_step_completed", {
-              contentKey: slug,
-              pathwaySlug: slug,
+            trackEvent("pathway_step_completed", cardReaderStepProperties({
+              slug,
               stepIndex: index,
-              stepNumber: index + 1,
               stepCount,
               reference: element.dataset.pathwayReference ?? null
-            });
+            }));
             if (!pathwayCompletionSent && completed.size >= stepCount) {
               pathwayCompletionSent = true;
               trackEvent("pathway_completed", {
