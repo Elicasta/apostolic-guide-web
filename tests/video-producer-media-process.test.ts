@@ -40,6 +40,7 @@ test("FFmpeg integration tests stay out of the default unit suite and the Vercel
   assert.equal(isDefaultUnitTest("tests/video-producer-local-broll.test.ts"), true);
   assert.equal(isDefaultUnitTest("tests/media/video-producer-local-broll.test.ts"), false);
   assert.ok(mediaTestFiles().includes("tests/media/video-producer-local-broll.test.ts"));
+  assert.ok(mediaTestFiles().includes("tests/media/video-producer-scene-trim.test.ts"));
   const mediaStep = workflow.indexOf("npm run test:media");
   const installStep = workflow.indexOf("apt-get install -y --no-install-recommends ffmpeg");
   assert.ok(installStep >= 0);

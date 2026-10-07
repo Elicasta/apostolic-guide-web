@@ -156,7 +156,7 @@ test("license and Premiere assembly exports preserve provenance and silent V2 pl
 });
 
 test("stock reuse keys include the selected trim so one provider source can have multiple useful derivatives", () => {
-  const route = readFileSync("app/api/admin/video-producer/visual-pass/use/route.ts", "utf8");
+  const route = readFileSync("src/video-producer-operation-visual-pass-use.ts", "utf8");
   assert.match(route, /approval_fingerprint: null/);
   assert.match(route, /function stockDerivativeId/);
   assert.match(route, /providerAssetId}@\$\{start\.toFixed\(3\)\}\+\$\{length\.toFixed\(3\)\}/);
