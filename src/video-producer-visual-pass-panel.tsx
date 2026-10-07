@@ -287,7 +287,7 @@ export function VideoProducerVisualPassPanel({ projectId }: { projectId: string 
     finally { setBusy(null); }
   }
 
-  async function useCandidate(beatId: string, candidateId: string) {
+  async function selectCandidate(beatId: string, candidateId: string) {
     setBusy(`use:${candidateId}`); setError(""); setMessage("Preparing the selected shot for the AG media bin…");
     try {
       const result = await api<{ imported: boolean }>("/api/admin/video-producer/visual-pass/use", { method: "POST", body: JSON.stringify({ candidateId }) });
@@ -415,7 +415,7 @@ export function VideoProducerVisualPassPanel({ projectId }: { projectId: string 
                             <span>{candidate.license_name || "Source metadata recorded on use"}</span>
                             <div className={styles.candidateActions}>
                               {candidate.source_url ? <a href={candidate.source_url} target="_blank" rel="noreferrer">Source</a> : null}
-                              <button onClick={() => useCandidate(beat.id, candidate.id)} disabled={Boolean(busy)}>{busy === `use:${candidate.id}` ? <Loader2 size={14}/> : <Check size={14}/>} Use</button>
+                              <button onClick={() => selectCandidate(beat.id, candidate.id)} disabled={Boolean(busy)}>{busy === `use:${candidate.id}` ? <Loader2 size={14}/> : <Check size={14}/>} Use</button>
                             </div>
                           </div>
                         </div>
