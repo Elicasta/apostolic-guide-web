@@ -19,9 +19,10 @@ export default function PathwaysPage() {
 
   return (
     <>
-      <PageHero variant="pathways" eyebrow="Guided Scripture studies" title="Do not collect isolated verses. Follow the pathway." text="Website pathways give you the biblical structure without overwhelming you. Continue in the app for the full sequence, objections, branches, and deeper context." />
+      <PageHero variant="pathways" eyebrow="Guided Scripture studies" title="Do not collect isolated verses. Follow the pathway." text="Choose a study, read its full KJV Scripture cards, and use Next to follow the explanations and connected passages. Continue in the app for deeper study." />
       <section className="section pathways-index-section">
         <div className="shell pathway-directory">
+          <section className="sidebar-card" aria-label="Start studying"><span className="eyebrow">New here?</span><h2>Start with God Is One.</h2><p>Open the first card, read the Scripture and explanation, then tap Next. Each card tells you why the next passage follows.</p><Link className="button button-dark" href="/pathways/god-is-one#step-1">Begin the study <ArrowRight size={16} /></Link></section>
           <nav className="pathway-category-nav" aria-label="Pathway categories">
             {grouped.map((group) => (
               <a key={group.title} href={`#${group.title.toLowerCase().replaceAll(" ", "-")}`}>
@@ -45,7 +46,7 @@ export default function PathwaysPage() {
                     <h2>{pathway.title}</h2>
                     <p>{pathway.summary}</p>
                     <div className="pathway-meta"><span><Clock3 size={12} /> {pathway.estimatedMinutes} min</span><span>{pathway.steps.length} key steps</span><span>{pathway.level}</span></div>
-                    <span className="text-link">Preview pathway <ArrowRight size={16} /></span>
+                    <span className="text-link">Start pathway <ArrowRight size={16} /></span>
                   </Link>
                 ))}
               </div>

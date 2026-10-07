@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import type { BroadcastCampaign } from "./broadcast-email";
 import { ExternalLink, FileText, Headphones, MailCheck, MessageSquareText, Play, Send, TestTube2, Waypoints } from "lucide-react";
 
 export type BroadcastSourceOption = {
@@ -23,6 +24,7 @@ type Campaign = {
   summary: string;
   ctaLabel: string;
   url: string;
+  resources?: BroadcastCampaign["resources"];
 };
 
 const templates: Array<{ type: CampaignType; label: string; icon: typeof FileText }> = [
@@ -66,16 +68,16 @@ function campaignFrom(type: CampaignType, source?: BroadcastSourceOption): Campa
   };
 }
 
-export function BroadcastEditor({ sources, audienceCounts }: { sources: BroadcastSourceOption[]; audienceCounts: Record<AudienceKey, number> }) {
+export function BroadcastEditor({ sources, audienceCounts, initialCampaign }: { sources: BroadcastSourceOption[]; audienceCounts: Record<AudienceKey, number>; initialCampaign?: BroadcastCampaign }) {
   const newestByKind = useMemo(() => {
     const result = new Map<string, BroadcastSourceOption>();
     for (const source of sources) if (!result.has(source.kind)) result.set(source.kind, source);
     return result;
   }, [sources]);
   const initialSource = newestByKind.get("article");
-  const [campaign, setCampaign] = useState<Campaign>(() => campaignFrom("article", initialSource));
+  const [campaign, setCampaign] = useState<Campaign>(() => initialCampaign ?? campaignFrom("article", initialSource));
   const [audience, setAudience] = useState<AudienceKey>("content");
-  const [sourceUrl, setSourceUrl] = useState(initialSource?.url ?? "");
+  const [sourceUrl, setSourceUrl] = useState(initialCampaign?.url ?? initialSource?.url ?? "");
   const [state, setState] = useState<"idle" | "working" | "draft" | "sent" | "error">("idle");
   const [message, setMessage] = useState("");
   const [broadcastId, setBroadcastId] = useState<string | null>(null);
