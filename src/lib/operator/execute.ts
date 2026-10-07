@@ -82,21 +82,6 @@ export async function executeOperatorCommand(input: {
     });
   }
 
-  if (action.classification === "public_effect") {
-    return finish({
-      actor: input.actor,
-      sessionId: session.id,
-      command,
-      status: "blocked",
-      action: action.name,
-      classification: action.classification,
-      permission: action.permission,
-      approvalRequired: true,
-      summary: PUBLIC_EFFECT_BLOCK_MESSAGE,
-      data: { externalEffect: false }
-    });
-  }
-
   if (!hasStudioPermission(input.actor.role, action.permission)) {
     return finish({
       actor: input.actor,
@@ -109,6 +94,21 @@ export async function executeOperatorCommand(input: {
       approvalRequired: false,
       summary: "Your Studio role cannot run that action.",
       data: {}
+    });
+  }
+
+  if (action.classification === "public_effect") {
+    return finish({
+      actor: input.actor,
+      sessionId: session.id,
+      command,
+      status: "blocked",
+      action: action.name,
+      classification: action.classification,
+      permission: action.permission,
+      approvalRequired: true,
+      summary: PUBLIC_EFFECT_BLOCK_MESSAGE,
+      data: { externalEffect: false }
     });
   }
 

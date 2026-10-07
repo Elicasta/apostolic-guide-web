@@ -10,6 +10,7 @@ import { solLiveAttentionCount, solLivePayloadFromApi } from "../src/sol-live-ro
 
 const owner = { userId: "owner-1", role: "owner" as const };
 const moderator = { userId: "mod-1", role: "moderator" as const };
+const viewer = { userId: "viewer-1", role: "viewer" as const };
 
 test("natural language and short commands resolve only to registered actions", () => {
   const statusCommand = interpretOperatorCommand("status");
@@ -112,6 +113,41 @@ test("registry exposes read actions and blocks public effects before any handler
   assert.equal(probe.record.command, "publish now");
 });
 
+test("public effects require the action permission before the approval-required block", async () => {
+  resetOperatorSessionsForTests();
+  resetPublicEffectHandlerCalls();
+  const ownerProbe = await executeOperatorCommand({ command: "publish now", actor: owner });
+  assert.equal(ownerProbe.status, "blocked");
+  assert.equal(ownerProbe.approvalRequired, true);
+  assert.equal(ownerProbe.permission, "manage_distribution");
+  assert.equal(ownerProbe.data.externalEffect, false);
+  assert.match(ownerProbe.summary, /Nothing was published/);
+  assert.equal(publicEffectHandlerCalls.count, 0);
+
+  const viewerProbe = await executeOperatorCommand({ command: "publish now", actor: viewer });
+  assert.equal(viewerProbe.status, "blocked");
+  assert.equal(viewerProbe.approvalRequired, false);
+  assert.equal(viewerProbe.action, "distribution.publish");
+  assert.equal(viewerProbe.permission, "manage_distribution");
+  assert.match(viewerProbe.summary, /role cannot run that action/);
+  assert.equal(viewerProbe.data.externalEffect, undefined);
+  assert.equal(publicEffectHandlerCalls.count, 0);
+
+  for (const command of ["send a dm", "activate the automation", "enroll this person"]) {
+    const denied = await executeOperatorCommand({ command, actor: viewer });
+    assert.equal(denied.status, "blocked");
+    assert.equal(denied.approvalRequired, false);
+    assert.match(denied.summary, /role cannot run that action/);
+    assert.equal(publicEffectHandlerCalls.count, 0);
+  }
+
+  const ownerEnroll = await executeOperatorCommand({ command: "enroll this person", actor: owner });
+  assert.equal(ownerEnroll.approvalRequired, true);
+  assert.equal(ownerEnroll.permission, "manage_journeys");
+  assert.equal(ownerEnroll.data.externalEffect, false);
+  assert.equal(publicEffectHandlerCalls.count, 0);
+});
+
 test("live Sol payload keeps operational state and ignores missing snapshots", () => {
   const payload = solLivePayloadFromApi({
     generatedAt: "2026-10-07T12:00:00.000Z",
@@ -143,4 +179,7 @@ test("Sol live room and Grokbot keep motion and public effects behind the regist
   assert.match(nav, /\/admin\/grokbot/);
   assert.match(execute, /public_effect/);
   assert.match(execute, /externalEffect: false/);
+  const permissionAt = execute.indexOf("hasStudioPermission");
+  const publicAt = execute.indexOf("classification === \"public_effect\"");
+  assert.ok(permissionAt > 0 && permissionAt < publicAt);
 });
