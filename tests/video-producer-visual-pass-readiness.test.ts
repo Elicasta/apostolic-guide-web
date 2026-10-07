@@ -20,7 +20,7 @@ test("Finish auto-runs Visual Pass and searches real footage before generation",
   const visualRoute = readFileSync("src/video-producer-operation-visual-pass.ts", "utf8");
 
   assert.match(panel, /autoPassRef/);
-  assert.match(panel, /void prepareEpisode\(state\)/);
+  assert.match(panel, /void prepareEpisode\(current\)/);
   assert.match(panel, /AUTO_MIN_SCORE = LOCAL_BROLL_AUTO_MIN_SCORE/);
   assert.match(readFileSync("src/video-producer-local-broll.ts", "utf8"), /LOCAL_BROLL_AUTO_MIN_SCORE = 84/);
   assert.match(panel, /AG LIBRARY · FIRST/);

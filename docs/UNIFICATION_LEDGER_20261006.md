@@ -1,7 +1,8 @@
 # Apostolic Guide: Unified Reconciliation Ledger
 
-Status: **NOT READY — accessible work is integrated; consolidation is not complete**
+Status: **NOT READY — remotely accessible work is stabilized; do not merge**
 Inventory refreshed: 2026-10-07
+Stabilization pass: 2026-10-07 on `integration/ag-unified-20261006`
 Repository: `Elicasta/apostolic-guide-web`
 Integration branch: `integration/ag-unified-20261006`
 Baseline `main`: `9b995dd065ea737e81345b3904da1a48d1ae7af4` (PR #110 already merged; those files are unchanged on this branch)
@@ -10,7 +11,7 @@ Open PRs: **12**
 
 ## Result
 
-The accessible, in-scope feature work is on this branch and the automated checks below passed. **Do not merge to `main`.** Consolidation is not complete while the three local-only Sol commits are unreachable and Studio login / production database end-to-end checks have not been run.
+The accessible, in-scope feature work is on this branch. The stabilization pass cleared lint regressions on the integrated files, re-checked the 83 leftover heads, and marked Motion Engine PR #74 **SEPARATE_SCOPE**. **Do not merge to `main`.** Consolidation is not complete while the three local-only Sol commits are unreachable and Studio login / production database end-to-end checks have not been run. No further remote branch was merged in this pass.
 
 Migrations are **in the tree only**. Nothing in this pass applied them, enabled the video cron, scheduled a publish, sent email, changed billing, or deployed production.
 
@@ -33,7 +34,7 @@ PR #110 production behavior stays. `src/cron-auth.ts`, `src/security-headers.ts`
 
 ## Local-only Sol commits
 
-These objects are not in this clone, not on any remote head, and GitHub commit search returned no hits. `cursor/sol-mcp-read-facade-2e88` and `cursor/sol-ui-restore-2e88` return HTTP 404. They are **BLOCKED**. This pass did not invent patches or rewrite #111.
+Re-checked on 2026-10-07 after `git fetch origin '+refs/heads/*:refs/remotes/origin/*'`. `git cat-file` and `git log --all` do not contain `04359be`, `7711357`, or `e72ab1c`. GitHub commit search for each prefix returned `total_count: 0`. `cursor/sol-mcp-read-facade-2e88` and `cursor/sol-ui-restore-2e88` still return HTTP 404. `git ls-remote` Sol heads are only the seven known branches, and remote #111 still ends at `372b5362402a`. They are **BLOCKED**. Only the original local Cursor environment can push or export them. This pass did not invent patches or rewrite #111.
 
 | Reported SHA | Reported branch | Disposition |
 | --- | --- | --- |
@@ -47,7 +48,7 @@ These objects are not in this clone, not on any remote head, and GitHub commit s
 | --- | --- | --- | --- | --- |
 | #88 multicam | `5b9c97399c107a15247e7e4b9fd6c500dcf46be8` | SUPERSEDED | `git cherry origin/main` shows 20 non-equivalent commits, but current `main` already has Camera B, waveform sync (`scripts/sync_video_producer_worker.py`), and external audio on the media-asset model. Seven #88 files are absent here (`multicam/analyze`, `multicam/callback`, `multicam/route`, `analyze_video_producer_multicam.py`, `render_video_producer_multicam_worker.py`, `video-producer-multicam-studio.tsx`, `video-producer-multicam.module.css`). They are an older unlimited-camera studio and would replace the production A/B asset model. FFmpeg multicam smoke on the current worker passed (A → B → A with external audio). | Leave the PR open. Do not overlay it onto #102/#103. |
 | #79 big-edit lane | `463faf996143f3d4dae7209c64dd4d2fe9c6b575` | SUPERSEDED | Every path in its three-dot diff already exists on this branch. The 16 paths that still differ are older Sol manager and admin edits, 78 commits behind `main`, and would roll back #111. | Leave open. Do not wholesale-merge the August staging lane. |
-| #74 Motion Engine V1 | `32de8e717bdb4f3a48acb03bb0e35a3ddfbed9aa` | PENDING_REVIEW | Base `fix/carousel-studio-design-hierarchy` is an ancestor of `main`. Eight pilot files are still absent (`apostolic-motion-engine.ts`, pilot UI, `render_pathway_motion.py`, tests, docs). The pilot also rewrites `app/admin/video-studio/page.tsx` from an August stack. Kinetic graphics from #102 are the newer editorial motion path. | Separate decision. Not mixed into this release. |
+| #74 Motion Engine V1 | `32de8e717bdb4f3a48acb03bb0e35a3ddfbed9aa` | SEPARATE_SCOPE | Compared with #102/#103 below. The pilot is an illustrated Pathway-video explainer, not a missing piece of the current kinetic overlay system. Eight pilot files are still absent. Wholesale merge would also rewrite `app/admin/video-studio/page.tsx` from the August stack. | Leave the PR open. Do not merge it into this release. |
 | #70 Sol Runtime V1 | `5a61f4742abff6b0b20820f34e948b1033334c6d` | SUPERSEDED | 81 paths still differ, including a parallel `src/sol-core/**` runtime, review UI, and eight SQL migrations from 2026-08-16. Current Sol operator plus #111 is the runtime on this branch. Integrating #70 would create a second Sol. | Leave the draft open. Do not apply its migrations. |
 | #26 Song Studio | `cb32aaba16d6d9b06def68e1a4937ce4eb325e81` | OUT_OF_SCOPE | 16 paths, all still different, including `supabase/migrations/20260812150000_apostolic_song_studio.sql`. Separate product. | Keep the PR open. Ask before any later inclusion. |
 | #3 Guía Apostólica i18n | `09f8f5821bde8483dbec5e4f327cbf8f67c224b6` | OUT_OF_SCOPE | 11 paths, all still different, including `supabase/migrations/202608100001_localization_foundation.sql`. Separate product. | Keep the PR open. Ask before any later inclusion. |
@@ -80,7 +81,7 @@ Identical tips:
 
 - `package-lock.json` from #103 did not list `@electric-sql/pglite`, which #112 added. `npm install` recorded that package (8 lines). Studio CI now runs `npm ci` because a lockfile is committed.
 - `selectCandidate` replaces `useCandidate` in `src/video-producer-visual-pass-panel.tsx` so the click handler is not treated as a React hook. Behavior is unchanged.
-- Remaining `react-hooks/set-state-in-effect` findings in the new editor panels were left as authored. `npm run lint` already fails on `main` (on the order of 100 errors in files this pass did not change). Full-tree lint is still red. See checks.
+- Stabilization commit `2f11f17` clears the integrated-file lint regressions. Fetch-on-mount updates run from a microtask so `setState` is not called synchronously inside the effect, and the scene editor writes `dirtyRef` from an effect. Full-tree lint is still red on legacy files this pass did not rewrite. See checks.
 
 ## Checks run on this branch
 
@@ -88,7 +89,7 @@ Identical tips:
 | --- | --- |
 | `npm test` | Pass. 440 tests, 0 failed. |
 | `npm run typecheck` | Pass. |
-| `npm run lint` | Fail. Pre-existing errors on unchanged `main` files, plus `react-hooks/set-state-in-effect` in integrated editor/editorial clients and one ref write during render in the scene editor. Not treated as a release blocker beyond what `main` already fails, and not cleaned by rewriting those components. |
+| Targeted lint on `git diff origin/main...HEAD` TypeScript and JavaScript | Pass after `2f11f17`. Before that commit the same file set had 8 errors and 7 warnings (`react-hooks/set-state-in-effect`, `react-hooks/refs`, unused bindings, and two `<img>` warnings). After: 0 errors and 0 warnings. |
 | `npm run test:media` | Pass. 2 tests (local B-roll render, trimmed scene master). Node v22.14.0, ffmpeg present. |
 | `python3 scripts/check_video_producer_sync.py` | Pass. |
 | `python3 scripts/check_video_producer_multicam.py` | Pass. A → B → A with external audio. |
@@ -96,22 +97,124 @@ Identical tips:
 | `python3 scripts/check_video_producer_finishing.py` | Pass. |
 | `python3 scripts/check_video_producer_visual_pass.py` | Pass. Visual Pass V3. |
 | `python3 scripts/check_video_producer_worker.py` | Pass. |
-| `npm run build` | Pass. Build runs `npm test` again, then `next build`. |
+| `npm run lint` | Fail, global baseline only. 103 errors and 38 warnings. None of those files are in the integration diff against `main`. Examples that remain are unchanged legacy files such as `src/video-studio-workflow.tsx`. They were not rewritten. |
+| `npm run build` | Pass on the stabilization tree. Build runs `npm test` again (440 passed), then `next build`. |
 | Authenticated Studio browser E2E | Not run. No Studio login in this environment. |
 | Production Supabase migration apply | Not run. |
 | Pathway reader 30-day production validation | Not run. |
 
 ## Release gate
 
-**No-go for `main` and for production.**
+**No-go for `main` and for production.** The remotely accessible tree is as unified as it can be without owner action. That is not merge authorization.
 
 Still required before anyone calls this unified or release-ready:
 
-1. The original environment pushes `04359be`, `7711357`, and `e72ab1c` (or an equivalent export). Re-integrate them without force-pushing the source branches.
-2. Owner decides #74, and confirms #26 and #3 stay out.
+1. The original environment pushes `04359be`, `7711357`, and `e72ab1c` (or an equivalent export). Re-integrate them without force-pushing the source branches. Do not fabricate substitutes.
+2. Owner confirms the separate-scope items stay out: #74 Motion Engine, #26 Song Studio, #3 Spanish, the unwired "Why did Jesus pray?" teleprompter script, and the unmerged Character Poster studio.
 3. Apply the new SQL only to a preview database, then run authenticated Video Producer and editorial Studio checks. Leave video cron unscheduled until that passes.
 4. Run the read-only Pathway reader validation against production data only when the owner explicitly asks. Do not enable editorial draft production or `SOL_KILL_SWITCH` as part of a quiet deploy.
-5. Owner reviews draft PR #115. This ledger is not merge authorization.
+5. Owner reviews draft PR #115.
+
+## Stabilization pass
+
+Commit `2f11f17` (`[skip vercel]`) is the lint fix. The final checkpoint on top of it records this audit and the test evidence. No additional remote head was merged.
+
+### Lint evidence
+
+Integrated surfaces are the TypeScript and JavaScript files in `git diff --name-only origin/main...HEAD` (the #112, #102, #103, #111, and #104 stack plus the small files those merges touched).
+
+| Moment | Errors | Warnings |
+| --- | ---: | ---: |
+| Before `2f11f17`, integrated files only | 8 | 7 |
+| After `2f11f17`, integrated files only | 0 | 0 |
+| After `2f11f17`, `npm run lint` on the whole tree | 103 | 38 |
+
+The eight errors were `react-hooks/set-state-in-effect` in the editorial client, kinetic review, visual-pass panel (load and auto-pass), scene editor, dashboard, and sequential flow, plus `react-hooks/refs` for writing `dirtyRef.current` during render in the scene editor. Dashboard and sequential flow already had the effect pattern on `main`; they were cleaned because this branch already edits those files. Legacy files that this branch does not change were left red.
+
+Two deliberate exceptions remain, both silenced with a line comment because the rule's suggested `next/image` loader would drop the Studio session:
+
+- `src/editorial-engine-client.tsx`: the preview `<img>` loads `/api/admin/editorial/preview`, which requires the operator cookie.
+- `src/video-producer-sequential-flow.tsx`: thumbnail `<img>` tags load signed private blob URLs. This warning already existed on `main`; the comment documents it.
+
+`diagnosePathwayReaderFunnel` still accepts `largestDrop` so a funnel row can be passed through. The diagnosis recomputes each transition from `steps`. The binding is not read, and that is not a lint error.
+
+`app/api/admin/video-producer/projects/[id]/route.ts` still omits `config_snapshot` from the JSON body. The unused rename `_snapshot` was a new warning; the field is now referenced with `void` so it is intentionally dropped.
+
+### PR #74 compared with kinetic graphics
+
+`feature/apostolic-motion-engine-v1` @ `32de8e717bdb` is **SEPARATE_SCOPE**. It was not merged.
+
+What it uniquely does: `buildApostolicMotionPlan` turns approved Pathway narration cues into illustrated scenes. Cameras are `hold`, `push`, `pan-left`, `pan-right`, and `pull`. The visual grammar is a fixed diagram set (Shema, no-rival, Word to flesh, baptism, throne, and the rest in `docs/APOSTOLIC_MOTION_ENGINE.md` on that branch). The saved contract is `pathway_video_projects.style.motionEngine.plan`. `scripts/render_pathway_motion.py` draws it through the August Pathway video renderer. The pilot also mounts that runtime on `app/admin/video-studio/page.tsx`.
+
+What #102/#103 already do: `VideoProducerKineticTreatment` is `impact`, `split`, `strike` (review normalizes strike back to impact), `band`, `stack`, and `question-stack`. Those are typographic overlays on a spoken Video Producer master. The scene editor trims scenes and places visuals. `python3 scripts/check_video_producer_kinetic.py` passed on this branch: A-roll phrase, moving AG field, editorial composition, then A-roll again.
+
+Why it is not a port: the diagram grammar, camera vocabulary, and Pathway-video plan have no counterpart in the kinetic overlay model. Copying only a helper would not produce the pilot, and copying the pilot would revive the obsolete video-studio page and renderer. The shared idea is "AG-colored motion," which the kinetic system already implements for spoken episodes.
+
+### Leftover remote heads
+
+The 83 `NOT_IN_THIS_PASS` heads collapse to 73 unique tips (the duplicate tips are listed above). For each tip, `git diff --diff-filter=A HEAD...tip` was compared with `git cat-file` on this branch. Added files that are actually absent are listed in the groups below. Modified files were checked against the current symbols rather than merged by default.
+
+No candidate was **INTEGRATE**. Merging any of these tips would reintroduce an older stack or a separate product.
+
+#### Pathways / audio — SUPERSEDED
+
+| Candidate | SHA | Unique behavior | Why it looked relevant | Overlap | Recommendation |
+| --- | --- | --- | --- | --- | --- |
+| `agent/pathway-audio-mainline` and the mastering, metrics, theology, script, checker, completion, and publishing-panel tips | `de1cfa5bb69c` and the later audio tips through `2471d0af2349` | Studio audio generation, Cedar mastering, script approval, script checker, listening metrics, completion identity | Pathway audio is current product surface | `src/pathway-audio-mastering.ts`, `src/pathway-audio-script.ts`, `src/pathway-audio-script-checker.ts`, and the `20260812*` audio migrations are already on this branch | SUPERSEDED |
+| `feat/pathway-card-reader` | `1eea7c667e1d` | Guided card reader and authored transitions | Reader is the current Pathway UI | `src/pathway-card-reader.tsx` exists. The tip's copy of that file is 36 lines smaller than this branch | SUPERSEDED |
+| `feat/pathway-full-kjv` | `34948cea3faf` | Local KJV corpus and passage emphasis | #112 depends on KJV fidelity | `src/pathway-kjv*.ts` and `src/kjv-reader.ts` are on this branch. The v1 CSS change is the later full-width nav on `main` | SUPERSEDED |
+| `codex/pathway-assets-dam-v3`, `codex/pathway-assets-resumable-ingest` | `f83893d538a6`, `c14572d4ee21` | Asset library and resumable ingest | Media library is current | Both are 400+ commits behind. Current asset routes already exist; no added file is missing | SUPERSEDED |
+
+#### Publishing / social — SUPERSEDED
+
+| Candidate | SHA | Unique behavior | Why it looked relevant | Overlap | Recommendation |
+| --- | --- | --- | --- | --- | --- |
+| Threads publisher tips (`threads-publisher-final` and aliases, `threads-publisher-finish`, `threads-publisher-merge-ready`, `threads-callback-fix`) | `b87219200415`, `5722195493b6`, `69c4033f7c16`, `cacc102be526` | Threads credentials, composer, cron worker | Publishing is live product | `src/threads-publisher.ts` is on this branch. The only absent file is `THREADS_PUBLISHER_RELEASE.md` | SUPERSEDED. The markdown note is IGNORE |
+| `fix-instagram-automation-token-guard` | `ae4b7dbe3fe5` | Refuse to replace a stored Instagram token when the new credential fails | Auth safety | `src/social-publishing-integrations.ts` still throws "The existing stored token was not replaced." | SUPERSEDED |
+| Comment Guide tips (`feat/apostolic-comment-guide`, argument library, confrontation, doctrine fallback, self-loop, delete-ledger) | `d3469b307623` through `14c925fe08ad` | Doctrine-locked replies and preserving self-reply identity after log deletion | Comment Guide is on `main` | `jobIsSelfAuthored` on this branch already checks `social_events.provider_message_id` with `delivery_status = sent` | SUPERSEDED |
+| `feature/custom-media-publishing` | `08581a041016` | Custom media publish workflow | Publishing workspace | `src/custom-media-publishing-server.ts` is imported by `src/scheduled-publishing.ts` | SUPERSEDED |
+| `ag-signature-dm-flow` | `fc4a32a84aea` | Branded Instagram study-card DM | Social automation | Current social signature modules are the later code. No added file is missing | SUPERSEDED |
+| `seo-v2-google-2026-08-19`, `seo-v3-ranking-clusters`, `seo/app-search-isolation` | `290ae3a2cf1d`, `6f893213e533`, `673cff0ad55a` | Canonical SEO, ranking clusters, app-host noindex | Public discovery | `src/seo.ts`, `src/search-intent-cluster.tsx`, `tests/app-search-isolation.test.ts`, and `X-Robots-Tag: noindex` in `proxy.ts` are present | SUPERSEDED |
+| `fix/analytics-accuracy-2026-08-19`, `feature/live-analytics` | `76bc2e14594e`, `598fe5ad3adf` | Ledger accuracy and traffic context | Analytics is current | `supabase/migrations/202608190001_analytics_accuracy_hardening.sql` is present. #104 is the newer reader funnel | SUPERSEDED |
+
+#### Video Producer — SUPERSEDED
+
+| Candidate | SHA | Unique behavior | Why it looked relevant | Overlap | Recommendation |
+| --- | --- | --- | --- | --- | --- |
+| `feat/video-producer-multicam` (#88) and `agent/video-producer-2-multicam` | `5b9c97399c10`, `837ddb987c08` | Older unlimited-camera studio, then Studio 2.0 waveform sync | Camera capture is production behavior from #110 | `scripts/sync_video_producer_worker.py` and `src/video-producer-multicam-panel.tsx` are the current model. The seven #88-only studio files are still absent on purpose. Multicam FFmpeg smoke passed | SUPERSEDED |
+| Broadcast-graphics tips | `6dfd6a00b1c7` | AG broadcast template renderer | #102 rebuilt broadcast graphics | `scripts/check_video_producer_worker.py` passed the current broadcast smoke | SUPERSEDED |
+| Reliability, library, heartbeats, sequential flow, dispatcher, UI, nav, flow, render-speed, old video-studio | `450c4de57519`, `3bdfe1e42b59`, `ce2fea37e378`, `b4dba625a78b`, and the other producer tips in the inventory | Project library, 3-minute heartbeat, pathway-first setup, GitHub dispatch, old renderer progress | Easy to mistake for missing producer bugfixes | Current dashboard, scene editor, `src/video-producer-job-state.ts` heartbeat comment, and dispatch workflow are newer. No added file from these tips is missing | SUPERSEDED |
+
+#### Sol / Studio — SUPERSEDED
+
+| Candidate | SHA | Unique behavior | Why it looked relevant | Overlap | Recommendation |
+| --- | --- | --- | --- | --- | --- |
+| `agent/sol-content-operator-phase-1` | `bc7cfc724e72` | Natural-language `interpretSolMessage` that can set Sol mode | The file `src/sol-operator-chat.ts` is absent | `main` history removed it in the durable-agent rebuild (`f81e09b`, PR #68). #111 blocks chat from escalating mode. Restoring the file would undo that lock | SUPERSEDED |
+| `codex/sol-runtime-v1` (#70), `feature/sol-admin-jarvis`, `feature/sol-agent-kernel-v3`, `agent/sol-manager-v4-mainline` | `5a61f4742abf`, `4365f4cf1ab1`, `2c791496bff2`, `93b78361c021` | Parallel Sol runtime, sidecar, kernel, Forge recipes | Sol is in this release via #111 | Current operator plus #111 is the runtime. Forge recipe migrations `20260820073000` and `20260820074500` are already present. #70's `src/sol-core/**` tree is a second Sol | SUPERSEDED |
+| `agent/studio-login-fix` | `73d0afeba194` | One `proxy.ts` auth-route change | Login is production-critical | `proxy.ts` has no diff against `main` / PR #110 | SUPERSEDED |
+| `edit/ag-big-edit-2026-08-19` (#79) | `463faf996143` | August staging lane | Large diff | Would roll back #111. Already recorded above | SUPERSEDED |
+
+#### Content / editorial
+
+| Candidate | SHA | Unique behavior | Why it matters | Overlap | Recommendation |
+| --- | --- | --- | --- | --- | --- |
+| `content/teleprompter-episodes-2-11`, `content/episode-12-john-14-philip`, `feature/teleprompter-beta`, `fix/teleprompter-scroll-tuning`, `fix/teleprompter-seed-content-refresh` | `d38bfeefea5e`, `c189682b4f15`, `f00e5f9f7ea8`, `4343f85b5011`, `d2abe58e25c9` | Episode scripts, remote session, page nudge, seed refresh | Teleprompter is current | Episodes 2–12, `scrollNudge`, and seeded storage are on this branch | SUPERSEDED |
+| `feature/teleprompter-doctrine-season` | `898137431814` | Unregistered script `src/lib/teleprompter/scripts/why-did-jesus-pray.ts` ("If Jesus is God, why did He pray?") | Teaching copy is not in the episode index. Episode 02 is the different script "Who Was Jesus Praying To?" | Nothing imports the file. Adding it would create a new teleprompter document | SEPARATE_SCOPE. Owner decides before it is registered. Not published from this pass |
+| `feature/character-poster-v1` | `bac89219ead6` | Admin AI character-poster studio | The page never landed on `main` (`git merge-base --is-ancestor` is false) and the tip also carries the obsolete Carousel Studio lab | Current Carousel Studio and the editorial engine are the art path | SEPARATE_SCOPE |
+| `carousel-studio-lab`, `carousel-studio-main-ready` | `867087a41c54`, `04153afa056f` | `src/carousel-preview-stability.tsx` and a second carousel studio | Experimental duplicate of Carousel Studio | Current carousel studio is the later implementation | IGNORE |
+| `agent/fix-public-routes-site-polish` | `9e725f753229` | August 3 sitemap / public-route polish, 1145 commits behind | Public pages | Current `app/sitemap.ts` and SEO modules are later | IGNORE |
+
+#### Misc already decided
+
+| Candidate | SHA | Recommendation |
+| --- | --- | --- |
+| `agent/apostolic-song-studio` / PR #26 | `cb32aaba16d6` | SEPARATE_SCOPE. Song Studio migration and routes are still absent. Leave the PR open. |
+| `feature/guia-apostolica-i18n-foundation` / PR #3 | `09f8f5821bde` | SEPARATE_SCOPE. Spanish locale routes and localization migration are still absent. Leave the PR open. |
+| `feature/apostolic-motion-engine-v1` / PR #74 | `32de8e717bdb` | SEPARATE_SCOPE. Proof is in the section above. |
+
+### Release recommendation
+
+**Not ready for `main`.** Remotely reachable code that belongs in this architecture is already here, and the integrated files are lint-clean. The remaining blockers are owner actions: export the three local Sol commits, confirm the separate-scope PRs stay open, apply SQL only on a preview database, and run authenticated Studio checks. Do not enable video cron, editorial production, or `SOL_KILL_SWITCH` from this branch.
 
 ## Already on main
 
