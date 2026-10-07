@@ -151,7 +151,6 @@ export function VideoProducerSceneEditor({ projectId }: { projectId: string }) {
   const previewSignedAt = useRef(0);
   const plan = history?.present.plan ?? null;
   const dirty = Boolean(history && JSON.stringify(history.present) !== saved);
-  dirtyRef.current = dirty;
   const project = detail?.project;
   const job = project?.director_metadata?.draftJob;
   const working =
@@ -263,23 +262,30 @@ export function VideoProducerSceneEditor({ projectId }: { projectId: string }) {
     setVisuals(await api<Visuals>(`visual-pass?projectId=${projectId}`));
   }, [projectId]);
   useEffect(() => {
+    dirtyRef.current = dirty;
+  }, [dirty]);
+  useEffect(() => {
     let active = true;
-    void load().catch((e) => {
-      if (active) setError(e.message);
+    const pendingLoads = loadSequence;
+    queueMicrotask(() => {
+      if (!active) return;
+      void load().catch((e) => {
+        if (active) setError(e.message);
+      });
+      void loadVisuals().catch(() => {
+        /* The editor remains available if Visual Pass has not been configured. */
+      });
+      void api<{ musicTracks: { id: string; title: string }[] }>(
+        `finishing?projectId=${projectId}`,
+      )
+        .then((data) => {
+          if (active) setMusic(data.musicTracks ?? []);
+        })
+        .catch(() => {});
     });
-    void loadVisuals().catch(() => {
-      /* The editor remains available if Visual Pass has not been configured. */
-    });
-    void api<{ musicTracks: { id: string; title: string }[] }>(
-      `finishing?projectId=${projectId}`,
-    )
-      .then((data) => {
-        if (active) setMusic(data.musicTracks ?? []);
-      })
-      .catch(() => {});
     return () => {
       active = false;
-      loadSequence.current++;
+      pendingLoads.current += 1;
     };
   }, [load, loadVisuals, projectId]);
   useEffect(() => {

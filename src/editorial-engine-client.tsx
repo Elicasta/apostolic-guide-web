@@ -18,7 +18,18 @@ export function EditorialEngineClient({ canManage }: { canManage: boolean }) {
     if (!response.ok) throw new Error(data.error || "Could not load editorial production.");
     setSnapshot(data);
   }, []);
-  useEffect(() => { void load().catch(e => setMessage(e.message)); }, [load]);
+  useEffect(() => {
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      void load().catch((error: unknown) => {
+        if (!cancelled) setMessage(error instanceof Error ? error.message : "Could not load editorial production.");
+      });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [load]);
   async function act(body: object) {
     setBusy(true); setMessage("");
     try {
@@ -48,7 +59,12 @@ export function EditorialEngineClient({ canManage }: { canManage: boolean }) {
       {row && pack && <section className={`admin-card ${styles.detail}`}><span className="eyebrow">{pack.series}</span><h2>{pack.title}</h2>
         <p>{pack.artDirection}</p>
         <div className={styles.gates}><strong>Review required</strong><p>Canonical source copied into the draft. Doctrine and visual approval are still required. PNG previews are review artwork, not proof of publishing readiness.</p>{row.sourceChanged && <p>Canonical source changed since generation. Reconcile this project before publishing.</p>}{pack.blockers.map(blocker => <p key={blocker}>{blocker}</p>)}</div>
-        {frame && <><img className={styles.preview} src={`/api/admin/editorial/preview?project=${row.project_id}&frame=${index}`} alt={frame.altText}/><div className={styles.actions}><button type="button" className="button" disabled={index === 0} onClick={() => setIndex(i => i - 1)}>Previous</button><span>{index + 1} / {pack.frames.length}</span><button type="button" className="button" disabled={index >= pack.frames.length - 1} onClick={() => setIndex(i => i + 1)}>Next</button><a className="button" href={`/api/admin/editorial/preview?project=${row.project_id}&frame=${index}&download=1`}>Download PNG</a></div></>}
+        {frame && <>
+          {/* Studio-session preview. next/image would fetch this admin route without the operator cookie. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img className={styles.preview} src={`/api/admin/editorial/preview?project=${row.project_id}&frame=${index}`} alt={frame.altText}/>
+          <div className={styles.actions}><button type="button" className="button" disabled={index === 0} onClick={() => setIndex(i => i - 1)}>Previous</button><span>{index + 1} / {pack.frames.length}</span><button type="button" className="button" disabled={index >= pack.frames.length - 1} onClick={() => setIndex(i => i + 1)}>Next</button><a className="button" href={`/api/admin/editorial/preview?project=${row.project_id}&frame=${index}&download=1`}>Download PNG</a></div>
+        </>}
         <div className={styles.actions}><Link className="button primary" href={`/admin/carousel-studio?project=${row.project_id}`}>Review in Carousel Studio</Link><Link className="button" href="/admin/publishing">Open Publishing</Link><Link className="button" href={`/pathways/${pack.pathwaySlug}`}>Read source</Link></div>
         <details><summary>Generated caption</summary><p className={styles.copy}>{pack.caption}</p></details>
         {pack.newsletter && <details open><summary>Weekly newsletter draft</summary><h3>{pack.newsletter.subject}</h3><p className={styles.copy}>{pack.newsletter.summary}</p>{pack.newsletter.resources?.map(resource => <p key={resource.url}><a href={resource.url}>{resource.title}</a><br/>{resource.summary}</p>)}<div className={styles.actions}><a className="button" href={`/api/admin/editorial/preview?project=${row.project_id}&kind=newsletter`} target="_blank" rel="noreferrer">Preview email</a><a className="button" href={`/api/admin/editorial/preview?project=${row.project_id}&kind=newsletter&download=1`}>Download HTML</a><Link className="button" href={`/admin/broadcasts?editorial=${pack.date}`}>Open draft in Broadcasts</Link></div><p>Prepared draft. No recipients enrolled and no email sent.</p></details>}

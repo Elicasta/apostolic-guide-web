@@ -162,7 +162,9 @@ export function diagnosePathwayReaderFunnel(input: {
   steps: PathwayReaderStep[];
   largestDrop: PathwayReaderFunnel["largestDrop"];
 }): PathwayReaderDiagnosis {
-  const { opens, began, completions, steps, largestDrop } = input;
+  // largestDrop stays on the input so a funnel row can be passed through.
+  // Diagnosis recomputes each transition from steps using its own thresholds.
+  const { opens, began, completions, steps } = input;
   const confidence = readerConfidence(began);
   if (began < 5) {
     return {

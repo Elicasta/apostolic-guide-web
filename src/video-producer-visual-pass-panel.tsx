@@ -140,7 +140,15 @@ export function VideoProducerVisualPassPanel({ projectId }: { projectId: string 
     }
   }, [projectId]);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (!cancelled) void load();
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [load]);
 
   const hasWorkingImports = useMemo(() => Boolean(state?.importJobs.some((job) => ACTIVE_IMPORTS.has(job.status))), [state?.importJobs]);
   useEffect(() => {
@@ -256,7 +264,10 @@ export function VideoProducerVisualPassPanel({ projectId }: { projectId: string 
     const unresolved = unresolvedBroll(state);
     if (!state.beats.length || unresolved.length) {
       autoPassRef.current = true;
-      void prepareEpisode(state);
+      const current = state;
+      queueMicrotask(() => {
+        void prepareEpisode(current);
+      });
     }
   }, [prepareEpisode, state]);
 

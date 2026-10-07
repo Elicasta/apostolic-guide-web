@@ -93,7 +93,15 @@ export function VideoProducerDashboard() {
     }
   }, []);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (!cancelled) void load();
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [load]);
   useEffect(() => {
     if (!projects.some((project) => ["uploading", "transcribing", "directing", "rendering"].includes(project.status))) return;
     const timer = window.setInterval(() => void load(), 10000);

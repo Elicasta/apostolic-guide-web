@@ -48,7 +48,11 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
   return NextResponse.json({
     project: { ...project, transcript_local: localTranscript, transcript_local_text: localTranscript.text, transcript_local_duration: localTranscript.duration },
     renderIsCurrent: Boolean(project.approval_fingerprint && rendersResult.data?.[0]?.status === "completed" && rendersResult.data[0].config_snapshot?.approvalFingerprint === project.approval_fingerprint),
-    renders: (rendersResult.data ?? []).map(({ config_snapshot: _snapshot, ...render }) => render),
+    renders: (rendersResult.data ?? []).map((render) => {
+      const { config_snapshot, ...published } = render;
+      void config_snapshot;
+      return published;
+    }),
     sourcePreviewUrl,
     renderPreviewUrl
   });

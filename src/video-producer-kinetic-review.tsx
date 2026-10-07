@@ -67,7 +67,15 @@ export function VideoProducerKineticReview({ projectId }: { projectId: string })
     }
   }, [projectId]);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (!cancelled) void load();
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [load]);
 
   async function save(id: string) {
     const cue = drafts[id];

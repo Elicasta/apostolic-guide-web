@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import type { BroadcastCampaign } from "./broadcast-email";
-import { ExternalLink, FileText, Headphones, MailCheck, MessageSquareText, Play, Send, TestTube2, Waypoints } from "lucide-react";
+import { FileText, Headphones, MailCheck, MessageSquareText, Play, Send, TestTube2, Waypoints } from "lucide-react";
 
 export type BroadcastSourceOption = {
   kind: "article" | "topic" | "answer" | "pathway";
