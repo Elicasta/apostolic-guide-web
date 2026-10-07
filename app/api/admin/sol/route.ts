@@ -21,6 +21,7 @@ import {
   approveSolProposal,
   dismissSolProposal,
   getSolOperatorSnapshot,
+  listRecentSolActivity,
   updateSolSettings
 } from "@/sol-operator";
 
@@ -78,7 +79,9 @@ export async function GET(request: Request) {
   if (!access) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const url = new URL(request.url);
   const { snapshot, team } = await snapshotAndTeam();
-  if (url.searchParams.get("agent") !== "1") return NextResponse.json({ ...snapshot, team });
+  if (url.searchParams.get("agent") !== "1") {
+    return NextResponse.json({ ...snapshot, team, recentActivity: await listRecentSolActivity() });
+  }
   const pathname = url.searchParams.get("pathname") || "/admin";
   return NextResponse.json({ snapshot, team, thread: await getSolAgentThread(access.user.id, pathname), surface: getSolAdminSurface(pathname) });
 }
