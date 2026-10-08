@@ -23,13 +23,33 @@
 .grokbot-log ol { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
 .grokbot-log li { display: grid; gap: 3px; padding: 8px 10px; border-radius: 12px; background: #f6f7f8; }
 .grokbot-log em { color: #526173; font-style: normal; font-size: 12px; }
-.grokbot-drop label { display: grid; min-height: 120px; place-items: center; padding: 16px; border: 1px dashed #9aabba; border-radius: 14px; text-align: center; cursor: pointer; }
-.grokbot-drop input { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); }
+.grokbot-file-input { position: relative; display: grid; min-height: 120px; place-items: center; padding: 16px; border: 1px dashed #9aabba; border-radius: 14px; text-align: center; cursor: pointer; }
+.grokbot-drop input[type="file"] { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); }
 .grokbot-drop p { color: #526173; font-size: 13px; }
+.grokbot-session, .grokbot-desk label, .grokbot-scratch label, .grokbot-drop label, .grokbot-plan label { display: grid; gap: 6px; min-width: 0; }
+.grokbot-session { grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; }
+.grokbot-session select, .grokbot-desk select, .grokbot-desk input, .grokbot-scratch input, .grokbot-scratch textarea, .grokbot-scratch select, .grokbot-drop select, .grokbot-plan input, .grokbot-plan select { width: 100%; max-width: 100%; min-height: 44px; border: 1px solid #d5dde4; border-radius: 12px; padding: 8px 10px; font-size: 16px; background: #fff; color: #1b2739; }
+.grokbot-session button, .grokbot-row button, .grokbot-scratch button, .grokbot-drop button { min-height: 44px; border: 0; border-radius: 999px; background: #142842; color: #fff; padding: 8px 12px; font-weight: 700; }
+.grokbot-work { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 12px; }
+.grokbot-desk, .grokbot-scratch, .grokbot-preview, .grokbot-drop { border: 1px solid #dfe3e7; border-radius: 18px; background: #fff; padding: 14px; min-width: 0; }
+.grokbot-desk header span, .grokbot-scratch header span, .grokbot-preview header span { display: block; color: #6d7c8b; font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.grokbot-desk h3, .grokbot-scratch h3, .grokbot-preview h3 { margin: 0 0 8px; }
+.grokbot-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
+.grokbot-slots, .grokbot-scratch ul, .grokbot-preview ul, .grokbot-drop ul { display: grid; gap: 8px; margin: 8px 0 0; padding: 0; list-style: none; }
+.grokbot-slots li, .grokbot-scratch li, .grokbot-drop li { display: grid; gap: 6px; padding: 10px; border-radius: 12px; background: #f6f7f8; }
+.grokbot-conflict { color: #8d2f2f; font-weight: 700; }
+.grokbot-assets { display: grid; gap: 8px; }
+.grokbot-assets article { display: grid; gap: 4px; min-width: 0; }
+.grokbot-assets img, .grokbot-file { width: 96px; height: 96px; object-fit: cover; border-radius: 12px; background: #eef2f4; }
+.grokbot-assets span, .grokbot-drop span, .grokbot-scratch em { color: #526173; font-size: 12px; overflow-wrap: anywhere; }
+.grokbot-file-input { min-height: 120px; place-items: center; padding: 16px; border: 1px dashed #9aabba; border-radius: 14px; text-align: center; }
+.grokbot-page { max-width: 100%; overflow-x: hidden; padding-bottom: 120px; }
 @media (max-width: 800px) {
-  .grokbot-shell { grid-template-columns: 1fr; }
-  .grokbot-terminal textarea { font-size: 16px; }
+  .grokbot-shell, .grokbot-work { grid-template-columns: 1fr; }
+  .grokbot-terminal textarea, .grokbot-scratch textarea { font-size: 16px; }
+  .grokbot-session { grid-template-columns: 1fr; }
 }
 @media (prefers-reduced-motion: reduce) {
   .grokbot-page, .grokbot-examples { scroll-behavior: auto; }
+  .grokbot-page * { animation: none !important; transition: none !important; }
 }
