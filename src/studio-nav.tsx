@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { BarChart3, Bell, Bot, BookOpen, FileClock, FileText, Film, FolderOpen, Headphones, HeartPulse, Inbox, Instagram, Layers3, ListFilter, Mail, Menu, MessageCircle, MonitorPlay, Route, Send, Settings, Sparkles, TerminalSquare, UserCog, Users, X } from "lucide-react";
 import { hasStudioPermission, type StudioPermission, type StudioRole } from "@/studio-permissions";
 
@@ -91,13 +92,13 @@ export function StudioMobileNav({ role }: { role: StudioRole }) {
 
   return <div className="studio-mobile-nav-root">
     <button type="button" className="studio-mobile-menu-button" onClick={() => setOpen(true)} aria-label="Open Studio navigation" aria-expanded={open}><Menu size={20}/></button>
-    {open ? <>
+    {open && typeof document !== "undefined" ? createPortal(<>
       <button type="button" className="studio-mobile-nav-backdrop" onClick={() => setOpen(false)} aria-label="Close navigation"/>
       <aside className="studio-mobile-nav-drawer" aria-label="Studio navigation">
         <div className="studio-mobile-nav-head"><div><strong>Studio</strong><span>Navigate workspace</span></div><button type="button" onClick={() => setOpen(false)} aria-label="Close navigation"><X size={20}/></button></div>
         <div className="studio-mobile-nav-scroll"><NavigationSections role={role} mobile onNavigate={() => setOpen(false)}/></div>
         <div className="studio-mobile-nav-footer"><Link href="/" onClick={() => setOpen(false)}>View public site</Link></div>
       </aside>
-    </> : null}
+    </>, document.body) : null}
   </div>;
 }
