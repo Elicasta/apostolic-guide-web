@@ -1,6 +1,7 @@
 import { pathwayNarrationHash } from "./pathway-audio";
 import { allPathways } from "./pathway-catalog";
 import { recordStudioAudit } from "./studio-audit";
+import { solKillSwitchEnabled } from "./sol-control-policy";
 import { createServiceClient } from "./supabase";
 import {
   buildSolOperatorAnalysis,
@@ -143,7 +144,7 @@ async function getSettings(service: Service): Promise<SolSettings> {
     return getSettings(service);
   }
   return {
-    enabled: result.data.enabled === true,
+    enabled: result.data.enabled === true && !solKillSwitchEnabled(),
     mode: String(result.data.mode) as SolMode,
     weeklyTargets: { ...DEFAULT_TARGETS, ...record(result.data.weekly_targets) } as Record<string, number>,
     allowLivePublishing: false,
@@ -326,6 +327,27 @@ export async function scanSolOperator(actorUserId?: string | null) {
   return analysis;
 }
 
+export async function listRecentSolActivity(limit = 12) {
+  const service = createServiceClient();
+  if (!service) return [];
+  const size = Math.max(1, Math.min(20, limit));
+  const result = await service.from("sol_operator_runs")
+    .select("id,recipe_key,pathway_slug,status,progress,current_step,error,updated_at")
+    .order("updated_at", { ascending: false })
+    .limit(size);
+  if (result.error) return [];
+  return (result.data ?? []).map((row) => ({
+    id: String(row.id),
+    recipeKey: String(row.recipe_key),
+    pathwaySlug: row.pathway_slug ? String(row.pathway_slug) : null,
+    status: String(row.status),
+    progress: Number(row.progress) || 0,
+    currentStep: row.current_step ? String(row.current_step) : null,
+    error: row.error ? String(row.error).slice(0, 180) : null,
+    updatedAt: String(row.updated_at)
+  }));
+}
+
 export async function getSolOperatorSnapshot(): Promise<SolOperatorSnapshot> {
   const service = createServiceClient();
   if (!service) return { dbReady: false, aiReady: Boolean(process.env.OPENAI_API_KEY?.trim()), rendererReady: Boolean(process.env.VIDEO_STUDIO_GITHUB_TOKEN?.trim()), settings: DEFAULT_SETTINGS, proposals: [], runs: [], kpis: [], coverage: { pathways: allPathways.length, audioReady: 0, youtubePublished: 0, carouselPublished: 0, automationsLinked: 0 }, generatedAt: new Date().toISOString() };
@@ -342,17 +364,20 @@ export async function getSolOperatorSnapshot(): Promise<SolOperatorSnapshot> {
 export async function updateSolSettings(input: { enabled: boolean; mode: SolMode; weeklyTargets?: Record<string, number> }, actorUserId: string) {
   const service = createServiceClient();
   if (!service) throw new Error("Supabase service access is not configured.");
+  if (solKillSwitchEnabled() && input.enabled) throw new Error("Sol is stopped by the administrator.");
   const targets = Object.fromEntries(Object.entries({ ...DEFAULT_TARGETS, ...input.weeklyTargets }).map(([key, value]) => [key, Math.max(0, Math.min(99, Math.round(Number(value) || 0)))]));
   const result = await service.from("sol_operator_settings").upsert({
     workspace_key: "apostolic-guide",
     enabled: input.enabled,
     mode: input.mode,
+    changed_by: actorUserId,
+    ...(input.enabled ? { stopped_at: null, stopped_by: null } : {}),
     weekly_targets: targets,
     allow_live_publishing: false,
     allow_automation_activation: false
   }, { onConflict: "workspace_key" });
   if (result.error) throw result.error;
-  await recordStudioAudit({ actorUserId, action: "sol.settings_updated", resourceType: "sol_operator", metadata: { enabled: input.enabled, mode: input.mode, weekly_targets: targets } });
+  // A database trigger audits this update in the same transaction as the settings write.
 }
 
 function runInputs(proposal: SolProposal, slug: string | null, constraints: string[]) {
@@ -369,6 +394,7 @@ function runInputs(proposal: SolProposal, slug: string | null, constraints: stri
 export async function approveSolProposal(proposalId: string, constraints: string[], actorUserId: string) {
   const service = createServiceClient();
   if (!service) throw new Error("Supabase service access is not configured.");
+  if (solKillSwitchEnabled()) throw new Error("Sol is stopped by the administrator.");
   const settings = await getSettings(service);
   if (!settings.enabled) throw new Error("Turn Sol on before approving work.");
   if (settings.mode === "watch") throw new Error("Switch Sol to Assist before approving work.");
@@ -378,8 +404,9 @@ export async function approveSolProposal(proposalId: string, constraints: string
   const proposal = proposalFromRow(result.data as Record<string, unknown>);
   if (!["pending", "failed"].includes(proposal.status)) throw new Error("This proposal is no longer waiting for approval.");
   const now = new Date().toISOString();
-  const approved = await service.from("sol_operator_proposals").update({ status: "approved", approved_by: actorUserId, approved_at: now, approval_constraints: constraints }).eq("id", proposal.id).in("status", ["pending", "failed"]);
+  const approved = await service.from("sol_operator_proposals").update({ status: "approved", approved_by: actorUserId, approved_at: now, approval_constraints: constraints }).eq("id", proposal.id).in("status", ["pending", "failed"]).select("id").maybeSingle();
   if (approved.error) throw approved.error;
+  if (!approved.data) throw new Error("This proposal was already claimed. Refresh Sol before approving again.");
   const slugs = proposal.recipeKey === "carousel_topic_pack" ? [proposal.pathwaySlugs[0] ?? null] : proposal.pathwaySlugs.length ? proposal.pathwaySlugs : [null];
   const rows = slugs.map((slug) => ({
     proposal_id: proposal.id,
@@ -393,18 +420,26 @@ export async function approveSolProposal(proposalId: string, constraints: string
     requested_by: actorUserId
   }));
   const created = await service.from("sol_operator_runs").insert(rows).select("id");
-  if (created.error) throw created.error;
-  await service.from("sol_operator_proposals").update({ status: "running" }).eq("id", proposal.id);
-  await recordStudioAudit({ actorUserId, action: "sol.proposal_approved", resourceType: "sol_proposal", resourceId: proposal.id, metadata: { recipe_key: proposal.recipeKey, pathway_slugs: proposal.pathwaySlugs, constraints, run_count: created.data?.length ?? 0 } });
+  if (created.error) {
+    // Avoid leaving an approved proposal with no jobs when enqueue fails (including Stop racing the request).
+    const recovered = await service.from("sol_operator_proposals").update({ status: "failed" }).eq("id", proposal.id).eq("status", "approved").eq("approved_by", actorUserId);
+    if (recovered.error) console.error("Sol proposal recovery failed", recovered.error);
+    throw created.error;
+  }
+  const running = await service.from("sol_operator_proposals").update({ status: "running" }).eq("id", proposal.id).eq("status", "approved");
+  if (running.error) throw running.error;
+  // sol.proposal_approved is transactionally audited by the proposal status trigger.
   return { proposal, runIds: (created.data ?? []).map((item) => String(item.id)) };
 }
 
 export async function dismissSolProposal(proposalId: string, actorUserId: string) {
   const service = createServiceClient();
   if (!service) throw new Error("Supabase service access is not configured.");
-  const result = await service.from("sol_operator_proposals").update({ status: "dismissed", dismissed_by: actorUserId, dismissed_at: new Date().toISOString() }).eq("id", proposalId).eq("status", "pending");
+  if (solKillSwitchEnabled()) throw new Error("Sol is stopped by the administrator.");
+  const result = await service.from("sol_operator_proposals").update({ status: "dismissed", dismissed_by: actorUserId, dismissed_at: new Date().toISOString() }).eq("id", proposalId).eq("status", "pending").select("id").maybeSingle();
   if (result.error) throw result.error;
-  await recordStudioAudit({ actorUserId, action: "sol.proposal_dismissed", resourceType: "sol_proposal", resourceId: proposalId });
+  if (!result.data) throw new Error("This proposal is no longer pending. Refresh Sol to see its current status.");
+  // sol.proposal_dismissed is transactionally audited by the proposal status trigger.
 }
 
 export async function cancelSolRun(runId: string, actorUserId: string) {

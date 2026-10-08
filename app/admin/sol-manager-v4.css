@@ -1022,6 +1022,16 @@
   }
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .sol-mgr-root .is-spinning,
+  .sol-mgr-tool svg:first-child,
+  .sol-mgr-panel,
+  .sol-mgr-launcher {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
 @media (max-width: 390px) {
   .sol-mgr-header {
     padding-inline: 12px;

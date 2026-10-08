@@ -38,10 +38,15 @@ export function videoProducerPlanFingerprint(value: unknown) {
 }
 
 export function videoProducerWorkerRef() {
-  // Rendering must use a ref that contains the stable worker workflow. A Vercel
-  // preview branch may change UI code without containing a runnable worker, so
-  // never infer the renderer ref from VERCEL_GIT_COMMIT_REF.
-  return process.env.VIDEO_PRODUCER_WORKER_REF?.trim() || "main";
+  // Production stays pinned to main. Preview deployments deliberately use the
+  // allowlisted staging alias so unfinished renderer work can be exercised
+  // without merging the feature branch or weakening repository-dispatch ref
+  // validation. A preview-level explicit non-main worker ref still wins.
+  const configured = process.env.VIDEO_PRODUCER_WORKER_REF?.trim() || "";
+  if (process.env.VERCEL_ENV === "preview" && (!configured || configured === "main")) {
+    return "codex/video-producer";
+  }
+  return configured || "main";
 }
 
 export function videoProducerOpenAIKey() {
@@ -114,12 +119,52 @@ export async function deletePrivateVideoProducerBlob(pathname: string) {
   }
 }
 
+export type VideoProducerPreviewChunk = { index: number; start: number; end: number };
+
+export function buildVideoProducerPreviewChunks(durationSeconds: number): VideoProducerPreviewChunk[] {
+  const duration = Number.isFinite(durationSeconds) ? Math.max(0, durationSeconds) : 0;
+  if (duration <= 0) throw new Error("Preview render duration is empty.");
+  // Keep each FFmpeg proof comfortably below the hosted-runner interruption window.
+  // GitHub matrix jobs support up to 256 combinations, so one hour at 12s/chunk is
+  // capped into 240 evenly sized chunks rather than creating an invalid workflow.
+  const targetSeconds = 12;
+  const count = Math.max(1, Math.min(240, Math.ceil(duration / targetSeconds)));
+  const size = duration / count;
+  return Array.from({ length: count }, (_, index) => ({
+    index,
+    start: Number((index * size).toFixed(4)),
+    end: Number((index === count - 1 ? duration : (index + 1) * size).toFixed(4))
+  }));
+}
+
+async function stagingPreviewPayload(payload: Record<string, unknown>) {
+  const manifestUrl = typeof payload.manifest_url === "string" ? payload.manifest_url : "";
+  if (!manifestUrl) throw new Error("Staging preview render is missing its manifest URL.");
+  const response = await fetch(manifestUrl, { headers: { "user-agent": "apostolic-guide-video-producer" } });
+  if (!response.ok) throw new Error(`Staging preview manifest could not be read (${response.status}).`);
+  const value = await response.json().catch(() => null) as Record<string, unknown> | null;
+  const plan = value?.renderPlan && typeof value.renderPlan === "object" ? value.renderPlan as Record<string, unknown> : null;
+  const duration = Number(plan?.outputDuration || 0);
+  const chunks = buildVideoProducerPreviewChunks(duration);
+  return { ...payload, preview_matrix: JSON.stringify(chunks) };
+}
+
 export async function dispatchVideoProducerWorker(input: {
   token: string;
   repository: string;
-  eventType: "video-producer-transcribe" | "video-producer-render" | "video-producer-thumbnail" | "video-producer-publisher-handoff" | "video-producer-sync";
+  eventType:
+    | "video-producer-transcribe"
+    | "video-producer-render"
+    | "video-producer-render-preview"
+    | "video-producer-thumbnail"
+    | "video-producer-publisher-handoff"
+    | "video-producer-sync"
+    | "video-producer-visual-import";
   payload: Record<string, unknown>;
 }) {
+  const stagingPreview = input.eventType === "video-producer-render" && input.payload.worker_ref === "codex/video-producer";
+  const eventType = stagingPreview ? "video-producer-render-preview" : input.eventType;
+  const payload = stagingPreview ? await stagingPreviewPayload(input.payload) : input.payload;
   const response = await fetch(`https://api.github.com/repos/${input.repository}/dispatches`, {
     method: "POST",
     headers: {
@@ -129,7 +174,7 @@ export async function dispatchVideoProducerWorker(input: {
       "user-agent": "apostolic-guide-video-producer",
       "x-github-api-version": "2022-11-28"
     },
-    body: JSON.stringify({ event_type: input.eventType, client_payload: input.payload })
+    body: JSON.stringify({ event_type: eventType, client_payload: payload })
   });
   if (!response.ok) {
     const detail = (await response.text().catch(() => "")).slice(0, 1000);

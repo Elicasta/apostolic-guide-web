@@ -86,11 +86,15 @@ test("decision rules surface traffic growth, study movement, source growth, drop
   assert.equal(signals.find((item) => item.id === "study-change")?.confidence, "early");
 });
 
-test("Sol is no longer mounted globally and Analytics V3 invokes it deliberately", () => {
+test("Sol mounts through a gated host and Analytics V3 keeps its own brief", () => {
   const layout = readFileSync("app/admin/layout.tsx", "utf8");
+  const mount = readFileSync("src/sol-studio-mount.tsx", "utf8");
   const page = readFileSync("app/admin/analytics/page.tsx", "utf8");
   const route = readFileSync("app/api/admin/analytics/interpret/route.ts", "utf8");
   assert.doesNotMatch(layout, /SolManagerSidecar/);
+  assert.match(layout, /SolStudioMount/);
+  assert.match(mount, /\/admin\/analytics/);
+  assert.match(mount, /SolManagerSidecar/);
   assert.match(page, /AnalyticsSolBrief/);
   assert.match(route, /deterministicSourceOfTruth: true/);
   assert.match(route, /mayInventMetrics: false/);

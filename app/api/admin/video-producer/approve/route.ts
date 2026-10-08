@@ -5,10 +5,11 @@ import { createServiceClient } from "@/supabase";
 import { compileVideoProducerRenderPlan, type VideoProducerEditPlan } from "@/video-producer";
 import type { VideoProducerAudioPlan, VideoProducerCameraPlan } from "@/video-producer-multicam";
 import { resolveVideoProducerProductionState } from "@/video-producer-production-server";
+import { requireVideoProducerVisualPassReady } from "@/video-producer-visual-pass-server";
 
 export const runtime = "nodejs";
 
-const schema = z.object({ projectId: z.string().uuid() });
+const schema = z.object({ projectId: z.string().uuid(), expectedUpdatedAt: z.string().max(64).optional() });
 
 export async function POST(request: Request) {
   const { access, allowed } = await getStudioPermission("manage_content");
@@ -18,15 +19,18 @@ export async function POST(request: Request) {
   const service = createServiceClient();
   if (!service) return NextResponse.json({ error: "Supabase service access is not configured." }, { status: 503 });
   const project = await service.from("video_producer_projects")
-    .select("id,parent_project_id,mode,status,source_duration,source_range_start,source_range_end,edit_plan,camera_plan,audio_plan")
+    .select("id,parent_project_id,mode,status,updated_at,director_metadata,source_duration,source_range_start,source_range_end,edit_plan,camera_plan,audio_plan")
     .eq("id", parsed.data.projectId).is("deleted_at", null).maybeSingle();
   if (project.error) return NextResponse.json({ error: project.error.message }, { status: 500 });
   if (!project.data?.edit_plan || (project.data.mode !== "podcast" && project.data.mode !== "reels")) return NextResponse.json({ error: "Generate an edit plan before approval." }, { status: 409 });
+  if (["rendering", "directing", "transcribing"].includes(project.data.status) || project.data.director_metadata?.draftJob?.status === "running") return NextResponse.json({ error: "Wait for production before approving." }, { status: 409 });
+  if (parsed.data.expectedUpdatedAt && parsed.data.expectedUpdatedAt !== project.data.updated_at) return NextResponse.json({ error: "This project changed. Reload the latest version before rendering." }, { status: 409 });
   let plan: VideoProducerEditPlan;
   try {
     plan = project.data.edit_plan as VideoProducerEditPlan;
     const compiled = compileVideoProducerRenderPlan(plan);
     if (plan.version !== 2 || plan.mode !== project.data.mode || compiled.outputDuration <= 0 || !compiled.keepSegments.length) throw new Error("Edit plan is not renderable.");
+    await requireVideoProducerVisualPassReady(service, project.data.id);
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Edit plan is invalid." }, { status: 422 });
   }
@@ -49,8 +53,9 @@ export async function POST(request: Request) {
       approval_fingerprint: production.fingerprint,
       approved_at: now,
       updated_by: access.user.id
-    }).eq("id", project.data.id).select("*").single();
+    }).eq("id", project.data.id).eq("updated_at", project.data.updated_at).is("deleted_at", null).select("*").maybeSingle();
     if (update.error) return NextResponse.json({ error: update.error.message }, { status: 500 });
+    if (!update.data) return NextResponse.json({ error: "The project changed during approval. Review it again." }, { status: 409 });
     return NextResponse.json({ project: update.data, fingerprint: production.fingerprint, multicam: production.usesMulticam });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Production state is not approvable." }, { status: 409 });

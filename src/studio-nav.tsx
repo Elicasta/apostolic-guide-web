@@ -3,13 +3,14 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { BarChart3, Bell, Bot, BookOpen, FileClock, FileText, Film, FolderOpen, Headphones, HeartPulse, Inbox, Instagram, Layers3, ListFilter, Mail, Menu, MessageCircle, MonitorPlay, Route, Send, Settings, Sparkles, UserCog, Users, X } from "lucide-react";
+import { BarChart3, Bell, Bot, BookOpen, FileClock, FileText, Film, FolderOpen, Headphones, HeartPulse, Inbox, Instagram, Layers3, ListFilter, Mail, Menu, MessageCircle, MonitorPlay, Route, Send, Settings, Sparkles, TerminalSquare, UserCog, Users, X } from "lucide-react";
 import { hasStudioPermission, type StudioPermission, type StudioRole } from "@/studio-permissions";
 
 export const studioNavSections: Array<{ label: string; items: Array<{ href: string; label: string; icon: typeof BarChart3; permission: StudioPermission; exact?: boolean }> }> = [
   { label: "Workspace", items: [
     { href: "/admin", label: "Overview", icon: BarChart3, permission: "view_workspace", exact: true },
     { href: "/admin/sol", label: "Sol Operator", icon: Bot, permission: "view_workspace" },
+    { href: "/admin/grokbot", label: "Grokbot", icon: TerminalSquare, permission: "view_workspace" },
     { href: "/admin/growth", label: "Growth Hub", icon: Sparkles, permission: "view_workspace" },
     { href: "/admin/notifications", label: "Notifications", icon: Bell, permission: "view_notifications" }
   ]},
@@ -35,6 +36,7 @@ export const studioNavSections: Array<{ label: string; items: Array<{ href: stri
     { href: "/admin/app-content", label: "App Content", icon: BookOpen, permission: "view_content" }
   ]},
   { label: "Publish", items: [
+    { href: "/admin/content-engine", label: "Content Engine", icon: Sparkles, permission: "view_distribution" },
     { href: "/admin/publishing", label: "Publishing", icon: Send, permission: "view_distribution", exact: true },
     { href: "/admin/broadcasts", label: "Broadcasts", icon: Mail, permission: "view_distribution" },
     { href: "/admin/social", label: "Social Automations", icon: Instagram, permission: "view_distribution" },
