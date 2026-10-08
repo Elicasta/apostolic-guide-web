@@ -18,6 +18,14 @@ test("known Studio sections receive contextual operator capabilities", () => {
   assert.ok(surface.capabilities.some((capability) => /KPI/i.test(capability)));
 });
 
+test("Grokbot has its own Studio surface", () => {
+  const surface = getSolAdminSurface("/admin/grokbot");
+  assert.equal(surface.key, "grokbot");
+  assert.equal(surface.label, "Grokbot Workbench");
+  assert.equal(surface.section, "Workspace");
+  assert.match(surface.capabilities.join(" "), /public effects/i);
+});
+
 test("unknown admin routes fall back without granting new capabilities", () => {
   const surface = getSolAdminSurface("/admin/future-tool/123");
   assert.equal(surface.key, "admin");

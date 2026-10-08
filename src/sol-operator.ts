@@ -327,6 +327,27 @@ export async function scanSolOperator(actorUserId?: string | null) {
   return analysis;
 }
 
+export async function listRecentSolActivity(limit = 12) {
+  const service = createServiceClient();
+  if (!service) return [];
+  const size = Math.max(1, Math.min(20, limit));
+  const result = await service.from("sol_operator_runs")
+    .select("id,recipe_key,pathway_slug,status,progress,current_step,error,updated_at")
+    .order("updated_at", { ascending: false })
+    .limit(size);
+  if (result.error) return [];
+  return (result.data ?? []).map((row) => ({
+    id: String(row.id),
+    recipeKey: String(row.recipe_key),
+    pathwaySlug: row.pathway_slug ? String(row.pathway_slug) : null,
+    status: String(row.status),
+    progress: Number(row.progress) || 0,
+    currentStep: row.current_step ? String(row.current_step) : null,
+    error: row.error ? String(row.error).slice(0, 180) : null,
+    updatedAt: String(row.updated_at)
+  }));
+}
+
 export async function getSolOperatorSnapshot(): Promise<SolOperatorSnapshot> {
   const service = createServiceClient();
   if (!service) return { dbReady: false, aiReady: Boolean(process.env.OPENAI_API_KEY?.trim()), rendererReady: Boolean(process.env.VIDEO_STUDIO_GITHUB_TOKEN?.trim()), settings: DEFAULT_SETTINGS, proposals: [], runs: [], kpis: [], coverage: { pathways: allPathways.length, audioReady: 0, youtubePublished: 0, carouselPublished: 0, automationsLinked: 0 }, generatedAt: new Date().toISOString() };

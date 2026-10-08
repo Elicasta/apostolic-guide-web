@@ -6,7 +6,8 @@ import { getAdminAccess } from "@/auth";
 import { StudioMobileNav, StudioNav } from "@/studio-nav";
 import { StudioCommandPalette } from "@/studio-command-palette";
 import { StudioStandaloneBottomNav } from "@/studio-standalone-nav";
-import { STUDIO_ROLE_LABELS, type StudioRole } from "@/studio-permissions";
+import { SolStudioMount } from "@/sol-studio-mount";
+import { hasStudioPermission, STUDIO_ROLE_LABELS, type StudioRole } from "@/studio-permissions";
 import { getNotificationUnreadCount } from "@/studio-notifications";
 import "./admin-surface-isolation.css";
 import "./publishing.css";
@@ -44,6 +45,8 @@ import "./episode-studio-lane.css";
 import "./pathway-asset-ingest.css";
 import "./pathway-source-asset.css";
 import "./sol-operator.css";
+import "./sol-live-room.css";
+import "./grokbot-workbench.css";
 import "./sol-jarvis.css";
 import "./sol-control.css";
 import "./sol-v4-forge.css";
@@ -125,6 +128,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         </div>
       </div>
       <StudioStandaloneBottomNav role={role}/>
+      <SolStudioMount canView={hasStudioPermission(role, "view_workspace")} canOperate={hasStudioPermission(role, "manage_content")}/>
     </div>
   );
 }

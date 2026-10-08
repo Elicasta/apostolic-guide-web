@@ -1,0 +1,35 @@
+.grokbot-page { padding-bottom: 108px; color: #1b2739; }
+.grokbot-shell { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(280px, .85fr); gap: 16px; align-items: start; }
+.grokbot-terminal, .grokbot-output, .grokbot-log, .grokbot-drop { border: 1px solid #dfe3e7; border-radius: 18px; background: #fff; }
+.grokbot-terminal { display: grid; gap: 14px; padding: 16px; background: #142842; color: #f4f7f8; }
+.grokbot-terminal header, .grokbot-drop header { display: flex; gap: 10px; align-items: center; }
+.grokbot-terminal header span, .grokbot-output header span, .grokbot-log header span, .grokbot-drop header span { display: block; color: #9eb0c2; font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.grokbot-terminal h2, .grokbot-output h3, .grokbot-log h3, .grokbot-drop h3 { margin: 0; }
+.grokbot-examples { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; }
+.grokbot-examples button, .grokbot-terminal form button { border: 0; border-radius: 999px; background: rgba(255,255,255,.12); color: #fff; padding: 8px 12px; cursor: pointer; white-space: nowrap; }
+.grokbot-terminal form { display: grid; gap: 8px; }
+.grokbot-terminal label { font-size: 12px; color: #c9d5df; }
+.grokbot-terminal textarea { width: 100%; min-height: 88px; border: 1px solid rgba(255,255,255,.16); border-radius: 12px; background: #0e1c30; color: #f4f7f8; padding: 12px; font: 14px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; resize: vertical; }
+.grokbot-terminal form button { justify-self: start; background: #f4f7f8; color: #142842; font-weight: 800; }
+.grokbot-terminal form button:disabled { opacity: .6; }
+.grokbot-context { display: flex; flex-wrap: wrap; gap: 8px; }
+.grokbot-context span, .grokbot-chip { border-radius: 999px; padding: 6px 10px; background: rgba(255,255,255,.1); font-size: 12px; }
+.grokbot-chip.is-approval-required { background: #8d5a12; }
+.grokbot-chip.is-blocked { background: #8d2f2f; }
+.grokbot-chip.is-private { background: #1f4f78; }
+.grokbot-side { display: grid; gap: 12px; }
+.grokbot-output, .grokbot-log, .grokbot-drop { padding: 14px; }
+.grokbot-output pre { max-height: 320px; overflow: auto; padding: 12px; border-radius: 12px; background: #f6f7f8; font-size: 12px; line-height: 1.45; white-space: pre-wrap; }
+.grokbot-log ol { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.grokbot-log li { display: grid; gap: 3px; padding: 8px 10px; border-radius: 12px; background: #f6f7f8; }
+.grokbot-log em { color: #526173; font-style: normal; font-size: 12px; }
+.grokbot-drop label { display: grid; min-height: 120px; place-items: center; padding: 16px; border: 1px dashed #9aabba; border-radius: 14px; text-align: center; cursor: pointer; }
+.grokbot-drop input { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); }
+.grokbot-drop p { color: #526173; font-size: 13px; }
+@media (max-width: 800px) {
+  .grokbot-shell { grid-template-columns: 1fr; }
+  .grokbot-terminal textarea { font-size: 16px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .grokbot-page, .grokbot-examples { scroll-behavior: auto; }
+}
