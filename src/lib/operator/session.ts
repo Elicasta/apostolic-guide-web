@@ -1,117 +1,93 @@
-import { randomUUID } from "node:crypto";
-import type { OperatorRunRecord, OperatorSessionContext } from "./types";
+import { createMemoryOperatorStore, type MemoryOperatorStore } from "./memory-store";
+import { redactOperatorText } from "./redact";
+import type { OperatorStore } from "./store";
+import { createSupabaseOperatorStore } from "./supabase-store";
+import type { OperatorSessionContext } from "./types";
+import { OperatorCommandError } from "./types";
 
 /**
- * Process-memory session log.
- * A database table was not added: this batch must not apply a production migration,
- * and the existing audit log is for privileged Studio mutations rather than a command transcript.
- * Records survive only for the life of this server process. The workbench also keeps the
- * returned transcript in the browser for the open tab.
+ * Production source of truth is the Supabase store.
+ * Process memory is installed only by tests. A missing service configuration
+ * refuses the command instead of pretending the transcript was saved.
  */
-const MAX_SESSIONS = 200;
-const MAX_RECORDS = 80;
-
-type SessionState = {
-  id: string;
-  actorUserId: string;
-  context: OperatorSessionContext;
-  records: OperatorRunRecord[];
-  updatedAt: number;
-};
-
-const sessions = new Map<string, SessionState>();
-
-function emptyContext(): OperatorSessionContext {
-  return { pathwaySlug: null, projectId: null };
-}
+let testStore: MemoryOperatorStore | null = null;
 
 export function resetOperatorSessionsForTests() {
-  sessions.clear();
+  testStore = createMemoryOperatorStore();
+  return testStore;
+}
+
+export function clearOperatorStoreForTests() {
+  testStore = null;
+}
+
+export function getOperatorStore(): OperatorStore {
+  if (testStore) return testStore;
+  const durable = createSupabaseOperatorStore();
+  if (!durable) {
+    throw new OperatorCommandError(
+      "OperatorPersistenceUnavailable",
+      "Grokbot persistence is not configured. Sessions are not stored in process memory."
+    );
+  }
+  return durable;
+}
+
+export function emptyOperatorContext(): OperatorSessionContext {
+  return { pathwaySlug: null, projectId: null, planId: null };
 }
 
 export function sanitizeOperatorCommand(command: string) {
-  return command
-    .replace(/\b(sk-|sbp_|eyJ|xox[baprs]-)[A-Za-z0-9._-]{6,}\b/g, "[redacted]")
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, 500);
+  return redactOperatorText(command, 500);
 }
 
-function touch(session: SessionState) {
-  session.updatedAt = Date.now();
-  sessions.delete(session.id);
-  sessions.set(session.id, session);
-  while (sessions.size > MAX_SESSIONS) {
-    const oldest = sessions.keys().next().value;
-    if (!oldest) break;
-    sessions.delete(oldest);
-  }
-}
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-export function openOperatorSession(input: {
+export async function openOperatorSession(input: {
   actorUserId: string;
   sessionId?: string | null;
   context?: Partial<OperatorSessionContext> | null;
 }) {
-  const requested = input.sessionId && /^[0-9a-f-]{36}$/i.test(input.sessionId) ? input.sessionId : null;
-  const existing = requested ? sessions.get(requested) : undefined;
-  if (existing && existing.actorUserId !== input.actorUserId) {
-    const error = new Error("That Grokbot session belongs to another Studio user.");
-    error.name = "OperatorSessionDenied";
-    throw error;
+  const store = getOperatorStore();
+  if (input.sessionId) {
+    if (!UUID.test(input.sessionId)) {
+      throw new OperatorCommandError("OperatorSessionInvalid", "That Grokbot session id is not valid.");
+    }
+    const existing = await store.readSession(input.sessionId, input.actorUserId);
+    if (existing.status === "missing") {
+      throw new OperatorCommandError("OperatorSessionMissing", "That Grokbot session was not found. A new session was not created.");
+    }
+    if (existing.status === "denied") {
+      throw new OperatorCommandError("OperatorSessionDenied", "That Grokbot session belongs to another Studio user.");
+    }
+    if (existing.status === "archived") {
+      throw new OperatorCommandError("OperatorSessionArchived", "That Grokbot session is archived.");
+    }
+    const context = { ...existing.session.context };
+    if (input.context?.pathwaySlug) context.pathwaySlug = input.context.pathwaySlug;
+    if (input.context?.projectId) context.projectId = input.context.projectId;
+    if (input.context?.planId) context.planId = input.context.planId;
+    if (
+      context.pathwaySlug !== existing.session.context.pathwaySlug
+      || context.projectId !== existing.session.context.projectId
+      || context.planId !== existing.session.context.planId
+    ) {
+      await store.touchContext(existing.session.id, input.actorUserId, context);
+    }
+    return { ...existing.session, context };
   }
-  if (existing) {
-    if (input.context?.pathwaySlug) existing.context.pathwaySlug = input.context.pathwaySlug;
-    if (input.context?.projectId) existing.context.projectId = input.context.projectId;
-    touch(existing);
-    return existing;
-  }
-  const created: SessionState = {
-    id: requested ?? randomUUID(),
-    actorUserId: input.actorUserId,
-    context: {
-      pathwaySlug: input.context?.pathwaySlug ?? null,
-      projectId: input.context?.projectId ?? null
-    },
-    records: [],
-    updatedAt: Date.now()
-  };
-  touch(created);
-  return created;
+  return store.createSession({
+    ownerUserId: input.actorUserId,
+    context: input.context ?? undefined
+  });
 }
 
-export function appendOperatorRecord(sessionId: string, actorUserId: string, record: Omit<OperatorRunRecord, "id" | "sessionId" | "actorUserId" | "createdAt" | "context"> & { context?: OperatorSessionContext }) {
-  const session = sessions.get(sessionId);
-  if (!session || session.actorUserId !== actorUserId) return null;
-  if (record.context) session.context = { ...record.context };
-  const stored: OperatorRunRecord = {
-    id: randomUUID(),
-    sessionId,
-    actorUserId,
-    command: sanitizeOperatorCommand(record.command),
-    action: record.action,
-    classification: record.classification,
-    status: record.status,
-    summary: record.summary.slice(0, 500),
-    createdAt: new Date().toISOString(),
-    context: { ...session.context }
-  };
-  session.records.push(stored);
-  if (session.records.length > MAX_RECORDS) session.records.splice(0, session.records.length - MAX_RECORDS);
-  touch(session);
-  return stored;
+export async function readOperatorSession(sessionId: string, actorUserId: string) {
+  const access = await getOperatorStore().readSession(sessionId, actorUserId);
+  if (access.status === "ok" || access.status === "archived") return access;
+  return access;
 }
 
-export function readOperatorSession(sessionId: string, actorUserId: string) {
-  const session = sessions.get(sessionId);
-  if (!session || session.actorUserId !== actorUserId) return null;
-  return {
-    id: session.id,
-    context: { ...session.context },
-    records: session.records.map((record) => ({ ...record, context: { ...record.context } }))
-  };
-}
-
-export function emptyOperatorContext() {
-  return emptyContext();
+export async function listOperatorSessions(actorUserId: string, limit = 20) {
+  return getOperatorStore().listSessions(actorUserId, Math.min(Math.max(limit, 1), 50));
 }
