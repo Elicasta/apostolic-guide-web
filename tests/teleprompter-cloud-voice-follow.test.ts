@@ -67,11 +67,11 @@ test("silence freezes cursor, improvisation stays in notes, then reacquires", ()
   state = advanceVoiceFollow(state, { transcript: "Go to John chapter 14 verse 9", final: true, speaking: true, at: 500 }, script);
   assert.equal(state.mode, "improvising");
   assert.equal(state.cursorWord, position);
-  state = advanceVoiceFollow(state, { transcript: "the fullness of the Godhead", final: true, speaking: true, at: 600 }, script);
-  assert.equal(state.mode, "reacquiring");
-  assert.equal(state.cursorWord, position);
-  state = advanceVoiceFollow(state, { transcript: "dwells bodily in Jesus", final: true, speaking: true, at: 700 }, script);
+  state = advanceVoiceFollow(state, { transcript: "the fullness of the Godhead", final: false, speaking: true, at: 600 }, script);
+  // A long exact Safari interim result should reacquire immediately, without
+  // waiting through multiple finalized phrases while the presenter continues.
   assert.equal(state.mode, "following");
+  assert.ok(state.cursorWord > position);
   assert.equal(state.completedNotes.length, 1);
   assert.match(state.completedNotes[0].text, /John chapter 14/);
   assert.equal(state.completedNotes[0].reference, "John chapter 14 verse 9");
@@ -85,4 +85,28 @@ test("stopping voice capture preserves unfinished improvisation", () => {
   assert.equal(state.mode, "paused");
   assert.equal(state.completedNotes.length, 1);
   assert.equal(state.completedNotes[0].text, "This is an important unscripted explanation");
+});
+
+test("short recognized fragments do not falsely trigger improvisation", () => {
+  const script = tokenizeSpeech("There is one God and beside him there is none other");
+  let state = advanceVoiceFollow(initialVoiceFollowState(), {
+    transcript: "there is one God", final: true, speaking: true, at: 100,
+  }, script);
+  state = advanceVoiceFollow(state, {
+    transcript: "um well", final: true, speaking: true, at: 250,
+  }, script);
+  assert.equal(state.mode, "following");
+  assert.equal(state.improvisation.length, 0);
+});
+test("a short two-word recognition can move the cursor when adjacent", () => {
+  const script = tokenizeSpeech("There is one God and beside him there is none other");
+  let state = advanceVoiceFollow(initialVoiceFollowState(), {
+    transcript: "there is one God", final: true, speaking: true, at: 100,
+  }, script);
+  const prior = state.cursorWord;
+  state = advanceVoiceFollow(state, {
+    transcript: "and beside", final: false, speaking: true, at: 180,
+  }, script);
+  assert.equal(state.mode, "following");
+  assert.ok(state.cursorWord > prior);
 });
