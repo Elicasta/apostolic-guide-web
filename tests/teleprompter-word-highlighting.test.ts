@@ -17,7 +17,7 @@ test("highlight tokenizer keeps exact visible punctuation and whitespace", () =>
 });
 
 test("highlight cursor refers to last spoken word and clamps to the current slide", () => {
-  assert.equal(highlightedWordIndex(0, 5), 0);
+  assert.equal(highlightedWordIndex(0, 5), null);
   assert.equal(highlightedWordIndex(1, 5), 0);
   assert.equal(highlightedWordIndex(3, 5), 2);
   assert.equal(highlightedWordIndex(20, 5), 4);
