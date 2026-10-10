@@ -4,6 +4,7 @@ import TeleprompterSeedBootstrap from "@/components/teleprompter/TeleprompterSee
 import "./teleprompter.css";
 import "./teleprompter-scroll.css";
 import "./teleprompter-qr.css";
+import "./teleprompter-voice.css";
 
 export const dynamic = "force-dynamic";
 
