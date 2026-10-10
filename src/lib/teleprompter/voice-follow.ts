@@ -77,7 +77,7 @@ export function findVoiceMatch(
 }
 const REFERENCE_PATTERN = /\b(?:1|2|3)?\s?(?:genesis|exodus|leviticus|numbers|deuteronomy|isaiah|jeremiah|ezekiel|daniel|matthew|mark|luke|john|acts|romans|corinthians|galatians|ephesians|philippians|colossians|timothy|titus|hebrews|james|peter|jude|revelation)\s+(?:chapter\s+)?\d+(?:\s*(?::|verse|verses)\s*\d+(?:\s*(?:to|through|-)\s*\d+)?)?/i;
 export function detectScriptureReference(spoken: string): string | undefined {
-  return spoken.match(REFERENCE_PATTERN)?.[0];
+  return spoken.match(REFERENCE_PATTERN)?.[0]?.trim();
 }
 export function advanceVoiceFollow(
   state: VoiceFollowState,
