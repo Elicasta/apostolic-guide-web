@@ -43,6 +43,9 @@ export function isTeleprompterSessionState(
       (typeof state.scrollNudgeSequence === "number" && Number.isInteger(state.scrollNudgeSequence))) &&
     (state.scrollNudgeDelta === undefined ||
       (typeof state.scrollNudgeDelta === "number" && Number.isFinite(state.scrollNudgeDelta))) &&
+    (state.voiceActive === undefined || typeof state.voiceActive === "boolean") &&
+    (state.voiceMode === undefined || ["paused", "following", "improvising", "reacquiring"].includes(String(state.voiceMode))) &&
+    (state.voiceWordIndex === undefined || (Number.isInteger(state.voiceWordIndex) && (state.voiceWordIndex as number) >= 0 && (state.voiceWordIndex as number) <= 100000)) &&
     Array.isArray(state.slides) &&
     state.slides.length > 0 &&
     state.slides.length <= 200 &&
@@ -75,6 +78,9 @@ export function normalizeTeleprompterState(
     scrollTopSequence: Math.max(0, Math.trunc(state.scrollTopSequence ?? 0)),
     scrollNudgeSequence: Math.max(0, Math.trunc(state.scrollNudgeSequence ?? 0)),
     scrollNudgeDelta: clamp(state.scrollNudgeDelta ?? 0, -600, 600),
+    voiceActive: state.voiceActive ?? false,
+    voiceMode: state.voiceMode ?? "paused",
+    voiceWordIndex: clamp(Math.trunc(state.voiceWordIndex ?? 0), 0, 100000),
     sequence: Math.max(0, Math.trunc(state.sequence)),
     updatedAt: Math.max(0, state.updatedAt),
     actorId: state.actorId.slice(0, 80),
@@ -111,14 +117,26 @@ export function applyTeleprompterAction(
   let patch: Partial<TeleprompterSessionState> = {};
 
   switch (action.type) {
+    case "voiceFollow":
+      patch = {
+        slideIndex: clamp(Math.trunc(action.slideIndex), 0, maxIndex),
+        voiceActive: true,
+        voiceMode: action.mode,
+        voiceWordIndex: clamp(Math.trunc(action.wordIndex), 0, 100000),
+        scrolling: false,
+      };
+      break;
+    case "voiceStop":
+      patch = { voiceActive: false, voiceMode: "paused", scrolling: false };
+      break;
     case "next":
-      patch = { slideIndex: clamp(current.slideIndex + 1, 0, maxIndex), scrolling: false };
+      patch = { slideIndex: clamp(current.slideIndex + 1, 0, maxIndex), scrolling: false, voiceActive: false, voiceMode: "paused", voiceWordIndex: 0 };
       break;
     case "prev":
-      patch = { slideIndex: clamp(current.slideIndex - 1, 0, maxIndex), scrolling: false };
+      patch = { slideIndex: clamp(current.slideIndex - 1, 0, maxIndex), scrolling: false, voiceActive: false, voiceMode: "paused", voiceWordIndex: 0 };
       break;
     case "goto":
-      patch = { slideIndex: clamp(Math.trunc(action.index), 0, maxIndex), scrolling: false };
+      patch = { slideIndex: clamp(Math.trunc(action.index), 0, maxIndex), scrolling: false, voiceActive: false, voiceMode: "paused", voiceWordIndex: 0 };
       break;
     case "theme":
       patch = { theme: action.theme as TeleprompterTheme };
@@ -130,17 +148,18 @@ export function applyTeleprompterAction(
       patch = { locked: action.locked };
       break;
     case "scroll":
-      patch = { scrolling: action.scrolling };
+      patch = { scrolling: action.scrolling, voiceActive: false, voiceMode: "paused" };
       break;
     case "scrollSpeed":
       patch = { scrollSpeed: clamp(action.scrollSpeed, 20, 180) };
       break;
     case "scrollTop":
-      patch = { scrolling: false, scrollTopSequence: current.scrollTopSequence + 1 };
+      patch = { scrolling: false, voiceActive: false, voiceMode: "paused", voiceWordIndex: 0, scrollTopSequence: current.scrollTopSequence + 1 };
       break;
     case "scrollNudge":
       patch = {
         scrolling: false,
+        voiceActive: false, voiceMode: "paused", voiceWordIndex: 0,
         scrollNudgeSequence: (current.scrollNudgeSequence ?? 0) + 1,
         scrollNudgeDelta: clamp(action.delta, -600, 600),
       };
