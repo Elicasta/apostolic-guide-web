@@ -79,8 +79,7 @@ export async function GET(request: NextRequest) {
 
   const { data, error } = await service
     .from("teleprompter_documents")
-    .select("id,title,content,revision,created_at,updated_at")
-    .is("deleted_at", null)
+    .select("id,title,content,revision,created_at,updated_at,deleted_at")
     .order("updated_at", { ascending: false })
     .limit(250);
   if (error) return databaseError("list", error.message);
