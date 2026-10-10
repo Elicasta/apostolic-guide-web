@@ -24,6 +24,7 @@ export const searchIntentClusters: SearchIntentClusterDefinition[] = [
       "/pathways/jesus-is-god",
       "/pathways/fullness-of-godhead",
       "/answers/is-jesus-god",
+      "/answers/what-does-colossians-2-9-mean",
       "/answers/is-jesus-the-father",
       "/answers/why-did-jesus-pray",
       "/scripture/john/1/1",
@@ -34,7 +35,7 @@ export const searchIntentClusters: SearchIntentClusterDefinition[] = [
     links: [
       { href: "/answers/is-jesus-god", title: "Is Jesus God?", description: "See the direct biblical case for Christ's deity.", kind: "Direct answer" },
       { href: "/pathways/jesus-is-god", title: "Jesus Is God Bible Study", description: "Follow the strongest passages in a guided sequence.", kind: "Guided pathway" },
-      { href: "/scripture/colossians/2/9", title: "What does Colossians 2:9 mean?", description: "Study Paul's statement that all divine fullness dwells bodily in Christ.", kind: "Scripture study" },
+      { href: "/answers/what-does-colossians-2-9-mean", title: "What does Colossians 2:9 mean?", description: "Read the direct explanation of the fullness of the Godhead dwelling bodily in Christ, then study the passage in context.", kind: "Direct answer" },
       { href: "/answers/is-jesus-the-father", title: "Is Jesus the Father?", description: "Read John 14 without erasing either the Father or the Son.", kind: "Related question" },
       { href: "/answers/why-did-jesus-pray", title: "Why did Jesus pray if he is God?", description: "Understand prayer through Christ's genuine humanity.", kind: "Related question" },
       { href: "/articles/the-one-god-revealed-in-jesus-christ", title: "The One God Revealed in Jesus Christ", description: "Connect divine identity, incarnation, and the biblical confession of one God.", kind: "Article" }
