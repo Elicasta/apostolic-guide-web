@@ -48,6 +48,7 @@ test("search intent clusters cover the main doctrinal acquisition themes", () =>
 
   [
     "/answers/is-jesus-god",
+    "/answers/what-does-colossians-2-9-mean",
     "/answers/why-did-jesus-pray",
     "/answers/does-matthew-28-19-contradict-acts-2-38",
     "/answers/why-baptize-in-jesus-name",
@@ -57,6 +58,14 @@ test("search intent clusters cover the main doctrinal acquisition themes", () =>
     "/scripture/colossians/2/9",
     "/scripture/acts/2/38"
   ].forEach((href) => assert.ok(clusters.includes(href), href));
+});
+
+test("Colossians 2:9 cluster links to the dedicated answer while keeping the Scripture route", () => {
+  const clusters = source("src/search-intent-cluster.tsx");
+  const deityCluster = clusters.split('heading: "Questions about the deity of Jesus"')[1]?.split('heading: "Questions about the Son and Jesus')[0] ?? "";
+  assert.match(deityCluster, /href: "\/answers\/what-does-colossians-2-9-mean", title: "What does Colossians 2:9 mean\?"/);
+  assert.match(deityCluster, /"\/scripture\/colossians\/2\/9"/);
+  assert.doesNotMatch(deityCluster, /href: "\/scripture\/colossians\/2\/9", title: "What does Colossians 2:9 mean\?"/);
 });
 
 test("core study page types render server-visible search intent clusters", () => {
