@@ -36,7 +36,8 @@ test("reader highlights exactly one word inside bold Scripture-first text", () =
   assert.match(html, /<strong><span class="tp-voice-word tp-voice-word-current"/);
   assert.equal([...html.matchAll(/data-tp-current-word="true"/g)].length, 1);
   assert.equal([...html.matchAll(/data-tp-active-line="true"/g)].length, 1);
-  assert.doesNotMatch(html, /Hidden private instruction/);
+  assert.match(html, /<aside class="tp-speaker-note">/);
+  assert.doesNotMatch(html, /data-tp-word-index="[0-9]+">Hidden/);
   assert.match(html, /The Father dwells in Him/);
 });
 
