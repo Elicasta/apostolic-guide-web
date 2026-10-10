@@ -290,6 +290,7 @@ export default function SafariVoiceFollow({ documentId, slides: suppliedSlides, 
   };
 
   const exportCaptured = () => exportNotes(documentId ?? "untitled", session?.title ?? "Teleprompter", notes);
+  const pairedMicActive = !listening && Boolean(session?.voiceActive);
   if (available === null) return null;
   return (
     <section className={`tp-voice-panel ${compact ? "tp-voice-panel-compact" : ""}`} aria-label="Safari voice-follow">
@@ -299,20 +300,20 @@ export default function SafariVoiceFollow({ documentId, slides: suppliedSlides, 
           <strong>Voice Follow</strong>
         </div>
         <span className={`tp-voice-pill ${listening ? "is-listening" : ""}`}>
-          {listening ? mode === "improvising" ? "Improvising" : mode === "reacquiring" ? "Rejoining" : mode === "following" ? "Following" : "Listening" : "Off"}
+          {listening ? mode === "improvising" ? "Improvising" : mode === "reacquiring" ? "Rejoining" : mode === "following" ? "Following" : "Listening" : pairedMicActive ? "Paired mic" : "Off"}
         </span>
       </div>
       {available ? (
         <div className="tp-voice-actions">
           <button type="button" className={listening ? "tp-voice-stop" : "tp-voice-start"}
             onClick={listening ? () => stopCapture() : begin}
-            disabled={!listening && (!session || !deck.words.length)}>
+            disabled={!listening && (!session || !deck.words.length || pairedMicActive)}>
             {listening ? "Stop microphone" : "Start voice follow"}
           </button>
           {notes.length ? <button type="button" className="tp-voice-export" onClick={exportCaptured}>Export notes ({notes.length})</button> : null}
         </div>
       ) : <p className="tp-voice-alert">Speech recognition is not available in this browser. Open this page directly in Safari and use manual scroll controls.</p>}
-      <p className="tp-voice-status" role="status">{scriptStatus || status}</p>
+      <p className="tp-voice-status" role="status">{pairedMicActive ? "Voice Follow is active on the paired device. Use its Stop control or a manual section command to release it." : scriptStatus || status}</p>
       {listening && heard ? <p className="tp-voice-heard" aria-label="Last recognized speech">“{heard}”</p> : null}
       <p className="tp-voice-caption">Keep Safari open. Improvised speech is kept as local notes on this device. Export them after recording; Scripture references are unverified.</p>
     </section>
