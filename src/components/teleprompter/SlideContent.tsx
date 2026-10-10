@@ -1,3 +1,4 @@
+import { memo } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import { tokenizeSpeech } from "@/lib/teleprompter/voice-follow";
 import { highlightedWordIndex, splitSpokenWordParts } from "@/lib/teleprompter/word-highlighting";
@@ -86,7 +87,7 @@ function getReadingLines(slide: TeleprompterSlide): ReadingLine[] {
   return lines;
 }
 
-export default function SlideContent({
+function SlideContent({
   slide,
   theme,
   fontScale = 1,
@@ -145,3 +146,7 @@ export default function SlideContent({
     </article>
   );
 }
+
+// A live voice cursor is applied directly to its DOM spans by the reader.
+// Keep the underlying manuscript untouched during incremental transcription.
+export default memo(SlideContent);
