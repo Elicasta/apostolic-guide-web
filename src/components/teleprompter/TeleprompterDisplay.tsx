@@ -19,6 +19,7 @@ import {
   setLastPresentedDocumentId,
 } from "@/lib/teleprompter/storage";
 import { useTeleprompterSessionSync } from "@/lib/teleprompter/use-session-sync";
+import { hydrateCloudLibrary } from "@/lib/teleprompter/cloud-storage";
 import type {
   TeleprompterDocument,
   TeleprompterSessionState,
@@ -44,27 +45,39 @@ export default function TeleprompterDisplay() {
   const bottomStopRef = useRef(false);
 
   useEffect(() => {
-    const loaded = loadTeleprompterDocuments();
-    const params = new URLSearchParams(window.location.search);
-    const selected = selectTeleprompterDocument(loaded, params.get("doc"));
-    const nextSession =
-      normalizeSessionCode(params.get("session")) || makeSessionCode();
+    let disposed = false;
+    const initialize = async () => {
+      const local = loadTeleprompterDocuments();
+      let loaded = local;
+      try {
+        loaded = (await hydrateCloudLibrary(local)).documents;
+      } catch {
+        // Remain usable with the last local script during a cloud outage.
+      }
+      if (disposed) return;
+      const params = new URLSearchParams(window.location.search);
+      const selected = selectTeleprompterDocument(loaded, params.get("doc"));
+      const nextSession =
+        normalizeSessionCode(params.get("session")) || makeSessionCode();
 
-    setDocuments(loaded);
-    setDocumentId(selected?.id ?? "");
-    if (selected?.id) setLastPresentedDocumentId(selected.id);
-    setSessionCode(nextSession);
+      setDocuments(loaded);
+      setDocumentId(selected?.id ?? "");
+      if (selected?.id) setLastPresentedDocumentId(selected.id);
+      setSessionCode(nextSession);
 
-    params.set("session", nextSession);
-    if (selected?.id) params.set("doc", selected.id);
-    window.history.replaceState(
-      null,
-      "",
-      `${window.location.pathname}?${params.toString()}`,
-    );
-    setControllerUrl(
-      `${window.location.origin}/teleprompter/control?session=${nextSession}`,
-    );
+      params.set("session", nextSession);
+      if (selected?.id) params.set("doc", selected.id);
+      window.history.replaceState(
+        null,
+        "",
+        `${window.location.pathname}?${params.toString()}`,
+      );
+      setControllerUrl(
+        `${window.location.origin}/teleprompter/control?session=${nextSession}`,
+      );
+    };
+    void initialize();
+    return () => { disposed = true; };
   }, []);
 
   const selectedDocument = useMemo(
