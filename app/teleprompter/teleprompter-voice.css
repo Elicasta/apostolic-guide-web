@@ -61,3 +61,32 @@
   .tp-voice-panel-compact .tp-voice-caption, .tp-voice-panel-compact .tp-voice-heard { display: none; }
 }
 @media (prefers-reduced-motion: reduce) { .tp-voice-panel { transition: none; } }
+
+
+/* The voice cursor always marks the last recognized word. Use color and a soft
+   halo rather than padding/borders, so following does not shift text wrapping. */
+.tp-script:not(.tp-script-compact) .tp-voice-word {
+  transition: color 100ms ease-out, background-color 100ms ease-out;
+  border-radius: .12em;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+.tp-script:not(.tp-script-compact) .tp-voice-word-current,
+.tp-script:not(.tp-script-compact) strong .tp-voice-word-current {
+  background-color: #cf2d46;
+  color: #ffffff;
+  box-shadow: 0 0 0 .09em rgba(207, 45, 70, .22);
+  font-weight: 800;
+}
+.tp-script:not(.tp-script-compact) .tp-voice-active-line {
+  border-radius: .15em;
+  background: rgba(207, 45, 70, .055);
+  box-shadow: 0 0 0 .11em rgba(207, 45, 70, .055);
+}
+.tp-script[data-tp-voice-mode="paused"] .tp-voice-word-current,
+.tp-script[data-tp-voice-mode="improvising"] .tp-voice-word-current {
+  box-shadow: 0 0 0 .09em rgba(207, 45, 70, .12);
+}
+@media (prefers-reduced-motion: reduce) {
+  .tp-script:not(.tp-script-compact) .tp-voice-word { transition: none; }
+}
