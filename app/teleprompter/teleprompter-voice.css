@@ -1,0 +1,221 @@
+/* Voice controls sit above the established teleprompter, without replacing its
+   reader, type scale, scrolling layout, QR pairing, or remote transport. */
+.tp-display-voice {
+  position: absolute;
+  z-index: 10;
+  left: max(16px, env(safe-area-inset-left));
+  bottom: max(15px, env(safe-area-inset-bottom));
+  width: max-content;
+  max-width: min(380px, 37vw);
+  pointer-events: auto;
+}
+.tp-display-voice.is-collapsed { opacity: 0; pointer-events: none; }
+.tp-voice-panel {
+  margin-top: 18px;
+  border: 1px solid #344555;
+  border-radius: 10px;
+  background: #0d1c29;
+  color: #f6f5f2;
+  box-shadow: 0 12px 32px rgba(0,0,0,.17);
+  overflow: hidden;
+}
+.tp-display-voice .tp-voice-panel {
+  margin: 0;
+  border-color: rgba(255,255,255,.13);
+  background: rgba(10,22,33,.94);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  box-shadow: 0 8px 30px rgba(0,0,0,.30);
+}
+.tp-voice-toolbar {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 9px;
+  padding: 9px 11px;
+}
+.tp-voice-signal {
+  display: block;
+  flex: 0 0 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #60788a;
+  box-shadow: 0 0 0 3px rgba(96,120,138,.12);
+}
+.tp-voice-panel[data-tp-mic-active="true"] .tp-voice-signal {
+  background: #6fd4a1;
+  box-shadow: 0 0 0 3px rgba(111,212,161,.17);
+}
+.tp-voice-label { min-width: 0; flex: 1 1 auto; }
+.tp-voice-label strong {
+  display: block;
+  color: #f3f5f6;
+  font-size: 12px;
+  font-weight: 780;
+  line-height: 1.2;
+  letter-spacing: -.015em;
+  white-space: nowrap;
+}
+.tp-voice-label span {
+  display: block;
+  margin-top: 3px;
+  color: #8fa1b1;
+  font-size: 10px;
+  font-weight: 650;
+}
+.tp-voice-panel[data-tp-mic-active="true"] .tp-voice-label span { color: #92deb6; }
+.tp-voice-toolbar button,
+.tp-voice-export,
+.tp-voice-notes-link {
+  appearance: none;
+  font-family: inherit;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.tp-voice-toolbar button {
+  min-height: 34px;
+  padding: 7px 12px;
+  border-radius: 5px;
+  font-size: 11px;
+  font-weight: 760;
+}
+.tp-voice-toolbar button:disabled { opacity: .38; cursor: default; }
+.tp-voice-start {
+  border: 1px solid #b3263a;
+  background: #b3263a;
+  color: #fff;
+}
+.tp-voice-stop {
+  border: 1px solid #558975;
+  background: #14392b;
+  color: #bcebd3;
+}
+.tp-voice-details-toggle {
+  border: 1px solid #394858;
+  background: transparent;
+  color: #aebdca;
+}
+.tp-voice-details {
+  padding: 0 14px 15px;
+  border-top: 1px solid #263949;
+  max-width: 360px;
+}
+.tp-voice-status {
+  color: #d2dce4;
+  font-size: 12px;
+  line-height: 1.5;
+  margin: 12px 0 0;
+}
+.tp-voice-heard {
+  color: #d9b2b8;
+  font-size: 11px;
+  line-height: 1.5;
+  margin: 9px 0 0;
+}
+.tp-voice-caption,
+.tp-voice-alert {
+  color: #839aaa;
+  font-size: 10px;
+  line-height: 1.55;
+  margin: 11px 0 0;
+}
+.tp-voice-alert { color: #efb99a; }
+.tp-voice-export,
+.tp-voice-notes-link {
+  background: #12283a;
+  color: #e4eaee;
+  border: 1px solid #3a5665;
+  border-radius: 5px;
+  padding: 9px 12px;
+  font-weight: 720;
+  font-size: 11px;
+  margin-top: 12px;
+}
+.tp-voice-notes-link { display: block; width: calc(100% - 22px); margin: 0 11px 11px; }
+.tp-display-voice .tp-voice-notes-link { display: none; }
+.tp-voice-panel-compact { min-width: 252px; }
+.tp-voice-panel:not(.tp-voice-panel-compact) { width: 100%; }
+.tp-remote .tp-voice-panel {
+  margin-top: 16px;
+  border-color: #344454;
+  background: #0e1b29;
+  box-shadow: none;
+}
+.tp-remote .tp-voice-toolbar { padding: 12px 14px; }
+.tp-reader .tp-script-body [data-tp-word-end] { scroll-margin-top: 40vh; }
+@media (max-width: 1020px) {
+  .tp-display-voice { max-width: min(320px, 44vw); }
+}
+@media (max-width: 660px) {
+  .tp-display-voice { max-width: min(300px, 73vw); }
+  .tp-display-voice .tp-voice-toolbar { gap: 6px; padding: 8px; }
+  .tp-display-voice .tp-voice-toolbar button { padding: 6px 9px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tp-voice-panel { transition: none; }
+}
+
+/* The voice cursor always marks the last recognized word. Use color and a soft
+   halo rather than padding/borders, so following does not shift text wrapping. */
+.tp-script:not(.tp-script-compact) .tp-voice-word {
+  transition: color 100ms ease-out, background-color 100ms ease-out;
+  border-radius: .12em;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+.tp-script:not(.tp-script-compact) .tp-voice-word-current,
+.tp-script:not(.tp-script-compact) strong .tp-voice-word-current {
+  background-color: #cf2d46;
+  color: #ffffff;
+  box-shadow: 0 0 0 .09em rgba(207, 45, 70, .22);
+  font-weight: 800;
+}
+.tp-script:not(.tp-script-compact) .tp-voice-active-line {
+  border-radius: .15em;
+  background: rgba(207, 45, 70, .055);
+  box-shadow: 0 0 0 .11em rgba(207, 45, 70, .055);
+}
+.tp-script[data-tp-voice-mode="paused"] .tp-voice-word-current,
+.tp-script[data-tp-voice-mode="improvising"] .tp-voice-word-current {
+  box-shadow: 0 0 0 .09em rgba(207, 45, 70, .12);
+}
+@media (prefers-reduced-motion: reduce) {
+  .tp-script:not(.tp-script-compact) .tp-voice-word { transition: none; }
+}
+
+.tp-voice-tracking-indicator {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .085em;
+  white-space: nowrap;
+  color: #ff687e;
+  border: 1px solid rgba(207, 45, 70, .48);
+  background: rgba(207, 45, 70, .1);
+  padding: 7px 9px;
+  border-radius: 4px;
+}
+.tp-theme-day .tp-voice-tracking-indicator { color: #9f1e38; }
+
+/* On a phone the desktop transport ribbon was overlapping the section title.
+   Use the paired remote for transport and keep only status + QR on the reader. */
+@media (max-width: 700px) {
+  .tp-display-header {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+    gap: 9px;
+    padding: 14px 18px 30px;
+  }
+  .tp-display-controls {
+    justify-content: flex-start;
+    gap: 10px;
+    max-width: calc(100vw - 36px);
+    flex-wrap: wrap;
+  }
+  .tp-display-controls > button:not([title="Scan to open the remote"]),
+  .tp-display-controls > .tp-scroll-speed { display: none !important; }
+  .tp-reader.tp-reader-chrome { padding-top: 164px; }
+  .tp-display-voice {
+    bottom: max(76px, calc(env(safe-area-inset-bottom) + 58px));
+    max-width: min(300px, 72vw);
+  }
+}

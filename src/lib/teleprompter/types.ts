@@ -39,6 +39,9 @@ export interface TeleprompterSessionState {
   scrollTopSequence: number;
   scrollNudgeSequence?: number;
   scrollNudgeDelta?: number;
+  voiceActive?: boolean;
+  voiceMode?: "paused" | "following" | "improvising" | "reacquiring";
+  voiceWordIndex?: number;
   slides: TeleprompterSlideSummary[];
   sequence: number;
   updatedAt: number;
@@ -46,6 +49,8 @@ export interface TeleprompterSessionState {
 }
 
 export type TeleprompterAction =
+  | { type: "voiceFollow"; slideIndex: number; wordIndex: number; mode: "paused" | "following" | "improvising" | "reacquiring" }
+  | { type: "voiceStop" }
   | { type: "next" }
   | { type: "prev" }
   | { type: "goto"; index: number }

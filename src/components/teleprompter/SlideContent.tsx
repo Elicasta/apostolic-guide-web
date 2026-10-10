@@ -1,4 +1,7 @@
+import { memo } from "react";
 import type { CSSProperties, ReactNode } from "react";
+import { tokenizeSpeech } from "@/lib/teleprompter/voice-follow";
+import { highlightedWordIndex, splitSpokenWordParts } from "@/lib/teleprompter/word-highlighting";
 import type {
   TeleprompterSlide,
   TeleprompterTheme,
@@ -9,19 +12,41 @@ interface SlideContentProps {
   theme: TeleprompterTheme;
   fontScale?: number;
   compact?: boolean;
+  voiceActive?: boolean;
+  voiceWordIndex?: number;
+  voiceMode?: "paused" | "following" | "improvising" | "reacquiring";
 }
 
-function renderInline(value: string): ReactNode[] {
+/** Render each speakable word separately without losing bold styling or punctuation. */
+function renderInline(value: string, startWord: number, activeWord: number | null): ReactNode[] {
+  let nextWord = startWord;
   return value
     .split(/(\*\*.*?\*\*)/g)
     .filter(Boolean)
-    .map((segment, index) =>
-      segment.startsWith("**") && segment.endsWith("**") ? (
-        <strong key={`${segment}-${index}`}>{segment.slice(2, -2)}</strong>
-      ) : (
-        <span key={`${segment}-${index}`}>{segment}</span>
-      ),
-    );
+    .map((segment, index) => {
+      const emphasized = segment.startsWith("**") && segment.endsWith("**");
+      const content = emphasized ? segment.slice(2, -2) : segment;
+      const baseIndex = nextWord;
+      nextWord += tokenizeSpeech(content).length;
+      const children = splitSpokenWordParts(content).map((part, partIndex) => {
+        if (part.wordOffset === null) return <span key={partIndex}>{part.text}</span>;
+        const absoluteIndex = baseIndex + part.wordOffset;
+        return (
+          <span
+            key={partIndex}
+            className={activeWord === absoluteIndex ? "tp-voice-word tp-voice-word-current" : "tp-voice-word"}
+            data-tp-word-index={absoluteIndex}
+            data-tp-current-word={activeWord === absoluteIndex ? "true" : undefined}
+          >
+            {part.text}
+          </span>
+        );
+      });
+
+      return emphasized
+        ? <strong key={index}>{children}</strong>
+        : <span key={index}>{children}</span>;
+    });
 }
 
 interface ReadingLine {
@@ -62,18 +87,26 @@ function getReadingLines(slide: TeleprompterSlide): ReadingLine[] {
   return lines;
 }
 
-export default function SlideContent({
+function SlideContent({
   slide,
   theme,
   fontScale = 1,
   compact = false,
+  voiceActive = false,
+  voiceWordIndex = 0,
+  voiceMode = "paused",
 }: SlideContentProps) {
   const lines = getReadingLines(slide);
+  const totalWords = lines.reduce((count, line) =>
+    count + (line.spacer ? 0 : tokenizeSpeech(line.text.replace(/\*\*/g, "")).length), 0);
+  const currentWord = voiceActive && !compact ? highlightedWordIndex(voiceWordIndex, totalWords) : null;
+  let spokenWords = 0;
 
   return (
     <article
       className={`tp-script tp-script-${theme} ${compact ? "tp-script-compact" : ""}`}
       style={{ "--tp-font-scale": fontScale } as CSSProperties}
+      data-tp-voice-mode={voiceActive ? voiceMode : undefined}
     >
       {slide.heading ? (
         <header className="tp-script-header">
@@ -88,10 +121,19 @@ export default function SlideContent({
           if (line.spacer) {
             return <div key={line.id} className="tp-script-spacer" aria-hidden="true" />;
           }
+          const start = spokenWords;
+          spokenWords += tokenizeSpeech(line.text.replace(/\*\*/g, "")).length;
+          const activeLine = currentWord !== null && currentWord >= start && currentWord < spokenWords;
+          const lineAttributes = {
+            "data-tp-word-start": start,
+            "data-tp-word-end": spokenWords,
+            "data-tp-active-line": activeLine ? "true" : undefined,
+            className: activeLine ? "tp-voice-active-line" : undefined,
+          };
           if (line.quote) {
-            return <blockquote key={line.id}>{renderInline(line.text)}</blockquote>;
+            return <blockquote key={line.id} {...lineAttributes}>{renderInline(line.text, start, currentWord)}</blockquote>;
           }
-          return <p key={line.id}>{renderInline(line.text)}</p>;
+          return <p key={line.id} {...lineAttributes}>{renderInline(line.text, start, currentWord)}</p>;
         })}
       </div>
 
@@ -104,3 +146,7 @@ export default function SlideContent({
     </article>
   );
 }
+
+// A live voice cursor is applied directly to its DOM spans by the reader.
+// Keep the underlying manuscript untouched during incremental transcription.
+export default memo(SlideContent);

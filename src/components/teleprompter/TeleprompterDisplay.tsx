@@ -5,6 +5,7 @@ import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
 import Image from "next/image";
 import { QRCodeSVG } from "qrcode.react";
 import SlideContent from "./SlideContent";
+import SafariVoiceFollow from "./SafariVoiceFollow";
 import {
   parseTeleprompterDocument,
   summarizeSlides,
@@ -19,6 +20,7 @@ import {
   setLastPresentedDocumentId,
 } from "@/lib/teleprompter/storage";
 import { useTeleprompterSessionSync } from "@/lib/teleprompter/use-session-sync";
+import { hydrateCloudLibrary } from "@/lib/teleprompter/cloud-storage";
 import type {
   TeleprompterDocument,
   TeleprompterSessionState,
@@ -44,27 +46,39 @@ export default function TeleprompterDisplay() {
   const bottomStopRef = useRef(false);
 
   useEffect(() => {
-    const loaded = loadTeleprompterDocuments();
-    const params = new URLSearchParams(window.location.search);
-    const selected = selectTeleprompterDocument(loaded, params.get("doc"));
-    const nextSession =
-      normalizeSessionCode(params.get("session")) || makeSessionCode();
+    let disposed = false;
+    const initialize = async () => {
+      const local = loadTeleprompterDocuments();
+      let loaded = local;
+      try {
+        loaded = (await hydrateCloudLibrary(local)).documents;
+      } catch {
+        // Remain usable with the last local script during a cloud outage.
+      }
+      if (disposed) return;
+      const params = new URLSearchParams(window.location.search);
+      const selected = selectTeleprompterDocument(loaded, params.get("doc"));
+      const nextSession =
+        normalizeSessionCode(params.get("session")) || makeSessionCode();
 
-    setDocuments(loaded);
-    setDocumentId(selected?.id ?? "");
-    if (selected?.id) setLastPresentedDocumentId(selected.id);
-    setSessionCode(nextSession);
+      setDocuments(loaded);
+      setDocumentId(selected?.id ?? "");
+      if (selected?.id) setLastPresentedDocumentId(selected.id);
+      setSessionCode(nextSession);
 
-    params.set("session", nextSession);
-    if (selected?.id) params.set("doc", selected.id);
-    window.history.replaceState(
-      null,
-      "",
-      `${window.location.pathname}?${params.toString()}`,
-    );
-    setControllerUrl(
-      `${window.location.origin}/teleprompter/control?session=${nextSession}`,
-    );
+      params.set("session", nextSession);
+      if (selected?.id) params.set("doc", selected.id);
+      window.history.replaceState(
+        null,
+        "",
+        `${window.location.pathname}?${params.toString()}`,
+      );
+      setControllerUrl(
+        `${window.location.origin}/teleprompter/control?session=${nextSession}`,
+      );
+    };
+    void initialize();
+    return () => { disposed = true; };
   }, []);
 
   const selectedDocument = useMemo(
@@ -127,6 +141,50 @@ export default function TeleprompterDisplay() {
     scrollerRef.current?.scrollTo({ top: 0, behavior: "smooth" });
     scrollCarryRef.current = 0;
   }, [scrollTopSequence]);
+
+  // Update just the active word and its line. Do not rerender hundreds of
+  // script spans or launch a new smooth scroll animation on every transcript.
+  useEffect(() => {
+    const scroller = scrollerRef.current;
+    if (!scroller) return;
+    const article = scroller.querySelector<HTMLElement>(".tp-script");
+    const previousWord = scroller.querySelector<HTMLElement>(".tp-voice-word-current");
+    const previousLine = scroller.querySelector<HTMLElement>(".tp-voice-active-line");
+    previousWord?.classList.remove("tp-voice-word-current");
+    previousWord?.removeAttribute("data-tp-current-word");
+    previousLine?.classList.remove("tp-voice-active-line");
+    previousLine?.removeAttribute("data-tp-active-line");
+
+    const active = Boolean(state?.voiceActive);
+    const mode = state?.voiceMode ?? "paused";
+    if (article) {
+      if (active) article.dataset.tpVoiceMode = mode;
+      else delete article.dataset.tpVoiceMode;
+    }
+    const wordIndex = state?.voiceWordIndex ?? 0;
+    if (!active || wordIndex <= 0) return;
+
+    const current = scroller.querySelector<HTMLElement>(
+      `[data-tp-word-index="${Math.max(0, wordIndex - 1)}"]`,
+    );
+    if (!current) return;
+    current.classList.add("tp-voice-word-current");
+    current.setAttribute("data-tp-current-word", "true");
+    const line = current.closest<HTMLElement>("[data-tp-word-end]");
+    line?.classList.add("tp-voice-active-line");
+    line?.setAttribute("data-tp-active-line", "true");
+    if (!line || mode !== "following") return;
+
+    const readerBox = scroller.getBoundingClientRect();
+    const lineBox = line.getBoundingClientRect();
+    const targetY = readerBox.top + scroller.clientHeight * 0.44;
+    // Only move when outside the comfortable reading band. Multiple interim
+    // transcripts for the same line must not reset an in-flight animation.
+    if (Math.abs(lineBox.top - targetY) > scroller.clientHeight * 0.16) {
+      const top = Math.max(0, scroller.scrollTop + lineBox.top - targetY);
+      scroller.scrollTo({ top, behavior: "instant" });
+    }
+  }, [slideIndex, state?.voiceActive, state?.voiceWordIndex, state?.voiceMode]);
 
   useEffect(() => {
     if (scrollNudgeSequence <= 0 || scrollNudgeDelta === 0) return;
@@ -292,6 +350,13 @@ export default function TeleprompterDisplay() {
             <span className="tp-page-count">
               {slideIndex + 1} / {slides.length}
             </span>
+            {state.voiceActive ? (
+              <span className="tp-voice-tracking-indicator" role="status">
+                {state.voiceMode === "following" ? "VOICE · FOLLOWING" :
+                  state.voiceMode === "improvising" ? "VOICE · HOLDING" :
+                  state.voiceMode === "reacquiring" ? "VOICE · REJOINING" : "VOICE · WAITING"}
+              </span>
+            ) : null}
             <button
               type="button"
               className={scrolling ? "is-active" : ""}
@@ -349,6 +414,10 @@ export default function TeleprompterDisplay() {
           </div>
         </header>
       ) : null}
+
+      <div className={`tp-display-voice ${chromeVisible || state.voiceActive ? "" : "is-collapsed"}`}>
+        <SafariVoiceFollow documentId={selectedDocument.id} slides={slides} session={state} dispatch={dispatch} compact />
+      </div>
 
       {remoteQrOpen && controllerUrl ? (
         <div
