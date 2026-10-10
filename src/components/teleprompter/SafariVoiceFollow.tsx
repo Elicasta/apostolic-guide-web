@@ -20,6 +20,7 @@ interface SpeechEngine {
   onerror: ((event: { error: string }) => void) | null;
   onend: (() => void) | null;
   onstart: (() => void) | null;
+  onspeechstart: (() => void) | null;
   onspeechend: (() => void) | null;
   start(): void;
   stop(): void;
@@ -89,6 +90,7 @@ export default function SafariVoiceFollow({ documentId, slides: suppliedSlides, 
   const lastResultRef = useRef(0);
   const resultFingerprintsRef = useRef<Map<number, string>>(new Map());
   const lastHeardRef = useRef(0);
+  const speechActiveRef = useRef(false);
   const lastPublishRef = useRef({ at: 0, index: -1, mode: "" });
   const pendingCursorRef = useRef<VoiceFollowState | null>(null);
   const cursorFlushTimerRef = useRef<number | null>(null);
@@ -213,6 +215,7 @@ export default function SafariVoiceFollow({ documentId, slides: suppliedSlides, 
 
   const stopCapture = useCallback((notify = true) => {
     keepListeningRef.current = false;
+    speechActiveRef.current = false;
     discardPendingCursor();
     if (restartRef.current !== null) window.clearTimeout(restartRef.current);
     restartRef.current = null;
@@ -238,7 +241,10 @@ export default function SafariVoiceFollow({ documentId, slides: suppliedSlides, 
   useEffect(() => {
     const timer = window.setInterval(() => {
       if (!keepListeningRef.current) return;
-      if (Date.now() - lastHeardRef.current > 1300 && alignRef.current.mode !== "paused") {
+      // AirPods/Safari can buffer recognized words while the microphone still
+      // hears speech. Don't treat delayed recognition as a silent presenter.
+      const silenceLimit = speechActiveRef.current ? 3500 : 1300;
+      if (Date.now() - lastHeardRef.current > silenceLimit && alignRef.current.mode !== "paused") {
         const next = advanceVoiceFollow(alignRef.current, { transcript: "", final: false, speaking: false, at: Date.now() }, deckRef.current.words);
         remember(next);
         publish(next, true);
@@ -250,6 +256,7 @@ export default function SafariVoiceFollow({ documentId, slides: suppliedSlides, 
 
   useEffect(() => () => {
     keepListeningRef.current = false;
+    speechActiveRef.current = false;
     if (cursorFlushTimerRef.current !== null) window.clearTimeout(cursorFlushTimerRef.current);
     cursorFlushTimerRef.current = null;
     pendingCursorRef.current = null;
@@ -271,6 +278,7 @@ export default function SafariVoiceFollow({ documentId, slides: suppliedSlides, 
     const startAt = deckCursorForPosition(deck, session.slideIndex, prior);
     alignRef.current = { ...initialVoiceFollowState(), cursorWord: startAt };
     keepListeningRef.current = true;
+    speechActiveRef.current = false;
     discardPendingCursor();
     lastPublishRef.current = { at: 0, index: -1, mode: "" };
     setListening(true);
@@ -290,6 +298,10 @@ export default function SafariVoiceFollow({ documentId, slides: suppliedSlides, 
       recognizer.maxAlternatives = 1;
       recognizer.lang = "en-US";
       recognizer.onstart = () => setStatus("Listening. Speak your script to begin.");
+      recognizer.onspeechstart = () => {
+        speechActiveRef.current = true;
+        lastHeardRef.current = Date.now();
+      };
       recognizer.onresult = event => {
         // Safari may return the complete result collection repeatedly. Process finalized results once.
         for (let i = Math.max(lastResultRef.current, event.resultIndex); i < event.results.length; i++) {
@@ -309,6 +321,7 @@ export default function SafariVoiceFollow({ documentId, slides: suppliedSlides, 
         }
       };
       recognizer.onspeechend = () => {
+        speechActiveRef.current = false;
         // Safari may stop emitting interim results between natural sentences.
         // The silence timer owns the Waiting transition, never improvisation.
         lastHeardRef.current = Math.min(lastHeardRef.current, Date.now() - 800);
@@ -326,6 +339,7 @@ export default function SafariVoiceFollow({ documentId, slides: suppliedSlides, 
         }
       };
       recognizer.onend = () => {
+        speechActiveRef.current = false;
         if (!keepListeningRef.current) return;
         setStatus("Reconnecting Safari microphone…");
         restartRef.current = window.setTimeout(open, 600);
