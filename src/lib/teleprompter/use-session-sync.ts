@@ -32,6 +32,7 @@ interface SessionSyncOptions {
 }
 
 const RECOVERY_INTERVAL_MS = 1800;
+const VOICE_CHECKPOINT_MS = 2200;
 
 export function useTeleprompterSessionSync({
   sessionCode,
@@ -50,6 +51,9 @@ export function useTeleprompterSessionSync({
   const channelRef = useRef<ReturnType<typeof createTeleprompterChannel>>(null);
   const localChannelRef = useRef<BroadcastChannel | null>(null);
   const writeChainRef = useRef<Promise<void>>(Promise.resolve());
+  const lastVoiceCheckpointRef = useRef(0);
+  const pendingVoiceCheckpointRef = useRef<TeleprompterSessionState | null>(null);
+  const voiceCheckpointTimerRef = useRef<number | null>(null);
   const actorIdRef = useRef(makeTeleprompterActorId(role));
   const publishRef = useRef<(state: TeleprompterSessionState) => void>(() => undefined);
 
@@ -94,31 +98,61 @@ export function useTeleprompterSessionSync({
     return true;
   }, []);
 
+  const queueCheckpoint = useCallback((snapshot: TeleprompterSessionState) => {
+    // A single ordered persistence chain for recovery snapshots, never per interim word.
+    writeChainRef.current = writeChainRef.current.catch(() => undefined).then(async () => {
+      try {
+        await persistTeleprompterState(normalizedCode, snapshot);
+        setConnection("live");
+      } catch {
+        setConnection(channelRef.current ? "recovering" : "offline");
+      }
+    });
+  }, [normalizedCode]);
+
   const publish = useCallback(
-    (nextState: TeleprompterSessionState) => {
+    (nextState: TeleprompterSessionState, voiceEvent = false) => {
       if (!normalizedCode) return;
       const normalized = normalizeTeleprompterState(nextState);
       stateRef.current = normalized;
       setState(normalized);
       localChannelRef.current?.postMessage(normalized);
 
-      writeChainRef.current = writeChainRef.current
-        .catch(() => undefined)
-        .then(async () => {
-          try {
-            await Promise.all([
-              channelRef.current
-                ? broadcastTeleprompterState(channelRef.current, normalized)
-                : Promise.resolve(),
-              persistTeleprompterState(normalizedCode, normalized),
-            ]);
-            setConnection("live");
-          } catch {
-            setConnection(channelRef.current ? "recovering" : "offline");
-          }
+      // Live mic position broadcasts must never wait for network persistence.
+      // Reordering is safe because listeners validate monotonically increasing sequences.
+      if (channelRef.current) {
+        void broadcastTeleprompterState(channelRef.current, normalized).catch(() => {
+          setConnection("recovering");
         });
+      }
+
+      if (voiceEvent) {
+        pendingVoiceCheckpointRef.current = normalized;
+        if (!voiceCheckpointTimerRef.current) {
+          const wait = Math.max(0, VOICE_CHECKPOINT_MS - (Date.now() - lastVoiceCheckpointRef.current));
+          voiceCheckpointTimerRef.current = window.setTimeout(() => {
+            voiceCheckpointTimerRef.current = null;
+            const latest = pendingVoiceCheckpointRef.current;
+            pendingVoiceCheckpointRef.current = null;
+            if (latest) {
+              lastVoiceCheckpointRef.current = Date.now();
+              queueCheckpoint(latest);
+            }
+          }, wait);
+        }
+        return;
+      }
+
+      // Cancel scheduled stale voice saves. A manual action / Stop flushes
+      // the latest authoritative state and cannot be undone by older mic snapshots.
+      pendingVoiceCheckpointRef.current = null;
+      if (voiceCheckpointTimerRef.current !== null) {
+        window.clearTimeout(voiceCheckpointTimerRef.current);
+        voiceCheckpointTimerRef.current = null;
+      }
+      queueCheckpoint(normalized);
     },
-    [normalizedCode],
+    [normalizedCode, queueCheckpoint],
   );
 
   const dispatch = useCallback(
@@ -132,6 +166,7 @@ export function useTeleprompterSessionSync({
           actorIdRef.current,
           Date.now(),
         ),
+        action.type === "voiceFollow",
       );
     },
     [publish],
@@ -212,6 +247,13 @@ export function useTeleprompterSessionSync({
     return () => {
       disposed = true;
       window.clearInterval(recoveryTimer);
+      if (voiceCheckpointTimerRef.current !== null) {
+        window.clearTimeout(voiceCheckpointTimerRef.current);
+        voiceCheckpointTimerRef.current = null;
+      }
+      const latestVoiceState = pendingVoiceCheckpointRef.current;
+      pendingVoiceCheckpointRef.current = null;
+      if (latestVoiceState) queueCheckpoint(latestVoiceState);
       localChannel?.close();
       localChannelRef.current = null;
       channelRef.current = null;
