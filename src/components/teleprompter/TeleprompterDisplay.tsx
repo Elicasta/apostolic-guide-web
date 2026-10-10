@@ -298,7 +298,8 @@ export default function TeleprompterDisplay() {
         onWheel={stopForManualScroll}
         style={{ "--tp-font-scale": fontScale } as CSSProperties}
       >
-        <SlideContent slide={slide} theme={theme} fontScale={fontScale} />
+        <SlideContent slide={slide} theme={theme} fontScale={fontScale}
+          voiceActive={state.voiceActive} voiceWordIndex={state.voiceWordIndex} voiceMode={state.voiceMode} />
       </div>
 
       {chromeVisible ? (
