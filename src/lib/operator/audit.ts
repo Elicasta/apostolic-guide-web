@@ -1,4 +1,5 @@
 import { recordStudioAudit } from "@/studio-audit";
+import { isOperatorTestStoreActive } from "./session";
 
 export const privateWriteAuditCalls = { count: 0 };
 
@@ -13,6 +14,8 @@ export async function auditOperatorWrite(input: {
   metadata?: Record<string, unknown>;
 }) {
   privateWriteAuditCalls.count += 1;
+  // Synthetic unit-test actors must not be audited against a remote database.
+  if (isOperatorTestStoreActive()) return;
   const resourceId = input.resourceId && /^[0-9a-f-]{36}$/i.test(input.resourceId) ? input.resourceId : null;
   await recordStudioAudit({
     actorUserId: input.actorUserId,
