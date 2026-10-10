@@ -44,38 +44,110 @@ export function initialVoiceFollowState(): VoiceFollowState {
     pendingUnmatched: [], pendingUnmatchedAt: null,
   };
 }
-function orderedHits(a: string[], b: string[]): number {
-  let count = 0;
-  let targetIndex = 0;
-  for (const token of a) {
-    while (targetIndex < b.length && b[targetIndex] !== token) targetIndex++;
-    if (targetIndex >= b.length) break;
-    count++;
-    targetIndex++;
+/** The transcript can omit a weak word, or Safari can recognize a word's
+ * singular/plural form. Keep the *actual* script tokens unchanged for display. */
+function wordSimilarity(spoken: string, expected: string): number {
+  if (spoken === expected) return 1;
+  const singular = (word: string) =>
+    word.length >= 4 && word.endsWith("s") && !word.endsWith("ss")
+      ? word.slice(0, -1)
+      : word;
+  if (singular(spoken) === singular(expected) && singular(spoken).length >= 3) return 0.94;
+
+  // One dropped/extra/misheard letter in a reasonably distinctive word.
+  // Short words ("he", "is", "the") stay exact to avoid false jumps.
+  if (Math.min(spoken.length, expected.length) < 4 ||
+      Math.max(spoken.length, expected.length) < 5 ||
+      Math.abs(spoken.length - expected.length) > 1) return 0;
+  let left = 0;
+  while (left < Math.min(spoken.length, expected.length) &&
+         spoken[left] === expected[left]) left++;
+  if (left === spoken.length && left === expected.length) return 1;
+  if (spoken.length === expected.length) {
+    let differences = 0;
+    for (let i = left; i < spoken.length; i++) {
+      if (spoken[i] !== expected[i] && ++differences > 1) return 0;
+    }
+    return differences === 1 ? 0.78 : 0;
   }
-  return count;
+  const longer = spoken.length > expected.length ? spoken : expected;
+  const shorter = spoken.length > expected.length ? expected : spoken;
+  return longer.slice(0, left) === shorter.slice(0, left) &&
+    longer.slice(left + 1) === shorter.slice(left) ? 0.78 : 0;
 }
+
 export function findVoiceMatch(
   transcript: string, script: string[], cursor: number, searchAhead = 110,
 ): VoiceFollowMatch | null {
   const spoken = tokenizeSpeech(transcript);
-  if (spoken.length < 2 || script.length < 2) return null;
+  if (!spoken.length || !script.length) return null;
+  const safeCursor = Math.max(0, Math.min(script.length, Math.trunc(cursor)));
+  const isShort = spoken.length <= 3;
+  const ahead = spoken.length === 1 ? 2 :
+    spoken.length === 2 ? 7 : spoken.length === 3 ? 14 : searchAhead;
+  const first = Math.max(0, safeCursor - (isShort ? 3 : 12));
+  const last = Math.min(script.length - 1, safeCursor + ahead);
   let best: VoiceFollowMatch | null = null;
-  const first = Math.max(0, cursor - 12);
-  const last = Math.min(script.length - 2, cursor + searchAhead);
+
   for (let start = first; start <= last; start++) {
-    const window = script.slice(start, Math.min(script.length, start + spoken.length + 5));
-    if (window.length < 2) continue;
-    const hits = orderedHits(spoken, window);
-    const fidelity = hits / spoken.length;
-    const distance = Math.max(0, start - cursor);
-    const score = fidelity - Math.min(0.16, distance / Math.max(100, searchAhead * 5));
-    // Two-word recognition is useful near the cursor, but never jump far on it.
-    const nearbyShortPhrase = spoken.length === 2 && start >= cursor - 3 && start <= cursor + 8;
-    if (hits < (nearbyShortPhrase ? 2 : 3) || score < (nearbyShortPhrase ? 0.89 : 0.68)) continue;
-    const candidate = { start, end: Math.min(script.length, start + spoken.length), score };
-    if (!best || candidate.score > best.score ||
-        (candidate.score === best.score && Math.abs(start - cursor) < Math.abs(best.start - cursor))) {
+    // A one-word result can advance exactly one nearby word, never jump
+    // to another occurrence of a generic short word elsewhere in the script.
+    if (spoken.length === 1) {
+      if (spoken[0].length < 4 || start < safeCursor ||
+          start > safeCursor + 1 || wordSimilarity(spoken[0], script[start]) < 0.94) continue;
+      const candidate = { start, end: start + 1, score: 0.94 - (start - safeCursor) * 0.06 };
+      if (!best || candidate.score > best.score) best = candidate;
+      continue;
+    }
+
+    let nextScriptIndex = start;
+    let matched = 0;
+    let totalWeight = 0;
+    let scriptGaps = 0;
+    let end = start;
+    for (const word of spoken) {
+      let chosen = -1;
+      let chosenWeight = 0;
+      // A missed short word or recognition insertion shouldn't strand the
+      // cursor. Bound the window to avoid accidental long-distance matches.
+      for (let skip = 0; skip <= 2 && nextScriptIndex + skip < script.length; skip++) {
+        const index = nextScriptIndex + skip;
+        const weight = wordSimilarity(word, script[index]);
+        if (weight - skip * 0.10 > chosenWeight) {
+          chosenWeight = weight - skip * 0.10;
+          chosen = weight ? index : -1;
+        }
+      }
+      if (chosen < 0) continue; // Safari inserted an extra word.
+      totalWeight += wordSimilarity(word, script[chosen]);
+      matched++;
+      scriptGaps += chosen - nextScriptIndex;
+      nextScriptIndex = chosen + 1;
+      end = nextScriptIndex;
+      if (nextScriptIndex >= script.length) break;
+    }
+    if (end <= safeCursor || matched < 2) continue;
+    const coverage = totalWeight / spoken.length;
+    const distance = Math.max(0, start - safeCursor);
+    const score = coverage -
+      scriptGaps * 0.025 -
+      Math.min(0.18, distance / Math.max(110, ahead * 6)) -
+      (start < safeCursor - 5 ? 0.04 : 0);
+
+    // Two-word phrases are useful near the current cursor but too ambiguous
+    // for larger jumps. Longer phrases provide safer context.
+    if (spoken.length === 2) {
+      if (matched !== 2 || coverage < 0.92 || scriptGaps > 1 ||
+          start < safeCursor - 2 || start > safeCursor + 7) continue;
+    } else {
+      const minimumHits = Math.max(2, Math.ceil(spoken.length * 0.55));
+      if (matched < minimumHits || coverage < 0.68 || score < 0.64) continue;
+    }
+
+    const candidate = { start, end, score };
+    if (!best || candidate.score > best.score + 0.001 ||
+      (Math.abs(candidate.score - best.score) <= 0.001 &&
+        Math.abs(candidate.start - safeCursor) < Math.abs(best.start - safeCursor))) {
       best = candidate;
     }
   }
