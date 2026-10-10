@@ -90,3 +90,16 @@
 @media (prefers-reduced-motion: reduce) {
   .tp-script:not(.tp-script-compact) .tp-voice-word { transition: none; }
 }
+
+.tp-voice-tracking-indicator {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .085em;
+  white-space: nowrap;
+  color: #ff687e;
+  border: 1px solid rgba(207, 45, 70, .48);
+  background: rgba(207, 45, 70, .1);
+  padding: 7px 9px;
+  border-radius: 4px;
+}
+.tp-theme-day .tp-voice-tracking-indicator { color: #9f1e38; }
