@@ -387,7 +387,7 @@ export default function TeleprompterDisplay() {
         </header>
       ) : null}
 
-      <div className={`tp-display-voice ${chromeVisible ? "" : "is-collapsed"}`}>
+      <div className={`tp-display-voice ${chromeVisible || state.voiceActive ? "" : "is-collapsed"}`}>
         <SafariVoiceFollow documentId={selectedDocument.id} slides={slides} session={state} dispatch={dispatch} compact />
       </div>
 
