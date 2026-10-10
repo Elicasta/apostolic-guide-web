@@ -195,3 +195,27 @@
   border-radius: 4px;
 }
 .tp-theme-day .tp-voice-tracking-indicator { color: #9f1e38; }
+
+/* On a phone the desktop transport ribbon was overlapping the section title.
+   Use the paired remote for transport and keep only status + QR on the reader. */
+@media (max-width: 700px) {
+  .tp-display-header {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+    gap: 9px;
+    padding: 14px 18px 30px;
+  }
+  .tp-display-controls {
+    justify-content: flex-start;
+    gap: 10px;
+    max-width: calc(100vw - 36px);
+    flex-wrap: wrap;
+  }
+  .tp-display-controls > button:not([title="Scan to open the remote"]),
+  .tp-display-controls > .tp-scroll-speed { display: none !important; }
+  .tp-reader.tp-reader-chrome { padding-top: 164px; }
+  .tp-display-voice {
+    bottom: max(76px, calc(env(safe-area-inset-bottom) + 58px));
+    max-width: min(300px, 72vw);
+  }
+}
