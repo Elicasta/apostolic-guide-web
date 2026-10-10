@@ -19,6 +19,9 @@ export interface VoiceFollowState {
   improvisation: string[];
   improvStartedAt: number | null;
   completedNotes: VoiceFollowNote[];
+  /** One unconfirmed Safari final must not be treated as an improvisation. */
+  pendingUnmatched: string[];
+  pendingUnmatchedAt: number | null;
 }
 export interface VoiceFollowEvent {
   transcript: string;
@@ -38,6 +41,7 @@ export function initialVoiceFollowState(): VoiceFollowState {
   return {
     cursorWord: 0, mode: "paused", lastSpeechAt: 0,
     consecutiveMatches: 0, improvisation: [], improvStartedAt: null, completedNotes: [],
+    pendingUnmatched: [], pendingUnmatchedAt: null,
   };
 }
 function orderedHits(a: string[], b: string[]): number {
@@ -86,32 +90,67 @@ export function advanceVoiceFollow(
   event: VoiceFollowEvent,
   scriptWords: string[],
 ): VoiceFollowState {
-  const match = findVoiceMatch(event.transcript, scriptWords, state.cursorWord);
   if (!event.speaking && !event.transcript.trim()) {
-    return { ...state, mode: state.improvisation.length ? "improvising" : "paused" };
+    // An ordinary pause is not improvisation. Keep any captured off-script
+    // words for later, but show Waiting and never advance the cursor.
+    return {
+      ...state,
+      mode: "paused",
+      consecutiveMatches: 0,
+      pendingUnmatched: [],
+      pendingUnmatchedAt: null,
+    };
   }
   if (!event.transcript.trim()) return { ...state, lastSpeechAt: event.at };
 
+  const spoken = event.transcript.trim();
+  const match = findVoiceMatch(spoken, scriptWords, state.cursorWord);
+  const hadImprovisation = state.improvisation.length > 0;
+
   if (!match) {
     if (!event.final) return { ...state, lastSpeechAt: event.at };
-    const spokenLength = tokenizeSpeech(event.transcript).length;
-    // A 1-3 word fragment on Safari is commonly a partial sentence, not
-    // evidence of improvisation. Do not interrupt following for tiny fragments.
-    if (spokenLength < 4 && state.mode !== "improvising" && state.mode !== "reacquiring") {
+    const spokenLength = tokenizeSpeech(spoken).length;
+
+    if (hadImprovisation) {
+      // Confirmed improvisation continues until matched script text resumes.
+      const previous = state.improvisation[state.improvisation.length - 1];
+      return {
+        ...state, mode: "improvising", consecutiveMatches: 0, lastSpeechAt: event.at,
+        improvisation: previous === spoken ? state.improvisation : [...state.improvisation, spoken],
+      };
+    }
+
+    // Safari can finalize one imperfect/partial phrase when the speaker takes
+    // a natural breath. A single unmatched phrase is inconclusive.
+    if (spokenLength < 4) return { ...state, lastSpeechAt: event.at };
+
+    const recentPending = state.pendingUnmatchedAt !== null &&
+      event.at - state.pendingUnmatchedAt <= 6500;
+    const pending = recentPending ? state.pendingUnmatched : [];
+    if (pending.length === 0) {
+      return {
+        ...state, lastSpeechAt: event.at, consecutiveMatches: 0,
+        pendingUnmatched: [spoken], pendingUnmatchedAt: event.at,
+      };
+    }
+    // Duplicate Safari final results from one phrase are not evidence of a
+    // second off-script statement.
+    if (pending[pending.length - 1] === spoken) {
       return { ...state, lastSpeechAt: event.at };
     }
     return {
       ...state,
       mode: "improvising", consecutiveMatches: 0, lastSpeechAt: event.at,
-      improvStartedAt: state.improvStartedAt ?? event.at,
-      improvisation: [...state.improvisation, event.transcript.trim()],
+      improvStartedAt: state.pendingUnmatchedAt ?? event.at,
+      improvisation: [...pending, spoken],
+      pendingUnmatched: [], pendingUnmatchedAt: null,
     };
   }
 
-  // Safari often supplies one long, accurate interim result before a final
-  // utterance. A high-confidence phrase is enough to regain the script.
-  if (state.mode === "improvising" || state.mode === "reacquiring") {
-    const spokenLength = tokenizeSpeech(event.transcript).length;
+  // Returning to a manuscript after a pause does not require "rejoining".
+  // Reacquisition is needed only after a confirmed off-script passage.
+  if (hadImprovisation) {
+    const spokenLength = tokenizeSpeech(spoken).length;
     const confident = match.score >= 0.86 && spokenLength >= 4;
     const confirmations = event.final ? state.consecutiveMatches + 1 : state.consecutiveMatches;
     if (!confident && confirmations < 2) {
@@ -128,6 +167,7 @@ export function advanceVoiceFollow(
       ...state, mode: "following", lastSpeechAt: event.at,
       cursorWord: Math.max(state.cursorWord, match.end), consecutiveMatches: 0,
       improvisation: [], improvStartedAt: null,
+      pendingUnmatched: [], pendingUnmatchedAt: null,
       completedNotes: note ? [...state.completedNotes, note] : state.completedNotes,
     };
   }
@@ -136,13 +176,15 @@ export function advanceVoiceFollow(
   return {
     ...state, mode: "following", lastSpeechAt: event.at,
     cursorWord: Math.max(state.cursorWord, match.end),
-    consecutiveMatches: 0,
+    consecutiveMatches: 0, pendingUnmatched: [], pendingUnmatchedAt: null,
   };
 }
 /** Call on Stop to preserve an unfinished improvisation without editing the script. */
 export function finishVoiceFollow(state: VoiceFollowState, at: number): VoiceFollowState {
   const text = state.improvisation.join(" ").trim();
-  if (!text) return { ...state, mode: "paused" };
+  if (!text) return {
+    ...state, mode: "paused", pendingUnmatched: [], pendingUnmatchedAt: null,
+  };
   const note: VoiceFollowNote = {
     anchorWord: state.cursorWord, startedAt: state.improvStartedAt ?? at,
     endedAt: at, text, reference: detectScriptureReference(text),
@@ -150,5 +192,6 @@ export function finishVoiceFollow(state: VoiceFollowState, at: number): VoiceFol
   return {
     ...state, mode: "paused", improvisation: [], improvStartedAt: null,
     consecutiveMatches: 0, completedNotes: [...state.completedNotes, note],
+    pendingUnmatched: [], pendingUnmatchedAt: null,
   };
 }
