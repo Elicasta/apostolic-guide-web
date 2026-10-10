@@ -124,12 +124,15 @@ export default function TeleprompterLibrary() {
     const current = documents.find(doc => doc.id === selectedId);
     if (!current) return;
     const updated = { ...current, ...patch, updatedAt: new Date().toISOString() };
-    setDocuments(items => items.map(doc => doc.id === selectedId ? updated : doc));
+    const next = documents.map(doc => doc.id === selectedId ? updated : doc);
+    saveTeleprompterDocuments(next);
+    setDocuments(next);
     scheduleCloudSave(updated);
   };
 
   const createNew = () => {
     const doc = createTeleprompterDocument();
+    saveTeleprompterDocuments([doc, ...documents]);
     setDocuments((current) => [doc, ...current]);
     setSelectedId(doc.id);
     setPreviewIndex(0);
@@ -139,6 +142,7 @@ export default function TeleprompterLibrary() {
   const duplicate = () => {
     if (!selected) return;
     const copy = duplicateTeleprompterDocument(selected);
+    saveTeleprompterDocuments([copy, ...documents]);
     setDocuments((current) => [copy, ...current]);
     setSelectedId(copy.id);
     setPreviewIndex(0);
@@ -148,18 +152,17 @@ export default function TeleprompterLibrary() {
   const remove = async () => {
     if (!selected || documents.length <= 1) return;
     if (!window.confirm(`Delete “${selected.title}”?`)) return;
-    const revision = getCloudBaselines()[selected.id]?.revision;
     window.clearTimeout(saveTimers.current[selected.id]);
     try {
       await (saveChains.current[selected.id] ?? Promise.resolve()).catch(() => undefined);
-      if (revision) {
-        await deleteCloudDocument(selected.id, getCloudBaselines()[selected.id]?.revision ?? revision);
-      }
+      const revision = getCloudBaselines()[selected.id]?.revision;
+      if (revision) await deleteCloudDocument(selected.id, revision);
     } catch {
       setCloudStatus("Delete failed. Document was kept to prevent data loss.");
       return;
     }
     const remaining = documents.filter((doc) => doc.id !== selected.id);
+    saveTeleprompterDocuments(remaining);
     setDocuments(remaining);
     setSelectedId(remaining[0]?.id ?? "");
     setPreviewIndex(0);
