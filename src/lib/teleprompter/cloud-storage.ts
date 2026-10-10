@@ -8,6 +8,7 @@ export interface CloudTeleprompterDocument {
   revision: number;
   created_at: string;
   updated_at: string;
+  deleted_at?: string | null;
 }
 interface CloudBaseline { revision: number; fingerprint: string }
 type BaselineMap = Record<string, CloudBaseline>;
@@ -56,6 +57,7 @@ export function mergeCloudLibrary(
   baselines: BaselineMap,
 ): { documents: TeleprompterDocument[]; recoveryCount: number; localOnly: TeleprompterDocument[] } {
   const cloudIds = new Set(cloud.map(row => row.id));
+  const activeCloud = cloud.filter(row => !row.deleted_at);
   const localMap = new Map(local.map(doc => [doc.id, doc]));
   const recovery: TeleprompterDocument[] = [];
   for (const row of cloud) {
@@ -72,7 +74,7 @@ export function mergeCloudLibrary(
   }
   const localOnly = local.filter(doc => !cloudIds.has(doc.id));
   return {
-    documents: [...recovery, ...cloud.map(fromCloud), ...localOnly],
+    documents: [...recovery, ...activeCloud.map(fromCloud), ...localOnly],
     recoveryCount: recovery.length,
     localOnly,
   };
@@ -114,7 +116,10 @@ export async function hydrateCloudLibrary(
   const cloud = await fetchCloudDocuments();
   const { documents, recoveryCount, localOnly } = mergeCloudLibrary(local, cloud, getCloudBaselines());
   // Store remote baseline before subsequent local edits, but never overwrite recovery copies.
-  for (const row of cloud) setCloudBaseline(fromCloud(row), row.revision);
+  for (const row of cloud) {
+    if (row.deleted_at) deleteCloudBaseline(row.id);
+    else setCloudBaseline(fromCloud(row), row.revision);
+  }
   saveTeleprompterDocuments(documents);
   let importedCount = 0;
   for (const document of localOnly) {
