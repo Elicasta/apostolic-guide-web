@@ -80,6 +80,7 @@ export default function SafariVoiceFollow({ documentId, slides: suppliedSlides, 
   const [status, setStatus] = useState("Ready to follow your voice");
   const [heard, setHeard] = useState("");
   const [notes, setNotes] = useState<VoiceFollowNote[]>([]);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const notesRef = useRef<VoiceFollowNote[]>([]);
   const recognitionRef = useRef<SpeechEngine | null>(null);
   const keepListeningRef = useRef(false);
@@ -292,31 +293,71 @@ export default function SafariVoiceFollow({ documentId, slides: suppliedSlides, 
 
   const exportCaptured = () => exportNotes(documentId ?? "untitled", session?.title ?? "Teleprompter", notes);
   const pairedMicActive = !listening && Boolean(session?.voiceActive);
+  const currentlyFollowing = listening || pairedMicActive;
+  const displayedMode = listening ? mode : pairedMicActive ? session?.voiceMode ?? "paused" : "paused";
+  const stateText = currentlyFollowing
+    ? displayedMode === "following" ? "Following" :
+      displayedMode === "improvising" ? "Holding" :
+      displayedMode === "reacquiring" ? "Rejoining" : "Listening"
+    : "Ready";
   if (available === null) return null;
   return (
-    <section className={`tp-voice-panel ${compact ? "tp-voice-panel-compact" : ""}`} aria-label="Safari voice-follow">
-      <div className="tp-voice-heading">
-        <div>
-          <span className="tp-voice-eyebrow">Safari preview</span>
+    <section
+      className={`tp-voice-panel ${compact ? "tp-voice-panel-compact" : ""} ${detailsOpen ? "is-expanded" : "is-minimized"}`}
+      data-tp-mic-active={currentlyFollowing ? "true" : undefined}
+      aria-label="Safari Voice Follow"
+    >
+      <div className="tp-voice-toolbar">
+        <span className="tp-voice-signal" aria-hidden="true" />
+        <div className="tp-voice-label">
           <strong>Voice Follow</strong>
+          <span aria-live="polite">{available ? stateText : "Unavailable"}</span>
         </div>
-        <span className={`tp-voice-pill ${listening ? "is-listening" : ""}`}>
-          {listening ? mode === "improvising" ? "Improvising" : mode === "reacquiring" ? "Rejoining" : mode === "following" ? "Following" : "Listening" : pairedMicActive ? "Paired mic" : "Off"}
-        </span>
-      </div>
-      {available ? (
-        <div className="tp-voice-actions">
-          <button type="button" className={listening ? "tp-voice-stop" : "tp-voice-start"}
+        {available && (
+          <button
+            type="button"
+            className={listening ? "tp-voice-stop" : "tp-voice-start"}
             onClick={listening ? () => stopCapture() : begin}
-            disabled={!listening && (!session || !deck.words.length || pairedMicActive)}>
-            {listening ? "Stop microphone" : "Start voice follow"}
+            disabled={!listening && (!session || !deck.words.length || pairedMicActive)}
+            aria-label={listening ? "Stop voice following" : "Start voice following"}
+          >
+            {listening ? "Stop" : "Start"}
           </button>
-          {notes.length ? <button type="button" className="tp-voice-export" onClick={exportCaptured}>Export notes ({notes.length})</button> : null}
+        )}
+        <button
+          type="button"
+          className="tp-voice-details-toggle"
+          aria-expanded={detailsOpen}
+          onClick={() => setDetailsOpen(value => !value)}
+        >
+          {detailsOpen ? "Less" : "Details"}
+        </button>
+      </div>
+      {detailsOpen && (
+        <div className="tp-voice-details">
+          {!available && <p className="tp-voice-alert">Safari speech recognition isn't supported here. Open the page directly in Safari and use the manual controls.</p>}
+          <p className="tp-voice-status" role="status">
+            {pairedMicActive
+              ? "The paired device is following speech. To take over, stop that microphone or navigate manually."
+              : scriptStatus || status}
+          </p>
+          {listening && heard && <p className="tp-voice-heard" aria-label="Last recognized speech">“{heard}”</p>}
+          {notes.length > 0 && (
+            <button type="button" className="tp-voice-export" onClick={exportCaptured}>
+              Export captured notes ({notes.length})
+            </button>
+          )}
+          <p className="tp-voice-caption">
+            Keep Safari in the foreground. Improvisation notes are saved locally on this device until exported.
+            Scripture references need review.
+          </p>
         </div>
-      ) : <p className="tp-voice-alert">Speech recognition is not available in this browser. Open this page directly in Safari and use manual scroll controls.</p>}
-      <p className="tp-voice-status" role="status">{pairedMicActive ? "Voice Follow is active on the paired device. Use its Stop control or a manual section command to release it." : scriptStatus || status}</p>
-      {listening && heard ? <p className="tp-voice-heard" aria-label="Last recognized speech">“{heard}”</p> : null}
-      <p className="tp-voice-caption">Keep Safari open. Improvised speech is kept as local notes on this device. Export them after recording; Scripture references are unverified.</p>
+      )}
+      {!detailsOpen && notes.length > 0 && !compact && (
+        <button type="button" className="tp-voice-notes-link" onClick={exportCaptured}>
+          Export {notes.length} captured note{notes.length === 1 ? "" : "s"}
+        </button>
+      )}
     </section>
   );
 }
