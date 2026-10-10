@@ -142,6 +142,21 @@ export default function TeleprompterDisplay() {
     scrollCarryRef.current = 0;
   }, [scrollTopSequence]);
 
+  // Voice Follow positions the recognized line near the lens instead of scrolling by elapsed time.
+  useEffect(() => {
+    if (!state?.voiceActive || state.voiceMode === "paused" || state.voiceMode === "improvising") return;
+    const scroller = scrollerRef.current;
+    if (!scroller) return;
+    const currentWord = state.voiceWordIndex ?? 0;
+    const lines = Array.from(scroller.querySelectorAll<HTMLElement>("[data-tp-word-end]"));
+    const nextLine = lines.find(element => Number(element.dataset.tpWordEnd) > currentWord) ?? lines[lines.length - 1];
+    if (!nextLine) return;
+    const readerBox = scroller.getBoundingClientRect();
+    const lineBox = nextLine.getBoundingClientRect();
+    const nextTop = Math.max(0, scroller.scrollTop + lineBox.top - readerBox.top - scroller.clientHeight * 0.43);
+    scroller.scrollTo({ top: nextTop, behavior: "smooth" });
+  }, [slideIndex, state?.voiceActive, state?.voiceWordIndex, state?.voiceMode]);
+
   useEffect(() => {
     if (scrollNudgeSequence <= 0 || scrollNudgeDelta === 0) return;
     const scroller = scrollerRef.current;
