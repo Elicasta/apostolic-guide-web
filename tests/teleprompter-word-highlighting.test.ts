@@ -38,7 +38,8 @@ test("reader highlights exactly one word inside bold Scripture-first text", () =
   assert.equal([...html.matchAll(/data-tp-active-line="true"/g)].length, 1);
   assert.match(html, /<aside class="tp-speaker-note">/);
   assert.doesNotMatch(html, /data-tp-word-index="[0-9]+">Hidden/);
-  assert.match(html, /The Father dwells in Him/);
+  assert.match(html, /<blockquote data-tp-word-start="6"/);
+  assert.match(html, /data-tp-word-index="7">Father<\/span>/);
 });
 
 test("paused voice retains the last recognized word without changing layout", () => {
