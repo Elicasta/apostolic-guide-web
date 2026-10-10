@@ -5,6 +5,7 @@ import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
 import Image from "next/image";
 import { QRCodeSVG } from "qrcode.react";
 import SlideContent from "./SlideContent";
+import SafariVoiceFollow from "./SafariVoiceFollow";
 import {
   parseTeleprompterDocument,
   summarizeSlides,
@@ -362,6 +363,10 @@ export default function TeleprompterDisplay() {
           </div>
         </header>
       ) : null}
+
+      <div className={`tp-display-voice ${chromeVisible ? "" : "is-collapsed"}`}>
+        <SafariVoiceFollow documentId={selectedDocument.id} slides={slides} session={state} dispatch={dispatch} compact />
+      </div>
 
       {remoteQrOpen && controllerUrl ? (
         <div
