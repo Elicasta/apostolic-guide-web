@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
+import SafariVoiceFollow from "./SafariVoiceFollow";
 import { QRCodeSVG } from "qrcode.react";
 import { normalizeSessionCode } from "@/lib/teleprompter/realtime";
 import { useTeleprompterSessionSync } from "@/lib/teleprompter/use-session-sync";
@@ -149,6 +150,8 @@ export default function TeleprompterController() {
             <div className="tp-current-reference">{current.reference}</div>
           ) : null}
         </section>
+
+        <SafariVoiceFollow documentId={state?.documentId} session={state} dispatch={dispatch} />
 
         <section className={`tp-scroll-remote ${scrollPanelOpen ? "is-open" : "is-collapsed"}`} aria-label="Scroll controls">
           <button
