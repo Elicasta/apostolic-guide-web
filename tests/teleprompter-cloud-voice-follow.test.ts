@@ -1,0 +1,88 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import {
+  documentFingerprint,
+  mergeCloudLibrary,
+  type CloudTeleprompterDocument,
+} from "../src/lib/teleprompter/cloud-storage";
+import {
+  advanceVoiceFollow,
+  detectScriptureReference,
+  findVoiceMatch,
+  finishVoiceFollow,
+  initialVoiceFollowState,
+  tokenizeSpeech,
+} from "../src/lib/teleprompter/voice-follow";
+import type { TeleprompterDocument } from "../src/lib/teleprompter/types";
+
+const local: TeleprompterDocument = {
+  id: "script-a", title: "Jesus Is God", content: "An edited local copy",
+  createdAt: "2026-10-08T00:00:00Z", updatedAt: "2026-10-09T00:00:00Z",
+};
+const remote: CloudTeleprompterDocument = {
+  id: "script-a", title: "Jesus Is God", content: "A different cloud copy",
+  revision: 4, created_at: "2026-10-08T00:00:00Z", updated_at: "2026-10-09T01:00:00Z",
+};
+test("cloud library migration retains new local documents", () => {
+  const other = { ...local, id: "local-only" };
+  const result = mergeCloudLibrary([other], [remote], {});
+  assert.equal(result.recoveryCount, 0);
+  assert.equal(result.localOnly.length, 1);
+  assert.deepEqual(result.documents.map(doc => doc.id), ["script-a", "local-only"]);
+});
+test("cloud library migration never destroys unknown local edits", () => {
+  const result = mergeCloudLibrary([local], [remote], {});
+  assert.equal(result.recoveryCount, 1);
+  assert.equal(result.documents.length, 2);
+  assert.equal(result.documents[0].content, local.content);
+  assert.match(result.documents[0].title, /local recovery/);
+  assert.equal(result.documents[1].content, remote.content);
+});
+test("cloud library migration treats exact synced document as one copy", () => {
+  const synced = { ...local, content: remote.content };
+  const result = mergeCloudLibrary([synced], [remote], {
+    "script-a": { revision: 4, fingerprint: documentFingerprint(synced) },
+  });
+  assert.equal(result.recoveryCount, 0);
+  assert.equal(result.documents.length, 1);
+});
+test("voice tokenizer handles punctuation, accents, and Scripture", () => {
+  assert.deepEqual(tokenizeSpeech("Gód's fullness, John 14:9!"), ["god", "s", "fullness", "john", "14", "9"]);
+  assert.equal(detectScriptureReference("Go to John chapter 14 verse 9"), "John chapter 14 verse 9");
+});
+test("voice alignment anchors spoken phrases and refuses unrelated speech", () => {
+  const script = tokenizeSpeech("There is one God and beside him there is none other. The fullness of the Godhead dwells bodily in Jesus.");
+  assert.ok(findVoiceMatch("there is one God and beside him", script, 0));
+  assert.equal(findVoiceMatch("Let me tell you a story about Florida", script, 0), null);
+});
+test("silence freezes cursor, improvisation stays in notes, then reacquires", () => {
+  const script = tokenizeSpeech("There is one God and beside him there is none other. The fullness of the Godhead dwells bodily in Jesus.");
+  let state = initialVoiceFollowState();
+  state = advanceVoiceFollow(state, { transcript: "there is one God and beside him", final: true, speaking: true, at: 100 }, script);
+  assert.equal(state.mode, "following");
+  const position = state.cursorWord;
+  state = advanceVoiceFollow(state, { transcript: "", final: false, speaking: false, at: 300 }, script);
+  assert.equal(state.mode, "paused");
+  assert.equal(state.cursorWord, position);
+  state = advanceVoiceFollow(state, { transcript: "Go to John chapter 14 verse 9", final: true, speaking: true, at: 500 }, script);
+  assert.equal(state.mode, "improvising");
+  assert.equal(state.cursorWord, position);
+  state = advanceVoiceFollow(state, { transcript: "the fullness of the Godhead", final: true, speaking: true, at: 600 }, script);
+  assert.equal(state.mode, "reacquiring");
+  assert.equal(state.cursorWord, position);
+  state = advanceVoiceFollow(state, { transcript: "dwells bodily in Jesus", final: true, speaking: true, at: 700 }, script);
+  assert.equal(state.mode, "following");
+  assert.equal(state.completedNotes.length, 1);
+  assert.match(state.completedNotes[0].text, /John chapter 14/);
+  assert.equal(state.completedNotes[0].reference, "John chapter 14 verse 9");
+});
+test("stopping voice capture preserves unfinished improvisation", () => {
+  const script = tokenizeSpeech("There is one God and beside him there is none other");
+  let state = advanceVoiceFollow(initialVoiceFollowState(), {
+    transcript: "This is an important unscripted explanation", final: true, speaking: true, at: 500,
+  }, script);
+  state = finishVoiceFollow(state, 1000);
+  assert.equal(state.mode, "paused");
+  assert.equal(state.completedNotes.length, 1);
+  assert.equal(state.completedNotes[0].text, "This is an important unscripted explanation");
+});
