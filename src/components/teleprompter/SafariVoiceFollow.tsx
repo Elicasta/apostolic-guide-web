@@ -39,6 +39,8 @@ type Props = {
 };
 const NOTES_PREFIX = "ag:teleprompter:voice-notes:v1:";
 const VOICE_CURSOR_INTERVAL_MS = 110; // Flush the latest cursor, never drop the final word.
+const NATURAL_PAUSE_WAIT_MS = 2100; // Prevent status flicker on ordinary rhetorical pauses.
+const ACTIVE_SPEECH_BUFFER_MS = 4000; // Safari/Bluetooth can lag while speech remains active.
 function loadNotes(documentId: string): VoiceFollowNote[] {
   if (!documentId) return [];
   try {
@@ -243,7 +245,7 @@ export default function SafariVoiceFollow({ documentId, slides: suppliedSlides, 
       if (!keepListeningRef.current) return;
       // AirPods/Safari can buffer recognized words while the microphone still
       // hears speech. Don't treat delayed recognition as a silent presenter.
-      const silenceLimit = speechActiveRef.current ? 3500 : 1300;
+      const silenceLimit = speechActiveRef.current ? ACTIVE_SPEECH_BUFFER_MS : NATURAL_PAUSE_WAIT_MS;
       if (Date.now() - lastHeardRef.current > silenceLimit && alignRef.current.mode !== "paused") {
         const next = advanceVoiceFollow(alignRef.current, { transcript: "", final: false, speaking: false, at: Date.now() }, deckRef.current.words);
         remember(next);
@@ -324,7 +326,7 @@ export default function SafariVoiceFollow({ documentId, slides: suppliedSlides, 
         speechActiveRef.current = false;
         // Safari may stop emitting interim results between natural sentences.
         // The silence timer owns the Waiting transition, never improvisation.
-        lastHeardRef.current = Math.min(lastHeardRef.current, Date.now() - 800);
+        lastHeardRef.current = Date.now();
       };
       recognizer.onerror = event => {
         const terminal = ["not-allowed", "service-not-allowed", "audio-capture", "language-not-supported"].includes(event.error);
