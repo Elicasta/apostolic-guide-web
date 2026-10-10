@@ -65,8 +65,15 @@ test("silence freezes cursor, improvisation stays in notes, then reacquires", ()
   assert.equal(state.mode, "paused");
   assert.equal(state.cursorWord, position);
   state = advanceVoiceFollow(state, { transcript: "Go to John chapter 14 verse 9", final: true, speaking: true, at: 500 }, script);
+  assert.equal(state.mode, "paused");
+  assert.equal(state.pendingUnmatched.length, 1);
+  assert.equal(state.cursorWord, position);
+  state = advanceVoiceFollow(state, { transcript: "And that is important to understand", final: true, speaking: true, at: 520 }, script);
   assert.equal(state.mode, "improvising");
   assert.equal(state.cursorWord, position);
+  state = advanceVoiceFollow(state, { transcript: "", final: false, speaking: false, at: 560 }, script);
+  assert.equal(state.mode, "paused");
+  assert.equal(state.improvisation.length, 2);
   state = advanceVoiceFollow(state, { transcript: "the fullness of the Godhead", final: false, speaking: true, at: 600 }, script);
   // A long exact Safari interim result should reacquire immediately, without
   // waiting through multiple finalized phrases while the presenter continues.
@@ -81,10 +88,14 @@ test("stopping voice capture preserves unfinished improvisation", () => {
   let state = advanceVoiceFollow(initialVoiceFollowState(), {
     transcript: "This is an important unscripted explanation", final: true, speaking: true, at: 500,
   }, script);
+  state = advanceVoiceFollow(state, {
+    transcript: "Here is another paragraph that is not scripted", final: true, speaking: true, at: 600,
+  }, script);
   state = finishVoiceFollow(state, 1000);
   assert.equal(state.mode, "paused");
   assert.equal(state.completedNotes.length, 1);
-  assert.equal(state.completedNotes[0].text, "This is an important unscripted explanation");
+  assert.match(state.completedNotes[0].text, /This is an important unscripted explanation/);
+  assert.match(state.completedNotes[0].text, /Here is another paragraph/);
 });
 
 test("short recognized fragments do not falsely trigger improvisation", () => {
@@ -109,4 +120,55 @@ test("a short two-word recognition can move the cursor when adjacent", () => {
   }, script);
   assert.equal(state.mode, "following");
   assert.ok(state.cursorWord > prior);
+});
+
+test("natural pause is Waiting, not Holding, even after a misrecognized final", () => {
+  const script = tokenizeSpeech("Before we ask who Jesus is we need to establish who God says He is");
+  let state = advanceVoiceFollow(initialVoiceFollowState(), {
+    transcript: "Before we ask who Jesus is", final: true, speaking: true, at: 100,
+  }, script);
+  const place = state.cursorWord;
+  state = advanceVoiceFollow(state, {
+    transcript: "some disconnected recognized words", final: true, speaking: true, at: 300,
+  }, script);
+  assert.equal(state.mode, "following");
+  assert.equal(state.improvisation.length, 0);
+  assert.equal(state.pendingUnmatched.length, 1);
+  state = advanceVoiceFollow(state, { transcript: "", speaking: false, final: false, at: 1800 }, script);
+  assert.equal(state.mode, "paused");
+  assert.equal(state.cursorWord, place);
+  assert.equal(state.pendingUnmatched.length, 0);
+  state = advanceVoiceFollow(state, {
+    transcript: "we need to establish who God says", final: false, speaking: true, at: 2000,
+  }, script);
+  assert.equal(state.mode, "following");
+  assert.ok(state.cursorWord > place);
+  assert.equal(state.completedNotes.length, 0);
+});
+
+test("single unmatched final at beginning doesn't trigger false improvisation", () => {
+  const script = tokenizeSpeech("There is one God and beside him there is no other");
+  let state = advanceVoiceFollow(initialVoiceFollowState(), {
+    transcript: "There was something in the middle of the sentence", final: true, speaking: true, at: 100,
+  }, script);
+  assert.equal(state.mode, "paused");
+  assert.equal(state.pendingUnmatched.length, 1);
+  state = advanceVoiceFollow(state, { transcript: "", final: false, speaking: false, at: 1600 }, script);
+  assert.equal(state.mode, "paused");
+  state = advanceVoiceFollow(state, { transcript: "there is one God and beside him", final: true, speaking: true, at: 2000 }, script);
+  assert.equal(state.mode, "following");
+  assert.equal(state.completedNotes.length, 0);
+});
+
+test("duplicate recognition result never counts as a second off-script utterance", () => {
+  const script = tokenizeSpeech("There is one God and beside him there is no other");
+  let state = advanceVoiceFollow(initialVoiceFollowState(), {
+    transcript: "An unrelated phrase that Safari recognized", final: true, speaking: true, at: 100,
+  }, script);
+  state = advanceVoiceFollow(state, {
+    transcript: "An unrelated phrase that Safari recognized", final: true, speaking: true, at: 200,
+  }, script);
+  assert.equal(state.pendingUnmatched.length, 1);
+  assert.equal(state.improvisation.length, 0);
+  assert.equal(state.mode, "paused");
 });
