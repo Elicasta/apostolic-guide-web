@@ -172,6 +172,7 @@ export default function SafariVoiceFollow({ documentId, slides: suppliedSlides, 
     publish(next, final);
     if (next.mode === "improvising") setStatus("Off script. Holding position and capturing notes.");
     else if (next.mode === "reacquiring") setStatus("Found script. Confirming the next phrase…");
+    else if (next.mode === "paused") setStatus("Waiting. Resume speaking to continue.");
     else setStatus("Following your words");
   }, [publish, remember]);
 
@@ -201,11 +202,11 @@ export default function SafariVoiceFollow({ documentId, slides: suppliedSlides, 
   useEffect(() => {
     const timer = window.setInterval(() => {
       if (!keepListeningRef.current) return;
-      if (Date.now() - lastHeardRef.current > 1300 && alignRef.current.mode === "following") {
+      if (Date.now() - lastHeardRef.current > 1300 && alignRef.current.mode !== "paused") {
         const next = advanceVoiceFollow(alignRef.current, { transcript: "", final: false, speaking: false, at: Date.now() }, deckRef.current.words);
         remember(next);
         publish(next, true);
-        setStatus("Paused. Waiting for you to speak.");
+        setStatus("Waiting. Resume speaking to continue.");
       }
     }, 450);
     return () => window.clearInterval(timer);
@@ -262,7 +263,8 @@ export default function SafariVoiceFollow({ documentId, slides: suppliedSlides, 
         }
       };
       recognizer.onspeechend = () => {
-        // Safari can end a speech phrase while the recognition session remains open.
+        // Safari may stop emitting interim results between natural sentences.
+        // The silence timer owns the Waiting transition, never improvisation.
         lastHeardRef.current = Math.min(lastHeardRef.current, Date.now() - 800);
       };
       recognizer.onerror = event => {
