@@ -1,4 +1,5 @@
 import type { CSSProperties, ReactNode } from "react";
+import { tokenizeSpeech } from "@/lib/teleprompter/voice-follow";
 import type {
   TeleprompterSlide,
   TeleprompterTheme,
@@ -69,6 +70,7 @@ export default function SlideContent({
   compact = false,
 }: SlideContentProps) {
   const lines = getReadingLines(slide);
+  let spokenWords = 0;
 
   return (
     <article
@@ -88,10 +90,13 @@ export default function SlideContent({
           if (line.spacer) {
             return <div key={line.id} className="tp-script-spacer" aria-hidden="true" />;
           }
+          const start = spokenWords;
+          spokenWords += tokenizeSpeech(line.text.replace(/\*\*/g, "")).length;
+          const lineAttributes = { "data-tp-word-start": start, "data-tp-word-end": spokenWords };
           if (line.quote) {
-            return <blockquote key={line.id}>{renderInline(line.text)}</blockquote>;
+            return <blockquote key={line.id} {...lineAttributes}>{renderInline(line.text)}</blockquote>;
           }
-          return <p key={line.id}>{renderInline(line.text)}</p>;
+          return <p key={line.id} {...lineAttributes}>{renderInline(line.text)}</p>;
         })}
       </div>
 
