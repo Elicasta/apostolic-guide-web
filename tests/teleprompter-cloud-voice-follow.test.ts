@@ -13,6 +13,9 @@ import {
   initialVoiceFollowState,
   tokenizeSpeech,
 } from "../src/lib/teleprompter/voice-follow";
+import { EPISODE_01_SCRIPT } from "../src/lib/teleprompter/episodes/episode-01";
+import { parseTeleprompterDocument } from "../src/lib/teleprompter/parser";
+import { createVoiceDeck } from "../src/lib/teleprompter/voice-deck";
 import type { TeleprompterDocument } from "../src/lib/teleprompter/types";
 
 const local: TeleprompterDocument = {
@@ -171,4 +174,47 @@ test("duplicate recognition result never counts as a second off-script utterance
   assert.equal(state.pendingUnmatched.length, 1);
   assert.equal(state.improvisation.length, 0);
   assert.equal(state.mode, "paused");
+});
+
+test("episode 1 follows say/says and missed short words without sticking on He is", () => {
+  const words = createVoiceDeck(parseTeleprompterDocument(EPISODE_01_SCRIPT)).words;
+  let state = initialVoiceFollowState();
+  const phrases = [
+    "Before we ask",
+    "who Jesus is",
+    "we need to establish",
+    "who God",
+    "say he is",
+    "Not what a denomination",
+  ];
+  let at = 100;
+  const positions: number[] = [];
+  for (const transcript of phrases) {
+    state = advanceVoiceFollow(state, { transcript, final: true, speaking: true, at }, words);
+    positions.push(state.cursorWord);
+    assert.equal(state.mode, "following", `stopped following at ${transcript}`);
+    at += 240;
+  }
+  assert.ok(positions.every((position, i) => i === 0 || position > positions[i - 1]), `stalled cursor: ${positions}`);
+  assert.ok(state.cursorWord >= 18 && state.cursorWord <= 26, `unexpected cold-open word: ${state.cursorWord}`);
+});
+
+test("the Word can advance with a short utterance only at the nearby cursor", () => {
+  const words = createVoiceDeck(parseTeleprompterDocument(EPISODE_01_SCRIPT)).words;
+  const index = words.findIndex((word, i) => word === "word" && words[i - 1] === "the");
+  assert.ok(index > 0);
+  const near = findVoiceMatch("word", words, index);
+  assert.equal(near?.end, index + 1);
+  const far = findVoiceMatch("word", words, 0);
+  assert.equal(far, null, "a lone word must not jump to another paragraph");
+});
+
+test("one dropped word in an otherwise accurate phrase keeps word alignment", () => {
+  const words = tokenizeSpeech("Before we ask who Jesus is we need to establish who God says he is");
+  const current = words.indexOf("god") + 1;
+  const match = findVoiceMatch("says is", words, current);
+  assert.equal(match?.end, words.length);
+  const variation = findVoiceMatch("say he is", words, current);
+  assert.equal(variation?.end, words.length);
+  assert.equal(findVoiceMatch("giraffes walked into the office", words, current), null);
 });
