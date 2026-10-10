@@ -322,6 +322,13 @@ export default function TeleprompterDisplay() {
             <span className="tp-page-count">
               {slideIndex + 1} / {slides.length}
             </span>
+            {state.voiceActive ? (
+              <span className="tp-voice-tracking-indicator" role="status">
+                {state.voiceMode === "following" ? "VOICE · FOLLOWING" :
+                  state.voiceMode === "improvising" ? "VOICE · HOLDING" :
+                  state.voiceMode === "reacquiring" ? "VOICE · REJOINING" : "VOICE · WAITING"}
+              </span>
+            ) : null}
             <button
               type="button"
               className={scrolling ? "is-active" : ""}
