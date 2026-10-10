@@ -1,67 +1,159 @@
+/* Voice controls sit above the established teleprompter, without replacing its
+   reader, type scale, scrolling layout, QR pairing, or remote transport. */
 .tp-display-voice {
   position: absolute;
   z-index: 10;
   left: max(16px, env(safe-area-inset-left));
-  bottom: max(18px, env(safe-area-inset-bottom));
-  width: min(340px, 29vw);
+  bottom: max(15px, env(safe-area-inset-bottom));
+  width: max-content;
+  max-width: min(380px, 37vw);
   pointer-events: auto;
 }
 .tp-display-voice.is-collapsed { opacity: 0; pointer-events: none; }
 .tp-voice-panel {
   margin-top: 18px;
-  padding: 18px;
-  border: 1px solid #394959;
-  border-radius: 12px;
-  background: #0d1d2b;
+  border: 1px solid #344555;
+  border-radius: 10px;
+  background: #0d1c29;
   color: #f6f5f2;
-  box-shadow: 0 16px 40px rgba(0,0,0,.14);
+  box-shadow: 0 12px 32px rgba(0,0,0,.17);
+  overflow: hidden;
 }
-.tp-voice-panel-compact {
+.tp-display-voice .tp-voice-panel {
   margin: 0;
-  padding: 13px;
-  background: rgba(10, 24, 37, .95);
-  box-shadow: 0 8px 40px rgba(0,0,0,.3);
-  backdrop-filter: blur(8px);
+  border-color: rgba(255,255,255,.13);
+  background: rgba(10,22,33,.94);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  box-shadow: 0 8px 30px rgba(0,0,0,.30);
 }
-.tp-voice-heading, .tp-voice-actions { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-.tp-voice-heading strong { display: block; font-size: 17px; letter-spacing: -.035em; margin-top: 3px; }
-.tp-voice-eyebrow { font-weight: 800; font-size: 9px; letter-spacing: .13em; text-transform: uppercase; color: #9aaaba; }
-.tp-voice-pill {
-  padding: 6px 9px;
-  border-radius: 100px;
-  border: 1px solid #465667;
-  color: #bdc5ce;
-  font-weight: 800;
-  font-size: 10px;
+.tp-voice-toolbar {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 9px;
+  padding: 9px 11px;
 }
-.tp-voice-pill.is-listening { background: #13372b; border-color: #387e5d; color: #a2e4bf; }
-.tp-voice-actions { margin-top: 13px; align-items: stretch; }
-.tp-voice-actions button {
-  appearance: none;
-  cursor: pointer;
-  min-height: 42px;
-  padding: 10px 12px;
-  font-weight: 800;
+.tp-voice-signal {
+  display: block;
+  flex: 0 0 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #60788a;
+  box-shadow: 0 0 0 3px rgba(96,120,138,.12);
+}
+.tp-voice-panel[data-tp-mic-active="true"] .tp-voice-signal {
+  background: #6fd4a1;
+  box-shadow: 0 0 0 3px rgba(111,212,161,.17);
+}
+.tp-voice-label { min-width: 0; flex: 1 1 auto; }
+.tp-voice-label strong {
+  display: block;
+  color: #f3f5f6;
   font-size: 12px;
-  border-radius: 6px;
+  font-weight: 780;
+  line-height: 1.2;
+  letter-spacing: -.015em;
+  white-space: nowrap;
 }
-.tp-voice-actions button:disabled { opacity: .5; cursor: not-allowed; }
-.tp-voice-start { background: #bd2739; border: 1px solid #bd2739; color: #fff; flex: 1; }
-.tp-voice-stop { background: #17322b; border: 1px solid #487963; color: #b8e9c7; flex: 1; }
-.tp-voice-export { background: #152736; border: 1px solid #3e5060; color: #e4e9ed; }
-.tp-voice-status { font-size: 12px; color: #d0d8df; margin: 12px 0 0; line-height: 1.45; }
-.tp-voice-heard { font-size: 11px; line-height: 1.45; color: #d9b2b8; margin: 9px 0 0; }
-.tp-voice-caption, .tp-voice-alert { font-size: 10px; line-height: 1.5; margin: 10px 0 0; color: #8798a8; }
-.tp-voice-alert { color: #f0ba91; }
+.tp-voice-label span {
+  display: block;
+  margin-top: 3px;
+  color: #8fa1b1;
+  font-size: 10px;
+  font-weight: 650;
+}
+.tp-voice-panel[data-tp-mic-active="true"] .tp-voice-label span { color: #92deb6; }
+.tp-voice-toolbar button,
+.tp-voice-export,
+.tp-voice-notes-link {
+  appearance: none;
+  font-family: inherit;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.tp-voice-toolbar button {
+  min-height: 34px;
+  padding: 7px 12px;
+  border-radius: 5px;
+  font-size: 11px;
+  font-weight: 760;
+}
+.tp-voice-toolbar button:disabled { opacity: .38; cursor: default; }
+.tp-voice-start {
+  border: 1px solid #b3263a;
+  background: #b3263a;
+  color: #fff;
+}
+.tp-voice-stop {
+  border: 1px solid #558975;
+  background: #14392b;
+  color: #bcebd3;
+}
+.tp-voice-details-toggle {
+  border: 1px solid #394858;
+  background: transparent;
+  color: #aebdca;
+}
+.tp-voice-details {
+  padding: 0 14px 15px;
+  border-top: 1px solid #263949;
+  max-width: 360px;
+}
+.tp-voice-status {
+  color: #d2dce4;
+  font-size: 12px;
+  line-height: 1.5;
+  margin: 12px 0 0;
+}
+.tp-voice-heard {
+  color: #d9b2b8;
+  font-size: 11px;
+  line-height: 1.5;
+  margin: 9px 0 0;
+}
+.tp-voice-caption,
+.tp-voice-alert {
+  color: #839aaa;
+  font-size: 10px;
+  line-height: 1.55;
+  margin: 11px 0 0;
+}
+.tp-voice-alert { color: #efb99a; }
+.tp-voice-export,
+.tp-voice-notes-link {
+  background: #12283a;
+  color: #e4eaee;
+  border: 1px solid #3a5665;
+  border-radius: 5px;
+  padding: 9px 12px;
+  font-weight: 720;
+  font-size: 11px;
+  margin-top: 12px;
+}
+.tp-voice-notes-link { display: block; width: calc(100% - 22px); margin: 0 11px 11px; }
+.tp-display-voice .tp-voice-notes-link { display: none; }
+.tp-voice-panel-compact { min-width: 252px; }
+.tp-voice-panel:not(.tp-voice-panel-compact) { width: 100%; }
+.tp-remote .tp-voice-panel {
+  margin-top: 16px;
+  border-color: #344454;
+  background: #0e1b29;
+  box-shadow: none;
+}
+.tp-remote .tp-voice-toolbar { padding: 12px 14px; }
 .tp-reader .tp-script-body [data-tp-word-end] { scroll-margin-top: 40vh; }
-.tp-theme-day .tp-voice-panel { color: #fff; }
-@media (max-width: 1050px) { .tp-display-voice { width: min(315px, 35vw); } }
-@media (max-width: 650px) {
-  .tp-display-voice { width: min(270px, 68vw); }
-  .tp-voice-panel-compact .tp-voice-caption, .tp-voice-panel-compact .tp-voice-heard { display: none; }
+@media (max-width: 1020px) {
+  .tp-display-voice { max-width: min(320px, 44vw); }
 }
-@media (prefers-reduced-motion: reduce) { .tp-voice-panel { transition: none; } }
-
+@media (max-width: 660px) {
+  .tp-display-voice { max-width: min(300px, 73vw); }
+  .tp-display-voice .tp-voice-toolbar { gap: 6px; padding: 8px; }
+  .tp-display-voice .tp-voice-toolbar button { padding: 6px 9px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tp-voice-panel { transition: none; }
+}
 
 /* The voice cursor always marks the last recognized word. Use color and a soft
    halo rather than padding/borders, so following does not shift text wrapping. */
