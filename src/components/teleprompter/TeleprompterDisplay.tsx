@@ -142,19 +142,48 @@ export default function TeleprompterDisplay() {
     scrollCarryRef.current = 0;
   }, [scrollTopSequence]);
 
-  // Voice Follow positions the recognized line near the lens instead of scrolling by elapsed time.
+  // Update just the active word and its line. Do not rerender hundreds of
+  // script spans or launch a new smooth scroll animation on every transcript.
   useEffect(() => {
-    if (!state?.voiceActive || state.voiceMode === "paused" || state.voiceMode === "improvising") return;
     const scroller = scrollerRef.current;
     if (!scroller) return;
-    const currentWord = state.voiceWordIndex ?? 0;
-    const lines = Array.from(scroller.querySelectorAll<HTMLElement>("[data-tp-word-end]"));
-    const nextLine = lines.find(element => Number(element.dataset.tpWordEnd) > currentWord) ?? lines[lines.length - 1];
-    if (!nextLine) return;
+    const article = scroller.querySelector<HTMLElement>(".tp-script");
+    const previousWord = scroller.querySelector<HTMLElement>(".tp-voice-word-current");
+    const previousLine = scroller.querySelector<HTMLElement>(".tp-voice-active-line");
+    previousWord?.classList.remove("tp-voice-word-current");
+    previousWord?.removeAttribute("data-tp-current-word");
+    previousLine?.classList.remove("tp-voice-active-line");
+    previousLine?.removeAttribute("data-tp-active-line");
+
+    const active = Boolean(state?.voiceActive);
+    const mode = state?.voiceMode ?? "paused";
+    if (article) {
+      if (active) article.dataset.tpVoiceMode = mode;
+      else delete article.dataset.tpVoiceMode;
+    }
+    const wordIndex = state?.voiceWordIndex ?? 0;
+    if (!active || wordIndex <= 0) return;
+
+    const current = scroller.querySelector<HTMLElement>(
+      `[data-tp-word-index="${Math.max(0, wordIndex - 1)}"]`,
+    );
+    if (!current) return;
+    current.classList.add("tp-voice-word-current");
+    current.setAttribute("data-tp-current-word", "true");
+    const line = current.closest<HTMLElement>("[data-tp-word-end]");
+    line?.classList.add("tp-voice-active-line");
+    line?.setAttribute("data-tp-active-line", "true");
+    if (!line || mode !== "following") return;
+
     const readerBox = scroller.getBoundingClientRect();
-    const lineBox = nextLine.getBoundingClientRect();
-    const nextTop = Math.max(0, scroller.scrollTop + lineBox.top - readerBox.top - scroller.clientHeight * 0.43);
-    scroller.scrollTo({ top: nextTop, behavior: "smooth" });
+    const lineBox = line.getBoundingClientRect();
+    const targetY = readerBox.top + scroller.clientHeight * 0.44;
+    // Only move when outside the comfortable reading band. Multiple interim
+    // transcripts for the same line must not reset an in-flight animation.
+    if (Math.abs(lineBox.top - targetY) > scroller.clientHeight * 0.16) {
+      const top = Math.max(0, scroller.scrollTop + lineBox.top - targetY);
+      scroller.scrollTo({ top, behavior: "instant" });
+    }
   }, [slideIndex, state?.voiceActive, state?.voiceWordIndex, state?.voiceMode]);
 
   useEffect(() => {
@@ -298,8 +327,7 @@ export default function TeleprompterDisplay() {
         onWheel={stopForManualScroll}
         style={{ "--tp-font-scale": fontScale } as CSSProperties}
       >
-        <SlideContent slide={slide} theme={theme} fontScale={fontScale}
-          voiceActive={state.voiceActive} voiceWordIndex={state.voiceWordIndex} voiceMode={state.voiceMode} />
+        <SlideContent slide={slide} theme={theme} fontScale={fontScale} />
       </div>
 
       {chromeVisible ? (
