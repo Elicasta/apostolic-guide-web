@@ -101,6 +101,7 @@ export default function SafariVoiceFollow({ documentId, slides: suppliedSlides, 
   useEffect(() => {
     if (suppliedSlides || !documentId) return;
     let disposed = false;
+    setRemoteSlides([]); // Never use the previous document for a new voice session.
     const load = async () => {
       setScriptStatus("Loading script for microphone…");
       const local = loadTeleprompterDocuments().find(doc => doc.id === documentId);
