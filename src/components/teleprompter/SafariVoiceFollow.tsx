@@ -37,6 +37,7 @@ type Props = {
   compact?: boolean;
 };
 const NOTES_PREFIX = "ag:teleprompter:voice-notes:v1:";
+const VOICE_CURSOR_INTERVAL_MS = 110; // Flush the latest cursor, never drop the final word.
 function loadNotes(documentId: string): VoiceFollowNote[] {
   if (!documentId) return [];
   try {
@@ -86,8 +87,11 @@ export default function SafariVoiceFollow({ documentId, slides: suppliedSlides, 
   const keepListeningRef = useRef(false);
   const restartRef = useRef<number | null>(null);
   const lastResultRef = useRef(0);
+  const resultFingerprintsRef = useRef<Map<number, string>>(new Map());
   const lastHeardRef = useRef(0);
   const lastPublishRef = useRef({ at: 0, index: -1, mode: "" });
+  const pendingCursorRef = useRef<VoiceFollowState | null>(null);
+  const cursorFlushTimerRef = useRef<number | null>(null);
   const alignRef = useRef(initialVoiceFollowState());
   const dispatchRef = useRef(dispatch);
   dispatchRef.current = dispatch;
@@ -151,15 +155,46 @@ export default function SafariVoiceFollow({ documentId, slides: suppliedSlides, 
     }
   }, []);
 
-  const publish = useCallback((state: VoiceFollowState, force = false) => {
-    const current = deckRef.current;
-    const position = findDeckPosition(current, state.cursorWord);
+  const sendCursor = useCallback((state: VoiceFollowState) => {
     const now = Date.now();
     const last = lastPublishRef.current;
-    if (!force && now - last.at < 420 && last.index === state.cursorWord && last.mode === state.mode) return;
-    if (!force && now - last.at < 260) return;
+    if (last.index === state.cursorWord && last.mode === state.mode) return;
     lastPublishRef.current = { at: now, index: state.cursorWord, mode: state.mode };
+    const position = findDeckPosition(deckRef.current, state.cursorWord);
     dispatchRef.current({ type: "voiceFollow", slideIndex: position.slideIndex, wordIndex: position.wordIndex, mode: state.mode });
+  }, []);
+
+  const publish = useCallback((state: VoiceFollowState, force = false) => {
+    const last = lastPublishRef.current;
+    if (last.index === state.cursorWord && last.mode === state.mode) {
+      // A newer trailing cursor may still be waiting in the queue.
+      return;
+    }
+    if (force || Date.now() - last.at >= VOICE_CURSOR_INTERVAL_MS) {
+      if (cursorFlushTimerRef.current !== null) {
+        window.clearTimeout(cursorFlushTimerRef.current);
+        cursorFlushTimerRef.current = null;
+      }
+      pendingCursorRef.current = null;
+      sendCursor(state);
+      return;
+    }
+    // Keep the most recent interim result, not the first one to arrive.
+    pendingCursorRef.current = state;
+    if (cursorFlushTimerRef.current !== null) return;
+    const wait = Math.max(0, VOICE_CURSOR_INTERVAL_MS - (Date.now() - last.at));
+    cursorFlushTimerRef.current = window.setTimeout(() => {
+      cursorFlushTimerRef.current = null;
+      const latest = pendingCursorRef.current;
+      pendingCursorRef.current = null;
+      if (latest && keepListeningRef.current) sendCursor(latest);
+    }, wait);
+  }, [sendCursor]);
+
+  const discardPendingCursor = useCallback(() => {
+    if (cursorFlushTimerRef.current !== null) window.clearTimeout(cursorFlushTimerRef.current);
+    cursorFlushTimerRef.current = null;
+    pendingCursorRef.current = null;
   }, []);
 
   const feedTranscript = useCallback((transcript: string, final: boolean) => {
@@ -178,6 +213,7 @@ export default function SafariVoiceFollow({ documentId, slides: suppliedSlides, 
 
   const stopCapture = useCallback((notify = true) => {
     keepListeningRef.current = false;
+    discardPendingCursor();
     if (restartRef.current !== null) window.clearTimeout(restartRef.current);
     restartRef.current = null;
     const engine = recognitionRef.current;
@@ -192,7 +228,7 @@ export default function SafariVoiceFollow({ documentId, slides: suppliedSlides, 
     setListening(false);
     setMode("paused");
     if (notify) dispatchRef.current({ type: "voiceStop" });
-  }, [remember]);
+  }, [remember, discardPendingCursor]);
 
   // If the presenter manually changes section or starts ordinary scrolling, release the microphone.
   useEffect(() => {
@@ -214,6 +250,9 @@ export default function SafariVoiceFollow({ documentId, slides: suppliedSlides, 
 
   useEffect(() => () => {
     keepListeningRef.current = false;
+    if (cursorFlushTimerRef.current !== null) window.clearTimeout(cursorFlushTimerRef.current);
+    cursorFlushTimerRef.current = null;
+    pendingCursorRef.current = null;
     if (restartRef.current !== null) window.clearTimeout(restartRef.current);
     const engine = recognitionRef.current;
     if (engine) {
@@ -232,6 +271,8 @@ export default function SafariVoiceFollow({ documentId, slides: suppliedSlides, 
     const startAt = deckCursorForPosition(deck, session.slideIndex, prior);
     alignRef.current = { ...initialVoiceFollowState(), cursorWord: startAt };
     keepListeningRef.current = true;
+    discardPendingCursor();
+    lastPublishRef.current = { at: 0, index: -1, mode: "" };
     setListening(true);
     setHeard("");
     setStatus("Requesting microphone access…");
@@ -243,6 +284,7 @@ export default function SafariVoiceFollow({ documentId, slides: suppliedSlides, 
       const recognizer = new Constructor();
       recognitionRef.current = recognizer;
       lastResultRef.current = 0;
+      resultFingerprintsRef.current.clear();
       recognizer.continuous = true;
       recognizer.interimResults = true;
       recognizer.maxAlternatives = 1;
@@ -254,9 +296,13 @@ export default function SafariVoiceFollow({ documentId, slides: suppliedSlides, 
           const result = event.results[i];
           const transcript = result?.[0]?.transcript?.trim() ?? "";
           if (!transcript) continue;
+          const fingerprint = `${result.isFinal ? "final" : "interim"}:${transcript}`;
+          if (resultFingerprintsRef.current.get(i) === fingerprint) continue;
+          resultFingerprintsRef.current.set(i, fingerprint);
           if (result.isFinal) {
             feedTranscript(transcript, true);
             lastResultRef.current = Math.max(lastResultRef.current, i + 1);
+            resultFingerprintsRef.current.delete(i);
           } else {
             feedTranscript(transcript, false);
           }
