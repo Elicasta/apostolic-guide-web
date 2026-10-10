@@ -55,18 +55,20 @@ export function findVoiceMatch(
   transcript: string, script: string[], cursor: number, searchAhead = 110,
 ): VoiceFollowMatch | null {
   const spoken = tokenizeSpeech(transcript);
-  if (spoken.length < 3 || script.length < 3) return null;
+  if (spoken.length < 2 || script.length < 2) return null;
   let best: VoiceFollowMatch | null = null;
   const first = Math.max(0, cursor - 12);
-  const last = Math.min(script.length - 3, cursor + searchAhead);
+  const last = Math.min(script.length - 2, cursor + searchAhead);
   for (let start = first; start <= last; start++) {
     const window = script.slice(start, Math.min(script.length, start + spoken.length + 5));
-    if (window.length < 3) continue;
+    if (window.length < 2) continue;
     const hits = orderedHits(spoken, window);
     const fidelity = hits / spoken.length;
     const distance = Math.max(0, start - cursor);
     const score = fidelity - Math.min(0.16, distance / Math.max(100, searchAhead * 5));
-    if (hits < 3 || score < 0.64) continue;
+    // Two-word recognition is useful near the cursor, but never jump far on it.
+    const nearbyShortPhrase = spoken.length === 2 && start >= cursor - 3 && start <= cursor + 8;
+    if (hits < (nearbyShortPhrase ? 2 : 3) || score < (nearbyShortPhrase ? 0.89 : 0.68)) continue;
     const candidate = { start, end: Math.min(script.length, start + spoken.length), score };
     if (!best || candidate.score > best.score ||
         (candidate.score === best.score && Math.abs(start - cursor) < Math.abs(best.start - cursor))) {
@@ -92,6 +94,12 @@ export function advanceVoiceFollow(
 
   if (!match) {
     if (!event.final) return { ...state, lastSpeechAt: event.at };
+    const spokenLength = tokenizeSpeech(event.transcript).length;
+    // A 1-3 word fragment on Safari is commonly a partial sentence, not
+    // evidence of improvisation. Do not interrupt following for tiny fragments.
+    if (spokenLength < 4 && state.mode !== "improvising" && state.mode !== "reacquiring") {
+      return { ...state, lastSpeechAt: event.at };
+    }
     return {
       ...state,
       mode: "improvising", consecutiveMatches: 0, lastSpeechAt: event.at,
@@ -100,11 +108,14 @@ export function advanceVoiceFollow(
     };
   }
 
-  // Require two distinct finalized matches before ending an off-script passage.
+  // Safari often supplies one long, accurate interim result before a final
+  // utterance. A high-confidence phrase is enough to regain the script.
   if (state.mode === "improvising" || state.mode === "reacquiring") {
-    const hits = event.final ? state.consecutiveMatches + 1 : state.consecutiveMatches;
-    if (hits < 2) {
-      return { ...state, lastSpeechAt: event.at, consecutiveMatches: hits, mode: "reacquiring" };
+    const spokenLength = tokenizeSpeech(event.transcript).length;
+    const confident = match.score >= 0.86 && spokenLength >= 4;
+    const confirmations = event.final ? state.consecutiveMatches + 1 : state.consecutiveMatches;
+    if (!confident && confirmations < 2) {
+      return { ...state, lastSpeechAt: event.at, consecutiveMatches: confirmations, mode: "reacquiring" };
     }
     const text = state.improvisation.join(" ").trim();
     const note: VoiceFollowNote | null = text ? {
