@@ -21,8 +21,8 @@ export function splitSpokenWordParts(text: string): SpokenWordPart[] {
   });
 }
 
-/** Returns the last recognized word, or the first word while waiting to start. */
+/** Returns the last recognized word; no highlight before speech is matched. */
 export function highlightedWordIndex(cursorWord: number, wordsInSlide: number): number | null {
-  if (!Number.isFinite(cursorWord) || wordsInSlide <= 0) return null;
+  if (!Number.isFinite(cursorWord) || cursorWord <= 0 || wordsInSlide <= 0) return null;
   return Math.max(0, Math.min(wordsInSlide - 1, Math.trunc(cursorWord) - 1));
 }
