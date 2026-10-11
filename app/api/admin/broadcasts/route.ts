@@ -12,6 +12,7 @@ const campaignSchema = z.object({
   title: z.string().trim().min(3).max(220),
   summary: z.string().trim().min(10).max(1200),
   ctaLabel: z.string().trim().min(2).max(60),
+  resources: z.array(z.object({ title: z.string().trim().min(1).max(220), summary: z.string().trim().min(1).max(1200), url: z.string().url().max(2000) })).max(3).optional(),
   url: z.string().url().max(2000)
 });
 

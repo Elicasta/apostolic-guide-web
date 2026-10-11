@@ -35,6 +35,7 @@ export const studioNavSections: Array<{ label: string; items: Array<{ href: stri
     { href: "/admin/app-content", label: "App Content", icon: BookOpen, permission: "view_content" }
   ]},
   { label: "Publish", items: [
+    { href: "/admin/content-engine", label: "Content Engine", icon: Sparkles, permission: "view_distribution" },
     { href: "/admin/publishing", label: "Publishing", icon: Send, permission: "view_distribution", exact: true },
     { href: "/admin/broadcasts", label: "Broadcasts", icon: Mail, permission: "view_distribution" },
     { href: "/admin/social", label: "Social Automations", icon: Instagram, permission: "view_distribution" },

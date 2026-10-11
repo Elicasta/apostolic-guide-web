@@ -1,4 +1,5 @@
-import { redirect } from "next/navigation";
+import { redirect, notFound } from "next/navigation";
+import type { BroadcastCampaign } from "@/broadcast-email";
 import { BroadcastEditor, type BroadcastSourceOption } from "@/broadcast-editor";
 import { getStudioPermission } from "@/auth";
 import { hasStudioPermission } from "@/studio-permissions";
@@ -12,7 +13,8 @@ import { Activity, CheckCheck, ExternalLink, Eye, Mail, MousePointerClick, Radio
 function siteUrl(path: string) { return `https://apostolicguide.com${path}`; }
 function number(value: number) { return new Intl.NumberFormat("en-US").format(value); }
 
-export default async function BroadcastsPage() {
+export default async function BroadcastsPage({ searchParams }: { searchParams: Promise<{ editorial?: string }> }) {
+  const { editorial } = await searchParams;
   const permission = await getStudioPermission("view_distribution");
   if (!permission.allowed && permission.access.state !== "unconfigured") redirect("/admin");
   const canManage = permission.access.state === "unconfigured" || hasStudioPermission(permission.access.role, "manage_distribution");
@@ -35,6 +37,13 @@ export default async function BroadcastsPage() {
     .sort((a, b) => (b.publishedAt ?? "").localeCompare(a.publishedAt ?? ""));
 
   const service = createServiceClient();
+  let initialCampaign: BroadcastCampaign | undefined;
+  if (editorial) {
+    if (!service || !/^\d{4}-\d{2}-\d{2}$/.test(editorial)) notFound();
+    const draft = await service.from("studio_editorial_packs").select("payload").eq("production_date", editorial).maybeSingle();
+    if (draft.error || !draft.data?.payload?.newsletter) notFound();
+    initialCampaign = draft.data.payload.newsletter as BroadcastCampaign;
+  }
   const counts = { general: 0, content: 0, media: 0 };
   if (service) {
     const [all, content, media] = await Promise.all([
@@ -79,7 +88,7 @@ export default async function BroadcastsPage() {
 
       {canManage ? <section className="admin-card publishing-card">
         <div className="card-heading"><div><span className="section-kicker">Campaign composer</span><h2>Send an update</h2></div><p>Choose a template. Published site content is linked automatically. Every mass email is created as a draft first, so nothing goes out accidentally.</p></div>
-        <BroadcastEditor sources={sources} audienceCounts={counts} />
+        <BroadcastEditor key={editorial ?? "default"} initialCampaign={initialCampaign} sources={sources} audienceCounts={counts} />
       </section> : <section className="admin-card role-readonly-note"><strong>Read-only access</strong><p>Your Studio role can review broadcast performance but cannot create, test, or send campaigns.</p></section>}
 
       <section className="admin-card publishing-card campaign-intelligence-section">
