@@ -1,0 +1,22 @@
+name: AG unified release scope
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  teleprompter-freeze:
+    # Scope freeze applies only to the unified release, not regular bugfix PRs.
+    if: github.event.pull_request.head.ref == 'integration/ag-unified-20261006'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check deferred Teleprompter paths
+        run: |
+          node scripts/check-ag-unified-scope.mjs --self-test
+          node scripts/check-ag-unified-scope.mjs "${{ github.event.pull_request.base.sha }}" HEAD
