@@ -9,6 +9,7 @@ import {
   solRetryDelayMs
 } from "./sol-run-recovery";
 import { createServiceClient } from "./supabase";
+import { solKillSwitchEnabled } from "./sol-control-policy";
 
 type ExecutionContext = { origin: string; cookie: string };
 type Service = NonNullable<ReturnType<typeof createServiceClient>>;
@@ -52,8 +53,14 @@ async function appendEvent(service: Service, run: Record<string, unknown>, event
 }
 
 async function cancelled(service: Service, runId: string) {
-  const result = await service.from("sol_operator_runs").select("status").eq("id", runId).maybeSingle();
-  return result.data?.status === "cancelled";
+  if (solKillSwitchEnabled()) return true;
+  const [run, settings] = await Promise.all([
+    service.from("sol_operator_runs").select("status").eq("id", runId).maybeSingle(),
+    service.from("sol_operator_settings").select("enabled,mode").eq("workspace_key", "apostolic-guide").maybeSingle()
+  ]);
+  // When the database cannot confirm permission to work, fail closed.
+  if (run.error || settings.error || !run.data || !settings.data) return true;
+  return run.data.status === "cancelled" || !settings.data.enabled || settings.data.mode === "watch";
 }
 
 async function heartbeat(service: Service, run: Record<string, unknown>, extra: Record<string, unknown> = {}) {
@@ -68,6 +75,7 @@ async function heartbeat(service: Service, run: Record<string, unknown>, extra: 
 }
 
 async function updateStep(service: Service, run: Record<string, unknown>, stepKey: string, status: "running" | "completed" | "failed", detail?: string) {
+  if (status === "running" && await cancelled(service, String(run.id))) throw new Error("Sol execution stopped before this step.");
   const recipe = String(run.recipe_key) as SolRecipeKey;
   const definition = SOL_RECIPE_STEPS[recipe];
   const current = Array.isArray(run.steps) ? run.steps as Array<Record<string, unknown>> : definition.map((step) => ({ ...step, status: "pending" }));
@@ -367,6 +375,7 @@ async function journeyAutomationDraft(service: Service, run: Record<string, unkn
   await updateStep(service, run, "verify_keyword", "completed", `Keyword “${keyword}” and destination verified.`);
 
   await updateStep(service, run, "create_automation", "running");
+  if (await cancelled(service, String(run.id))) return;
   const automationName = `${title} Pathway · ${keyword.toUpperCase()}`;
   const existingAutomation = await service.from("social_automations").select("id,name").eq("name", automationName).eq("enabled", false).maybeSingle();
   if (existingAutomation.error) throw existingAutomation.error;
@@ -385,6 +394,7 @@ async function journeyAutomationDraft(service: Service, run: Record<string, unkn
   await updateStep(service, run, "create_automation", "completed", existingAutomation.data ? "Existing disabled Meta automation reused." : "Disabled Meta automation created.");
 
   await updateStep(service, run, "create_journey", "running");
+  if (await cancelled(service, String(run.id))) return;
   const journeyName = `${title} Pathway follow-up`;
   const existingJourney = await service.from("growth_journeys").select("id,name").eq("name", journeyName).eq("status", "draft").maybeSingle();
   if (existingJourney.error) throw existingJourney.error;
@@ -400,6 +410,7 @@ async function journeyAutomationDraft(service: Service, run: Record<string, unkn
   await updateStep(service, run, "create_journey", "completed", existingJourney.data ? "Existing draft journey reused with no enrollments." : "Draft journey created with no enrollments.");
 
   await updateStep(service, run, "link_project", "running");
+  if (await cancelled(service, String(run.id))) return;
   const linked = await service.from("pathway_publishing_profiles").upsert({ pathway_slug: slug, primary_keyword: keyword, app_url: destinationUrl, social_automation_id: automation.data.id }, { onConflict: "pathway_slug" });
   if (linked.error) throw linked.error;
   await updateStep(service, run, "link_project", "completed", "Draft automation linked to the Pathway project.");
@@ -422,6 +433,7 @@ export async function executeSolRun(runId: string, context: ExecutionContext) {
     run = await loadRun(service, runId);
     if (!["queued", "retrying"].includes(String(run.status))) return;
     if (run.status === "retrying" && run.next_retry_at && Date.parse(String(run.next_retry_at)) > Date.now()) return;
+    if (await cancelled(service, runId)) return;
     const attemptCount = (Number(run.attempt_count) || 0) + 1;
     const workerId = randomUUID();
     const now = new Date();
@@ -440,6 +452,7 @@ export async function executeSolRun(runId: string, context: ExecutionContext) {
     run.status = "running";
     run.attempt_count = attemptCount;
     run.worker_id = workerId;
+    if (await cancelled(service, runId)) return;
     await appendEvent(service, run, "run.started", { recipe_key: run.recipe_key, pathway_slug: run.pathway_slug, attempt_count: attemptCount, worker_id: workerId });
     const recipe = String(run.recipe_key) as SolRecipeKey;
     if (recipe === "pathway_audio_stage") await pathwayAudioStage(service, run);
