@@ -17,6 +17,11 @@ The **What This Shows** section must teach the passage instead of restating the 
 9. Prefer plain language, short sentences, and one main claim per sentence. **Do not embed HTML, Markdown, or additional headings** in the explanation string.
 10. Review how the resulting text fits on a 390px iPhone and a full-width desktop Pathway card, without hiding content behind a collapsed section.
 
+
+## Apostolic doctrine review gate
+
+Before publishing doctrinal Pathway edits, use the [2026-10-11 full-catalog doctrine audit](./pathway-doctrine-audit-20261011.md) as the current review baseline. Keep God's Word fully divine, Jesus genuinely human, and the Apostolic interpretation clearly distinguished from what any one isolated verse explicitly states. Review contested texts (John 1:1, Matthew 28:19, 1 Corinthians 12:30, John 14:16–18, Psalm 110:1, and Gethsemane) with the assigned editor or church leader. Automated tests are a regression gate, not doctrinal approval.
+
 ## Architecture and coverage
 
 - Canonical content: `src/pathway-catalog.ts` `steps[].explanation`. It drives the public Pathway card reader and Scripture-study explanation lookup.
