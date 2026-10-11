@@ -10,7 +10,7 @@ import { OperatorCommandError } from "./types";
  * Process memory is installed only by tests. A missing service configuration
  * refuses the command instead of pretending the transcript was saved.
  */
-let testStore: MemoryOperatorStore | null = null;
+let testStore: MemoryOperatorStore | "disabled" | null = null;
 
 export function resetOperatorSessionsForTests() {
   testStore = createMemoryOperatorStore();
@@ -18,10 +18,21 @@ export function resetOperatorSessionsForTests() {
 }
 
 export function clearOperatorStoreForTests() {
-  testStore = null;
+  // Never reach a real Supabase database from unit tests after clearing the fixture.
+  testStore = "disabled";
+}
+
+export function isOperatorTestStoreActive() {
+  return testStore !== null;
 }
 
 export function getOperatorStore(): OperatorStore {
+  if (testStore === "disabled") {
+    throw new OperatorCommandError(
+      "OperatorPersistenceUnavailable",
+      "Grokbot persistence is not configured. Sessions are not stored in process memory."
+    );
+  }
   if (testStore) return testStore;
   const durable = createSupabaseOperatorStore();
   if (!durable) {
