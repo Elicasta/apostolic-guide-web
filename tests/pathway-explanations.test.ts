@@ -53,7 +53,7 @@ test("sensitive doctrinal explanations use the surrounding passage, not an isola
   const commission = pathwayBySlug("matthew-28-and-acts-2");
   const matthew = commission?.steps.find((step) => step.reference === "Matthew 28:19")?.explanation ?? "";
   assert.match(matthew, /singular/i);
-  assert.match(matthew, /grammar alone does not/i);
+  assert.match(matthew, /not from the singular noun alone/i);
 
   const tongues = pathwayBySlug("tongues-as-initial-sign");
   const corinthians = tongues?.steps.find((step) => step.reference === "1 Corinthians 12:30")?.explanation ?? "";
@@ -69,4 +69,66 @@ test("the public Pathway card shows the canonical explanation without truncation
   assert.match(reader, /<p>\{step\.explanation\}<\/p>/);
   assert.match(route, /<PathwayCardReader/);
   assert.match(route, /steps=\{readerSteps\}/);
+});
+
+function explanation(slug: string, reference: string) {
+  const pathway = pathwayBySlug(slug);
+  assert.ok(pathway, `Missing doctrinal pathway: ${slug}`);
+  const step = pathway.steps.find((item) => item.reference === reference);
+  assert.ok(step, `Missing doctrinal reference: ${slug} / ${reference}`);
+  return step.explanation;
+}
+
+test("doctrinal audit preserves God's identity instead of describing the Word as a created bearer of deity", () => {
+  const john = explanation("jesus-is-god", "John 1:1");
+  assert.match(john, /the Word was with God, and the Word was God/i);
+  assert.match(john, /not a created being/i);
+  assert.match(john, /Word was made flesh/i);
+
+  const incarnation = explanation("word-became-flesh", "John 1:1");
+  assert.match(incarnation, /Word was God/i);
+  assert.match(incarnation, /Apostolic Oneness theology understands/i);
+
+  const fullness = explanation("fullness-of-godhead", "Colossians 2:9");
+  assert.match(fullness, /all the fullness of the Godhead dwells in Christ bodily/i);
+  assert.match(fullness, /not a partial gift of divinity/i);
+
+  const seeingFather = explanation("father-dwells-in-son", "John 14:9");
+  assert.match(seeingFather, /seen me hath seen the Father/i);
+  assert.match(seeingFather, /Father dwells in Him/i);
+});
+
+test("doctrinal audit marks debated inferences instead of misquoting a proof text", () => {
+  const commission = explanation("matthew-28-and-acts-2", "Matthew 28:19");
+  assert.match(commission, /verse itself names those three designations/i);
+  assert.match(commission, /not from the singular noun alone/i);
+
+  const water = explanation("new-birth", "John 3:5");
+  assert.match(water, /exact meaning of 'water' is debated/i);
+  assert.match(water, /Apostolic Oneness teaching connects/i);
+
+  const gifts = explanation("tongues-as-initial-sign", "1 Corinthians 12:30");
+  assert.match(gifts, /distinguishes this congregational gift/i);
+  assert.match(gifts, /interpretation of the different contexts/i);
+
+  const spirit = explanation("receiving-the-holy-ghost", "John 14:16–18");
+  assert.match(spirit, /another Comforter/i);
+  assert.match(spirit, /I will come to you/i);
+
+  const throne = explanation("right-hand-of-god", "Psalm 110:1");
+  assert.match(throne, /genuinely distinguishes/i);
+  assert.match(throne, /real exaltation and kingship/i);
+});
+
+test("doctrinal audit teaches real human prayer and distinguishes monotheism from caricatures", () => {
+  const prayer = explanation("jesus-prayers-and-humanity", "Matthew 26:39");
+  assert.match(prayer, /genuine, not a staged conversation/i);
+  assert.match(prayer, /human will of the incarnate Son/i);
+
+  const paul = explanation("no-god-beside-him", "1 Corinthians 8:4");
+  assert.match(paul, /neither Trinitarian nor Oneness Christians teach that/i);
+
+  const grace = explanation("faith-grace-and-obedience", "Ephesians 2:8–10");
+  assert.match(grace, /not a human achievement/i);
+  assert.match(grace, /Repentance, baptism, and Spirit-filled living/i);
 });
