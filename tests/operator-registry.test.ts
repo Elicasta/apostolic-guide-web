@@ -70,7 +70,10 @@ test("registry exposes read actions and blocks public effects before any handler
   for (const name of ["workspace.status", "pathway.list", "pathway.inspect", "sol.proposals.list", "sol.runs.list", "creative.projects.list", "content.plan.preview", "feed.preview"]) {
     assert.ok(names.includes(name));
   }
-  assert.equal(listOperatorActions().some((action) => action.classification === "private_write"), false);
+  for (const name of ["plan.create", "plan.list", "plan.inspect", "plan.update", "plan.reorder", "plan.preview", "scratch.save", "asset.link"]) {
+    assert.ok(names.includes(name));
+  }
+  assert.equal(listOperatorActions().some((action) => action.classification === "private_write"), true);
   const pathways = await executeOperatorCommand({ command: "list pathways", actor: owner });
   assert.equal(pathways.status, "ok");
   assert.equal(pathways.action, "pathway.list");

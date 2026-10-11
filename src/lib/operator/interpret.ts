@@ -49,6 +49,36 @@ export function interpretOperatorCommand(raw: string): OperatorInterpretation {
     return { kind: "refused", summary: "Job retry stays on the Sol page, where Stop Sol and execution-mode policy already apply." };
   }
 
+  if (/\b(update|edit|reorder|overwrite)\b/.test(lower) && /\bplan\b/.test(lower)) {
+    return { kind: "refused", summary: "Name the plan to change, or use the Planning Desk. Grokbot will not guess which draft to overwrite." };
+  }
+  if (/\b(create|save|start)\b/.test(lower) && /\bplan\b/.test(lower) && !/\b(preview|show)\b/.test(lower)) {
+    return { kind: "action", action: "plan.create", input: { days: planDays(lower) } };
+  }
+  if (/\bplans\b/.test(lower) || (/\blist\b/.test(lower) && /\bplan\b/.test(lower))) {
+    return { kind: "action", action: "plan.list", input: {} };
+  }
+  const namedId = text.match(/\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/i)?.[0];
+  if (namedId && /\bplan\b/.test(lower) && /\b(open|inspect|reopen|show)\b/.test(lower)) {
+    return { kind: "action", action: "plan.inspect", input: { planId: namedId } };
+  }
+  if (namedId && /\bpreview\b/.test(lower) && /\bplan\b/.test(lower)) {
+    return { kind: "action", action: "plan.preview", input: { planId: namedId } };
+  }
+  if (/\barchive\b/.test(lower) && /\bsession\b/.test(lower)) {
+    if (!namedId) return { kind: "refused", summary: "Use the session menu to archive. Grokbot will not guess which session." };
+    return { kind: "action", action: "session.archive", input: { sessionId: namedId } };
+  }
+  if (/\bsessions\b/.test(lower)) return { kind: "action", action: "session.list", input: {} };
+  if (/\bscratch\b/.test(lower) && /\b(save|write|store)\b/.test(lower)) {
+    return { kind: "refused", summary: "Use the scratch pad to save text. A command needs the saved note, not a guess." };
+  }
+  if (/\bscratch\b/.test(lower)) return { kind: "action", action: "scratch.list", input: {} };
+  if (/\bupload\b/.test(lower)) {
+    return { kind: "refused", summary: "Use the drop zone. Uploads go through Pathway Assets and are not claimed from a command." };
+  }
+  if (/\bassets?\b/.test(lower) && /\b(list|show|linked)\b/.test(lower)) return { kind: "action", action: "asset.list", input: {} };
+
   const pathway = matchPathway(lower);
   if (pathway && /\bpathway\b/.test(lower) && !/\b(list|all pathways)\b/.test(lower)) {
     return { kind: "action", action: "pathway.inspect", input: { slug: pathway.slug } };
