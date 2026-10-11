@@ -84,11 +84,11 @@ test("sanitizes model-proposed focal points and zoom before render", () => {
   assert.deepEqual(sanitizeVideoProducerTransform({ focusX: Number.NaN, focusY: Number.NaN, scale: Number.NaN }), { focusX: 0.5, focusY: 0.5, scale: 1 });
 });
 
-test("podcast defaults produce a professional 16:9 master", () => {
+test("podcast defaults produce a professional direct-start 16:9 master", () => {
   const plan = buildDefaultVideoProducerPlan("podcast", 120);
   const render = compileVideoProducerRenderPlan(plan);
   assert.equal(plan.captions.enabled, false);
-  assert.equal(plan.intro, true);
+  assert.equal(plan.intro, false);
   assert.equal(plan.outro, true);
   assert.equal(plan.audioPreset, "ag-voice-clean");
   assert.deepEqual(render.output, { format: "mp4", width: 1920, height: 1080, fps: 30 });
