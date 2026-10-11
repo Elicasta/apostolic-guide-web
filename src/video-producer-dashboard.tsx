@@ -63,12 +63,7 @@ function statusState(project: LibraryProject) {
 }
 
 function projectStep(project: LibraryProject) {
-  if (["draft", "uploading", "transcribing"].includes(project.status)) return "source";
-  if (["uploaded", "directing"].includes(project.status)) return "produce";
-  if (project.status === "planned") return "finish";
-  if (["approved", "rendering", "review", "completed"].includes(project.status)) return "deliver";
-  if (project.status === "failed" && project.approval_fingerprint) return "deliver";
-  return project.source_filename ? "produce" : "source";
+  return project.source_filename || !["draft", "uploading"].includes(project.status) ? "edit" : "source";
 }
 
 async function getJson<T>(url: string, init?: RequestInit): Promise<T> {
@@ -98,7 +93,15 @@ export function VideoProducerDashboard() {
     }
   }, []);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (!cancelled) void load();
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [load]);
   useEffect(() => {
     if (!projects.some((project) => ["uploading", "transcribing", "directing", "rendering"].includes(project.status))) return;
     const timer = window.setInterval(() => void load(), 10000);

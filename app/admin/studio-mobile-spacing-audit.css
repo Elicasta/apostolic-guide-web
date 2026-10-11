@@ -2,8 +2,8 @@
 .studio-standalone-bottom-nav{display:none}
 
 @media(max-width:760px){
-  html:has(.admin-layout),body:has(.admin-layout){max-width:100%;overflow-x:hidden}
-  .admin-main{min-width:0;overflow-x:clip;padding-top:14px}
+  body:has(.admin-layout){max-width:100%}
+  .admin-main{min-width:0;overflow-x:clip;padding-top:14px;padding-bottom:calc(168px + env(safe-area-inset-bottom))}
   .admin-main>*,.admin-main .admin-card,.admin-main input,.admin-main select,.admin-main textarea{max-width:100%;min-width:0}
   .admin-main>.admin-notice:first-child{margin-top:0}
   .admin-main :where(.studio-page-heading,.calendar-section-head,.card-heading,.creative-page-head){gap:10px}

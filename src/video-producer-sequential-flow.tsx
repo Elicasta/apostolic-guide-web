@@ -141,8 +141,6 @@ export function VideoProducerSequentialFlow({ projectId: initialProjectId = "", 
   const latestRender = detail?.renders?.[0] ?? null;
   const selectedPathway = finishing?.pathways.find((item) => item.slug === finishing.project.pathway_slug) ?? null;
   const selectedMusic = finishing?.musicTracks.find((item) => item.id === finishing.project.selected_music_track_id) ?? null;
-  const stepIndex = STEPS.findIndex((item) => item.id === step);
-
   const loadDetail = useCallback(async (id = projectId) => {
     if (!id) return null;
     try {
@@ -172,8 +170,15 @@ export function VideoProducerSequentialFlow({ projectId: initialProjectId = "", 
 
   useEffect(() => {
     if (!projectId) return;
-    void loadDetail();
-    if (["finish", "review", "deliver"].includes(step)) void loadFinishing();
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      void loadDetail();
+      if (["finish", "review", "deliver"].includes(step)) void loadFinishing();
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [loadDetail, loadFinishing, projectId, step]);
 
   useEffect(() => {
@@ -362,6 +367,7 @@ export function VideoProducerSequentialFlow({ projectId: initialProjectId = "", 
       <div className={styles.flowShell}>
         <div className={styles.flowTopline}>
           <Link className={styles.backLink} href="/admin/video-producer"><ArrowLeft size={14}/> Projects</Link>
+          {projectId ? <Link className={styles.backLink} href={`/admin/video-producer/${projectId}/edit`}>Open scene editor <ArrowRight size={14}/></Link> : null}
           <span className={styles.projectBadge}>{project?.title || title || "New project"}</span>
         </div>
 
@@ -487,7 +493,11 @@ export function VideoProducerSequentialFlow({ projectId: initialProjectId = "", 
                 <h3 className={styles.panelTitle}><ImageIcon size={17}/> YouTube thumbnail lab</h3>
                 <p className={styles.panelText}>Three materially different candidates from real episode frames: face hook, doctrine and pathway.</p>
                 <button className={styles.buttonSecondary} style={{ marginTop: 12 }} disabled={Boolean(busy)} onClick={() => void generateThumbnails()}><Sparkles size={14}/>{finishing.thumbnails.length ? " Regenerate 3 candidates" : " Generate 3 candidates"}</button>
-                {finishing.thumbnails.length ? <div className={styles.thumbGrid}>{finishing.thumbnails.map((thumb) => <div className={styles.thumb} key={thumb.variant}><div className={styles.thumbVisual}>{thumb.previewUrl ? <img src={thumb.previewUrl} alt={`${thumb.variant} thumbnail`}/> : ["queued","rendering"].includes(thumb.status) ? <><Loader2 size={18} className={styles.spin}/> Rendering</> : "Not rendered"}</div><div className={styles.thumbCopy}><small>{thumb.variant.replace("-"," ")}</small><strong>{thumb.headline}</strong></div></div>)}</div> : null}
+                {finishing.thumbnails.length ? <div className={styles.thumbGrid}>{finishing.thumbnails.map((thumb) => <div className={styles.thumb} key={thumb.variant}><div className={styles.thumbVisual}>{thumb.previewUrl ? (
+                  // Signed private thumbnail. next/image cannot attach the Studio session or the blob signature.
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={thumb.previewUrl} alt={`${thumb.variant} thumbnail`}/>
+                ) : ["queued","rendering"].includes(thumb.status) ? <><Loader2 size={18} className={styles.spin}/> Rendering</> : "Not rendered"}</div><div className={styles.thumbCopy}><small>{thumb.variant.replace("-"," ")}</small><strong>{thumb.headline}</strong></div></div>)}</div> : null}
               </div> : null}
 
               <div className={styles.stickyActions}><button className={styles.buttonSecondary} onClick={() => go("produce")}><ArrowLeft size={15}/> Produce</button><button className={styles.button} disabled={!finishReady} onClick={() => go("review")}>Continue to Review <ArrowRight size={15}/></button></div>

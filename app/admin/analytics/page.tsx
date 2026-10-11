@@ -15,6 +15,8 @@ import {
   type AnalyticsV3Signal
 } from "@/analytics-v3";
 import { loadAnalyticsV3 } from "@/analytics-v3-server";
+import { loadPathwayReaderFunnels } from "@/pathway-reader-funnel-server";
+import type { PathwayReaderFunnel } from "@/pathway-reader-funnel";
 import { getStudioPermission } from "@/auth";
 import { articles } from "@/data";
 import { getSearchConsoleSnapshot, searchConsoleOpportunities } from "@/google-search-console";
@@ -58,7 +60,7 @@ function SignalCard({ signal }: { signal: AnalyticsV3Signal }) {
 
 function biggestPathwayLoss(row: AnalyticsV3PathwayRow) {
   const stages = [
-    { label: "Start → 25%", lost: row.starts - row.reach25 },
+    { label: "Open → 25%", lost: row.starts - row.reach25 },
     { label: "25% → 50%", lost: row.reach25 - row.reach50 },
     { label: "50% → 75%", lost: row.reach50 - row.reach75 },
     { label: "75% → complete", lost: row.reach75 - row.completions }
@@ -69,7 +71,7 @@ function biggestPathwayLoss(row: AnalyticsV3PathwayRow) {
 function PathwayCard({ row, title }: { row: AnalyticsV3PathwayRow; title: string }) {
   const loss = biggestPathwayLoss(row);
   const stages = [
-    { label: "Started", value: row.starts, percent: 100 },
+    { label: "Opened", value: row.starts, percent: 100 },
     { label: "25%", value: row.reach25, percent: analyticsRate(row.reach25, row.starts) },
     { label: "50%", value: row.reach50, percent: analyticsRate(row.reach50, row.starts) },
     { label: "75%", value: row.reach75, percent: analyticsRate(row.reach75, row.starts) },
@@ -82,17 +84,49 @@ function PathwayCard({ row, title }: { row: AnalyticsV3PathwayRow; title: string
       <Link href={`/pathways/${row.slug}`}>Open →</Link>
     </div>
     <div className="analytics-v3-pathway-stats">
-      <span><b>{row.starts}</b><small>starts</small></span>
+      <span><b>{row.starts}</b><small>opens</small></span>
       <span><b>{row.averageProgress}%</b><small>avg. depth</small></span>
       <span><b>{row.completions} of {row.starts}</b><small>completed</small></span>
       <span><b>{row.completionRate}%</b><small>completion rate</small></span>
     </div>
-    <p className="analytics-v3-pathway-change">Starts: {formatAnalyticsComparison(starts)}</p>
+    <p className="analytics-v3-pathway-change">Opens: {formatAnalyticsComparison(starts)}</p>
     <div className="analytics-v3-funnel">{stages.map((stage) => <div key={stage.label}>
       <div><span>{stage.label}</span><b>{stage.value} · {stage.percent}%</b></div>
       <i><em style={{ width: `${stage.percent}%` }}/></i>
     </div>)}</div>
     <p className="analytics-v3-drop"><strong>Biggest observed loss:</strong> {loss.label} · {Math.max(0, loss.lost)} session{loss.lost === 1 ? "" : "s"}</p>
+  </article>;
+}
+
+function ReaderPathwayCard({ row }: { row: PathwayReaderFunnel }) {
+  const stages = [
+    { label: "Opened", value: row.opens, percent: 100 },
+    ...row.steps.map((step) => ({
+      label: `Step ${step.stepNumber} · ${step.reference}`,
+      value: step.reached,
+      percent: analyticsRate(step.reached, row.opens)
+    })),
+    { label: "Reading complete", value: row.completions, percent: analyticsRate(row.completions, row.opens) }
+  ];
+
+  return <article className="analytics-v3-pathway">
+    <div className="analytics-v3-pathway-head">
+      <div><span>30-DAY READER WATERFALL</span><h3>{row.title}</h3><small>{row.diagnosis.label} · {row.diagnosis.confidence} signal</small></div>
+      <Link href={`/pathways/${row.slug}`}>Open →</Link>
+    </div>
+    <div className="analytics-v3-pathway-stats">
+      <span><b>{row.opens}</b><small>opens</small></span>
+      <span><b>{row.began}</b><small>began reading</small></span>
+      <span><b>{row.openToBeginRate}%</b><small>open → Step 1</small></span>
+      <span><b>{row.beginToCompleteRate}%</b><small>finish after beginning</small></span>
+    </div>
+    <div className="analytics-v3-funnel">{stages.map((stage) => <div key={stage.label}>
+      <div><span>{stage.label}</span><b>{stage.value} · {stage.percent}% of opens</b></div>
+      <i><em style={{ width: `${stage.percent}%` }}/></i>
+    </div>)}</div>
+    <p className={`analytics-v3-drop ${row.diagnosis.review ? "is-review" : ""}`}><strong>{row.diagnosis.review ? "Needs review:" : "Diagnosis:"}</strong> {row.diagnosis.detail}</p>
+    <p className="analytics-v3-drop"><strong>Largest exact loss:</strong> {row.largestDrop.from} → {row.largestDrop.to} · {row.largestDrop.lost} session{row.largestDrop.lost === 1 ? "" : "s"} lost · {row.largestDrop.retentionRate}% retained</p>
+    <p className="analytics-v3-pathway-change">{row.appTransitions} session{row.appTransitions === 1 ? "" : "s"} intentionally moved into the app during this Pathway. App movement is shown separately so it is not automatically treated as reader failure.</p>
   </article>;
 }
 
@@ -107,8 +141,9 @@ export default async function AdminAnalyticsPage() {
   const { access, allowed } = await getStudioPermission("view_analytics");
   if (!allowed || access.state !== "allowed") redirect("/admin");
 
-  const [{ snapshot, articles: articleRows, fallback, error }, searchConsole] = await Promise.all([
+  const [{ snapshot, articles: articleRows, fallback, error }, readerFunnels, searchConsole] = await Promise.all([
     loadAnalyticsV3(),
+    loadPathwayReaderFunnels({ days: 30 }),
     getSearchConsoleSnapshot()
   ]);
 
@@ -133,6 +168,8 @@ export default async function AdminAnalyticsPage() {
     .sort((a, b) => b.uniqueSessions - a.uniqueSessions)
     .slice(0, 8);
   const googleOpportunities = searchConsoleOpportunities(searchConsole);
+  const reviewRows = readerFunnels.rows.filter((row) => row.diagnosis.review);
+  const collectingRows = readerFunnels.rows.filter((row) => row.diagnosis.kind === "collecting");
   const c = snapshot.period.current;
   const p = snapshot.period.previous;
   const searchSuccess = Math.max(0, c.searchSessions - c.noResultSearchSessions);
@@ -144,23 +181,29 @@ export default async function AdminAnalyticsPage() {
       <h1>Analytics V3</h1>
       <p>Know who arrived, where they came from, what they studied, where they stopped, and what deserves attention next.</p>
       <div className="analytics-v3-period"><strong>LAST 7 DAYS</strong><span>vs previous 7 days</span><b>{snapshot.period.trackingDays} tracked days</b></div>
+      <nav className="analytics-v3-nav" aria-label="Analytics sections">
+        <a href="#overview">Overview</a><a href="#attention">Needs review{reviewRows.length ? ` · ${reviewRows.length}` : ""}</a><a href="#pathways">Pathways</a><a href="#growth">Growth</a><a href="#content">Content</a><a href="#system">System</a>
+      </nav>
       {fallback ? <div className="analytics-v3-baseline-note"><strong>V3 database migration pending.</strong><span>The page is safely using V2 exact aggregates until the new snapshot is available. Full comparisons and daily V3 analysis stay disabled.</span></div> : null}
     </header>
 
-    <section className="analytics-v3-section">
+    <section className="analytics-v3-section" id="overview">
       <div className="analytics-v3-section-head"><div><span>OPERATING VIEW</span><h2>This week</h2></div><p>Exact counts first. Every comparison shows the actual current and prior values.</p></div>
       <div className="analytics-v3-metrics">
         <MetricCard label="Public visitors" value={c.visitors} current={c.visitors} previous={p.visitors} ready={snapshot.period.trendReady} confidenceBase={c.visitors + p.visitors} definition="Distinct anonymous browser identities that viewed at least one public page during the period. This is a tracked browser count, not a guaranteed count of individual humans."/>
         <MetricCard label="Sessions" value={c.sessions} current={c.sessions} previous={p.sessions} ready={snapshot.period.trendReady} definition="Distinct public browsing sessions with at least one page view."/>
         <MetricCard label="Page views" value={c.pageViews} current={c.pageViews} previous={p.pageViews} ready={snapshot.period.trendReady} definition="Recorded public page_viewed events after known Studio and preview sessions are excluded."/>
         <MetricCard label="Engaged studies" value={c.engagedStudySessions} current={c.engagedStudySessions} previous={p.engagedStudySessions} ready={snapshot.period.trendReady} definition="Sessions with a completed Pathway step, meaningful article completion, Pathway completion, audio completion, or at least 30 seconds of tracked Pathway audio."/>
-        <MetricCard label="Pathway starts" value={c.pathwayStartSessions} current={c.pathwayStartSessions} previous={p.pathwayStartSessions} ready={snapshot.period.trendReady} definition="Distinct public sessions that fired pathway_started during the period."/>
+        <MetricCard label="Pathway opens" value={c.pathwayStartSessions} current={c.pathwayStartSessions} previous={p.pathwayStartSessions} ready={snapshot.period.trendReady} definition="Distinct public sessions that opened a Pathway page. The legacy pathway_started event fires on route open, so the Reader Waterfall below uses Step 1 as the stronger signal that someone actually began reading."/>
         <MetricCard label="Pathway completions" value={c.pathwayCompletionSessions} current={c.pathwayCompletionSessions} previous={p.pathwayCompletionSessions} ready={snapshot.period.trendReady} definition="Distinct public sessions that fired pathway_completed during the period."/>
         <MetricCard label="App transitions" value={c.appTransitionSessions} current={c.appTransitionSessions} previous={p.appTransitionSessions} ready={snapshot.period.trendReady} definition="Distinct public sessions that intentionally clicked from the website into the Apostolic Guide app."/>
         <MetricCard label="Search sessions" value={c.searchSessions} current={c.searchSessions} previous={p.searchSessions} ready={snapshot.period.trendReady} definition="Distinct public sessions that submitted at least one Apostolic Guide search."/>
       </div>
     </section>
 
+    <details className="analytics-v3-group" open>
+      <summary><span>Overview</span><strong>Signals, AI brief, daily rhythm, collections</strong></summary>
+      <div className="analytics-v3-group-body">
     <section className="analytics-v3-section">
       <div className="analytics-v3-section-head"><div><span>DECISION LAYER</span><h2>What changed</h2></div><p>Rules interpret exact facts before Sol ever sees them.</p></div>
       {signals.length ? <div className="analytics-v3-signals">{signals.map((signal) => <SignalCard key={signal.id} signal={signal}/>)}</div> : <div className="analytics-v3-empty"><strong>No major rule-based warning yet.</strong><span>Keep collecting clean traffic and study behavior. V3 will surface movement when the sample supports it.</span></div>}
@@ -174,7 +217,7 @@ export default async function AdminAnalyticsPage() {
         <strong>{new Date(`${day.date}T12:00:00`).toLocaleDateString("en-US", { weekday: "short" })}</strong>
         <span><b>{day.visitors}</b><small>visitors</small></span>
         <span><b>{day.engagedStudySessions}</b><small>study</small></span>
-        <span><b>{day.pathwayStarts}</b><small>starts</small></span>
+        <span><b>{day.pathwayStarts}</b><small>opens</small></span>
         <span><b>{day.pageViews}</b><small>views</small></span>
       </article>)}</div> : <div className="analytics-v3-empty"><strong>Daily V3 series is waiting for the new database snapshot.</strong></div>}
     </section>
@@ -183,18 +226,47 @@ export default async function AdminAnalyticsPage() {
       <div className="analytics-v3-section-head"><div><span>PATHWAY COLLECTIONS</span><h2>What people are studying</h2></div><p>Roll individual Pathways into the four current theological collections before drilling down.</p></div>
       <div className="analytics-v3-collections">{collections.map((row) => <article key={row.collection}>
         <span>COLLECTION</span><h3>{row.collection}</h3>
-        <div><b>{row.starts}</b><small>starts</small></div>
+        <div><b>{row.starts}</b><small>opens</small></div>
         <div><b>{row.weightedAverageProgress}%</b><small>avg. depth</small></div>
         <div><b>{row.completions} of {row.starts}</b><small>completed · {row.completionRate}%</small></div>
         <p>{row.activePathways} active Pathway{row.activePathways === 1 ? "" : "s"} in this period.</p>
       </article>)}</div>
     </section>
+      </div>
+    </details>
 
-    <section className="analytics-v3-section">
-      <div className="analytics-v3-section-head"><div><span>PATHWAY FUNNELS</span><h2>Where readers continue or stop</h2></div><p>Counts and percentages stay together so mobile can never turn “3 completions · 19%” into “319%.”</p></div>
-      {pathwayRows.length ? <div className="analytics-v3-pathways">{pathwayRows.map((row) => <PathwayCard key={row.slug} row={row} title={row.title}/>)}</div> : <div className="analytics-v3-empty"><strong>No Pathway starts in this period.</strong></div>}
+    <section className="analytics-v3-section analytics-v3-priority" id="attention">
+      <div className="analytics-v3-section-head"><div><span>NEEDS REVIEW</span><h2>Pathways with enough evidence to inspect</h2></div><p>Diagnosis is intentionally conservative. Five readers can surface a usable warning; 10+ is preferred before rewriting content.</p></div>
+      {reviewRows.length ? <div className="analytics-v3-signals">{reviewRows.map((row) => <article className="analytics-v3-signal is-warning" key={row.slug}>
+        <div className="analytics-v3-signal-top"><span>{row.diagnosis.label}</span><b>{row.diagnosis.confidence} signal</b></div>
+        <h3>{row.title}</h3><p>{row.diagnosis.detail}</p>
+        <div className="analytics-v3-evidence-row"><span><b>{row.began}</b><small>began</small></span><span><b>{row.beginToCompleteRate}%</b><small>finish after beginning</small></span><span><b>{row.largestDrop.retentionRate}%</b><small>largest-transition retention</small></span></div>
+        <Link href={`/pathways/${row.slug}`}>Inspect Pathway →</Link>
+      </article>)}</div> : <div className="analytics-v3-empty"><strong>No Pathway currently crosses the review threshold.</strong><span>{collectingRows.length} Pathway{collectingRows.length === 1 ? "" : "s"} still collecting reader volume.</span></div>}
     </section>
 
+    <details className="analytics-v3-group" id="pathways">
+      <summary><span>Pathway detail</span><strong>Funnels and exact reader waterfalls</strong></summary>
+      <div className="analytics-v3-group-body">
+    <section className="analytics-v3-section">
+      <div className="analytics-v3-section-head"><div><span>PATHWAY FUNNELS</span><h2>Where readers continue or stop</h2></div><p>Counts and percentages stay together so mobile can never turn “3 completions · 19%” into “319%.”</p></div>
+      {pathwayRows.length ? <div className="analytics-v3-pathways">{pathwayRows.map((row) => <PathwayCard key={row.slug} row={row} title={row.title}/>)}</div> : <div className="analytics-v3-empty"><strong>No Pathway opens in this period.</strong></div>}
+    </section>
+
+    <section className="analytics-v3-section">
+      <div className="analytics-v3-section-head"><div><span>READER WATERFALL</span><h2>Exactly where Pathway readers stop</h2></div><p>This 30-day view reconstructs the full sequence from the existing event ledger: open → Step 1 → Step 2 → every remaining step → reading completion. It uses the current Pathway step order, so review recent structural edits before interpreting older events.</p></div>
+      {readerFunnels.error ? <div className="analytics-v3-inline-error"><strong>Exact reader waterfall could not load.</strong><span>{readerFunnels.error}</span></div> : readerFunnels.rows.length ? <>
+        {readerFunnels.truncated ? <div className="analytics-v3-baseline-note"><strong>Reader event query reached its safety cap.</strong><span>The visible counts are a partial sample. Increase the server-side aggregation capacity before making content edits from this view.</span></div> : null}
+        <div className="analytics-v3-pathways">{readerFunnels.rows.map((row) => <ReaderPathwayCard key={row.slug} row={row}/>)}</div>
+      </> : <div className="analytics-v3-empty"><strong>No Pathway reading activity in the last 30 days.</strong><span>Pathway opens alone are not counted as reading. A reader must reach at least Step 1.</span></div>}
+    </section>
+
+      </div>
+    </details>
+
+    <details className="analytics-v3-group" id="growth">
+      <summary><span>Growth</span><strong>Acquisition, search demand, Google</strong></summary>
+      <div className="analytics-v3-group-body">
     <section className="analytics-v3-section">
       <div className="analytics-v3-section-head"><div><span>ACQUISITION QUALITY</span><h2>Where useful traffic comes from</h2></div><p>Traffic volume alone is weak. Compare each source by study, completion, and app movement.</p></div>
       {snapshot.acquisition.length ? <div className="analytics-v3-acquisition">{snapshot.acquisition.map((row) => {
@@ -241,6 +313,12 @@ export default async function AdminAnalyticsPage() {
       </>}
     </section>
 
+      </div>
+    </details>
+
+    <details className="analytics-v3-group" id="content">
+      <summary><span>Audience + content</span><strong>Devices, geography, pages, campaigns, articles</strong></summary>
+      <div className="analytics-v3-group-body">
     <section className="analytics-v3-section analytics-v3-split">
       <div><div className="analytics-v3-section-head"><div><span>DEVICE QUALITY</span><h2>Does mobile behavior differ?</h2></div></div><div className="analytics-v3-quality-grid">{snapshot.devices.length ? snapshot.devices.map((row) => <QualityCard key={row.label} row={row}/>) : <div className="analytics-v3-empty"><strong>Device quality is collecting.</strong></div>}</div></div>
       <div><div className="analytics-v3-section-head"><div><span>GEOGRAPHY</span><h2>Where useful sessions come from</h2></div></div><div className="analytics-v3-quality-grid">{snapshot.countries.length ? snapshot.countries.slice(0, 8).map((row) => <QualityCard key={row.label} row={row}/>) : <div className="analytics-v3-empty"><strong>Geographic quality is collecting.</strong></div>}</div></div>
@@ -256,6 +334,12 @@ export default async function AdminAnalyticsPage() {
       {currentArticles.length ? <div className="analytics-v3-articles">{currentArticles.map((row) => <article key={row.slug}><h3>{row.title}</h3><div><span><b>{row.uniqueSessions}</b><small>sessions</small></span><span><b>{row.completions}</b><small>completions</small></span><span><b>{row.completionRate}%</b><small>completion</small></span><span><b>{row.appTransitions}</b><small>app</small></span></div></article>)}</div> : <div className="analytics-v3-empty"><strong>No article study telemetry yet.</strong></div>}
     </section>
 
+      </div>
+    </details>
+
+    <details className="analytics-v3-group" id="system">
+      <summary><span>System</span><strong>Live telemetry and data quality</strong></summary>
+      <div className="analytics-v3-group-body">
     <section className="analytics-v3-section">
       <div className="analytics-v3-section-head"><div><span>LIVE + DATA QUALITY</span><h2>Can we trust what we are seeing?</h2></div><p>Known Studio and Vercel-preview sessions stay outside public acquisition metrics.</p></div>
       <AdminLiveMetrics/>
@@ -266,5 +350,7 @@ export default async function AdminAnalyticsPage() {
         <span><b>{searchConsole.configured ? (searchConsole.error ? "Needs attention" : "Connected") : "Optional"}</b><small>Google Search Console</small></span>
       </div>
     </section>
+      </div>
+    </details>
   </main>;
 }

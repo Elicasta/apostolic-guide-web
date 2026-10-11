@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { assertEditorialSourceCurrent } from "@/editorial-engine";
 import { z } from "zod";
 import { getStudioPermission } from "@/auth";
 import { CREATIVE_PUBLICATION_MODES, currentRenderSet, nextAvailablePublishingSlot, publicationStatusForMode } from "@/creative-publishing";
@@ -67,6 +68,7 @@ export async function POST(request: Request) {
     if (!["ready", "published", "failed", "needs_manual_finish"].includes(project.status)) {
       return NextResponse.json({ error: "Mark the Creative Project Ready before publishing it." }, { status: 409 });
     }
+    assertEditorialSourceCurrent(project);
     const active = await service.from("pathway_publications")
       .select("id,status,scheduled_for")
       .eq("creative_project_id", project.id)

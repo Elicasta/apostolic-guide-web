@@ -72,9 +72,9 @@ export function VideoProducerNewProject({ initialMode = "podcast" }: { initialMo
         clientPayload: JSON.stringify({ projectId, filename: file.name, contentType: mime, size: file.size }),
         onUploadProgress(event) { setProgress(Math.round(event.percentage)); }
       });
-      setProgress(100); setMessage("Upload complete. Starting timestamped transcription…");
-      await json("/api/admin/video-producer/transcribe", { method: "POST", body: JSON.stringify({ projectId }) });
-      router.replace(`/admin/video-producer/${projectId}/source`);
+      setProgress(100); setMessage("Upload complete. Preparing your first cut…");
+      await json("/api/admin/video-producer/draft", { method: "POST", body: JSON.stringify({ projectId }) });
+      router.replace(`/admin/video-producer/${projectId}/edit`);
     } catch (actionError) {
       setError(actionError instanceof Error ? actionError.message : "Project could not be started.");
       setBusy(false);

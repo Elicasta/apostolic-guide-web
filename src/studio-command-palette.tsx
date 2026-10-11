@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { useRouter } from "next/navigation";
-import { Activity, BarChart3, Bell, BookOpen, Bot, FileClock, FileText, HeartHandshake, Inbox, Instagram, ListFilter, Mail, MessageCircle, Route, Search, Send, Settings, ShieldCheck, Sparkles, UserCog, Users, type LucideIcon } from "lucide-react";
+import { Activity, BarChart3, Bell, BookOpen, Bot, FileClock, FileText, HeartHandshake, Inbox, Instagram, ListFilter, Mail, MessageCircle, Route, Search, Send, Settings, ShieldCheck, Sparkles, TerminalSquare, UserCog, Users, type LucideIcon } from "lucide-react";
 import { hasStudioPermission, type StudioPermission, type StudioRole } from "@/studio-permissions";
 
 type SearchResult = {
@@ -27,6 +27,7 @@ type StaticCommand = {
 const staticCommands: StaticCommand[] = [
   { id: "overview", label: "Overview", description: "Open the Studio dashboard", href: "/admin", permission: "view_workspace", Icon: BarChart3 },
   { id: "sol", label: "Sol Content Operator", description: "Review gaps, approvals, runs, and KPI pace", href: "/admin/sol", permission: "view_workspace", Icon: Bot },
+  { id: "grokbot", label: "Grokbot Workbench", description: "Run registered Studio actions from the command terminal", href: "/admin/grokbot", permission: "view_workspace", Icon: TerminalSquare },
   { id: "growth", label: "Growth Hub", description: "Growth and channel overview", href: "/admin/growth", permission: "view_workspace", Icon: Sparkles },
   { id: "people", label: "People", description: "Search relationship profiles", href: "/admin/people", permission: "view_people", Icon: Users },
   { id: "segments", label: "Segments", description: "Open live and custom audiences", href: "/admin/segments", permission: "view_segments", Icon: ListFilter },

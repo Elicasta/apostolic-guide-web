@@ -182,6 +182,14 @@ const SURFACES: SurfaceDefinition[] = [
     quickPrompts: ["Is Sol healthy?", "What is failing right now?", "What can I fix from Studio?"]
   },
   {
+    key: "grokbot",
+    label: "Grokbot Workbench",
+    section: "Workspace",
+    match: (pathname) => pathname === "/admin/grokbot" || pathname.startsWith("/admin/grokbot/"),
+    capabilities: ["Run registered read actions", "Inspect Pathways and private creative state", "Keep public effects behind the approval boundary"],
+    quickPrompts: ["What needs attention?", "Show the God Is One Pathway", "What is Sol waiting on?"]
+  },
+  {
     key: "overview",
     label: "Studio Overview",
     section: "Workspace",
