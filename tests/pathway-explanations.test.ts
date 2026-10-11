@@ -60,3 +60,13 @@ test("sensitive doctrinal explanations use the surrounding passage, not an isola
   assert.match(corinthians, /interpretation/i);
   assert.match(corinthians, /Paul/i);
 });
+
+test("the public Pathway card shows the canonical explanation without truncation or hiding it", async () => {
+  const { readFileSync } = await import("node:fs");
+  const reader = readFileSync("src/pathway-card-reader.tsx", "utf8");
+  const route = readFileSync("app/pathways/[slug]/page.tsx", "utf8");
+  assert.match(reader, /What this shows/);
+  assert.match(reader, /<p>\{step\.explanation\}<\/p>/);
+  assert.match(route, /<PathwayCardReader/);
+  assert.match(route, /steps=\{readerSteps\}/);
+});
