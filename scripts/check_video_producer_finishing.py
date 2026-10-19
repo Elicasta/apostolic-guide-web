@@ -69,7 +69,7 @@ def manifest(music_path):
                 {"id": "path", "kind": "pathway", "start": .2, "duration": .6, "title": "GOD IS ONE PATHWAY", "body": "Follow along through the Scriptures", "reference": None, "animation": "rise", "placement": "lower-third", "outputStart": .2, "outputRanges": visible(.2,.8)},
                 {"id": "chapter", "kind": "chapter", "start": .9, "duration": .7, "title": "THE CONTROLLING CONFESSION", "body": None, "reference": "Deuteronomy 6:4", "animation": "wipe", "placement": "full-frame", "outputStart": .9, "outputRanges": visible(.9,1.6)},
                 {"id": "verse-short", "kind": "scripture", "start": 1.8, "duration": .8, "title": "The Lord our God is one.", "body": None, "reference": "Deuteronomy 6:4", "animation": "fade", "placement": "lower-third", "outputStart": 1.8, "outputRanges": visible(1.8,2.6)},
-                {"id": "verse-long", "kind": "scripture", "start": 3.0, "duration": .8, "title": "Before me there was no God formed, neither shall there be after me.", "body": None, "reference": "Isaiah 43:10", "animation": "fade", "placement": "lower-third", "outputStart": 3.0, "outputRanges": visible(3.0,3.8)}
+                {"id": "verse-long", "kind": "scripture", "start": 3.0, "duration": .8, "title": "Before me there was no God formed, neither shall there be after me.", "body": None, "reference": "Isaiah 43:10", "animation": "fade", "placement": "full-frame", "outputStart": 3.0, "outputRanges": visible(3.0,3.8)}
             ],
             "motion": [],
             "music": [{"id":"ag-music-bed","trackId":"music","start":0,"end":6,"gainDb":-28,"duckUnderVoice":True,"outputRanges":visible(0,6)}],
@@ -129,9 +129,30 @@ def main():
             raise RuntimeError("finishing smoke master missing")
         with open(ass, "r", encoding="utf-8") as handle:
             text = handle.read()
-        for expected in ["PATHWAY STOP 1", "GOD IS ONE", "STOP 1", "THE CONTROLLING CONFESSION"]:
+
+        # Broadcast Graphics / 03 must preserve pathway + Scripture orientation while
+        # rejecting the old all-section PATHWAY STOP 1 follower language. Long verses
+        # intentionally contain ASS line breaks, so verify semantic fragments rather than
+        # depending on one serialized line.
+        for expected in [
+            "AG / PATHWAY STOP",
+            "GOD IS ONE PATHWAY",
+            "AG / SECTION",
+            "THE CONTROLLING CONFESSION",
+            "DEUTERONOMY 6:4",
+            "The Lord our God is one.",
+            "ISAIAH 43:10",
+            "Before me there was no God formed",
+            "after me.",
+            "AG / SCRIPTURE"
+        ]:
             if expected not in text:
-                raise RuntimeError(f"Graphics V2 ASS missing {expected}")
+                raise RuntimeError(f"Broadcast Graphics 03 ASS missing {expected}")
+        if "PATHWAY STOP 1" in text:
+            raise RuntimeError("Broadcast Graphics 03 reintroduced the old persistent Pathway follower language")
+        for token, label in [("3D2DA1", "crimson"), ("F4F7F5", "paper"), ("2A2010", "ink")]:
+            if token not in text:
+                raise RuntimeError(f"Broadcast Graphics 03 ASS is missing canonical AG {label}")
 
         reel = reel_manifest()
         finishing.bw.base.validate_manifest(reel)
