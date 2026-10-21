@@ -33,7 +33,7 @@ export function SiteHeader() {
       <div className="shell header-inner">
         <Brand />
         <nav className="desktop-nav" aria-label="Primary navigation">
-          {navLinks.map(([label, href]) => <Link key={href} href={href}>{label}</Link>)}
+          {navLinks.map(([label, href]) => <Link key={href} data-study-entry={href === "/pathways" ? "primary-nav" : undefined} href={href}>{label}</Link>)}
         </nav>
         <div className="header-actions">
           <Link className="icon-link" href="/search" aria-label="Search"><Search size={19} /></Link>
