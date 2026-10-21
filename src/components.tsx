@@ -19,9 +19,9 @@ export function Brand({ reversed = false }: { reversed?: boolean }) {
 }
 
 const navLinks = [
-  ["Topics", "/topics"],
-  ["Scripture", "/scripture"],
   ["Pathways", "/pathways"],
+  ["Scripture", "/scripture"],
+  ["Topics", "/topics"],
   ["Articles", "/articles"],
   ["Media", "/media"],
   ["About", "/about"]
