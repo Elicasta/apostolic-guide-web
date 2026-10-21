@@ -22,6 +22,14 @@ export function PathwayStudyTracker({ slug, stepCount }: { slug: string; stepCou
           const timer = window.setTimeout(() => {
             completed.add(index);
             timers.delete(index);
+            trackEvent("pathway_step_viewed", cardReaderStepProperties({
+              slug,
+              stepIndex: index,
+              stepCount,
+              reference: element.dataset.pathwayReference ?? null
+            }));
+            // Legacy event kept for comparable history while transition analytics
+            // records how readers actually navigate the card interface.
             trackEvent("pathway_step_completed", cardReaderStepProperties({
               slug,
               stepIndex: index,

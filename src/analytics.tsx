@@ -12,6 +12,9 @@ export type EventName =
   | "scripture_opened"
   | "pathway_started"
   | "pathway_step_completed"
+  | "pathway_step_viewed"
+  | "pathway_step_navigated"
+  | "pathway_entry_clicked"
   | "pathway_completed"
   | "search_submitted"
   | "search_result_opened"
@@ -141,6 +144,17 @@ export function trackEvent(name: EventName, properties?: EventProperties) {
   if (location.pathname.startsWith("/admin")) return;
   const anonymousId = getAnonymousId();
   setCrossDomainAnonymousCookie(anonymousId);
+  // GA4 is an optional supplementary view. Never send anonymous IDs, raw
+  // search queries, or private study content to Google.
+  const gtag = (window as Window & { gtag?: (...args: unknown[]) => void }).gtag;
+  if (typeof gtag === "function") {
+    const pathwaySlug = typeof properties?.pathwaySlug === "string" ? properties.pathwaySlug : null;
+    if (name === "page_viewed") gtag("event", "page_view", { page_location: location.origin + location.pathname, page_title: document.title });
+    if (name === "pathway_entry_clicked") gtag("event", "pathway_entry", { pathway_slug: pathwaySlug, placement: properties?.placement ?? null });
+    if (name === "pathway_step_navigated") gtag("event", "pathway_navigation", { pathway_slug: pathwaySlug, navigation_method: properties?.method ?? null, from_step: properties?.fromStep ?? null, to_step: properties?.toStep ?? null });
+    if (name === "pathway_completed") gtag("event", "pathway_complete", { pathway_slug: pathwaySlug });
+    if (name === "app_link_clicked") gtag("event", "app_transition", { placement: properties?.placement ?? null });
+  }
   sendEvent({
     name,
     path: `${location.pathname}${location.search}`,
@@ -250,6 +264,10 @@ export function ProductAnalytics() {
       const anchor = target?.closest("a");
       if (!anchor) return;
       const url = new URL(anchor.href, location.href);
+      const entryPlacement = anchor.dataset.studyEntry;
+      if (entryPlacement && url.origin === location.origin && url.pathname.startsWith("/pathways/")) {
+        trackEvent("pathway_entry_clicked", { pathwaySlug: url.pathname.split("/")[2] ?? null, placement: entryPlacement });
+      }
 
       if (url.hostname === "app.apostolicguide.com") {
         trackEvent("app_link_clicked", {

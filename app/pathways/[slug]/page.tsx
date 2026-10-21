@@ -12,7 +12,7 @@ import { pathwaySuggestions } from "@/suggestion-data";
 import { scriptures, topicBySlug } from "@/data";
 import { getPathwayKjvPassage } from "@/pathway-kjv";
 import { allPathways, pathwayBySlug } from "@/pathway-catalog";
-import { breadcrumbJsonLd, buildSeoMetadata } from "@/seo";
+import { breadcrumbJsonLd, buildSeoMetadata, absoluteWebsiteUrl } from "@/seo";
 import { SearchIntentCluster } from "@/search-intent-cluster";
 import { buildAppUrl } from "@/urls";
 
@@ -28,7 +28,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!pathway) return {};
   return buildSeoMetadata({
     title: `${pathway.title} Bible Study`,
-    description: pathway.summary,
+    description: `${pathway.summary} Follow KJV Scripture cards with clear explanations and guided next steps.`,
     path: `/pathways/${slug}`,
     type: "article"
   });
@@ -66,11 +66,30 @@ export default async function PathwayPage({ params }: Props) {
     { name: "Pathways", path: "/pathways" },
     { name: pathway.title, path: currentPath }
   ]);
+  const studySchema = {
+    "@context": "https://schema.org",
+    "@type": "LearningResource",
+    name: `${pathway.title} Bible Study`,
+    description: pathway.summary,
+    url: absoluteWebsiteUrl(currentPath),
+    inLanguage: "en",
+    isAccessibleForFree: true,
+    learningResourceType: "Guided Scripture study",
+    educationalLevel: pathway.level,
+    about: pathway.collection,
+    hasPart: pathway.steps.map((step, index) => ({
+      "@type": "CreativeWork",
+      position: index + 1,
+      name: step.title,
+      description: `KJV passage: ${step.reference}`
+    }))
+  };
   const appHref = buildAppUrl(`/paths/${pathway.appSlug}`, { origin: `website-pathway-${pathway.slug}` });
 
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbs) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(studySchema) }} />
       <PathwayStudyTracker slug={pathway.slug} stepCount={pathway.steps.length}/>
       <section className="pathway-hero">
         <div className="shell">

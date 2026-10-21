@@ -23,8 +23,8 @@ first_touch_raw as (
     nullif(lower(trim(utm_source)), '') as utm_source,
     nullif(lower(trim(utm_campaign)), '') as utm_campaign,
     nullif(lower(trim(referrer_host)), '') as referrer_host,
-    coalesce(nullif(device_type, ''), 'Unknown') as device_type,
-    coalesce(nullif(country, ''), 'Unknown') as country
+    coalesce(nullif(device_class, ''), 'Unknown') as device_type,
+    coalesce(nullif(country_code, ''), 'Unknown') as country
   from analytics.events
   where session_id is not null
   order by session_id, occurred_at, id

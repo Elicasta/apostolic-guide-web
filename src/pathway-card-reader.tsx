@@ -5,6 +5,7 @@ import { ArrowLeft, ArrowRight, BookOpen, Check, List, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { BibleReferenceLink } from "./bible-links";
 import styles from "./pathway-card-reader.module.css";
+import { trackEvent } from "./analytics";
 
 export type PathwayReaderStep = {
   title: string;
@@ -70,8 +71,17 @@ export function PathwayCardReader({ slug, title, steps, nextPathway }: PathwayCa
     });
   }, []);
 
-  const setStep = useCallback((index: number, options: { push?: boolean; scroll?: boolean } = {}) => {
+  const setStep = useCallback((index: number, options: { push?: boolean; scroll?: boolean; method?: "arrow" | "keyboard" | "swipe" | "step_list" } = {}) => {
     const clamped = Math.max(0, Math.min(index, steps.length - 1));
+    if (clamped !== active && options.method) {
+      trackEvent("pathway_step_navigated", {
+        pathwaySlug: slug,
+        fromStep: active + 1,
+        toStep: clamped + 1,
+        stepCount: steps.length,
+        method: options.method
+      });
+    }
     setActive(clamped);
 
     if (typeof window !== "undefined") {
@@ -82,7 +92,7 @@ export function PathwayCardReader({ slug, title, steps, nextPathway }: PathwayCa
       }
       if (options.scroll !== false) scrollReaderIntoPlace();
     }
-  }, [scrollReaderIntoPlace, steps.length, storageKey]);
+  }, [active, scrollReaderIntoPlace, slug, steps.length, storageKey]);
 
   useEffect(() => {
     const hashStep = stepFromHash(steps.length);
@@ -123,8 +133,8 @@ export function PathwayCardReader({ slug, title, steps, nextPathway }: PathwayCa
         (target instanceof HTMLElement && target.isContentEditable)
       ) return;
 
-      if (event.key === "ArrowRight" && active < steps.length - 1) setStep(active + 1);
-      if (event.key === "ArrowLeft" && active > 0) setStep(active - 1);
+      if (event.key === "ArrowRight" && active < steps.length - 1) setStep(active + 1, { method: "keyboard" });
+      if (event.key === "ArrowLeft" && active > 0) setStep(active - 1, { method: "keyboard" });
     };
 
     window.addEventListener("keydown", onKeyDown);
@@ -155,8 +165,8 @@ export function PathwayCardReader({ slug, title, steps, nextPathway }: PathwayCa
         const deltaX = touch.clientX - start.x;
         const deltaY = touch.clientY - start.y;
         if (Math.abs(deltaX) < 55 || Math.abs(deltaX) <= Math.abs(deltaY)) return;
-        if (deltaX < 0 && !isLast) setStep(active + 1);
-        if (deltaX > 0 && !isFirst) setStep(active - 1);
+        if (deltaX < 0 && !isLast) setStep(active + 1, { method: "swipe" });
+        if (deltaX > 0 && !isFirst) setStep(active - 1, { method: "swipe" });
       }}
     >
       <article
@@ -171,7 +181,7 @@ export function PathwayCardReader({ slug, title, steps, nextPathway }: PathwayCa
           <button
             type="button"
             className={styles.arrowButton}
-            onClick={() => setStep(active - 1)}
+            onClick={() => setStep(active - 1, { method: "arrow" })}
             disabled={isFirst}
             aria-label="Previous study step"
           >
@@ -190,7 +200,7 @@ export function PathwayCardReader({ slug, title, steps, nextPathway }: PathwayCa
           <button
             type="button"
             className={styles.arrowButton}
-            onClick={() => setStep(active + 1)}
+            onClick={() => setStep(active + 1, { method: "arrow" })}
             disabled={isLast}
             aria-label="Next study step"
           >
@@ -252,19 +262,19 @@ export function PathwayCardReader({ slug, title, steps, nextPathway }: PathwayCa
           <button
             type="button"
             className={styles.previousButton}
-            onClick={() => setStep(active - 1)}
+            onClick={() => setStep(active - 1, { method: "arrow" })}
             disabled={isFirst}
           >
             <ArrowLeft size={17} /> Previous
           </button>
 
           {!isLast && nextStep ? (
-            <button type="button" className={styles.nextButton} onClick={() => setStep(active + 1)}>
+            <button type="button" className={styles.nextButton} onClick={() => setStep(active + 1, { method: "arrow" })}>
               <span><small>Next</small>{nextStep.reference}</span>
               <ArrowRight size={18} />
             </button>
           ) : nextPathway ? (
-            <Link className={styles.nextButton} href={nextPathway.href}>
+            <Link className={styles.nextButton} data-study-entry="reader-next-pathway" href={nextPathway.href}>
               <span><small>Continue pathway</small>{nextPathway.title}</span>
               <ArrowRight size={18} />
             </Link>
@@ -293,7 +303,7 @@ export function PathwayCardReader({ slug, title, steps, nextPathway }: PathwayCa
               className={index === active ? styles.overviewActive : styles.overviewItem}
               onClick={() => {
                 setShowAll(false);
-                setStep(index);
+                setStep(index, { method: "step_list" });
               }}
             >
               <span>{String(index + 1).padStart(2, "0")}</span>
