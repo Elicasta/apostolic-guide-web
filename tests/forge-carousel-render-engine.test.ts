@@ -55,3 +55,11 @@ test("role-specific frames keep doctrine text and Scripture reference in the ren
   assert.match(svg, /Deuteronomy 6:4/);
   assert.match(svg, /Hear, O Israel/);
 });
+
+test("large headline ink clears the role label", () => {
+  const sample = frame({ role: "scripture", headline: "Begin with the confession", body: "Hear, O Israel: The LORD our God is one LORD:", scripture: "Deuteronomy 6:4" });
+  const svg = renderForgeFrameSvg({frame:sample,index:0,total:1,pathwayTitle:"God Is One",projectTitle:"God Is One"});
+  const size = Number(svg.match(/\.headline \{[^}]*font-size: (\d+)px/)?.[1]);
+  const baseline = Number(svg.match(/<text x="72" y="(\d+)" class="headline"/)?.[1]);
+  assert.ok(baseline - size >= 280, "Headline top must remain below the role label baseline at 248.");
+});

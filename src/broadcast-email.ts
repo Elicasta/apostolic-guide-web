@@ -9,6 +9,7 @@ export type BroadcastCampaign = {
   summary: string;
   ctaLabel: string;
   url: string;
+  resources?: Array<{ title: string; summary: string; url: string }>;
 };
 
 function safeUrl(value: string) {
@@ -28,9 +29,11 @@ export function buildBroadcastEmail(campaign: BroadcastCampaign) {
   const url = safeUrl(campaign.url);
   const summary = escapeEmailHtml(campaign.summary);
   const type = escapeEmailHtml(typeLabel(campaign.type));
+  const resourcesHtml = (campaign.resources ?? []).slice(0, 3).map(resource => `<div style="padding:18px 0;border-top:1px solid #e5e9e7;"><a href="${escapeEmailHtml(safeUrl(resource.url))}" style="font-size:18px;font-weight:700;color:#a12d3d;">${escapeEmailHtml(resource.title)}</a><p style="font-size:15px;line-height:25px;color:#536269;">${escapeEmailHtml(resource.summary)}</p></div>`).join("");
   const bodyHtml = `
     <div style="display:inline-block;margin-bottom:18px;padding:6px 9px;border:1px solid #dfe5e3;border-radius:999px;font-size:10px;line-height:14px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#68777d;">${type}</div>
     <p style="margin:0;font-size:18px;line-height:30px;color:#536269;">${summary}</p>
+    ${resourcesHtml}
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;margin-top:28px;border-top:1px solid #e5e9e7;"><tr><td style="padding-top:22px;font-family:Georgia,'Times New Roman',serif;font-size:16px;line-height:25px;color:#536269;">Open the study, follow the passages in context, and keep the conversation anchored in Scripture.</td></tr></table>`;
 
   const designed = buildApostolicEmail({
@@ -45,6 +48,7 @@ export function buildBroadcastEmail(campaign: BroadcastCampaign) {
     unsubscribeUrl: "{{{RESEND_UNSUBSCRIBE_URL}}}"
   });
 
-  const text = `${campaign.eyebrow}\n\n${campaign.title}\n\n${campaign.summary}\n\n${campaign.ctaLabel}: ${url}\n\nApostolic Guide\nScripture first. Study carefully. Follow the text.\n\nUnsubscribe: {{{RESEND_UNSUBSCRIBE_URL}}}`;
+  const resourceText = (campaign.resources ?? []).slice(0, 3).map(resource => `${resource.title}\n${resource.summary}\n${safeUrl(resource.url)}`).join("\n\n");
+  const text = `${campaign.eyebrow}\n\n${campaign.title}\n\n${campaign.summary}\n\n${campaign.ctaLabel}: ${url}\n\n${resourceText}\n\nApostolic Guide\nScripture first. Study carefully. Follow the text.\n\nUnsubscribe: {{{RESEND_UNSUBSCRIBE_URL}}}`;
   return { html: designed.html, text };
 }
