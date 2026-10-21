@@ -46,8 +46,8 @@ export default function HomePage() {
             <h1>Know what you believe.<span>Know why.</span></h1>
             <p>Search Scripture, follow connected passages, and understand Apostolic doctrine from the text itself.</p>
             <div className="ei-actions">
-              <Link className="button button-crimson" href="#search">Search Scripture <Search size={17} /></Link>
-              <Link className="button button-outline" href="/topics">Explore topics <ArrowRight size={17} /></Link>
+              <Link className="button button-crimson" href="/pathways/god-is-one#step-1">Start guided Bible study <Route size={17} /></Link>
+              <Link className="button button-outline" href="/pathways">Browse all pathways <ArrowRight size={17} /></Link>
             </div>
           </div>
 
@@ -74,12 +74,46 @@ export default function HomePage() {
         </div>
       </section>
 
+      <section className="ei-pathway">
+        <div className="shell ei-pathway-grid">
+          <div className="ei-pathway-copy">
+            <span className="ei-section-number">01</span>
+            <span className="ei-kicker">Guided pathways</span>
+            <h2>Start here. Follow the Scriptures.</h2>
+            <p>Start with God Is One, then move passage by passage using the Next and Previous arrows. Each card includes Scripture, an explanation, and a clear next step.</p>
+            <div className="ei-pathway-meta">
+              <span>{allPathways.length} pathways</span>
+              <span>{pathwayCollectionCount} collections</span>
+              <span>Scripture first</span>
+            </div>
+            <div className="ei-actions"><Link className="button button-dark" href="/pathways/god-is-one#step-1">Begin with God Is One <ArrowRight size={17} /></Link><Link className="button button-outline" href="/pathways">Browse all pathways <Route size={17} /></Link></div>
+          </div>
+
+          <div className="ei-pathway-interface" data-reveal>
+            <header><span>Pathway library</span><span>Choose a study</span></header>
+            <div className="ei-pathway-track">
+              {pathwayPalette.map((pathway, index) => (
+                <Link href={`/pathways/${pathway.slug}`} className="ei-pathway-step" key={pathway.slug}>
+                  <span>{String(index + 1).padStart(2, "0")}</span>
+                  <div><strong>{pathway.title}</strong><small>{pathway.label}</small></div>
+                  <ArrowRight size={16} />
+                </Link>
+              ))}
+            </div>
+            <footer>
+              <span>Doctrine · Salvation · Questions</span>
+              <Link href="/pathways">Browse all pathways <ArrowRight size={14} /></Link>
+            </footer>
+          </div>
+        </div>
+      </section>
+
       <AppPromoBanner />
 
       <section className="ei-search" id="search">
         <div className="shell ei-section-grid">
           <div className="ei-section-intro">
-            <span className="ei-section-number">01</span>
+            <span className="ei-section-number">02</span>
             <span className="ei-kicker">Scripture search</span>
             <h2>Start with the question in front of you.</h2>
           </div>
@@ -98,7 +132,7 @@ export default function HomePage() {
       <section className="ei-questions">
         <div className="shell ei-section-heading">
           <div>
-            <span className="ei-section-number">02</span>
+            <span className="ei-section-number">03</span>
             <span className="ei-kicker">Direct answers</span>
             <h2>Begin with the real objection.</h2>
           </div>
@@ -121,7 +155,7 @@ export default function HomePage() {
       <section className="ei-topics">
         <div className="shell ei-section-heading ei-section-heading-dark">
           <div>
-            <span className="ei-section-number">03</span>
+            <span className="ei-section-number">04</span>
             <span className="ei-kicker ei-kicker-light">Doctrine library</span>
             <h2>Follow the whole biblical case.</h2>
           </div>
@@ -150,39 +184,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="ei-pathway">
-        <div className="shell ei-pathway-grid">
-          <div className="ei-pathway-copy">
-            <span className="ei-section-number">04</span>
-            <span className="ei-kicker">Guided pathways</span>
-            <h2>Build the doctrine. Follow the pathway.</h2>
-            <p>Choose the study that matches the question in front of you. Each pathway establishes a complete biblical core, then points toward deeper study.</p>
-            <div className="ei-pathway-meta">
-              <span>{allPathways.length} pathways</span>
-              <span>{pathwayCollectionCount} collections</span>
-              <span>Scripture first</span>
-            </div>
-            <Link className="button button-dark" href="/pathways">Browse pathways <Route size={17} /></Link>
-          </div>
 
-          <div className="ei-pathway-interface" data-reveal>
-            <header><span>Pathway library</span><span>Choose a study</span></header>
-            <div className="ei-pathway-track">
-              {pathwayPalette.map((pathway, index) => (
-                <Link href={`/pathways/${pathway.slug}`} className="ei-pathway-step" key={pathway.slug}>
-                  <span>{String(index + 1).padStart(2, "0")}</span>
-                  <div><strong>{pathway.title}</strong><small>{pathway.label}</small></div>
-                  <ArrowRight size={16} />
-                </Link>
-              ))}
-            </div>
-            <footer>
-              <span>Doctrine · Salvation · Questions</span>
-              <Link href="/pathways">Browse all pathways <ArrowRight size={14} /></Link>
-            </footer>
-          </div>
-        </div>
-      </section>
 
       <section className="ei-editorial">
         <div className="shell ei-editorial-heading">
