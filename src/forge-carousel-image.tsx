@@ -109,6 +109,16 @@ export function createForgeFrameImage(input: {
 export async function renderForgeFramePng(input: Parameters<typeof createForgeFrameImage>[0]) {
   const brandAssets = await forgeBrandArtworkAssets();
   const response = createForgeFrameImage({ ...input, brandAssets });
-  if (!response.ok) throw new Error(`Image renderer failed: ${response.status}`);
-  return Buffer.from(await response.arrayBuffer());
+  try {
+    if (!response.ok) throw new Error(`Image renderer failed: ${response.status}`);
+    return Buffer.from(await response.arrayBuffer());
+  } catch (error) {
+    // Fonts must never break an entire Content Engine preview. A corrupt or
+    // incompatible CDN face falls back to the bundled font, retaining the
+    // official image-based logo, copy, contrast and background treatment.
+    if (!brandAssets.fonts.length) throw error;
+    const fallback = createForgeFrameImage({ ...input, brandAssets: { ...brandAssets, fonts: [] } });
+    if (!fallback.ok) throw error;
+    return Buffer.from(await fallback.arrayBuffer());
+  }
 }
