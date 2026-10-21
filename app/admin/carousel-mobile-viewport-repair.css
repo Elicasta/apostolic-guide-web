@@ -2,7 +2,12 @@
    Do not resize .creative-render-stage; its 360px offscreen artboards are
    intentional and used for faithful 1080px exports. */
 @media (max-width: 760px) {
-  .carousel-studio-master {\n    touch-action: pan-x pan-y pinch-zoom !important;\n  }\n\n  .carousel-studio-master,\n  .carousel-studio-master .creative-studio-shell,
+  .carousel-studio-master {
+    touch-action: pan-x pan-y pinch-zoom !important;
+  }
+
+  .carousel-studio-master,
+  .carousel-studio-master .creative-studio-shell,
   .carousel-studio-master .creative-workspace-grid {
     box-sizing: border-box;
     width: 100%;
