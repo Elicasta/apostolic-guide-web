@@ -25,7 +25,7 @@ begin
       case when pack->>'lane' = 'poster' then 'scripture' when pack->>'lane' = 'teaching' then 'teaching' else 'invitation' end,
       pack->>'format', 'instagram', jsonb_array_length(pack->'frames'), 'draft',
       jsonb_build_object('frames',pack->'frames','sourceImages','[]'::jsonb,
-        'visualSettings',jsonb_build_object('template','editorial-white','texturePreset','ag-paper-white'),
+        'visualSettings',jsonb_build_object('style','editorial-white','template','editorial-white','texturePreset','ag-paper-white'),
         'generatedText',jsonb_build_object('producer','Editorial Engine','sourceHash',pack->>'sourceHash','reviewRequired',true,'blockers',pack->'blockers')),
       pack->>'caption', 'Study the full pathway',
       array(select distinct value->>'scripture' from jsonb_array_elements(pack->'frames') where value->>'scripture' <> ''),
