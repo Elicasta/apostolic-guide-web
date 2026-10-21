@@ -9,12 +9,11 @@ import "../carousel-manual-inline.css";
 import "../carousel-final-repair.css";
 import "../carousel-capabilities-restore.css";
 import "../production-mobile-regression-fix.css";
+import "../carousel-mobile-viewport-repair.css";
 
 export const viewport: Viewport = {
   width: "device-width",
-  initialScale: 1,
-  maximumScale: 1,
-  userScalable: false
+  initialScale: 1
 };
 
 export default function CarouselStudioLayout({ children }: { children: React.ReactNode }) {
