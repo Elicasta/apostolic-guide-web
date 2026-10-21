@@ -168,50 +168,74 @@ export function CarouselPersistentArtwork() {
   useEffect(() => { void loadArtwork(); }, [loadArtwork]);
 
   useEffect(() => {
-    const current = document.querySelector<HTMLElement>(".carousel-studio-master .creative-studio-shell");
-    setRoot(current);
-    if (!current) return;
+    // The project editor loads asynchronously. On the first render its shell
+    // often does not exist; binding the observer only once made artwork appear
+    // after a full browser refresh instead of immediately.
+    let current: HTMLElement | null = null;
     let scheduled = 0;
+    let currentSignature = "";
+    let artworkObserver: MutationObserver | null = null;
+    let mountObserver: MutationObserver | null = null;
     const sync = () => {
+      const live = current;
+      if (!live || !live.isConnected) return;
       window.clearTimeout(scheduled);
       scheduled = window.setTimeout(() => {
-        const next = readSnapshots(current);
-        const templateValue = current.dataset.creativeTemplate || "street-theology";
-        const alignmentSelect = [...current.querySelectorAll<HTMLSelectElement>(".creative-visual-controls select")].find((item) => ["left", "center", "right"].includes(item.value));
+        if (!live.isConnected) return;
+        const next = readSnapshots(live);
+        const templateValue = live.dataset.creativeTemplate || "street-theology";
+        const alignmentSelect = [...live.querySelectorAll<HTMLSelectElement>(".creative-visual-controls select")].find((item) => ["left", "center", "right"].includes(item.value));
         const nextAlignment = (alignmentSelect?.value || (templateValue === "editorial-white" || templateValue === "verse-connection" ? "left" : "center")) as "left" | "center" | "right";
         const nextSignature = JSON.stringify({ templateValue, nextAlignment, frames: next.map((frame) => [frame.order, frame.total, frame.pathway, frame.title, frame.scripture, frame.body, frame.overlay, frame.cta, frame.format]) });
-        setSignature((previous) => {
-          if (previous === nextSignature) return previous;
+        if (currentSignature !== nextSignature) {
+          currentSignature = nextSignature;
           setFrames(next);
           setTemplate(templateValue);
           setAlignment(nextAlignment);
-          return nextSignature;
-        });
-
-        const visualControls = current.querySelector<HTMLElement>(".creative-preview-panel .creative-visual-controls");
+          setSignature(nextSignature);
+        }
+        const visualControls = live.querySelector<HTMLElement>(".creative-preview-panel .creative-visual-controls");
         if (visualControls) {
-          let mount = current.querySelector<HTMLElement>("[data-single-art-director-host]");
+          let mount = live.querySelector<HTMLElement>("[data-single-art-director-host]");
           if (!mount) {
             mount = document.createElement("div");
             mount.dataset.singleArtDirectorHost = "true";
             visualControls.after(mount);
           }
-          setArtHost(mount);
+          setArtHost((previous) => previous === mount ? previous : mount);
         }
-      }, 20);
+      }, 0);
     };
-    sync();
-    document.addEventListener("change", sync, true);
-    document.addEventListener("input", sync, true);
-    document.addEventListener("click", sync, true);
-    const observer = new MutationObserver(sync);
-    observer.observe(current, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ["data-creative-template", "class"] });
+    const attach = () => {
+      const next = document.querySelector<HTMLElement>(".carousel-studio-master .creative-studio-shell");
+      if (!next || next === current) return;
+      artworkObserver?.disconnect();
+      current = next;
+      currentSignature = "";
+      setRoot(next);
+      artworkObserver = new MutationObserver(sync);
+      artworkObserver.observe(next, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ["data-creative-template", "class"] });
+      sync();
+      mountObserver?.disconnect();
+      mountObserver = null;
+    };
+    // Observe page-level mounting only until the async editor has appeared.
+    mountObserver = new MutationObserver(attach);
+    mountObserver.observe(document.body, { subtree: true, childList: true });
+    attach();
+    const onUpdate = () => { attach(); sync(); };
+    document.addEventListener("change", onUpdate, true);
+    document.addEventListener("input", onUpdate, true);
+    document.addEventListener("click", onUpdate, true);
+    window.addEventListener("ag:creative-editor-updated", onUpdate);
     return () => {
       window.clearTimeout(scheduled);
-      document.removeEventListener("change", sync, true);
-      document.removeEventListener("input", sync, true);
-      document.removeEventListener("click", sync, true);
-      observer.disconnect();
+      document.removeEventListener("change", onUpdate, true);
+      document.removeEventListener("input", onUpdate, true);
+      document.removeEventListener("click", onUpdate, true);
+      window.removeEventListener("ag:creative-editor-updated", onUpdate);
+      artworkObserver?.disconnect();
+      mountObserver?.disconnect();
     };
   }, []);
 
