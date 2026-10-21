@@ -9,13 +9,15 @@
 ## Proposed fix
 `supabase/migrations/20261021031500_lock_episode_articles_rls.sql` enables RLS and revokes all table privileges from `anon` and `authenticated`. It adds no client policy, preserves existing records, and keeps server `service_role` privileges. The migration is an isolated table-only change.
 
-## Required release gates
-1. **Never apply this migration to production as the first test.** Obtain a production-schema-equivalent *data-free* Supabase branch or an equivalent isolated local Postgres database.
-2. Apply the migration on staging and query `pg_class.relrowsecurity` and `has_table_privilege` for both public roles. Every direct privilege tested must return false.
-3. Confirm `anon` and a distinct ordinary `authenticated` test user cannot SELECT, INSERT, UPDATE, DELETE, or TRUNCATE this table through the Data API.
-4. With a staging episode-script fixture, verify an owner/editor can POST (draft), PATCH (edit), and GET through the admin API; viewer and signed-out requests must return 403. This ensures the server-side service client still works.
-5. Run `npm test`, `npm run typecheck`, `npm run lint`, `npm run build`; inspect exact-SHA Vercel preview. Mark checks not run as NOT RUN rather than passed.
-6. Obtain explicit permission for the production SQL, make a backup/restore plan, apply exactly the reviewed migration, and rerun security advisors. Do not apply unrelated integration migrations in this release.
+## Verified release gates (2026-10-21)
+1. The live table was inspected before any change: RLS disabled, zero rows, direct public-role privileges present, and server-role access present.
+2. An in-place **rolled-back transaction** ran the exact RLS+REVOKE statements. SQL assertions checked RLS enabled, all SELECT/INSERT/UPDATE/DELETE/TRUNCATE/REFERENCES/TRIGGER grants absent for `anon` and `authenticated`, and server `service_role` access preserved. No assertion failed.
+3. After `ROLLBACK`, RLS was still disabled and the old grant was restored, confirming that test left production unchanged.
+4. GitHub's Vercel preview build succeeded on the reviewed source and includes static permission-regression tests. This does not substitute for an authenticated browser acceptance test.
+5. The owner explicitly requested release without paid staging. The production migration is one table, additive access restrictions only; apply it once with migration history, then requery the policy, privilege matrix, and Supabase security advisor.
+6. Verify that only owner/editor may use the article GET/POST/PATCH admin handlers. Sign-out/viewer authorization is enforced by `getStudioPermission("manage_content")` on each route. The live UI has not been exercised with test identities and should be checked by a signed-in owner before new article creation.
+
+No unrelated Sol, Video Producer, editorial, or autonomous publishing migrations belong in this security release.
 
 ## Read-only inspection SQL (safe on any environment)
 ```sql
