@@ -46,7 +46,7 @@ export default function HomePage() {
             <h1>Know what you believe.<span>Know why.</span></h1>
             <p>Search Scripture, follow connected passages, and understand Apostolic doctrine from the text itself.</p>
             <div className="ei-actions">
-              <Link className="button button-crimson" href="/pathways/god-is-one#step-1">Start guided Bible study <Route size={17} /></Link>
+              <Link className="button button-crimson" data-study-entry="home-hero" href="/pathways/god-is-one#step-1">Start guided Bible study <Route size={17} /></Link>
               <Link className="button button-outline" href="/pathways">Browse all pathways <ArrowRight size={17} /></Link>
             </div>
           </div>
@@ -86,14 +86,14 @@ export default function HomePage() {
               <span>{pathwayCollectionCount} collections</span>
               <span>Scripture first</span>
             </div>
-            <div className="ei-actions"><Link className="button button-dark" href="/pathways/god-is-one#step-1">Begin with God Is One <ArrowRight size={17} /></Link><Link className="button button-outline" href="/pathways">Browse all pathways <Route size={17} /></Link></div>
+            <div className="ei-actions"><Link className="button button-dark" data-study-entry="home-pathways-feature" href="/pathways/god-is-one#step-1">Begin with God Is One <ArrowRight size={17} /></Link><Link className="button button-outline" href="/pathways">Browse all pathways <Route size={17} /></Link></div>
           </div>
 
           <div className="ei-pathway-interface" data-reveal>
             <header><span>Pathway library</span><span>Choose a study</span></header>
             <div className="ei-pathway-track">
               {pathwayPalette.map((pathway, index) => (
-                <Link href={`/pathways/${pathway.slug}`} className="ei-pathway-step" key={pathway.slug}>
+                <Link href={`/pathways/${pathway.slug}`} data-study-entry="home-pathway-list" className="ei-pathway-step" key={pathway.slug}>
                   <span>{String(index + 1).padStart(2, "0")}</span>
                   <div><strong>{pathway.title}</strong><small>{pathway.label}</small></div>
                   <ArrowRight size={16} />
