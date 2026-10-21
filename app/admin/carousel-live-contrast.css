@@ -1,0 +1,47 @@
+/* Final contrast and typography layer shared by the LIVE editor and hidden
+   export frames. Scoped to actual persistent artwork, not admin form controls. */
+.carousel-studio-master .persistent-carousel-artboard.is-street .carousel-copy > strong,
+.carousel-studio-master .persistent-carousel-artboard.is-cinematic .carousel-copy > strong,
+.carousel-studio-master .persistent-carousel-artboard.is-manifesto .carousel-copy > strong {
+  color:#fffaf2 !important;
+  -webkit-text-fill-color:#fffaf2 !important;
+}
+.carousel-studio-master .persistent-carousel-artboard.is-street .carousel-copy > p,
+.carousel-studio-master .persistent-carousel-artboard.is-cinematic .carousel-copy > p,
+.carousel-studio-master .persistent-carousel-artboard.is-manifesto .carousel-copy > p,
+.carousel-studio-master .persistent-carousel-artboard.is-street .carousel-copy > em:not(:last-child),
+.carousel-studio-master .persistent-carousel-artboard.is-cinematic .carousel-copy > em:not(:last-child),
+.carousel-studio-master .persistent-carousel-artboard.is-manifesto .carousel-copy > em:not(:last-child) {
+  color:#d8e1e6 !important;
+  -webkit-text-fill-color:#d8e1e6 !important;
+}
+.carousel-studio-master .persistent-carousel-artboard.is-editorial .carousel-copy > strong,
+.carousel-studio-master .persistent-carousel-artboard.is-verse .carousel-copy > strong {
+  color:#102334 !important;
+  -webkit-text-fill-color:#102334 !important;
+}
+.carousel-studio-master .persistent-carousel-artboard.is-editorial .carousel-copy > p,
+.carousel-studio-master .persistent-carousel-artboard.is-verse .carousel-copy > p {
+  color:#425462 !important;
+  -webkit-text-fill-color:#425462 !important;
+}
+.carousel-studio-master .persistent-carousel-artboard.is-editorial .carousel-copy > span,
+.carousel-studio-master .persistent-carousel-artboard.is-verse .carousel-copy > span {
+  color:#af2841 !important;
+}
+.carousel-studio-master .persistent-carousel-artboard.is-cinematic .carousel-copy > strong,
+.carousel-studio-master .persistent-carousel-artboard.is-editorial .carousel-copy > strong,
+.carousel-studio-master .persistent-carousel-artboard.is-verse .carousel-copy > strong {
+  font-family:"Cormorant Garamond",Georgia,serif !important;
+  font-weight:600 !important;
+  letter-spacing:-.038em;
+}
+.carousel-studio-master .persistent-carousel-artboard.is-street .carousel-copy > strong,
+.carousel-studio-master .persistent-carousel-artboard.is-manifesto .carousel-copy > strong {
+  font-family:Montserrat,Arial,sans-serif !important;
+  font-weight:800 !important;
+}
+.carousel-studio-master .persistent-carousel-artboard .carousel-brand-mark {
+  opacity:1 !important;
+  filter:none !important;
+}
