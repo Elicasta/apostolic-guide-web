@@ -3,7 +3,7 @@ import Link from "next/link";
 import { ArrowRight, Clock3, Route } from "lucide-react";
 import { AppBridge, PageHero } from "@/components";
 import { allPathways, pathwayCollections } from "@/pathway-catalog";
-import { buildSeoMetadata } from "@/seo";
+import { buildSeoMetadata, absoluteWebsiteUrl } from "@/seo";
 
 export const metadata: Metadata = buildSeoMetadata({
   title: "Guided Apostolic Bible Study Pathways",
@@ -17,8 +17,25 @@ export default function PathwaysPage() {
     items: allPathways.filter((pathway) => pathway.collection === collection.title)
   }));
 
+  const collectionSchema = {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    name: "Guided Apostolic Bible Study Pathways",
+    url: absoluteWebsiteUrl("/pathways"),
+    description: "Step-by-step KJV Bible studies with Scripture, explanation and navigation.",
+    mainEntity: {
+      "@type": "ItemList",
+      itemListElement: allPathways.map((item, index) => ({
+        "@type": "ListItem",
+        position: index + 1,
+        name: item.title,
+        url: absoluteWebsiteUrl(`/pathways/${item.slug}`)
+      }))
+    }
+  };
   return (
     <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(collectionSchema) }} />
       <PageHero variant="pathways" eyebrow="Guided Scripture studies" title="Do not collect isolated verses. Follow the pathway." text="Choose a study, read its full KJV Scripture cards, and use Next to follow the explanations and connected passages. Continue in the app for deeper study." />
       <section className="section pathways-index-section">
         <div className="shell pathway-directory">
