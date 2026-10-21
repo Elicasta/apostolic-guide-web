@@ -56,23 +56,10 @@ async function requestProject(id: string) {
   return data.project as CreativeProject;
 }
 
-function driveTemplateThroughEditor(template: TemplateId) {
-  const select = document.querySelector<HTMLSelectElement>(".carousel-studio-master .creative-visual-controls > label:first-child select");
-  if (!select) return false;
-
-  if (![...select.options].some((option) => option.value === template)) {
-    const option = document.createElement("option");
-    option.value = template;
-    option.textContent = template;
-    option.dataset.carouselTemplateBridge = "true";
-    select.appendChild(option);
-  }
-
-  const nativeSetter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")?.set;
-  if (nativeSetter) nativeSetter.call(select, template);
-  else select.value = template;
-  select.dispatchEvent(new Event("change", { bubbles: true }));
-  return true;
+// Update React's editor state through an explicit app event. Synthetic select
+// changes could display a selection without saving it to the project.
+function selectTemplateInEditor(template: TemplateId) {
+  window.dispatchEvent(new CustomEvent("ag:creative-template-select", { detail: { template } }));
 }
 
 function TemplatePicker({ selected, disabled, saving, error, onPick }: {
@@ -154,11 +141,7 @@ export function CreativeTemplateSystem({ projectId }: { projectId?: string | nul
     setError("");
     setSelected(template);
     applyTemplateToDom(template);
-    if (!driveTemplateThroughEditor(template)) {
-      setError("Carousel editor state could not be reached. Refresh once and try again.");
-      setSaving(null);
-      setSaveReady(true);
-    }
+    selectTemplateInEditor(template);
   }}/>, [disabled, error, projectId, saving, selected]);
 
   if (!target || !projectId) return null;

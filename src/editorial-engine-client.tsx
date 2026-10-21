@@ -3,6 +3,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import type { EditorialPack } from "./editorial-engine";
 import styles from "./editorial-engine.module.css";
+import { EditorialDraftControls } from "./editorial-draft-controls";
 
 type PackRow = { production_date: string; project_id: string; payload: EditorialPack; sourceChanged: boolean; projectStatus: string };
 type Snapshot = { enabled: boolean; timezone: string; packs: PackRow[] };
@@ -12,6 +13,7 @@ export function EditorialEngineClient({ canManage }: { canManage: boolean }) {
   const [message, setMessage] = useState("");
   const [selected, setSelected] = useState("");
   const [index, setIndex] = useState(0);
+  const [artworkVersion, setArtworkVersion] = useState(0);
   const load = useCallback(async () => {
     const response = await fetch("/api/admin/editorial", { cache: "no-store", signal: AbortSignal.timeout(20_000) });
     const data = await response.json();
@@ -48,8 +50,9 @@ export function EditorialEngineClient({ canManage }: { canManage: boolean }) {
       {row && pack && <section className={`admin-card ${styles.detail}`}><span className="eyebrow">{pack.series}</span><h2>{pack.title}</h2>
         <p>{pack.artDirection}</p>
         <div className={styles.gates}><strong>Review required</strong><p>Canonical source copied into the draft. Doctrine and visual approval are still required. PNG previews are review artwork, not proof of publishing readiness.</p>{row.sourceChanged && <p>Canonical source changed since generation. Reconcile this project before publishing.</p>}{pack.blockers.map(blocker => <p key={blocker}>{blocker}</p>)}</div>
-        {frame && <><img className={styles.preview} src={`/api/admin/editorial/preview?project=${row.project_id}&frame=${index}`} alt={frame.altText}/><div className={styles.actions}><button type="button" className="button" disabled={index === 0} onClick={() => setIndex(i => i - 1)}>Previous</button><span>{index + 1} / {pack.frames.length}</span><button type="button" className="button" disabled={index >= pack.frames.length - 1} onClick={() => setIndex(i => i + 1)}>Next</button><a className="button" href={`/api/admin/editorial/preview?project=${row.project_id}&frame=${index}&download=1`}>Download PNG</a></div></>}
-        <div className={styles.actions}><Link className="button primary" href={`/admin/carousel-studio?project=${row.project_id}`}>Review in Carousel Studio</Link><Link className="button" href="/admin/publishing">Open Publishing</Link><Link className="button" href={`/pathways/${pack.pathwaySlug}`}>Read source</Link></div>
+        {canManage ? <EditorialDraftControls key={row.project_id} projectId={row.project_id} frameIndex={index} canManage={canManage} onSaved={() => setArtworkVersion(v => v + 1)}/> : null}
+        {frame && <><img className={styles.preview} src={`/api/admin/editorial/preview?project=${row.project_id}&frame=${index}&v=${artworkVersion}`} alt={frame.altText}/><div className={styles.actions}><button type="button" className="button" disabled={index === 0} onClick={() => setIndex(i => i - 1)}>Previous</button><span>{index + 1} / {pack.frames.length}</span><button type="button" className="button" disabled={index >= pack.frames.length - 1} onClick={() => setIndex(i => i + 1)}>Next</button><a className="button" href={`/api/admin/editorial/preview?project=${row.project_id}&frame=${index}&download=1&v=${artworkVersion}`}>Download PNG</a></div></>}
+        <div className={styles.actions}><Link className="button primary" href={`/admin/carousel-studio?project=${row.project_id}`}>Edit full project in Carousel Studio</Link><Link className="button" href="/admin/publishing">Open Publishing</Link><Link className="button" href={`/pathways/${pack.pathwaySlug}`}>Read source</Link></div>
         <details><summary>Generated caption</summary><p className={styles.copy}>{pack.caption}</p></details>
         {pack.newsletter && <details open><summary>Weekly newsletter draft</summary><h3>{pack.newsletter.subject}</h3><p className={styles.copy}>{pack.newsletter.summary}</p>{pack.newsletter.resources?.map(resource => <p key={resource.url}><a href={resource.url}>{resource.title}</a><br/>{resource.summary}</p>)}<div className={styles.actions}><a className="button" href={`/api/admin/editorial/preview?project=${row.project_id}&kind=newsletter`} target="_blank" rel="noreferrer">Preview email</a><a className="button" href={`/api/admin/editorial/preview?project=${row.project_id}&kind=newsletter&download=1`}>Download HTML</a><Link className="button" href={`/admin/broadcasts?editorial=${pack.date}`}>Open draft in Broadcasts</Link></div><p>Prepared draft. No recipients enrolled and no email sent.</p></details>}
       </section>}

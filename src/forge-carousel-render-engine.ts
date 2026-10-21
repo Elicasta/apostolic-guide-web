@@ -2,7 +2,7 @@ import type { CreativeFrame, CreativeFrameRole } from "./creative-project";
 
 export const FORGE_CAROUSEL_WIDTH = 1080;
 export const FORGE_CAROUSEL_HEIGHT = 1350;
-export const FORGE_CAROUSEL_RENDER_ENGINE = "forge-image-response-v2";
+export const FORGE_CAROUSEL_RENDER_ENGINE = "forge-image-response-v3";
 
 type FramePalette = {
   background: string;
