@@ -22,7 +22,7 @@ export function cleanPublicCarouselText(text: string) {
     .trim();
 }
 
-export function carouselFrameLayout(input: { theme: CarouselTheme | string; title: string; index: number; total: number; body: string; format?: "single" | "carousel" | "story" }) {
+export function carouselFrameLayout(input: { theme: CarouselTheme | string; title: string; index: number; total: number; body: string; role?: string; format?: "single" | "carousel" | "story" }) {
   const theme = normalizeCarouselTheme(input.theme);
   const title = cleanPublicCarouselText(input.title);
   const cover = input.index === 0;
@@ -33,13 +33,28 @@ export function carouselFrameLayout(input: { theme: CarouselTheme | string; titl
   if (theme === "manifesto") headlineCqw = 8;
   if (cover && fit !== "fit-sm") headlineCqw = Math.min(headlineCqw, fitTitle[fit]);
   if (input.format === "story") headlineCqw = cover ? 10.4 : 9.2;
-  const bodyCqw = input.format === "story" ? 2.35 : cover ? 2.35 : (["cinematic", "editorial-white", "verse-connection"].includes(theme) ? 3 : 2.55);
-  const bodyWidth = theme === "editorial-white" ? 82 : 76;
+  const isScripture = input.role === "scripture";
+  const isExplanation = input.role === "explanation";
+  const isSupport = input.role === "support";
+  const isCta = input.role === "cta" || cta;
+  const bodyCqw = isScripture
+    ? (input.body.length > 340 ? 3.45 : input.body.length > 260 ? 3.9 : input.body.length > 170 ? 4.55 : 5.4)
+    : isExplanation ? (input.body.length > 300 ? 2.85 : input.body.length > 180 ? 3.15 : 3.45)
+    : isSupport ? (input.body.length > 210 ? 3.05 : 3.4)
+    : isCta ? 3.0
+    : cover ? (input.body.length > 185 ? 2.8 : 3.15)
+    : input.format === "story" ? 2.6 : (["cinematic", "editorial-white", "verse-connection"].includes(theme) ? 3.1 : 2.85);
+  if (isScripture) headlineCqw = 2.75;
+  if (isExplanation) headlineCqw = Math.min(headlineCqw, fit === "fit-sm" ? 6.2 : 5.4);
+  if (isSupport) headlineCqw = Math.min(headlineCqw, 6.0);
+  if (isCta) headlineCqw = Math.min(headlineCqw, 8.0);
+  const bodyWidth = isScripture ? 96 : isExplanation ? 90 : isSupport ? 87 : isCta ? 85 : 84;
+  const titleWidth = isScripture ? 95 : isExplanation ? 93 : 90;
   return {
-    headlineCqw, bodyCqw, titleWidth: 90, bodyWidth,
-    copyLeft: 7, copyRight: 7, copyTop: cover ? 49 : 50,
+    headlineCqw, bodyCqw, titleWidth, bodyWidth,
+    copyLeft: 7, copyRight: 7, copyTop: 50,
     headlinePx: headlineCqw * 10.8, bodyPx: bodyCqw * 10.8,
-    fit, cover, cta, cleanedTitle:title,
+    fit, cover, cta, isScripture, isExplanation, isSupport, isCta, cleanedTitle:title,
     isLight: theme === "editorial-white" || theme === "verse-connection",
     isSerif: ["cinematic","editorial-white","verse-connection"].includes(theme)
   };

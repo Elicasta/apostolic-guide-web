@@ -40,6 +40,49 @@ export function splitEditorialText(text: string, limit = 170) {
   if (chunk) chunks.push(chunk);
   return chunks;
 }
+/**
+ * Compose readable, balanced cards without abandoning a word at the end of a
+ * verse. Single verses and complete explanations stay intact when they fit.
+ * Longer text breaks on a word boundary close to an even target, preferably
+ * after punctuation. Concatenating segments reproduces the original text.
+ */
+export function splitEditorialCards(text: string, maxChars = 340): string[] {
+  const words = text.trim().split(/\s+/).filter(Boolean);
+  const normalized = words.join(" ");
+  if (!normalized || normalized.length <= maxChars) return normalized ? [normalized] : [];
+  const desired = Math.ceil(normalized.length / maxChars);
+  const segments: string[] = [];
+  let remaining = words;
+  for (let part = 0; part < desired - 1; part++) {
+    const left = desired - part;
+    const target = remaining.join(" ").length / left;
+    const candidates: Array<{ index: number; score: number }> = [];
+    for (let i = 1; i < remaining.length - (left - 1); i++) {
+      const prefix = remaining.slice(0, i).join(" ");
+      if (prefix.length < Math.min(60, target * .58) || prefix.length > maxChars) continue;
+      const punctuated = /[.;:!?]$/.test(remaining[i - 1]);
+      // Never favor a pretty punctuation break if it strands an oversized
+      // remainder or forces an unreadable, near-empty final slide.
+      const remainderLength = remaining.slice(i).join(" ").length;
+      const maxRemaining = (left - 1) * maxChars;
+      if (remainderLength > maxRemaining) continue;
+      const score = Math.abs(prefix.length - target) - (punctuated ? 24 : 0);
+      candidates.push({index:i,score});
+    }
+    const best = candidates.sort((a,b)=>a.score-b.score)[0];
+    if (!best) {
+      // Defensive fallback: preserve every word rather than silently clipping.
+      const fit = Math.max(1, remaining.findIndex((_,i)=> remaining.slice(0,i+1).join(" ").length > maxChars));
+      segments.push(remaining.slice(0,fit).join(" "));
+      remaining = remaining.slice(fit);
+      continue;
+    }
+    segments.push(remaining.slice(0,best.index).join(" "));
+    remaining = remaining.slice(best.index);
+  }
+  if (remaining.length) segments.push(remaining.join(" "));
+  return segments;
+}
 function frame(role: CreativeFrame["role"], headline: string, body: string, href: string, scripture = "") {
   return { ...createBlankFrame(0, role), headline, body, scripture, pathwayLink: href, altText: `${headline}. ${body}${scripture ? ` ${scripture}, KJV.` : ""}` };
 }
@@ -69,10 +112,10 @@ export function buildEditorialPack(date: string, catalog = allPathways): Editori
       const passage = getPathwayKjvPassage(step.reference);
       if (!passage) blockers.push(`Missing full KJV text: ${step.reference}`);
       for (const verse of passage?.verses ?? []) {
-        splitEditorialText(verse.text).forEach((chunk, index) => frames.push(frame("scripture", `${step.reference} · verse ${verse.number}`, chunk, href, step.reference)));
+        splitEditorialCards(verse.text).forEach(chunk => frames.push(frame("scripture", step.title, chunk, href, step.reference)));
       }
-      splitEditorialText(step.explanation).forEach((chunk, index) => frames.push(frame("explanation", step.title, chunk, href)));
-      if (step.hook) splitEditorialText(step.hook).forEach(chunk => frames.push(frame("support", "Why go here next?", chunk, href)));
+      splitEditorialCards(step.explanation).forEach(chunk => frames.push(frame("explanation", step.title, chunk, href)));
+      if (step.hook) splitEditorialCards(step.hook).forEach(chunk => frames.push(frame("support", "Consider the connection", chunk, href)));
     }
     frames.push(frame("cta", "Continue in Scripture", `Follow the complete biblical study at apostolicguide.com${href}`, href));
   } else if (lane === "poster") {
@@ -82,7 +125,7 @@ export function buildEditorialPack(date: string, catalog = allPathways): Editori
     // Posters carry a complete verse. Long verses become a complete multi-frame post.
     title = `${pathway.title} · ${step.reference}`;
     const verse = passage?.verses[0];
-    frames = splitEditorialText(verse?.text || "Full KJV text needs to be added before production.").map(chunk => frame("scripture", step.title, chunk, href, verse ? `${step.reference} · verse ${verse.number}` : step.reference));
+    frames = splitEditorialCards(verse?.text || "Full KJV text needs to be added before production.").map(chunk => frame("scripture", step.title, chunk, href, step.reference));
   } else {
     title = lane === "app-guide" ? `How to study ${pathway.title}` : `Start here: ${pathway.title}`;
     frames = [

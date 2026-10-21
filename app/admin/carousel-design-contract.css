@@ -12,3 +12,30 @@
   max-width: 100% !important;
   overflow-wrap: anywhere;
 }
+
+/* The reference is deliberately secondary. Scripture text is the visual hero. */
+.carousel-studio-master .persistent-carousel-artboard.is-scripture .carousel-copy > strong {
+  font-family:Montserrat,Arial,sans-serif !important;
+  font-size:var(--title-size,2.75cqw) !important;
+  font-weight:800 !important;
+  letter-spacing:.075em !important;
+  text-transform:uppercase;
+  color:#be3650 !important;
+  -webkit-text-fill-color:#be3650 !important;
+}
+.carousel-studio-master .persistent-carousel-artboard.is-scripture .carousel-copy > p {
+  font-family:"Cormorant Garamond",Georgia,serif !important;
+  font-size:var(--body-size,4.55cqw) !important;
+  line-height:1.23 !important;
+  font-weight:600 !important;
+  width:var(--body-width,96%) !important;
+  letter-spacing:normal;
+}
+.carousel-studio-master .persistent-carousel-artboard.is-scripture:is(.is-street,.is-cinematic,.is-manifesto) .carousel-copy > p {
+  color:#fffaf2 !important;
+  -webkit-text-fill-color:#fffaf2 !important;
+}
+.carousel-studio-master .persistent-carousel-artboard.is-scripture:is(.is-verse,.is-editorial) .carousel-copy > p {
+  color:#132b3e !important;
+  -webkit-text-fill-color:#132b3e !important;
+}

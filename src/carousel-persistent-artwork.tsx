@@ -17,6 +17,7 @@ type Snapshot = {
   overlay: string;
   cta: string;
   format: "single" | "carousel" | "story";
+  role: string;
 };
 type ProjectArtworkInfo = {
   id: string;
@@ -59,7 +60,8 @@ function snapshotFromNode(source: HTMLElement, target: HTMLElement, total: numbe
     body: source.querySelector<HTMLElement>(":scope > .creative-preview-copy > p")?.textContent?.trim() || "",
     overlay: source.querySelector<HTMLElement>(":scope > .creative-preview-copy > blockquote")?.textContent?.trim() || "",
     cta: source.querySelector<HTMLElement>(":scope > .creative-preview-cta")?.textContent?.trim() || "",
-    format
+    format,
+    role: source.dataset.carouselRole || "explanation"
   };
 }
 
@@ -82,8 +84,8 @@ function readSnapshots(root: HTMLElement): Snapshot[] {
 function OriginalArtwork({ frame, visualStyle, alignment, backgroundUrl }: { frame: Snapshot; visualStyle: VisualStyle; alignment: "left" | "center" | "right"; backgroundUrl?: string | null }) {
   const lightSurface = visualStyle === "editorial" || visualStyle === "verse";
   const logo = lightSurface && !backgroundUrl ? "/brand/apostolic-guide-mark.png" : "/brand/apostolic-guide-mark-reversed.png";
-  const kind = frame.order === 1 ? "cover" : frame.cta || frame.order === frame.total ? "cta" : frame.scripture ? "scripture" : "statement";
-  const layout = carouselFrameLayout({theme: visualStyle, title:frame.title, body:frame.body,index:frame.order-1,total:frame.total,format:frame.format});
+  const kind = frame.role === "scripture" ? "scripture" : frame.order === 1 ? "cover" : frame.role === "cta" || frame.order === frame.total ? "cta" : frame.role === "support" ? "support" : frame.role === "explanation" ? "explanation" : "statement";
+  const layout = carouselFrameLayout({theme: visualStyle, title:frame.title, body:frame.body,index:frame.order-1,total:frame.total,format:frame.format,role:frame.role});
   const artStyle = {
     "--carousel-grain": backgroundUrl ? .7 : .62,
     "--copy-y": `${layout.copyTop}%`,
@@ -181,7 +183,7 @@ export function CarouselPersistentArtwork() {
         const templateValue = live.dataset.creativeTemplate || "street-theology";
         const alignmentSelect = [...live.querySelectorAll<HTMLSelectElement>(".creative-visual-controls select")].find((item) => ["left", "center", "right"].includes(item.value));
         const nextAlignment = (alignmentSelect?.value || (templateValue === "editorial-white" || templateValue === "verse-connection" ? "left" : "center")) as "left" | "center" | "right";
-        const nextSignature = JSON.stringify({ templateValue, nextAlignment, frames: next.map((frame) => [frame.order, frame.total, frame.pathway, frame.title, frame.scripture, frame.body, frame.overlay, frame.cta, frame.format]) });
+        const nextSignature = JSON.stringify({ templateValue, nextAlignment, frames: next.map((frame) => [frame.order, frame.total, frame.pathway, frame.title, frame.scripture, frame.body, frame.overlay, frame.cta, frame.format, frame.role]) });
         if (currentSignature !== nextSignature) {
           currentSignature = nextSignature;
           setFrames(next);
