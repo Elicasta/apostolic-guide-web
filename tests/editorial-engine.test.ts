@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { allPathways } from "../src/pathway-catalog";
 import { getPathwayKjvPassage } from "../src/pathway-kjv";
-import { addEditorialDays, buildEditorialPack, buildEditorialWindow, dateOrdinal, editorialDate, editorialSourceHash, EDITORIAL_ROTATION, splitEditorialText } from "../src/editorial-engine";
+import { addEditorialDays, buildEditorialPack, buildEditorialWindow, dateOrdinal, editorialDate, editorialSourceHash, EDITORIAL_ROTATION, splitEditorialText, splitEditorialCards } from "../src/editorial-engine";
 import { readKjvPassage, scriptureEmphasisParts } from "../src/kjv-reader";
 import { extractScriptureReferences } from "../src/scripture-references";
 import corpus from "../src/scripture-data/kjv.json";
@@ -25,7 +25,7 @@ test("complete catalog produces every scripture and explanation without truncati
       assert.equal(pack.blockers.length, 0, pack.title);
       assert.ok(pack.frames.length > 0 && pack.frames.length <= 20, pack.title);
       assert.ok(pack.frames.every(f => f.pathwayLink === `/pathways/${pathway.slug}`));
-      assert.ok(pack.frames.every(f => f.body.length <= 170), pack.title);
+      assert.ok(pack.frames.every(f => f.body.length <= 420), pack.title);
       assert.equal(new Set(pack.frames.map(f=>f.id)).size, pack.frames.length);
       for (const f of pack.frames) {
         const svg = renderForgeFrameSvg({frame:f,index:f.order,total:pack.frames.length,pathwayTitle:pathway.title,projectTitle:pack.title});
@@ -55,6 +55,22 @@ test("long scripture chunks reconstruct the original words", () => {
   const text=getPathwayKjvPassage("1 Corinthians 8:4")!.verses[0].text;
   assert.equal(splitEditorialText(text).join(" "),text);
   assert.deepEqual(scriptureEmphasisParts("GOD is one",["God","", "one"]).map(p=>p.text).join(""),"GOD is one");
+});
+test("Scripture remains a whole readable card and longer teaching divides at balanced boundaries", () => {
+  const verse=getPathwayKjvPassage("Isaiah 44:24")!.verses[0].text;
+  const pieces=splitEditorialCards(verse);
+  assert.equal(pieces.length,1);
+  assert.equal(pieces[0],verse);
+  const long="The LORD created the heavens and the earth. ".repeat(20).trim();
+  const parts=splitEditorialCards(long);
+  assert.ok(parts.length>=2 && parts.length<=4);
+  assert.equal(parts.join(" "),long);
+  assert.ok(parts.every(p=>p.length<=420));
+  assert.ok(parts.every(p=>p.length>=110),"No nearly empty orphan cards");
+  const pack=buildEditorialPack("2026-10-21");
+  assert.equal(pack.blockers.length,0);
+  assert.ok(pack.frames.some(f=>f.role==="scripture" && f.scripture==="Isaiah 44:24" && f.body===verse));
+  assert.ok(pack.frames.every(f=>!/· verse \d+/i.test(f.headline)));
 });
 test("local KJV reader resolves aliases and ranges without returning partial passages", () => {
   assert.equal(Object.keys(corpus).length,66);
