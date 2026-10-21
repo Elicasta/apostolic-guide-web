@@ -5,6 +5,7 @@ import { Suspense } from "react";
 import { SiteFooter, SiteHeader } from "@/components";
 import { FooterConnect } from "@/footer-connect";
 import { ProductAnalytics } from "@/analytics";
+import { GoogleAnalytics4 } from "@/google-analytics4";
 import { EmailCapture } from "@/email-capture";
 import { GlobalBackNav } from "@/global-back-nav";
 import { ReadingProgress } from "@/reading-progress";
@@ -100,6 +101,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <FooterConnect />
         <SiteFooter />
         <SiteBehavior />
+        <GoogleAnalytics4 />
         <Suspense fallback={null}>
           <ReadingProgress />
           <EmailCapture />
