@@ -484,7 +484,7 @@ export function CreativeStudioClient({ pathways, initialProjectId, aiReady }: { 
 
       <aside className="creative-preview-panel">
         <div className="creative-panel-head"><strong>Preview</strong><span>{project.format === "story" ? "9:16" : "4:5"}</span></div>
-        <div className={`creative-frame-preview is-${project.format}`} ref={(node) => { if (selectedFrame) frameNodes.current[selectedFrame.id] = node; }}>
+        <div className={`creative-frame-preview is-${project.format}`} data-carousel-role={selectedFrame?.role} ref={(node) => { if (selectedFrame) frameNodes.current[selectedFrame.id] = node; }}>
           {selectedFrame ? <><span className="creative-preview-eyebrow">{project.pathwayTitle} · {String(selectedFrame.order).padStart(2, "0")}</span><div className="creative-preview-copy"><h2>{selectedFrame.headline || "Untitled frame"}</h2>{selectedFrame.scripture ? <strong className="creative-preview-scripture">{selectedFrame.scripture}</strong> : null}{selectedFrame.body ? <p>{selectedFrame.body}</p> : null}{selectedFrame.overlayText ? <blockquote>{selectedFrame.overlayText}</blockquote> : null}</div>{selectedFrame.cta ? <span className="creative-preview-cta">{selectedFrame.cta}</span> : null}</> : null}
         </div>
         <div className="creative-visual-controls">
@@ -494,7 +494,7 @@ export function CreativeStudioClient({ pathways, initialProjectId, aiReady }: { 
       </aside>
     </div>
 
-    <div className="creative-render-stage" aria-hidden="true">{project.editorState.frames.map((frame) => <div key={`render-${frame.id}`} className={`creative-frame-preview is-${project.format}`} ref={(node) => { frameNodes.current[frame.id] = node; }}><span className="creative-preview-eyebrow">{project.pathwayTitle} · {String(frame.order).padStart(2, "0")}</span><div className="creative-preview-copy"><h2>{frame.headline || "Untitled frame"}</h2>{frame.scripture ? <strong className="creative-preview-scripture">{frame.scripture}</strong> : null}{frame.body ? <p>{frame.body}</p> : null}{frame.overlayText ? <blockquote>{frame.overlayText}</blockquote> : null}</div>{frame.cta ? <span className="creative-preview-cta">{frame.cta}</span> : null}</div>)}</div>
+    <div className="creative-render-stage" aria-hidden="true">{project.editorState.frames.map((frame) => <div key={`render-${frame.id}`} className={`creative-frame-preview is-${project.format}`} data-carousel-role={frame.role} ref={(node) => { frameNodes.current[frame.id] = node; }}><span className="creative-preview-eyebrow">{project.pathwayTitle} · {String(frame.order).padStart(2, "0")}</span><div className="creative-preview-copy"><h2>{frame.headline || "Untitled frame"}</h2>{frame.scripture ? <strong className="creative-preview-scripture">{frame.scripture}</strong> : null}{frame.body ? <p>{frame.body}</p> : null}{frame.overlayText ? <blockquote>{frame.overlayText}</blockquote> : null}</div>{frame.cta ? <span className="creative-preview-cta">{frame.cta}</span> : null}</div>)}</div>
 
     <div className="creative-lower-grid">
       <section className="creative-card">
