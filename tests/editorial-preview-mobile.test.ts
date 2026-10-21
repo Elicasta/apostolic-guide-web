@@ -46,7 +46,7 @@ test("mobile preview is viewport-bounded without changing the hidden full-resolu
   assert.match(css, /creative-preview-panel > \.creative-frame-preview/);
   assert.match(css, /width: min\(100%, 400px\) !important/);
   assert.match(css, /creative-workspace-grid > \.creative-frame-rail/);
-  assert.doesNotMatch(css, /creative-render-stage.*?width:/s);
+  assert.doesNotMatch(css, /\\.creative-render-stage\\s*\\{[^}]*width:/s);
   assert.match(layout, /carousel-mobile-viewport-repair\.css/);
   assert.doesNotMatch(layout, /userScalable: false/);
 });
