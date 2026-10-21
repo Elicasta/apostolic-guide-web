@@ -131,6 +131,19 @@ export function CreativeStudioClient({ pathways, initialProjectId, aiReady }: { 
     setSaveError("");
   }, []);
 
+  useEffect(() => {
+    if (!initialProjectId) return;
+    const apply = (event: Event) => {
+      const template = (event as CustomEvent<{ template?: string }>).detail?.template;
+      if (!template || !["street-theology", "editorial-white", "cinematic", "verse-connection", "manifesto"].includes(template)) return;
+      mutateProject((current) => ({ ...current, editorState: {
+        ...current.editorState, visualSettings: { ...current.editorState.visualSettings, style: template }
+      } }));
+    };
+    window.addEventListener("ag:creative-template-select", apply);
+    return () => window.removeEventListener("ag:creative-template-select", apply);
+  }, [initialProjectId, mutateProject]);
+
   const autosaveNow = useCallback(async () => {
     if (!project || !dirty) return project;
     const counter = editCounter.current;
@@ -416,7 +429,7 @@ export function CreativeStudioClient({ pathways, initialProjectId, aiReady }: { 
     </div>
   </section>;
 
-  return <section className="creative-studio-shell">
+  return <section className="creative-studio-shell" data-creative-template={String(project?.editorState.visualSettings.style || "editorial-white")}>
     <div className="creative-project-head">
       <div>
         <span className="creative-kicker">Creative Studio</span>
@@ -468,7 +481,7 @@ export function CreativeStudioClient({ pathways, initialProjectId, aiReady }: { 
           {selectedFrame ? <><span className="creative-preview-eyebrow">{project.pathwayTitle} · {String(selectedFrame.order).padStart(2, "0")}</span><div className="creative-preview-copy"><h2>{selectedFrame.headline || "Untitled frame"}</h2>{selectedFrame.scripture ? <strong className="creative-preview-scripture">{selectedFrame.scripture}</strong> : null}{selectedFrame.body ? <p>{selectedFrame.body}</p> : null}{selectedFrame.overlayText ? <blockquote>{selectedFrame.overlayText}</blockquote> : null}</div>{selectedFrame.cta ? <span className="creative-preview-cta">{selectedFrame.cta}</span> : null}</> : null}
         </div>
         <div className="creative-visual-controls">
-          <label>Visual style<select value={String(project.editorState.visualSettings.style || "editorial-white")} onChange={(event) => mutateProject((current) => ({ ...current, editorState: { ...current.editorState, visualSettings: { ...current.editorState.visualSettings, style: event.target.value } } }))}><option value="editorial-white">Editorial White</option><option value="street-theology">Street Theology</option><option value="verse-connection">Verse Connection</option></select></label>
+          <label>Visual style<select value={String(project.editorState.visualSettings.style || "editorial-white")} onChange={(event) => mutateProject((current) => ({ ...current, editorState: { ...current.editorState, visualSettings: { ...current.editorState.visualSettings, style: event.target.value } } }))}><option value="editorial-white">Editorial White</option><option value="street-theology">Street Theology</option><option value="verse-connection">Verse Connection</option><option value="cinematic">Cinematic</option><option value="manifesto">Manifesto</option></select></label>
           <label>Alignment<select value={String(project.editorState.visualSettings.alignment || "left")} onChange={(event) => mutateProject((current) => ({ ...current, editorState: { ...current.editorState, visualSettings: { ...current.editorState.visualSettings, alignment: event.target.value as "left" | "center" | "right" } } }))}><option value="left">Left</option><option value="center">Center</option><option value="right">Right</option></select></label>
         </div>
       </aside>
