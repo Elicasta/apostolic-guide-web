@@ -117,39 +117,39 @@ async function accessToken(email: string, privateKey: string) {
   return payload.access_token;
 }
 
-function summarizePeriod(startDate: string, endDate: string, rows: SearchConsoleRow[]): SearchConsolePeriod {
-  const clicks = rows.reduce((sum, row) => sum + row.clicks, 0);
-  const impressions = rows.reduce((sum, row) => sum + row.impressions, 0);
-  const weightedPosition = rows.reduce((sum, row) => sum + row.position * row.impressions, 0);
+function summarizePeriod(startDate: string, endDate: string, rows: SearchConsoleRow[], total?: SearchAnalyticsApiRow): SearchConsolePeriod {
+  // Query/page rows are an incomplete, privacy-filtered list and must never
+  // be summed to claim total Search Console clicks or impressions.
+  const clicks = Math.round(Number(total?.clicks ?? 0));
+  const impressions = Math.round(Number(total?.impressions ?? 0));
+  const position = Number(total?.position ?? 0);
   return {
     startDate,
     endDate,
     clicks,
     impressions,
     ctr: impressions ? Number(((clicks / impressions) * 100).toFixed(1)) : 0,
-    position: impressions ? Number((weightedPosition / impressions).toFixed(1)) : 0,
+    position: impressions ? Number(position.toFixed(1)) : 0,
     rows
   };
 }
 
 async function queryPeriod(token: string, siteUrl: string, startDate: string, endDate: string) {
   const url = `${SEARCH_ANALYTICS_URL}/${encodeURIComponent(siteUrl)}/searchAnalytics/query`;
-  const response = await fetchWithTimeout(url, {
-    method: "POST",
-    headers: {
-      authorization: `Bearer ${token}`,
-      "content-type": "application/json"
-    },
-    body: JSON.stringify({
-      startDate,
-      endDate,
-      dimensions: ["query", "page"],
-      rowLimit: 500,
-      dataState: "final"
-    })
-  });
+  const common = { startDate, endDate, dataState: "final" };
+  const headers = { authorization: `Bearer ${token}`, "content-type": "application/json" };
+  const [totalResponse, response] = await Promise.all([
+    fetchWithTimeout(url, { method: "POST", headers, body: JSON.stringify({
+      ...common, dimensions: [], aggregationType: "byProperty", rowLimit: 1
+    }) }),
+    fetchWithTimeout(url, { method: "POST", headers, body: JSON.stringify({
+      ...common, dimensions: ["query", "page"], rowLimit: 1000
+    }) })
+  ]);
+  const totals = await totalResponse.json().catch(() => ({})) as SearchAnalyticsApiResponse & { error?: { message?: string } };
   const payload = await response.json().catch(() => ({})) as SearchAnalyticsApiResponse & { error?: { message?: string } };
-  if (!response.ok) throw new Error(payload.error?.message || `Search Console request failed (${response.status}).`);
+  if (!totalResponse.ok) throw new Error(totals.error?.message || `Search Console totals request failed (${totalResponse.status}).`);
+  if (!response.ok) throw new Error(payload.error?.message || `Search Console query report failed (${response.status}).`);
   const rows = (payload.rows ?? []).map((row) => ({
     query: row.keys?.[0] ?? "",
     page: row.keys?.[1] ?? "",
@@ -158,7 +158,7 @@ async function queryPeriod(token: string, siteUrl: string, startDate: string, en
     ctr: Number(((row.ctr ?? 0) * 100).toFixed(1)),
     position: Number(Number(row.position ?? 0).toFixed(1))
   })).filter((row) => row.query || row.page);
-  return summarizePeriod(startDate, endDate, rows);
+  return summarizePeriod(startDate, endDate, rows, totals.rows?.[0]);
 }
 
 export function searchConsoleConfigured() {
