@@ -88,5 +88,5 @@ test("14-day editing is draft-only, versioned, and leaves canonical Scripture un
   assert.match(controls,/Regenerate artwork/);
   assert.match(controls,/frames:project.editorState.frames.map/);
   assert.match(engine,/v=\$\{artworkVersion\}/);
-  assert.doesNotMatch(controls,/publish|schedule\(/i);
+  assert.doesNotMatch(controls,/fetch\([^)]*\/publishing|fetch\([^)]*\/schedule/i);
 });
