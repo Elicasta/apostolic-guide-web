@@ -5,12 +5,12 @@ type BrandFont = { name: string; data: ArrayBuffer; weight: 600 | 800; style: "n
 export type BrandArtworkAssets = { darkLogo: string; lightLogo: string; fonts: BrandFont[] };
 
 // Logos are the actual official mark used by Carousel Studio, not AG text.
-// Font files are from the open-licensed Google Fonts source repo. Downloaded
+// Static, SIL-OFL font files are pinned to a versioned Fontsource CDN. Downloaded
 // per server instance and cached; if unavailable, the bundled default font is
 // used without breaking artwork exports.
 const fontSources = [
-  { name: "Montserrat", weight: 800 as const, url: "https://raw.githubusercontent.com/google/fonts/main/ofl/montserrat/Montserrat%5Bwght%5D.ttf" },
-  { name: "Cormorant Garamond", weight: 600 as const, url: "https://raw.githubusercontent.com/google/fonts/main/ofl/cormorantgaramond/CormorantGaramond%5Bwght%5D.ttf" }
+  { name: "Montserrat", weight: 800 as const, url: "https://cdn.jsdelivr.net/npm/@fontsource/montserrat@5.1.0/files/montserrat-latin-800-normal.woff" },
+  { name: "Cormorant Garamond", weight: 600 as const, url: "https://cdn.jsdelivr.net/npm/@fontsource/cormorant-garamond@5.1.0/files/cormorant-garamond-latin-600-normal.woff" }
 ];
 let assetsPromise: Promise<BrandArtworkAssets> | undefined;
 
