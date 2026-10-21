@@ -61,18 +61,20 @@ export function buildEditorialPack(date: string, catalog = allPathways): Editori
   let title = pathway.title;
   let frames: CreativeFrame[] = [];
   if (lane === "teaching") {
-    title = `${pathway.title} · Part ${episode} of 3`;
-    frames.push(frame("hook", title, steps[0]?.title || pathway.summary, href));
+    // The episode number remains internal scheduling metadata. Public artwork
+    // must stand on its own without revealing the production sequence.
+    title = `${pathway.title}: ${steps[0]?.title || "Study the Scriptures"}`;
+    frames.push(frame("hook", title, pathway.summary, href));
     for (const step of steps) {
       const passage = getPathwayKjvPassage(step.reference);
       if (!passage) blockers.push(`Missing full KJV text: ${step.reference}`);
       for (const verse of passage?.verses ?? []) {
-        splitEditorialText(verse.text).forEach((chunk, index) => frames.push(frame("scripture", `${step.reference} · verse ${verse.number}${index ? " continued" : ""}`, chunk, href, step.reference)));
+        splitEditorialText(verse.text).forEach((chunk, index) => frames.push(frame("scripture", `${step.reference} · verse ${verse.number}`, chunk, href, step.reference)));
       }
-      splitEditorialText(step.explanation).forEach((chunk, index) => frames.push(frame("explanation", index ? `${step.title} continued` : step.title, chunk, href)));
+      splitEditorialText(step.explanation).forEach((chunk, index) => frames.push(frame("explanation", step.title, chunk, href)));
       if (step.hook) splitEditorialText(step.hook).forEach(chunk => frames.push(frame("support", "Why go here next?", chunk, href)));
     }
-    frames.push(frame("cta", episode === 3 ? "Study the full pathway" : `Continue with Part ${episode! + 1}`, `Read the full text and explanation at apostolicguide.com${href}`, href));
+    frames.push(frame("cta", "Continue in Scripture", `Follow the complete biblical study at apostolicguide.com${href}`, href));
   } else if (lane === "poster") {
     const step = steps[0];
     const passage = getPathwayKjvPassage(step.reference);
@@ -90,6 +92,15 @@ export function buildEditorialPack(date: string, catalog = allPathways): Editori
       frame("explanation", "Follow the argument", "Read the explanation and why the next passage follows. Use Next to continue through the cards.", href),
       frame("cta", "Put it into practice", "Open the surrounding chapter, compare the connected passages, and share the pathway with someone you study with.", href)
     ];
+  }
+  for (const item of frames) {
+    if (/\b(?:HOOK|DRAFT|INTERNAL|Part\s+\d+\s+of\s+\d+|continued)\b/i.test(item.headline)) {
+      blockers.push("Internal production labels must not appear on reader-facing artwork.");
+    }
+    if (item.scripture && !pathway.steps.some(step => step.reference === item.scripture || item.scripture.startsWith(step.reference + " ·"))) {
+      blockers.push(`Unrecognized Scripture reference: ${item.scripture}`);
+    }
+    if (!item.headline.trim() || !item.body.trim()) blockers.push("A frame is missing a readable headline or paragraph.");
   }
   if (frames.length > 20) blockers.push(`This draft has ${frames.length} frames. Split it into smaller posts before export.`);
   const caption = lane === "poster"
