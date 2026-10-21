@@ -5,16 +5,17 @@ import test from "node:test";
 const layout = readFileSync("app/admin/carousel-studio/layout.tsx", "utf8");
 const mobileCss = readFileSync("app/admin/carousel-mobile-workflow-cleanup.css", "utf8");
 
-test("Carousel Studio locks the mobile browser viewport at 1x", () => {
+test("Carousel Studio starts at device width without disabling accessible zoom", () => {
   assert.match(layout, /export const viewport: Viewport/);
   assert.match(layout, /initialScale:\s*1/);
-  assert.match(layout, /maximumScale:\s*1/);
-  assert.match(layout, /userScalable:\s*false/);
+  assert.doesNotMatch(layout, /maximumScale:\s*1/);
+  assert.doesNotMatch(layout, /userScalable:\s*false/);
 });
 
-test("Carousel Studio keeps scrolling but does not opt back into pinch zoom", () => {
+test("Carousel Studio restores pinch zoom while keeping scroll gestures usable", () => {
+  const repair = readFileSync("app/admin/carousel-mobile-viewport-repair.css", "utf8");
   assert.match(mobileCss, /touch-action:pan-x pan-y;/);
-  assert.doesNotMatch(mobileCss, /touch-action:[^;]*pinch-zoom/);
+  assert.match(repair, /touch-action: pan-x pan-y pinch-zoom !important/);
 });
 
 test("Carousel Studio mobile form controls avoid iOS focus zoom", () => {
