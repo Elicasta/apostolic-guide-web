@@ -22,7 +22,7 @@ export function cleanPublicCarouselText(text: string) {
     .trim();
 }
 
-export function carouselFrameLayout(input: { theme: CarouselTheme | string; title: string; index: number; total: number; body: string; format?: "single" | "carousel" | "story" }) {
+export function carouselFrameLayout(input: { theme: CarouselTheme | string; title: string; index: number; total: number; body: string; role?: string; format?: "single" | "carousel" | "story" }) {
   const theme = normalizeCarouselTheme(input.theme);
   const title = cleanPublicCarouselText(input.title);
   const cover = input.index === 0;
@@ -33,13 +33,17 @@ export function carouselFrameLayout(input: { theme: CarouselTheme | string; titl
   if (theme === "manifesto") headlineCqw = 8;
   if (cover && fit !== "fit-sm") headlineCqw = Math.min(headlineCqw, fitTitle[fit]);
   if (input.format === "story") headlineCqw = cover ? 10.4 : 9.2;
-  const bodyCqw = input.format === "story" ? 2.35 : cover ? 2.35 : (["cinematic", "editorial-white", "verse-connection"].includes(theme) ? 3 : 2.55);
-  const bodyWidth = theme === "editorial-white" ? 82 : 76;
+  const isScripture = input.role === "scripture";
+  const bodyCqw = isScripture
+    ? (input.body.length > 340 ? 3.45 : input.body.length > 260 ? 3.9 : input.body.length > 170 ? 4.55 : 5.4)
+    : input.format === "story" ? 2.35 : cover ? 2.35 : (["cinematic", "editorial-white", "verse-connection"].includes(theme) ? 3 : 2.55);
+  if (isScripture) headlineCqw = 2.75;
+  const bodyWidth = isScripture ? 96 : theme === "editorial-white" ? 82 : 76;
   return {
     headlineCqw, bodyCqw, titleWidth: 90, bodyWidth,
     copyLeft: 7, copyRight: 7, copyTop: cover ? 49 : 50,
     headlinePx: headlineCqw * 10.8, bodyPx: bodyCqw * 10.8,
-    fit, cover, cta, cleanedTitle:title,
+    fit, cover, cta, isScripture, cleanedTitle:title,
     isLight: theme === "editorial-white" || theme === "verse-connection",
     isSerif: ["cinematic","editorial-white","verse-connection"].includes(theme)
   };
