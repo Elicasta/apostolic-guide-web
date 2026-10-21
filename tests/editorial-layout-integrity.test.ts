@@ -96,7 +96,7 @@ test("all five themes give every card role a bounded, legible hierarchy", () => 
   const art=read("src/carousel-persistent-artwork.tsx");
   const css=read("app/admin/carousel-design-contract.css");
   assert.match(client,/data-carousel-role=\{frame.role\}/);
-  assert.match(art,/role:\\s*source\\.dataset\\.carouselRole/);
+  assert.match(art,/role:\s*source\.dataset\.carouselRole/);
   assert.match(css,/is-scripture \.carousel-copy > p/);
   const renderer=read("src/forge-carousel-image.tsx");
   assert.match(renderer,/role: frame.role/);
