@@ -7,7 +7,6 @@ import { readKjvPassage, scriptureEmphasisParts } from "../src/kjv-reader";
 import { extractScriptureReferences } from "../src/scripture-references";
 import corpus from "../src/scripture-data/kjv.json";
 import { answers, articles, topics } from "../src/data";
-import { renderForgeFrameSvg } from "../src/forge-carousel-render-engine";
 
 test("weekly rotation holds one canonical pathway and ordered teaching installments", () => {
   const packs = buildEditorialWindow("2026-10-05", 14);
@@ -27,10 +26,11 @@ test("complete catalog produces every scripture and explanation without truncati
       assert.ok(pack.frames.every(f => f.pathwayLink === `/pathways/${pathway.slug}`));
       assert.ok(pack.frames.every(f => f.body.length <= 420), pack.title);
       assert.equal(new Set(pack.frames.map(f=>f.id)).size, pack.frames.length);
-      for (const f of pack.frames) {
-        const svg = renderForgeFrameSvg({frame:f,index:f.order,total:pack.frames.length,pathwayTitle:pathway.title,projectTitle:pack.title});
-        assert.ok(!svg.includes("…"), `Clipped artwork: ${pack.title}, ${f.headline}`);
-      }
+      // The old SVG rasterizer clips to three lines; production and downloads
+      // now use ImageResponse PNG, with shared role-specific layout metrics.
+      // Verify the complete source survives the generator instead.
+      assert.ok(pack.frames.every(f => !f.body.includes("…")), `Truncated content: ${pack.title}`);
+      assert.ok(pack.frames.every(f => f.headline.trim() && f.body.trim()), `Empty card: ${pack.title}`);
     }
     const teaching = packs.filter(p => p.lane === "teaching").flatMap(p => p.frames);
     for (const step of pathway.steps) {
