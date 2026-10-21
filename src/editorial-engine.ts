@@ -46,7 +46,7 @@ export function splitEditorialText(text: string, limit = 170) {
  * Longer text breaks on a word boundary close to an even target, preferably
  * after punctuation. Concatenating segments reproduces the original text.
  */
-export function splitEditorialCards(text: string, maxChars = 420): string[] {
+export function splitEditorialCards(text: string, maxChars = 340): string[] {
   const words = text.trim().split(/\s+/).filter(Boolean);
   const normalized = words.join(" ");
   if (!normalized || normalized.length <= maxChars) return normalized ? [normalized] : [];
@@ -61,11 +61,22 @@ export function splitEditorialCards(text: string, maxChars = 420): string[] {
       const prefix = remaining.slice(0, i).join(" ");
       if (prefix.length < Math.min(60, target * .58) || prefix.length > maxChars) continue;
       const punctuated = /[.;:!?]$/.test(remaining[i - 1]);
-      const score = Math.abs(prefix.length - target) - (punctuated ? 30 : 0);
+      // Never favor a pretty punctuation break if it strands an oversized
+      // remainder or forces an unreadable, near-empty final slide.
+      const remainderLength = remaining.slice(i).join(" ").length;
+      const maxRemaining = (left - 1) * maxChars;
+      if (remainderLength > maxRemaining) continue;
+      const score = Math.abs(prefix.length - target) - (punctuated ? 24 : 0);
       candidates.push({index:i,score});
     }
     const best = candidates.sort((a,b)=>a.score-b.score)[0];
-    if (!best) break;
+    if (!best) {
+      // Defensive fallback: preserve every word rather than silently clipping.
+      const fit = Math.max(1, remaining.findIndex((_,i)=> remaining.slice(0,i+1).join(" ").length > maxChars));
+      segments.push(remaining.slice(0,fit).join(" "));
+      remaining = remaining.slice(fit);
+      continue;
+    }
     segments.push(remaining.slice(0,best.index).join(" "));
     remaining = remaining.slice(best.index);
   }
