@@ -27,7 +27,7 @@ export function createForgeFrameImage(input: {
   const seed = Math.max(0, Math.min(10000, Math.floor(input.regenerationSeed ?? 0)));
   const title = cleanPublicCarouselText(frame.headline.trim() || input.projectTitle);
   const body = cleanPublicCarouselText(bodyText(frame));
-  const layout = carouselFrameLayout({ theme, title, index, total, body });
+  const layout = carouselFrameLayout({ theme, title, index, total, body, role: frame.role });
   const dark = theme !== "verse-connection" && theme !== "editorial-white";
   const serif = theme === "cinematic" || theme === "editorial-white" || theme === "verse-connection";
   const activeFonts = input.brandAssets?.fonts ?? [];
@@ -66,23 +66,26 @@ export function createForgeFrameImage(input: {
       </div>
       <div style={{
         display: "flex", flexDirection: "column", flex: 1, width: "86%", alignSelf:"center",
-        justifyContent: "center", alignItems: centered ? "center" : "flex-start",
-        textAlign: centered ? "center" : "left", paddingBottom: frame.scripture ? 24 : 0
+        justifyContent: "center", alignItems: centered && !layout.isScripture ? "center" : "flex-start",
+        textAlign: centered && !layout.isScripture ? "center" : "left", paddingBottom: frame.scripture ? 24 : 0
       }}>
         {frame.scripture.trim() ? <span style={{ fontSize: 20, letterSpacing: 4, fontWeight: 800, color: c.accent, marginBottom: 35 }}>
           {frame.scripture.trim()}
         </span> : null}
         <div style={{
           display: "flex", flexDirection: "column", fontSize: layout.headlinePx,
-          lineHeight: heavy ? 1.01 : 1.1, fontWeight: theme === "cinematic" || theme === "editorial-white" ? 600 : 900,
+          lineHeight: layout.isScripture ? 1.28 : heavy ? 1.01 : 1.1,
+          fontWeight: layout.isScripture ? 800 : theme === "cinematic" || theme === "editorial-white" ? 600 : 900,
           fontFamily: serif && activeFonts.some(f => f.name === "Cormorant Garamond") ? "Cormorant Garamond" : (activeFonts.some(f => f.name === "Montserrat") ? "Montserrat" : "sans-serif"),
-          color: c.fg, letterSpacing: serif ? -1.6 : -2.4, textTransform: heavy && cover ? "uppercase" : "none",
+          color: layout.isScripture ? c.accent : c.fg, letterSpacing: layout.isScripture ? 2 : serif ? -1.6 : -2.4, textTransform: layout.isScripture ? "uppercase" : heavy && cover ? "uppercase" : "none",
           width: `${layout.titleWidth}%`, maxWidth: "100%", overflowWrap: "break-word", textAlign: centered ? "center" : "left"
         }}>{title}</div>
         {body ? <div style={{
-          display: "flex", fontSize: layout.bodyPx, lineHeight: 1.38, fontWeight: 500,
-          color: c.muted, fontFamily: serif && activeFonts.some(f => f.name === "Cormorant Garamond") ? "Cormorant Garamond" : (activeFonts.some(f => f.name === "Montserrat") ? "Montserrat" : "sans-serif"), textAlign: centered ? "center" : "left",
-          marginTop: 22, width: `${layout.bodyWidth}%`, maxWidth: "100%", overflowWrap: "break-word"
+          display: "flex", fontSize: layout.bodyPx, lineHeight: layout.isScripture ? 1.22 : 1.38, fontWeight: layout.isScripture ? 600 : 500,
+          color: layout.isScripture ? c.fg : c.muted,
+          fontFamily: (serif || layout.isScripture) && activeFonts.some(f => f.name === "Cormorant Garamond") ? "Cormorant Garamond" : (activeFonts.some(f => f.name === "Montserrat") ? "Montserrat" : "sans-serif"),
+          textAlign: centered && !layout.isScripture ? "center" : "left",
+          marginTop: layout.isScripture ? 14 : 22, width: `${layout.bodyWidth}%`, maxWidth: "100%", overflowWrap: "break-word"
         }}>{body}</div> : null}
         {frame.cta?.trim() && frame.role !== "cta" ? <div style={{
           display: "flex", backgroundColor: c.accent, color: "#fff", padding: "12px 21px",
