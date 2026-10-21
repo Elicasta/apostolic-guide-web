@@ -100,7 +100,7 @@ test("Analytics surfaces exact reader journeys without reintroducing coarse over
   assert.match(page, /Last observed \(not completed\)/);
   assert.match(page, /row\.arrows/);
   assert.match(page, /row\.swipes/);
-  assert.match(page, /<b>\{row\.completions\}<\/b><small>reading/);
+  assert.match(page, /row\.completed\} reading completions/);
   assert.match(css, /@media\(max-width:600px\)/);
   assert.doesNotMatch(page, /Biggest observed loss:/);
   assert.doesNotMatch(page, /<table/);
