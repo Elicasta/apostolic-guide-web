@@ -241,11 +241,11 @@ export function buildAnalyticsV3Signals(snapshot: AnalyticsV3Snapshot, pathwayRo
     signals.push({
       id: `pathway-dropoff:${highTrafficWeakCompletion.slug}`,
       severity: "attention",
-      title: `${highTrafficWeakCompletion.title} is attracting starts but losing readers`,
-      detail: `${highTrafficWeakCompletion.starts} started and ${highTrafficWeakCompletion.completions} completed. The completion rate is ${highTrafficWeakCompletion.completionRate}% with ${highTrafficWeakCompletion.averageProgress}% average depth.`,
+      title: `${highTrafficWeakCompletion.title} is attracting opens but losing readers`,
+      detail: `${highTrafficWeakCompletion.starts} opened and ${highTrafficWeakCompletion.completions} completed. The completion rate is ${highTrafficWeakCompletion.completionRate}% with ${highTrafficWeakCompletion.averageProgress}% average depth.`,
       confidence: analyticsConfidence(highTrafficWeakCompletion.starts),
       evidence: [
-        { label: "Starts", value: String(highTrafficWeakCompletion.starts) },
+        { label: "Opens", value: String(highTrafficWeakCompletion.starts) },
         { label: "Completions", value: String(highTrafficWeakCompletion.completions) },
         { label: "Average depth", value: `${highTrafficWeakCompletion.averageProgress}%` }
       ],
@@ -261,10 +261,10 @@ export function buildAnalyticsV3Signals(snapshot: AnalyticsV3Snapshot, pathwayRo
       id: `pathway-opportunity:${deepUnderdistributed.slug}`,
       severity: "opportunity",
       title: `${deepUnderdistributed.title} is small but unusually deep`,
-      detail: `${deepUnderdistributed.completions} of ${deepUnderdistributed.starts} starts completed (${deepUnderdistributed.completionRate}%). It may deserve more distribution.`,
+      detail: `${deepUnderdistributed.completions} of ${deepUnderdistributed.starts} opens completed (${deepUnderdistributed.completionRate}%). It may deserve more distribution.`,
       confidence: analyticsConfidence(deepUnderdistributed.starts),
       evidence: [
-        { label: "Starts", value: String(deepUnderdistributed.starts) },
+        { label: "Opens", value: String(deepUnderdistributed.starts) },
         { label: "Completion rate", value: `${deepUnderdistributed.completionRate}%` }
       ],
       href: `/pathways/${deepUnderdistributed.slug}`
