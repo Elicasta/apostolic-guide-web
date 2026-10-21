@@ -22,7 +22,7 @@ export default function PathwaysPage() {
       <PageHero variant="pathways" eyebrow="Guided Scripture studies" title="Do not collect isolated verses. Follow the pathway." text="Choose a study, read its full KJV Scripture cards, and use Next to follow the explanations and connected passages. Continue in the app for deeper study." />
       <section className="section pathways-index-section">
         <div className="shell pathway-directory">
-          <section className="sidebar-card" aria-label="Start studying"><span className="eyebrow">New here?</span><h2>Start with God Is One.</h2><p>Open the first card, read the Scripture and explanation, then tap Next. Each card tells you why the next passage follows.</p><Link className="button button-dark" href="/pathways/god-is-one#step-1">Begin the study <ArrowRight size={16} /></Link></section>
+          <section className="sidebar-card" aria-label="Start studying"><span className="eyebrow">New here?</span><h2>Start with God Is One.</h2><p>Open the first card, read the Scripture and explanation, then tap Next. Each card tells you why the next passage follows.</p><Link className="button button-dark" data-study-entry="pathway-directory-feature" href="/pathways/god-is-one#step-1">Begin the study <ArrowRight size={16} /></Link></section>
           <nav className="pathway-category-nav" aria-label="Pathway categories">
             {grouped.map((group) => (
               <a key={group.title} href={`#${group.title.toLowerCase().replaceAll(" ", "-")}`}>
@@ -39,7 +39,7 @@ export default function PathwaysPage() {
               </header>
               <div className="pathway-grid">
                 {group.items.map((pathway, index) => (
-                  <Link className="pathway-card" href={`/pathways/${pathway.slug}`} key={pathway.slug} data-reveal>
+                  <Link className="pathway-card" data-study-entry="pathway-directory" href={`/pathways/${pathway.slug}`} key={pathway.slug} data-reveal>
                     <span className="pathway-number">{String(index + 1).padStart(2, "0")}</span>
                     <Route size={23} />
                     <span className="eyebrow">Scripture pathway</span>
