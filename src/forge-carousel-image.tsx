@@ -1,4 +1,3 @@
-import "server-only";
 import { ImageResponse } from "next/og";
 import type { CreativeFrame, CreativeFrameRole } from "./creative-project";
 import { FORGE_CAROUSEL_HEIGHT, FORGE_CAROUSEL_WIDTH } from "./forge-carousel-render-engine";
