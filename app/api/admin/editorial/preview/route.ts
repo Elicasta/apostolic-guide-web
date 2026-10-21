@@ -28,7 +28,7 @@ export async function GET(request: Request) {
     const project = await loadCreativeProject(service, id);
     const frame = project?.editorState.frames[index];
     if (!project || !frame) return NextResponse.json({ error: "Frame not found." }, { status: 404 });
-    const png = await renderForgeFramePng({ frame, index, total: project.editorState.frames.length, pathwayTitle: project.pathwayTitle, projectTitle: project.title });
+    const png = await renderForgeFramePng({ frame, index, total: project.editorState.frames.length, pathwayTitle: project.pathwayTitle, projectTitle: project.title, theme: project.editorState.visualSettings.style, regenerationSeed: Number(project.editorState.visualSettings.regenerationSeed || 0) });
     return new Response(new Uint8Array(png), { headers: { "content-type": "image/png", "cache-control": "private, no-store", "content-disposition": url.searchParams.get("download") === "1" ? `attachment; filename="${project.pathwaySlug}-${index + 1}.png"` : "inline" } });
   } catch (error) { return NextResponse.json({ error: error instanceof Error ? error.message : "Preview failed." }, { status: 503 }); }
 }
