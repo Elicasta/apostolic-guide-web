@@ -165,8 +165,8 @@ export function PathwayCardReader({ slug, title, steps, nextPathway }: PathwayCa
         const deltaX = touch.clientX - start.x;
         const deltaY = touch.clientY - start.y;
         if (Math.abs(deltaX) < 55 || Math.abs(deltaX) <= Math.abs(deltaY)) return;
-        if (deltaX < 0 && !isLast) setStep(active + 1);
-        if (deltaX > 0 && !isFirst) setStep(active - 1);
+        if (deltaX < 0 && !isLast) setStep(active + 1, { method: "swipe" });
+        if (deltaX > 0 && !isFirst) setStep(active - 1, { method: "swipe" });
       }}
     >
       <article
