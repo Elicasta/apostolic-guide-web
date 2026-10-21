@@ -38,7 +38,7 @@ begin
       values (pack->>'pathwaySlug',pack->>'title',case when pack->>'format' = 'single' then 'post' else 'carousel' end,
         'instagram','draft','editorial-engine',pack->>'date',
         jsonb_build_object('planned_date',pack->>'date','creative_project_id',project,'source_hash',pack->>'sourceHash','review_required',true))
-      on conflict (source, source_ref) do update
+      on conflict (source, source_ref) where source_ref is not null do update
         set pathway_slug = excluded.pathway_slug,
             title = excluded.title,
             content_type = excluded.content_type,
