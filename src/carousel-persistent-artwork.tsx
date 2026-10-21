@@ -83,7 +83,7 @@ function OriginalArtwork({ frame, visualStyle, alignment, backgroundUrl }: { fra
   const lightSurface = visualStyle === "editorial" || visualStyle === "verse";
   const logo = lightSurface && !backgroundUrl ? "/brand/apostolic-guide-mark.png" : "/brand/apostolic-guide-mark-reversed.png";
   const kind = frame.order === 1 ? "cover" : frame.cta || frame.order === frame.total ? "cta" : frame.scripture ? "scripture" : "statement";
-  const layout = carouselFrameLayout({theme: visualStyle, title:frame.title, body:frame.body,index:frame.order-1,total:frame.total,format:frame.format});
+  const layout = carouselFrameLayout({theme: visualStyle, title:frame.title, body:frame.body,index:frame.order-1,total:frame.total,format:frame.format,role:frame.scripture ? "scripture" : undefined});
   const artStyle = {
     "--carousel-grain": backgroundUrl ? .7 : .62,
     "--copy-y": `${layout.copyTop}%`,
