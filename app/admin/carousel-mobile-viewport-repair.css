@@ -1,0 +1,84 @@
+/* Mobile-only viewport repair for the *visible* Carousel Studio editor.
+   Do not resize .creative-render-stage; its 360px offscreen artboards are
+   intentional and used for faithful 1080px exports. */
+@media (max-width: 760px) {
+  .carousel-studio-master,
+  .carousel-studio-master .creative-studio-shell,
+  .carousel-studio-master .creative-workspace-grid {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .carousel-studio-master .creative-workspace-grid {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 14px;
+  }
+
+  .carousel-studio-master .creative-workspace-grid > .creative-preview-panel,
+  .carousel-studio-master .creative-workspace-grid > .creative-editor-panel,
+  .carousel-studio-master .creative-workspace-grid > .creative-frame-rail {
+    box-sizing: border-box;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    width: 100% !important;
+  }
+
+  .carousel-studio-master .creative-preview-panel {
+    overflow: hidden;
+    padding-inline: 12px !important;
+  }
+
+  .carousel-studio-master .creative-preview-panel > .creative-frame-preview {
+    box-sizing: border-box;
+    width: min(100%, 400px) !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    aspect-ratio: 4 / 5;
+    height: auto !important;
+    margin-inline: auto !important;
+    overflow: hidden !important;
+    isolation: isolate;
+  }
+
+  .carousel-studio-master .creative-preview-panel > .creative-frame-preview.is-story {
+    width: min(100%, 300px) !important;
+    aspect-ratio: 9 / 16;
+  }
+
+  .carousel-studio-master .creative-preview-panel .persistent-carousel-artboard,
+  .carousel-studio-master .creative-preview-panel [data-carousel-selected-frame-mirror],
+  .carousel-studio-master .creative-preview-panel [data-carousel-selected-frame-clone] {
+    box-sizing: border-box;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    height: 100% !important;
+    overflow: hidden;
+  }
+
+  .carousel-studio-master .creative-preview-panel .carousel-artwork {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  /* The frame rail remains horizontally scrollable by touch, not the page. */
+  .carousel-studio-master .creative-workspace-grid > .creative-frame-rail {
+    overflow-x: auto !important;
+    overscroll-behavior-inline: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .carousel-studio-master .creative-preview-panel .creative-panel-head {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .carousel-studio-master .creative-preview-panel .creative-panel-head strong,
+  .carousel-studio-master .creative-preview-panel .creative-panel-head small {
+    overflow-wrap: anywhere;
+  }
+}
