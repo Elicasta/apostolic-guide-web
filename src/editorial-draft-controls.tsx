@@ -32,7 +32,7 @@ export function EditorialDraftControls({ projectId, frameIndex, canManage, onSav
   }, [projectId]);
   const editable = Boolean(canManage && project && project.status === "draft");
   const frame = project?.editorState.frames[frameIndex] ?? null;
-  const chosen = normalizeCarouselTheme(project?.editorState.visualSettings.style);
+  const chosen = normalizeCarouselTheme(project?.editorState.visualSettings.style || project?.editorState.visualSettings.template);
 
   async function save(next: Project, message: string) {
     if (!project || working || !editable) return;
