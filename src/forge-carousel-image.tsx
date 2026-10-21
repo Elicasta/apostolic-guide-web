@@ -1,16 +1,10 @@
 import { ImageResponse } from "next/og";
-import type { CreativeFrame, CreativeFrameRole } from "./creative-project";
+import type { CreativeFrame } from "./creative-project";
 import { FORGE_CAROUSEL_HEIGHT, FORGE_CAROUSEL_WIDTH } from "./forge-carousel-render-engine";
+import { carouselThemePalette, normalizeCarouselTheme, type CarouselTheme } from "./carousel-theme";
 
-// Satori/ImageResponse outlines glyphs using its bundled Noto Sans font.
-// Unlike sharp's SVG text rasterization this does not require fontconfig,
-// Arial, Impact or Georgia to exist in Vercel's serverless runtime.
-function colors(role: CreativeFrameRole) {
-  if (role === "statement") return { background: "#b52f43", foreground: "#fffdf8", soft: "#f2ced5", accent: "#10213b" };
-  if (role === "hook" || role === "cta") return { background: "#10213b", foreground: "#fffdf8", soft: "#c8ced5", accent: "#b52f43" };
-  return { background: "#fffdf8", foreground: "#10213b", soft: "#545f6a", accent: "#b52f43" };
-}
-
+// One shared font-independent renderer for editorial previews, downloads and
+// background Forge exports. Themes mirror Carousel Studio's art direction.
 function bodyText(frame: CreativeFrame) {
   if (frame.role === "cta" && frame.cta.trim()) return frame.cta.trim();
   return frame.body.trim() || frame.overlayText.trim() || frame.supportingNotes.trim();
@@ -22,45 +16,84 @@ export function createForgeFrameImage(input: {
   total: number;
   pathwayTitle: string;
   projectTitle: string;
+  theme?: CarouselTheme | string;
+  regenerationSeed?: number;
 }) {
   const { frame, index, total } = input;
-  const color = colors(frame.role);
+  const theme = normalizeCarouselTheme(input.theme);
+  const c = carouselThemePalette(theme);
+  const seed = Math.max(0, Math.min(10000, Math.floor(input.regenerationSeed ?? 0)));
   const title = frame.headline.trim() || input.projectTitle;
   const body = bodyText(frame);
-  const headlineSize = title.length > 85 ? 64 : title.length > 50 ? 74 : title.length > 27 ? 88 : 106;
-  const bodySize = body.length > 180 ? 30 : body.length > 115 ? 34 : 39;
-  const labelStyle = { fontSize: 21, fontWeight: 700 as const, letterSpacing: 2.4, color: color.soft };
+  const dark = theme !== "verse-connection" && theme !== "editorial-white";
+  const heavy = theme === "manifesto" || theme === "street-theology" || theme === "verse-connection";
+  const hero = frame.role === "hook" || frame.role === "statement" || frame.role === "cta";
+  const titleSize = title.length > 100 ? 58 : title.length > 70 ? 67 : title.length > 42 ? 76 : title.length > 25 ? 91 : 107;
+  const bodySize = body.length > 180 ? 29 : body.length > 110 ? 33 : 37;
+  const centered = theme === "verse-connection" || theme === "manifesto" || (theme === "street-theology" && hero);
+  const cover = hero && title.length < 95;
+  const labelStyle = { fontSize: 18, fontWeight: 700 as const, letterSpacing: 3, color: c.muted };
+  const stripeLeft = 30 + (seed * 13) % 70;
+  const radial = dark
+    ? `radial-gradient(ellipse at ${75 - seed % 15}% 20%, ${c.soft} 0%, ${c.bg} 76%)`
+    : `linear-gradient(${80 + seed % 20}deg, ${c.bg}, #fffaf0 65%, ${c.bg})`;
   return new ImageResponse(
     <div style={{
-      display: "flex", flexDirection: "column", width: "100%", height: "100%",
-      backgroundColor: color.background, color: color.foreground,
-      padding: "68px 72px 66px", fontFamily: "sans-serif", position: "relative"
+      display: "flex", flexDirection: "column", position: "relative", isolation: "isolate",
+      width: "100%", height: "100%", padding: "70px 72px 61px",
+      backgroundColor: c.bg, backgroundImage: radial, color: c.fg, fontFamily: "sans-serif"
     }}>
-      <div style={{ display: "flex", flexDirection: "column", width: "100%" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", width: "100%" }}>
-          <div style={{ display: "flex", flexDirection: "column", gap: 12, paddingLeft: 22, borderLeft: `7px solid ${color.accent}` }}>
-            <span style={{ ...labelStyle, fontSize: 20 }}>APOSTOLIC GUIDE</span>
-            <span style={{ ...labelStyle, color: color.foreground, fontSize: 20 }}>{input.pathwayTitle.toUpperCase().slice(0, 48)}</span>
-          </div>
-          <span style={{ ...labelStyle }}>{String(index + 1).padStart(2, "0")} / {String(total).padStart(2, "0")}</span>
+      {/* Cinematic ambient bars add depth without relying on remote image assets. */}
+      {dark ? <div style={{ display: "flex", position: "absolute", bottom: 0, left: 0, right: 0, height: 160, alignItems: "flex-end", opacity: theme === "street-theology" ? .28 : .14 }}>
+        {Array.from({ length: 12 }, (_, n) => <div key={n} style={{
+          display: "flex", flex: 1, backgroundColor: "#010911",
+          height: 46 + ((n * 39 + seed * 7) % 100), marginRight: n % 3 === 0 ? 8 : 0
+        }}/>)}
+      </div> : null}
+      {(theme === "editorial-white" || theme === "verse-connection") ? <div style={{
+        display: "flex", position: "absolute", left: stripeLeft, top: 280,
+        width: 2, height: 690, backgroundColor: c.accent, opacity: .09
+      }}/> : null}
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", width: "100%", position: "relative" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <span style={{ ...labelStyle, color: c.muted }}>SCRIPTURE PATHWAY</span>
+          <span style={{ ...labelStyle, color: c.accent, fontSize: 19 }}>{input.pathwayTitle.toUpperCase().slice(0, 47)}</span>
         </div>
-        <div style={{ width: "100%", height: 2, backgroundColor: color.foreground, opacity: .16, marginTop: 48, marginBottom: 35 }}/>
-        <span style={{ fontSize: 25, letterSpacing: 3, color: color.accent, fontWeight: 700 }}>{frame.role.toUpperCase()}</span>
-        <div style={{ display: "flex", flexDirection: "column", marginTop: 56, gap: 35 }}>
-          <div style={{ display: "flex", fontSize: headlineSize, lineHeight: 1.03, fontWeight: 800, letterSpacing: -1.8, overflowWrap: "break-word" }}>{title}</div>
-          {body ? <div style={{ display: "flex", fontSize: bodySize, lineHeight: 1.4, fontWeight: 500, color: color.soft, overflowWrap: "break-word" }}>{body}</div> : null}
-        </div>
+        <span style={{ fontSize: 40, fontWeight: 900, color: c.fg, letterSpacing: -4 }}>A<span style={{ color: c.accent }}>G</span></span>
       </div>
-      <div style={{ display: "flex", flexDirection: "column", marginTop: "auto", width: "100%" }}>
-        {frame.scripture.trim() ? <div style={{
-          display: "flex", alignItems: "center", minHeight: 76, marginBottom: 28,
-          borderLeft: `5px solid ${color.accent}`, paddingLeft: 20,
-          fontSize: 29, fontWeight: 700, color: color.foreground
+      <div style={{
+        display: "flex", flexDirection: "column", flex: 1, width: "100%",
+        justifyContent: "center", alignItems: centered ? "center" : "flex-start",
+        textAlign: centered ? "center" : "left", paddingBottom: frame.scripture ? 24 : 0
+      }}>
+        <span style={{ fontSize: 20, letterSpacing: 4, fontWeight: 800, color: c.accent, marginBottom: 35 }}>
+          {frame.scripture.trim() || frame.role.toUpperCase()}
+        </span>
+        <div style={{
+          display: "flex", flexDirection: "column", fontSize: Math.max(58, titleSize - (theme === "cinematic" ? 10 : 0)),
+          lineHeight: heavy ? 1.01 : 1.1, fontWeight: theme === "cinematic" || theme === "editorial-white" ? 600 : 900,
+          letterSpacing: -2.4, textTransform: heavy && cover ? "uppercase" : "none",
+          maxWidth: "100%", overflowWrap: "break-word", textAlign: centered ? "center" : "left"
+        }}>{title}</div>
+        {body ? <div style={{
+          display: "flex", fontSize: bodySize, lineHeight: 1.46, fontWeight: 500,
+          color: c.muted, textAlign: centered ? "center" : "left",
+          marginTop: 34, maxWidth: "95%", overflowWrap: "break-word"
+        }}>{body}</div> : null}
+        {frame.cta?.trim() && frame.role !== "cta" ? <div style={{
+          display: "flex", backgroundColor: c.accent, color: "#fff", padding: "12px 21px",
+          marginTop: 28, fontSize: 23, fontWeight: 750
+        }}>{frame.cta.trim()}</div> : null}
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", width: "100%", position: "relative", marginTop: "auto" }}>
+        {frame.scripture.trim() && theme !== "verse-connection" ? <div style={{
+          display: "flex", fontSize: 22, color: c.fg, fontWeight: 750,
+          borderLeft: `5px solid ${c.accent}`, paddingLeft: 17, marginBottom: 27
         }}>{frame.scripture.trim()}</div> : null}
-        <div style={{ width: "100%", height: 8, borderRadius: 5, backgroundColor: color.accent }}/>
-        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 44, width: "100%" }}>
-          <span style={{ ...labelStyle, fontSize: 19 }}>THE WORD · MADE CLEAR</span>
-          <span style={{ ...labelStyle, color: color.foreground, fontSize: 20 }}>AG</span>
+        <div style={{ width: "100%", height: 7, backgroundColor: c.accent, borderRadius: 3 }}/>
+        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 31, width: "100%" }}>
+          <span style={{ ...labelStyle, fontSize: 17 }}>APOSTOLICGUIDE.COM</span>
+          <span style={{ ...labelStyle, fontSize: 18, color: c.fg }}>{String(index + 1).padStart(2, "0")} / {String(total).padStart(2, "0")}</span>
         </div>
       </div>
     </div>,
