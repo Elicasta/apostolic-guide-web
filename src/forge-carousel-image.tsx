@@ -1,4 +1,5 @@
 import { ImageResponse } from "next/og";
+import { forgeBrandArtworkAssets, type BrandArtworkAssets } from "./forge-brand-artwork";
 import type { CreativeFrame } from "./creative-project";
 import { FORGE_CAROUSEL_HEIGHT, FORGE_CAROUSEL_WIDTH } from "./forge-carousel-render-engine";
 import { carouselThemePalette, normalizeCarouselTheme, type CarouselTheme } from "./carousel-theme";
@@ -18,6 +19,7 @@ export function createForgeFrameImage(input: {
   projectTitle: string;
   theme?: CarouselTheme | string;
   regenerationSeed?: number;
+  brandAssets?: BrandArtworkAssets;
 }) {
   const { frame, index, total } = input;
   const theme = normalizeCarouselTheme(input.theme);
@@ -26,6 +28,8 @@ export function createForgeFrameImage(input: {
   const title = frame.headline.trim() || input.projectTitle;
   const body = bodyText(frame);
   const dark = theme !== "verse-connection" && theme !== "editorial-white";
+  const serif = theme === "cinematic" || theme === "editorial-white" || theme === "verse-connection";
+  const activeFonts = input.brandAssets?.fonts ?? [];
   const heavy = theme === "manifesto" || theme === "street-theology" || theme === "verse-connection";
   const hero = frame.role === "hook" || frame.role === "statement" || frame.role === "cta";
   const titleSize = title.length > 100 ? 58 : title.length > 70 ? 67 : title.length > 42 ? 76 : title.length > 25 ? 91 : 107;
@@ -41,7 +45,7 @@ export function createForgeFrameImage(input: {
     <div style={{
       display: "flex", flexDirection: "column", position: "relative", isolation: "isolate",
       width: "100%", height: "100%", padding: "70px 72px 61px",
-      backgroundColor: c.bg, backgroundImage: radial, color: c.fg, fontFamily: "sans-serif"
+      backgroundColor: c.bg, backgroundImage: radial, color: c.fg, fontFamily: activeFonts.some(f => f.name === "Montserrat") ? "Montserrat" : "sans-serif"
     }}>
       {/* Cinematic ambient bars add depth without relying on remote image assets. */}
       {dark ? <div style={{ display: "flex", position: "absolute", bottom: 0, left: 0, right: 0, height: 160, alignItems: "flex-end", opacity: theme === "street-theology" ? .28 : .14 }}>
@@ -59,7 +63,7 @@ export function createForgeFrameImage(input: {
           <span style={{ ...labelStyle, color: c.muted }}>SCRIPTURE PATHWAY</span>
           <span style={{ ...labelStyle, color: c.accent, fontSize: 19 }}>{input.pathwayTitle.toUpperCase().slice(0, 47)}</span>
         </div>
-        <span style={{ fontSize: 40, fontWeight: 900, color: c.fg, letterSpacing: -4 }}>A<span style={{ color: c.accent }}>G</span></span>
+        {input.brandAssets ? <img src={dark ? input.brandAssets.darkLogo : input.brandAssets.lightLogo} alt="" width={124} height={100} style={{objectFit:"contain",alignSelf:"flex-start"}}/> : <span style={{ fontSize: 40, fontWeight: 900, color: c.fg, letterSpacing: -4 }}>A<span style={{ color: c.accent }}>G</span></span>}
       </div>
       <div style={{
         display: "flex", flexDirection: "column", flex: 1, width: "100%",
@@ -72,12 +76,13 @@ export function createForgeFrameImage(input: {
         <div style={{
           display: "flex", flexDirection: "column", fontSize: Math.max(58, titleSize - (theme === "cinematic" ? 10 : 0)),
           lineHeight: heavy ? 1.01 : 1.1, fontWeight: theme === "cinematic" || theme === "editorial-white" ? 600 : 900,
-          letterSpacing: -2.4, textTransform: heavy && cover ? "uppercase" : "none",
+          fontFamily: serif && activeFonts.some(f => f.name === "Cormorant Garamond") ? "Cormorant Garamond" : (activeFonts.some(f => f.name === "Montserrat") ? "Montserrat" : "sans-serif"),
+          color: c.fg, letterSpacing: serif ? -1.6 : -2.4, textTransform: heavy && cover ? "uppercase" : "none",
           maxWidth: "100%", overflowWrap: "break-word", textAlign: centered ? "center" : "left"
         }}>{title}</div>
         {body ? <div style={{
           display: "flex", fontSize: bodySize, lineHeight: 1.46, fontWeight: 500,
-          color: c.muted, textAlign: centered ? "center" : "left",
+          color: c.muted, fontFamily: serif && activeFonts.some(f => f.name === "Cormorant Garamond") ? "Cormorant Garamond" : (activeFonts.some(f => f.name === "Montserrat") ? "Montserrat" : "sans-serif"), textAlign: centered ? "center" : "left",
           marginTop: 34, maxWidth: "95%", overflowWrap: "break-word"
         }}>{body}</div> : null}
         {frame.cta?.trim() && frame.role !== "cta" ? <div style={{
@@ -97,12 +102,23 @@ export function createForgeFrameImage(input: {
         </div>
       </div>
     </div>,
-    { width: FORGE_CAROUSEL_WIDTH, height: FORGE_CAROUSEL_HEIGHT }
+    { width: FORGE_CAROUSEL_WIDTH, height: FORGE_CAROUSEL_HEIGHT, fonts: activeFonts }
   );
 }
 
 export async function renderForgeFramePng(input: Parameters<typeof createForgeFrameImage>[0]) {
-  const response = createForgeFrameImage(input);
-  if (!response.ok) throw new Error(`Image renderer failed: ${response.status}`);
-  return Buffer.from(await response.arrayBuffer());
+  const brandAssets = await forgeBrandArtworkAssets();
+  const response = createForgeFrameImage({ ...input, brandAssets });
+  try {
+    if (!response.ok) throw new Error(`Image renderer failed: ${response.status}`);
+    return Buffer.from(await response.arrayBuffer());
+  } catch (error) {
+    // Fonts must never break an entire Content Engine preview. A corrupt or
+    // incompatible CDN face falls back to the bundled font, retaining the
+    // official image-based logo, copy, contrast and background treatment.
+    if (!brandAssets.fonts.length) throw error;
+    const fallback = createForgeFrameImage({ ...input, brandAssets: { ...brandAssets, fonts: [] } });
+    if (!fallback.ok) throw error;
+    return Buffer.from(await fallback.arrayBuffer());
+  }
 }

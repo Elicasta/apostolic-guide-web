@@ -7,7 +7,6 @@ import { CarouselLiveRepair } from "@/carousel-live-repair";
 import { CarouselManualEdit } from "@/carousel-manual-edit";
 import { CarouselMobileInteractions } from "@/carousel-mobile-interactions";
 import { CarouselPersistentArtwork } from "@/carousel-persistent-artwork";
-import { CarouselPreviewFrameSync } from "@/carousel-preview-frame-sync";
 import { CarouselProjectDelete } from "@/carousel-project-delete";
 import { CarouselProjectStarter } from "@/carousel-project-starter";
 import { CarouselSingleArtDirector } from "@/carousel-single-art-director";
@@ -49,7 +48,6 @@ export default async function AdminCarouselStudioPage({ searchParams }: { search
       {projectId ? <CarouselStudioMobileFocus/> : null}
       {projectId ? <CarouselLiveRepair/> : null}
       {projectId ? <CarouselMobileInteractions/> : null}
-      {projectId ? <CarouselPreviewFrameSync/> : null}
     </>}
   </section>;
 }
