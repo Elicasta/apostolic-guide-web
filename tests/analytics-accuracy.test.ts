@@ -92,13 +92,17 @@ test("Analytics V3 compares exact public current and prior periods and keeps fun
   assert.match(migration, /grant execute on function analytics\.dashboard_snapshot_v3\(\) to service_role/i);
 });
 
-test("Analytics V3 mobile presentation keeps Pathway counts and percentages in separate labeled fields", () => {
+test("Analytics surfaces exact reader journeys without reintroducing coarse overlapping funnels", () => {
   const page = source("app/admin/analytics/page.tsx");
   const css = source("app/admin/analytics-v3.css");
-  assert.match(page, /<b>\{row\.completions\} of \{row\.starts\}<\/b><small>completed<\/small>/);
-  assert.match(page, /<b>\{row\.completionRate\}%<\/b><small>completion rate<\/small>/);
-  assert.match(page, /Biggest observed loss/);
+  assert.match(page, /id="journeys"/);
+  assert.match(page, /direct entries/);
+  assert.match(page, /Last observed \(not completed\)/);
+  assert.match(page, /row\.arrows/);
+  assert.match(page, /row\.swipes/);
+  assert.match(page, /<b>\{row\.completions\}<\/b><small>reading/);
   assert.match(css, /@media\(max-width:600px\)/);
+  assert.doesNotMatch(page, /Biggest observed loss:/);
   assert.doesNotMatch(page, /<table/);
 });
 
