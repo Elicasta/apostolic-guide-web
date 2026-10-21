@@ -3,6 +3,7 @@
 import { createPortal } from "react-dom";
 import type { CSSProperties } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { carouselFitClass, carouselFrameLayout, cleanPublicCarouselText } from "./carousel-design-contract";
 
 type VisualStyle = "street" | "editorial" | "cinematic" | "verse" | "manifesto";
 type Snapshot = {
@@ -42,15 +43,6 @@ function styleForTemplate(value: string | undefined): VisualStyle {
   return "street";
 }
 
-function fitClass(text: string) {
-  const length = text.replace(/\s+/g, " ").trim().length;
-  const words = text.trim().split(/\s+/).filter(Boolean).length;
-  if (length > 105 || words > 16) return "fit-xxl";
-  if (length > 78 || words > 12) return "fit-xl";
-  if (length > 54 || words > 9) return "fit-lg";
-  if (length > 34 || words > 6) return "fit-md";
-  return "fit-sm";
-}
 
 function snapshotFromNode(source: HTMLElement, target: HTMLElement, total: number, fallbackOrder: number): Snapshot {
   const eyebrow = source.querySelector<HTMLElement>(":scope > .creative-preview-eyebrow")?.textContent?.trim() || "Apostolic Guide";
@@ -91,13 +83,16 @@ function OriginalArtwork({ frame, visualStyle, alignment, backgroundUrl }: { fra
   const lightSurface = visualStyle === "editorial" || visualStyle === "verse";
   const logo = lightSurface && !backgroundUrl ? "/brand/apostolic-guide-mark.png" : "/brand/apostolic-guide-mark-reversed.png";
   const kind = frame.order === 1 ? "cover" : frame.cta || frame.order === frame.total ? "cta" : frame.scripture ? "scripture" : "statement";
+  const layout = carouselFrameLayout({theme: visualStyle, title:frame.title, body:frame.body,index:frame.order-1,total:frame.total,format:frame.format});
   const artStyle = {
     "--carousel-grain": backgroundUrl ? .7 : .62,
-    "--copy-y": kind === "cover" ? "49%" : "50%",
+    "--copy-y": `${layout.copyTop}%`,
     "--headline-scale": 1,
     "--body-scale": 1,
-    "--body-width": visualStyle === "editorial" ? "82%" : "76%",
-    "--title-width": "90%",
+    "--body-width": `${layout.bodyWidth}%`,
+    "--title-width": `${layout.titleWidth}%`,
+    "--title-size": `${layout.headlineCqw}cqw`,
+    "--body-size": `${layout.bodyCqw}cqw`,
     "--copy-align": alignment,
     "--copy-gap": "2.4cqw"
   } as CSSProperties;
@@ -114,7 +109,7 @@ function OriginalArtwork({ frame, visualStyle, alignment, backgroundUrl }: { fra
       <div className="carousel-pathway-label">SCRIPTURE PATHWAY</div>
       <div className="carousel-copy">
         <span>{frame.scripture ? frame.scripture : frame.pathway}</span>
-        <strong className={fitClass(frame.title)}>{frame.title}</strong>
+        <strong className={carouselFitClass(frame.title)}>{cleanPublicCarouselText(frame.title)}</strong>
         {frame.body ? <p>{frame.body}</p> : frame.overlay ? <p>{frame.overlay}</p> : null}
         {frame.overlay && frame.body ? <em>{frame.overlay}</em> : null}
         {frame.cta ? <em>{frame.cta}</em> : null}
