@@ -436,7 +436,7 @@ export function CreativeStudioClient({ pathways, initialProjectId, aiReady }: { 
     </div>
   </section>;
 
-  return <section className="creative-studio-shell" data-creative-template={String(project?.editorState.visualSettings.style || "editorial-white")}>
+  return <section className="creative-studio-shell" data-creative-template={String(project?.editorState.visualSettings.style || project?.editorState.visualSettings.template || "editorial-white")}>
     <div className="creative-project-head">
       <div>
         <span className="creative-kicker">Creative Studio</span>
