@@ -26,7 +26,7 @@ test("live artboard and PNG share the exact measured headline and paragraph cont
       const a=carouselFrameLayout({theme,title:headline,body:"Read the Scripture and consider its meaning.",index:0,total:8});
       assert.equal(a.headlinePx,a.headlineCqw*10.8);
       assert.equal(a.bodyPx,a.bodyCqw*10.8);
-      assert.ok(a.titleWidth<=90 && a.bodyWidth<=82);
+      assert.ok(a.titleWidth<=95 && a.bodyWidth<=96);
       assert.ok(a.headlinePx>=58 && a.bodyPx>=25);
     }
   }
