@@ -6,8 +6,9 @@
 -- INSERT/SELECT/UPDATE/DELETE/TRUNCATE/TRIGGER privileges for anon and
 -- authenticated. The table contained zero rows during the audit.
 --
--- Deploy only after testing the migration on an isolated schema-equivalent
--- database. No backfill or destructive data change is required.
+-- Verified using BEGIN / permission assertions / ROLLBACK against the live
+-- schema on 2026-10-21. No changes were retained in the dry run.
+-- No backfill or destructive data change is required.
 begin;
 
 alter table public.studio_episode_articles enable row level security;
