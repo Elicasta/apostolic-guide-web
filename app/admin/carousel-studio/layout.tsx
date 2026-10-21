@@ -10,6 +10,7 @@ import "../carousel-final-repair.css";
 import "../carousel-capabilities-restore.css";
 import "../production-mobile-regression-fix.css";
 import "../carousel-mobile-viewport-repair.css";
+import "../carousel-live-contrast.css";
 
 export const viewport: Viewport = {
   width: "device-width",
