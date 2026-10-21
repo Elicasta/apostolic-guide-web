@@ -72,3 +72,32 @@ test("editorial calendar refill respects partial unique index and refuses review
   assert.match(sql,/from public, anon, authenticated/);
   assert.match(sql,/to service_role/);
 });
+
+test("all five themes give every card role a bounded, legible hierarchy", () => {
+  const roles=["hook","scripture","explanation","support","cta","statement"];
+  const themes=["street-theology","editorial-white","cinematic","verse-connection","manifesto"];
+  const sample="Thus saith the LORD, thy redeemer, and he that formed thee from the womb, I am the LORD that maketh all things; that stretcheth forth the heavens alone; that spreadeth abroad the earth by myself;";
+  const cover="The LORD created the heavens and the earth without any divine partner.";
+  for(const theme of themes) for(const role of roles){
+    const title=role==="scripture"?"The LORD creates alone":role==="hook"?"God Alone Is Creator":"What Scripture teaches";
+    const body=role==="scripture"?sample:cover;
+    const metrics=carouselFrameLayout({theme,title,body,index:role==="hook"?0:1,total:7,role});
+    assert.ok(metrics.headlinePx>=29 && metrics.headlinePx<=130,`${theme} ${role} headline`);
+    assert.ok(metrics.bodyPx>=27 && metrics.bodyPx<=65,`${theme} ${role} body`);
+    assert.ok(metrics.titleWidth<=95 && metrics.bodyWidth<=96);
+    assert.equal(metrics.isScripture,role==="scripture");
+    if(role==="scripture"){
+      assert.ok(metrics.headlineCqw<metrics.bodyCqw,"Scripture text must exceed reference headline size");
+      assert.ok(metrics.bodyWidth>=90);
+    }
+    assert.ok(metrics.copyTop>=40 && metrics.copyTop<=60);
+  }
+  const client=read("src/creative-studio-client.tsx");
+  const art=read("src/carousel-persistent-artwork.tsx");
+  const css=read("app/admin/carousel-design-contract.css");
+  assert.match(client,/data-carousel-role=\{frame.role\}/);
+  assert.match(art,/role:source.dataset.carouselRole/);
+  assert.match(css,/is-scripture \.carousel-copy > p/);
+  const renderer=read("src/forge-carousel-image.tsx");
+  assert.match(renderer,/role: frame.role/);
+});
