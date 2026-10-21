@@ -1,9 +1,9 @@
 import "server-only";
 import { createHash } from "node:crypto";
 import { del, put } from "@vercel/blob";
-import sharp from "sharp";
 import { loadCreativeProject } from "./creative-project-server";
-import { FORGE_CAROUSEL_RENDER_ENGINE, renderForgeFrameSvg } from "./forge-carousel-render-engine";
+import { FORGE_CAROUSEL_RENDER_ENGINE } from "./forge-carousel-render-engine";
+import { renderForgeFramePng } from "./forge-carousel-image";
 import { createServiceClient } from "./supabase";
 
 type Service = NonNullable<ReturnType<typeof createServiceClient>>;
@@ -135,8 +135,7 @@ export async function renderForgeCarouselProject(input: {
       await input.onFrame?.({ completed, total: frames.length });
       continue;
     }
-    const svg = renderForgeFrameSvg({ frame, index, total: frames.length, pathwayTitle: project.pathwayTitle, projectTitle: project.title });
-    const png = await sharp(Buffer.from(svg)).png({ compressionLevel: 9, adaptiveFiltering: true }).toBuffer();
+    const png = await renderForgeFramePng({ frame, index, total: frames.length, pathwayTitle: project.pathwayTitle, projectTitle: project.title });
     if (!png.length || png.length > 12 * 1024 * 1024) throw new Error(`Forge rendered slide ${index + 1} outside the 12 MB asset limit.`);
     const saved = await saveRenderedFrame({
       service,
