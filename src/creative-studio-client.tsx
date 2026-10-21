@@ -123,6 +123,13 @@ export function CreativeStudioClient({ pathways, initialProjectId, aiReady }: { 
 
   const selectedFrame = useMemo(() => project?.editorState.frames.find((frame) => frame.id === selectedFrameId) ?? project?.editorState.frames[0] ?? null, [project, selectedFrameId]);
 
+  // Signal the artboard directly after React commits a theme, frame or copy
+  // change. Avoid relying on the browser refresh or DOM polling as the only
+  // source of preview updates.
+  useEffect(() => {
+    if (project) window.dispatchEvent(new Event("ag:creative-editor-updated"));
+  }, [project, selectedFrameId]);
+
   const mutateProject = useCallback((mutator: (current: CreativeProject) => CreativeProject) => {
     setProject((current) => current ? mutator(current) : current);
     editCounter.current += 1;
@@ -429,7 +436,7 @@ export function CreativeStudioClient({ pathways, initialProjectId, aiReady }: { 
     </div>
   </section>;
 
-  return <section className="creative-studio-shell" data-creative-template={String(project?.editorState.visualSettings.style || "editorial-white")}>
+  return <section className="creative-studio-shell" data-creative-template={String(project?.editorState.visualSettings.style || project?.editorState.visualSettings.template || "editorial-white")}>
     <div className="creative-project-head">
       <div>
         <span className="creative-kicker">Creative Studio</span>

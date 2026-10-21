@@ -3,11 +3,11 @@ import { forgeBrandArtworkAssets, type BrandArtworkAssets } from "./forge-brand-
 import type { CreativeFrame } from "./creative-project";
 import { FORGE_CAROUSEL_HEIGHT, FORGE_CAROUSEL_WIDTH } from "./forge-carousel-render-engine";
 import { carouselThemePalette, normalizeCarouselTheme, type CarouselTheme } from "./carousel-theme";
+import { carouselFrameLayout, cleanPublicCarouselText } from "./carousel-design-contract";
 
 // One shared font-independent renderer for editorial previews, downloads and
 // background Forge exports. Themes mirror Carousel Studio's art direction.
 function bodyText(frame: CreativeFrame) {
-  if (frame.role === "cta" && frame.cta.trim()) return frame.cta.trim();
   return frame.body.trim() || frame.overlayText.trim() || frame.supportingNotes.trim();
 }
 
@@ -25,17 +25,16 @@ export function createForgeFrameImage(input: {
   const theme = normalizeCarouselTheme(input.theme);
   const c = carouselThemePalette(theme);
   const seed = Math.max(0, Math.min(10000, Math.floor(input.regenerationSeed ?? 0)));
-  const title = frame.headline.trim() || input.projectTitle;
-  const body = bodyText(frame);
+  const title = cleanPublicCarouselText(frame.headline.trim() || input.projectTitle);
+  const body = cleanPublicCarouselText(bodyText(frame));
+  const layout = carouselFrameLayout({ theme, title, index, total, body });
   const dark = theme !== "verse-connection" && theme !== "editorial-white";
   const serif = theme === "cinematic" || theme === "editorial-white" || theme === "verse-connection";
   const activeFonts = input.brandAssets?.fonts ?? [];
   const heavy = theme === "manifesto" || theme === "street-theology" || theme === "verse-connection";
   const hero = frame.role === "hook" || frame.role === "statement" || frame.role === "cta";
-  const titleSize = title.length > 100 ? 58 : title.length > 70 ? 67 : title.length > 42 ? 76 : title.length > 25 ? 91 : 107;
-  const bodySize = body.length > 180 ? 29 : body.length > 110 ? 33 : 37;
   const centered = theme === "verse-connection" || theme === "manifesto" || (theme === "street-theology" && hero);
-  const cover = hero && title.length < 95;
+  const cover = layout.cover;
   const labelStyle = { fontSize: 18, fontWeight: 700 as const, letterSpacing: 3, color: c.muted };
   const stripeLeft = 30 + (seed * 13) % 70;
   const radial = dark
@@ -66,24 +65,24 @@ export function createForgeFrameImage(input: {
         {input.brandAssets ? <img src={dark ? input.brandAssets.darkLogo : input.brandAssets.lightLogo} alt="" width={124} height={100} style={{objectFit:"contain",alignSelf:"flex-start"}}/> : <span style={{ fontSize: 40, fontWeight: 900, color: c.fg, letterSpacing: -4 }}>A<span style={{ color: c.accent }}>G</span></span>}
       </div>
       <div style={{
-        display: "flex", flexDirection: "column", flex: 1, width: "100%",
+        display: "flex", flexDirection: "column", flex: 1, width: "86%", alignSelf:"center",
         justifyContent: "center", alignItems: centered ? "center" : "flex-start",
         textAlign: centered ? "center" : "left", paddingBottom: frame.scripture ? 24 : 0
       }}>
-        <span style={{ fontSize: 20, letterSpacing: 4, fontWeight: 800, color: c.accent, marginBottom: 35 }}>
-          {frame.scripture.trim() || frame.role.toUpperCase()}
-        </span>
+        {frame.scripture.trim() ? <span style={{ fontSize: 20, letterSpacing: 4, fontWeight: 800, color: c.accent, marginBottom: 35 }}>
+          {frame.scripture.trim()}
+        </span> : null}
         <div style={{
-          display: "flex", flexDirection: "column", fontSize: Math.max(58, titleSize - (theme === "cinematic" ? 10 : 0)),
+          display: "flex", flexDirection: "column", fontSize: layout.headlinePx,
           lineHeight: heavy ? 1.01 : 1.1, fontWeight: theme === "cinematic" || theme === "editorial-white" ? 600 : 900,
           fontFamily: serif && activeFonts.some(f => f.name === "Cormorant Garamond") ? "Cormorant Garamond" : (activeFonts.some(f => f.name === "Montserrat") ? "Montserrat" : "sans-serif"),
           color: c.fg, letterSpacing: serif ? -1.6 : -2.4, textTransform: heavy && cover ? "uppercase" : "none",
-          maxWidth: "100%", overflowWrap: "break-word", textAlign: centered ? "center" : "left"
+          width: `${layout.titleWidth}%`, maxWidth: "100%", overflowWrap: "break-word", textAlign: centered ? "center" : "left"
         }}>{title}</div>
         {body ? <div style={{
-          display: "flex", fontSize: bodySize, lineHeight: 1.46, fontWeight: 500,
+          display: "flex", fontSize: layout.bodyPx, lineHeight: 1.38, fontWeight: 500,
           color: c.muted, fontFamily: serif && activeFonts.some(f => f.name === "Cormorant Garamond") ? "Cormorant Garamond" : (activeFonts.some(f => f.name === "Montserrat") ? "Montserrat" : "sans-serif"), textAlign: centered ? "center" : "left",
-          marginTop: 34, maxWidth: "95%", overflowWrap: "break-word"
+          marginTop: 22, width: `${layout.bodyWidth}%`, maxWidth: "100%", overflowWrap: "break-word"
         }}>{body}</div> : null}
         {frame.cta?.trim() && frame.role !== "cta" ? <div style={{
           display: "flex", backgroundColor: c.accent, color: "#fff", padding: "12px 21px",

@@ -1,0 +1,14 @@
+/* Canonical live measurements shared with 1080px editorial PNGs via
+   src/carousel-design-contract.ts; applied after legacy template rules. */
+.carousel-studio-master .persistent-carousel-artboard .carousel-copy > strong {
+  font-size: var(--title-size, 10.7cqw) !important;
+  width: var(--title-width, 90%) !important;
+  max-width: 100% !important;
+  overflow-wrap: anywhere;
+}
+.carousel-studio-master .persistent-carousel-artboard .carousel-copy > p {
+  font-size: var(--body-size, 2.55cqw) !important;
+  width: var(--body-width, 76%) !important;
+  max-width: 100% !important;
+  overflow-wrap: anywhere;
+}
