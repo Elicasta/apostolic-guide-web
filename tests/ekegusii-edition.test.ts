@@ -63,5 +63,6 @@ test("reading is the default for every Pathway; correction editor is an opt-in",
   assert.match(reader, /Suggest corrections/);
   assert.match(reader, /eg-next-pathway/);
   assert.match(reader, /selectStep\(next\)/);
-  assert.match(pathway, /seed={bibleSourcedEkegusiiSeed\(slug\)}/);
+  assert.match(pathway, /seed={seed}/);
+  assert.match(pathway, /getPublishedEkegusiiSeed\(slug\)/);
 });

@@ -19,6 +19,7 @@ import "./journeys.css";
 import "./relationship.css";
 import "./relationship-intelligence.css";
 import "./inbox.css";
+import "./ekegusii-reviews.css";
 import "./segments.css";
 import "./notifications.css";
 import "./studio-system.css";

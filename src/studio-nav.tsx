@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { BarChart3, Bell, Bot, BookOpen, FileClock, FileText, Film, FolderOpen, Headphones, HeartPulse, Inbox, Instagram, Layers3, ListFilter, Mail, Menu, MessageCircle, MonitorPlay, Route, Send, Settings, Sparkles, UserCog, Users, X } from "lucide-react";
+import { BarChart3, Bell, Bot, BookOpen, Languages, FileClock, FileText, Film, FolderOpen, Headphones, HeartPulse, Inbox, Instagram, Layers3, ListFilter, Mail, Menu, MessageCircle, MonitorPlay, Route, Send, Settings, Sparkles, UserCog, Users, X } from "lucide-react";
 import { hasStudioPermission, type StudioPermission, type StudioRole } from "@/studio-permissions";
 
 export const studioNavSections: Array<{ label: string; items: Array<{ href: string; label: string; icon: typeof BarChart3; permission: StudioPermission; exact?: boolean }> }> = [
@@ -30,6 +30,7 @@ export const studioNavSections: Array<{ label: string; items: Array<{ href: stri
   ]},
   { label: "Library", items: [
     { href: "/admin/pathways", label: "Pathway Projects", icon: Route, permission: "view_content" },
+    { href: "/admin/ekegusii-reviews", label: "Ekegusii Reviews", icon: Languages, permission: "manage_content" },
     { href: "/admin/assets", label: "Pathway Assets", icon: FolderOpen, permission: "manage_content" },
     { href: "/admin/content", label: "Website Content", icon: FileText, permission: "view_content" },
     { href: "/admin/app-content", label: "App Content", icon: BookOpen, permission: "view_content" }

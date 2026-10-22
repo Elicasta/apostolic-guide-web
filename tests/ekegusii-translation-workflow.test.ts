@@ -12,12 +12,14 @@ test("Ekegusii AI draft cannot publish itself or accept uncontrolled prompts", (
  assert.doesNotMatch(route, /SUPABASE_SERVICE_ROLE_KEY/);
  assert.match(route, /language: "guz"/);
 });
-test("Reviewer can submit a passage correction to the existing inbox without a new database write path", () => {
+test("Reviewer submits structured Ekegusii correction without publishing", () => {
  const reader = readFileSync("src/ekegusii-edition.tsx", "utf8");
- assert.match(reader, /"\/api\/contact"/);
- assert.match(reader, /"Content or source correction"/);
- assert.match(reader, /DO NOT AUTO-PUBLISH/);
+ const route = readFileSync("app/api/ekegusii/corrections/route.ts", "utf8");
+ assert.match(reader, /"\/api\/ekegusii\/corrections"/);
+ assert.match(route, /ekegusii_corrections/);
+ assert.match(route, /recordWebsiteContactSubmission/);
  assert.match(reader, /submitState === "sending"/);
+ assert.doesNotMatch(route, /ekegusii_published_steps/);
 });
 test("Bible resource links to a rights-controlled Bible reader and distributor, without copying the text", () => {
  const bible = readFileSync("app/ekegusii/bible/page.tsx", "utf8");

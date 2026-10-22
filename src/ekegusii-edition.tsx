@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, BookOpen, ChevronLeft, ChevronRight, Download, ExternalLink, FileUp, Languages, PencilLine, ShieldCheck } from "lucide-react";
 import { displayEkegusiiBibleReference, ekegusiiBibleReference } from "@/ekegusii-bible-references";
-import { verifiedEkegusiiExcerpt, reviewWarnings, rebaseReviewerDrafts, rebaseV2ReviewerDrafts, sourceAlignmentRisks } from "@/ekegusii-language-audit";
+import { verifiedEkegusiiExcerpt, reviewWarnings, rebaseReviewerDrafts, rebaseV2ReviewerDrafts, sourceAlignmentRisks, bibleSourcedEkegusiiSeed } from "@/ekegusii-language-audit";
 import { ekegusiiReviewStatus, ekegusiiPathwayCheck } from "@/ekegusii-editorial-standards";
 
 export type EkegusiiStudy = {
@@ -89,15 +89,21 @@ function useReviewDrafts() {
     return () => window.removeEventListener("storage", onStorage);
   }, []);
   const mergeAIDraft = useCallback((slug: string, incoming: EkegusiiDraft) => {
-    setDrafts((current) => {
+    // Respect the reader's own edits, but replace an unchanged cached baseline
+    // with the admin's latest published correction.
+    const baseline = bibleSourcedEkegusiiSeed(slug);
+    setDrafts(current => {
       const old = current[slug] ?? {};
       const steps = { ...(old.steps ?? {}) };
       for (const [index, proposed] of Object.entries(incoming.steps ?? {})) {
         const existing = steps[index] ?? {};
+        const source = baseline.steps?.[index];
+        const merge = (saved: string | undefined, original: string | undefined, published: string | undefined) =>
+          saved?.trim() && saved !== original ? saved : published;
         steps[index] = {
-          title: existing.title?.trim() ? existing.title : proposed.title,
-          explanation: existing.explanation?.trim() ? existing.explanation : proposed.explanation,
-          hook: existing.hook?.trim() ? existing.hook : proposed.hook,
+          title: merge(existing.title, source?.title, proposed.title),
+          explanation: merge(existing.explanation, source?.explanation, proposed.explanation),
+          hook: merge(existing.hook, source?.hook, proposed.hook),
         };
       }
       return { ...current, [slug]: {
@@ -253,30 +259,15 @@ export function EkegusiiReader({ pathway, index, total, seed, nextPathway }: { p
     if (!edit.title?.trim() && !edit.explanation?.trim() && !edit.hook?.trim() && !reviewerNotes.trim()) {
       setSubmissionMessage("Add a corrected translation or a review note before submitting."); setSubmitState("error"); return;
     }
-    const details = [
-      "EKEGUSII PATHWAY REVIEW",
-      "Pathway: " + pathway.title + " (" + pathway.slug + ")",
-      "Step: " + (step + 1) + " of " + pathway.steps.length,
-      "Reference: " + pathway.steps[step].reference,
-      "Original English: " + pathway.steps[step].explanation,
-      "Proposed Ekegusii title: " + (edit.title ?? ""),
-      "Proposed Ekegusii explanation: " + (edit.explanation ?? ""),
-      "Proposed Ekegusii transition: " + (edit.hook ?? ""),
-      "Reviewer notes: " + reviewerNotes.trim(),
-      "DO NOT AUTO-PUBLISH. Requires editorial and doctrinal approval.",
-    ].join("\\n");
-    if (details.length > 6000) {
-      setSubmissionMessage("This correction is too long for one submission. Export your JSON file and contact the editorial team."); setSubmitState("error"); return;
-    }
     setSubmitState("sending"); setSubmissionMessage("");
     try {
-      const response = await fetch("/api/contact", {
+      const response = await fetch("/api/ekegusii/corrections", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          pathwaySlug: pathway.slug, stepIndex: step,
           name: reviewerName.trim(), email: reviewerEmail.trim(), location: reviewerLocation.trim(),
-          category: "Content or source correction",
-          context: "Ekegusii review: " + pathway.slug + " step " + (step + 1),
-          question: details, path: "/ekegusii/pathways/" + pathway.slug,
+          title: edit.title ?? "", explanation: edit.explanation ?? "", hook: edit.hook ?? "",
+          notes: reviewerNotes.trim(), website: "",
         }),
       });
       const data = await response.json();
@@ -395,7 +386,7 @@ export function EkegusiiReader({ pathway, index, total, seed, nextPathway }: { p
           {mode === "edit" && <div className="eg-submit-panel">
             <div><span className="eg-field-label">SEND YOUR CORRECTION TO APOSTOLIC GUIDE</span>
               <h3>Submit this step for editorial review</h3>
-              <p>Make your changes above, then submit this passage. The team receives it in the Apostolic Guide inbox. Nothing updates publicly until approved.</p>
+              <p>Make your changes above, then submit this passage. The team receives it in Ekegusii Reviews and the Studio Inbox. Nothing updates publicly until an editor approves and publishes it.</p>
             </div>
             <div className="eg-submit-grid">
               <label>Reviewer name<input value={reviewerName} onChange={(event) => setReviewerName(event.target.value)} placeholder="Full name" autoComplete="name" required/></label>
