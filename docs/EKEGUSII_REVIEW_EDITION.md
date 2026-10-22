@@ -38,3 +38,12 @@ Use an approved Ekegusii translator/model to produce initial drafts against the 
 - Reviewers can submit one corrected step through the existing `/api/contact` route. Its successful responses include a reference ID; the submission goes to the Studio Inbox/email workflow, NOT directly into the teaching catalog. A fully edited worksheet may also be exported as JSON. This feature does not need any production migration.
 - Model calls must be monitored for cost and abuse. The Next Data Cache reduces repeats for recognized slugs; CDN caching is also enabled. Do not use this alone as a universal distributed quota. Add persistent budgeting and reviewer access if the audience expands.
 - Bible library `/ekegusii/bible` directs visitors to the complete Bible reader and downloadable PDF/ePub from eBible.org. The independently found GitHub USFM extraction is incomplete and unlicensed; nothing is copied from it.
+
+## Reading-first language edition (October 22, 2026)
+
+- The source catalog provides 20 studies and 106 Scripture steps. Every one now has a fixed **AI-generated Ekegusii draft** in `src/ekegusii-seeds/part-*.json`, captured against the English catalog on October 22.
+- These machine drafts are **unverified**. Do not represent them as approved Bible teaching in Ekegusii until a fluent native reviewer confirms meaning and Apostolic doctrine. Scripture quotations are not embedded due to Bible copyright.
+- The site now opens every Pathway in **Read teaching** mode. Ekegusii is the main text with links to the English source and the licensed Ekegusii Bible reader. The reviewer may choose **Suggest corrections** from the toolbar or a lesson, edit it and send a passage to the existing Studio Inbox. Exports remain available only in editing mode.
+- The original 20 English slugs and 106 Scriptures are locked. Completing a study offers the next Pathway, and a progress indicator tracks the current step. Shareable `#step-N` links work.
+- The public `/api/ekegusii/draft?slug=...` API is deterministic and read-only; on-demand OpenAI generation is retired, eliminating repeat model charges and inconsistent drafts between visitors.
+- Existing local reviewer edits take precedence when seeding the catalog. English editorial revisions must prompt translation updates and another native-language review.

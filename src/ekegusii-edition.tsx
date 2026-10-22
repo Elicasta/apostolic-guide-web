@@ -13,7 +13,7 @@ export type EkegusiiStudy = {
   estimatedMinutes: number;
   steps: { title: string; reference: string; explanation: string; hook?: string }[];
 };
-export type EkegusiiListing = Omit<EkegusiiStudy, "steps"> & { stepCount: number };
+export type EkegusiiListing = Omit<EkegusiiStudy, "steps"> & { stepCount: number; translatedTitle: string; translatedSummary: string };
 
 export type EkegusiiDraft = {
   title?: string;
@@ -139,7 +139,7 @@ function useReviewDrafts() {
   return { drafts, ready, message, setMessage, updateField, updateStep, mergeAIDraft, exportDrafts, importDrafts };
 }
 
-function Header({ onExport, onImport }: { onExport: () => void; onImport: (file?: File) => void }) {
+function Header({ onExport, onImport, showTools = false }: { onExport: () => void; onImport: (file?: File) => void; showTools?: boolean }) {
   const input = useRef<HTMLInputElement>(null);
   return <header className="eg-nav">
     <Link href="/ekegusii" className="eg-brand"><span className="eg-brand-mark">AG</span><span><strong>APOSTOLIC GUIDE</strong><small>EKEGUSII EDITION</small></span></Link>
@@ -147,11 +147,11 @@ function Header({ onExport, onImport }: { onExport: () => void; onImport: (file?
       <Link href="/ekegusii">All 20 Pathways</Link>
       <a href="/ekegusii/bible" target="_blank" rel="noopener noreferrer">Ekegusii Bible <BookOpen size={13}/></a>
     </nav>
-    <div className="eg-nav-actions">
+    {showTools && <div className="eg-nav-actions">
       <input ref={input} className="eg-visually-hidden" type="file" accept=".json,application/json" aria-label="Import Ekegusii review JSON" onChange={(event) => { onImport(event.target.files?.[0]); event.currentTarget.value = ""; }} />
       <button type="button" className="eg-icon-button" onClick={() => input.current?.click()} title="Import review file"><FileUp size={17}/><span>Import</span></button>
       <button type="button" className="eg-button eg-button-dark" onClick={onExport}><Download size={17}/> Export review</button>
-    </div>
+    </div>}
   </header>;
 }
 function Footer() {
@@ -164,13 +164,12 @@ function Footer() {
 function Note({ message }: { message: string }) {
   return message ? <p role="status" className="eg-note">{message}</p> : null;
 }
-function Frame({ children, onExport, onImport, message }: { children: React.ReactNode; onExport: () => void; onImport: (file?: File) => void; message: string }) {
-  return <div className="eg-shell"><Header onExport={onExport} onImport={onImport} /><Note message={message}/>{children}<Footer/></div>;
+function Frame({ children, onExport, onImport, message, showTools = false }: { children: React.ReactNode; onExport: () => void; onImport: (file?: File) => void; message: string; showTools?: boolean }) {
+  return <div className="eg-shell"><Header onExport={onExport} onImport={onImport} showTools={showTools} /><Note message={message}/>{children}<Footer/></div>;
 }
 
 export function EkegusiiCatalog({ pathways }: { pathways: EkegusiiListing[] }) {
   const { drafts, message, exportDrafts, importDrafts } = useReviewDrafts();
-  const complete = pathways.reduce((total, pathway) => total + Math.min(pathway.stepCount, filledStepCount(drafts[pathway.slug])), 0);
   const total = pathways.reduce((sum, pathway) => sum + pathway.stepCount, 0);
   const categories = [...new Set(pathways.map((pathway) => pathway.collection))];
   return <Frame onExport={exportDrafts} onImport={importDrafts} message={message}>
@@ -178,72 +177,64 @@ export function EkegusiiCatalog({ pathways }: { pathways: EkegusiiListing[] }) {
       <div className="eg-hero-inner">
         <div className="eg-eyebrow"><span className="eg-line"/> SCRIPTURE · TEACHING · TRANSLATION</div>
         <h1>God’s Word.<br/><em>Every language.</em></h1>
-        <p className="eg-lead">Ekegusii Bible study edition. Twenty connected studies built from the Apostolic Guide teaching catalog, presented for native-language review.</p>
+        <p className="eg-lead">Twenty connected Bible studies in Ekegusii. Open a teaching, read the Scripture sequence, and continue through every Pathway.</p>
         <div className="eg-hero-actions">
           <Link className="eg-button eg-button-light" href="/ekegusii/pathways/god-is-one">Begin with God Is One <ArrowRight size={17}/></Link>
-          <span><ShieldCheck size={16}/> Translation review in progress</span>
+          <span><ShieldCheck size={16}/> AI-assisted Ekegusii · native review pending</span>
         </div>
-        <div className="eg-hero-stats"><div><strong>20</strong><span>Teaching pathways</span></div><div><strong>{total}</strong><span>Scripture steps</span></div><div><strong>{complete}</strong><span>Full draft steps in this browser</span></div></div>
+        <div className="eg-hero-stats"><div><strong>20</strong><span>Teaching pathways</span></div><div><strong>{total}</strong><span>Scripture steps</span></div><div><strong>20</strong><span>Ekegusii draft studies</span></div></div>
       </div>
       <div className="eg-hero-art" aria-hidden="true"><div className="eg-hero-orbit"><span>01</span><BookOpen size={83} strokeWidth={0.75}/><span>20</span></div><p>THE WORD<br/>FOR EVERY<br/>TONGUE</p></div>
     </section>
-    <div className="eg-banner"><Languages size={19}/><p><strong>Reviewer edition.</strong> English remains visible until a native speaker supplies Ekegusii text. Translations save to this browser, not the live teaching catalog. Export the review file to submit corrections.</p></div>
+    <div className="eg-banner"><Languages size={19}/><p><strong>Start reading.</strong> All 20 studies include Ekegusii translation drafts. A fluent native speaker should check the wording and doctrine before treating these as final teaching. Use <strong>Suggest corrections</strong> inside any study to send improvements.</p></div>
     <section className="eg-index" aria-label="20 Bible study pathways">
       <div className="eg-section-heading"><span>THE COMPLETE STUDY LIBRARY</span><h2>Follow the Scriptures.</h2><p>Four collections. Twenty Pathways. One connected study of Apostolic teaching.</p></div>
       {categories.map((category, categoryIndex) => <div className="eg-category" key={category}>
         <div className="eg-category-heading"><span>0{categoryIndex + 1}</span><h3>{category}</h3></div>
         <div className="eg-study-grid">{pathways.filter((pathway) => pathway.collection === category).map((pathway) => {
-          const count = Math.min(pathway.stepCount, filledStepCount(drafts[pathway.slug]));
-          const drafted = count > 0 || Boolean(drafts[pathway.slug]?.title?.trim());
           return <Link className="eg-study-card" href={"/ekegusii/pathways/" + pathway.slug} key={pathway.slug}>
-            <div className="eg-card-top"><BookOpen size={20}/><span>{drafted ? count + "/" + pathway.stepCount + " steps drafted" : "Awaiting Ekegusii translation"}</span></div>
-            <h4>{pathway.title}</h4><p>{pathway.summary}</p>
-            <div className="eg-card-bottom"><span>{pathway.estimatedMinutes} MIN · {pathway.stepCount} STEPS</span><ArrowRight size={19}/></div>
+            <div className="eg-card-top"><BookOpen size={20}/><span>AI TRANSLATION · REVIEW PENDING</span></div>
+            <h4 lang="guz">{drafts[pathway.slug]?.title?.trim() || pathway.translatedTitle}</h4><span className="eg-card-english">{pathway.title}</span><p lang="guz">{drafts[pathway.slug]?.summary?.trim() || pathway.translatedSummary}</p>
+            <div className="eg-card-bottom"><span>{pathway.estimatedMinutes} MIN · {pathway.stepCount} STEPS</span><span className="eg-card-open">Read teaching <ArrowRight size={19}/></span></div>
           </Link>;
         })}</div>
       </div>)}
     </section>
   </Frame>;
 }
-export function EkegusiiReader({ pathway, index, total }: { pathway: EkegusiiStudy; index: number; total: number }) {
+export function EkegusiiReader({ pathway, index, total, seed, nextPathway }: { pathway: EkegusiiStudy; index: number; total: number; seed: EkegusiiDraft; nextPathway?: { slug: string; title: string } }) {
   const { drafts, ready, message, updateField, updateStep, mergeAIDraft, exportDrafts, importDrafts } = useReviewDrafts();
   const [step, setStep] = useState(0);
-  const [mode, setMode] = useState<"read" | "edit">("edit");
-  const [aiState, setAiState] = useState<"pending" | "loading" | "ready" | "failed">("pending");
-  const [aiError, setAiError] = useState("");
+  const [mode, setMode] = useState<"read" | "edit">("read");
+  const lessonRef = useRef<HTMLElement>(null);
   const [reviewerName, setReviewerName] = useState("");
   const [reviewerEmail, setReviewerEmail] = useState("");
   const [reviewerLocation, setReviewerLocation] = useState("");
   const [reviewerNotes, setReviewerNotes] = useState("");
   const [submitState, setSubmitState] = useState<"idle" | "sending" | "sent" | "error">("idle");
   const [submissionMessage, setSubmissionMessage] = useState("");
-  const requestDraft = useCallback(async () => {
-    setAiState("loading");
-    setAiError("");
-    try {
-      const response = await fetch("/api/ekegusii/draft?slug=" + encodeURIComponent(pathway.slug));
-      const data = await response.json();
-      if (!response.ok) throw Error(data.error || "Automatic translation is unavailable right now.");
-      const validated = safeDrafts({ [pathway.slug]: data.draft });
-      const draft = validated[pathway.slug];
-      if (!draft || filledStepCount(draft) !== pathway.steps.length) throw Error("The automatic translation was incomplete.");
-      mergeAIDraft(pathway.slug, draft);
-      setAiState("ready");
-    } catch (err) {
-      setAiState("failed");
-      setAiError(err instanceof Error ? err.message : "Translation generation failed.");
-    }
-  }, [pathway.slug, pathway.steps.length, mergeAIDraft]);
   useEffect(() => {
-    if (!ready) return;
-    if (filledStepCount(drafts[pathway.slug]) !== 0 || drafts[pathway.slug]?.title?.trim()) {
-      setAiState("ready");
-      return;
-    }
-    void requestDraft();
-    // Run once when local state finishes hydrating; do not restart generation after edits.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready, pathway.slug]);
+    if (ready) mergeAIDraft(pathway.slug, seed);
+  }, [ready, pathway.slug, seed, mergeAIDraft]);
+  useEffect(() => {
+    const syncHash = () => {
+      const match = window.location.hash.match(/^#step-(\d+)$/);
+      if (!match) return;
+      const index = Number(match[1]) - 1;
+      if (Number.isInteger(index) && index >= 0 && index < pathway.steps.length) setStep(index);
+    };
+    syncHash();
+    window.addEventListener("hashchange", syncHash);
+    return () => window.removeEventListener("hashchange", syncHash);
+  }, [pathway.slug, pathway.steps.length]);
+  const selectStep = useCallback((index: number) => {
+    const target = Math.max(0, Math.min(index, pathway.steps.length - 1));
+    setStep(target);
+    setSubmitState("idle");
+    setSubmissionMessage("");
+    window.history.replaceState(window.history.state, "", "#step-" + (target + 1));
+    window.requestAnimationFrame(() => lessonRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
+  }, [pathway.steps.length]);
   const submitCorrection = useCallback(async () => {
     if (!reviewerName.trim() || !reviewerEmail.trim() || !reviewerLocation.trim()) {
       setSubmissionMessage("Enter your name, email, and location to send your correction."); setSubmitState("error"); return;
@@ -288,61 +279,59 @@ export function EkegusiiReader({ pathway, index, total }: { pathway: EkegusiiStu
       setSubmissionMessage(err instanceof Error ? err.message : "Could not submit correction.");
     }
   }, [reviewerName, reviewerEmail, reviewerLocation, reviewerNotes, drafts, pathway, step]);
-  const draft = drafts[pathway.slug] ?? {};
+  const draft = drafts[pathway.slug] ?? seed;
   const activeDraft = draft.steps?.[String(step)] ?? {};
   const original = pathway.steps[step];
-  const drafted = filledStepCount(draft);
   const next = Math.min(pathway.steps.length - 1, step + 1);
   const prev = Math.max(0, step - 1);
   const englishUrl = "/pathways/" + pathway.slug + "#step-" + (step + 1);
-  return <Frame onExport={exportDrafts} onImport={importDrafts} message={message}>
+  return <Frame onExport={exportDrafts} onImport={importDrafts} message={message} showTools={mode === "edit"}>
     <section className="eg-reader-header">
       <Link className="eg-back" href="/ekegusii"><ArrowLeft size={16}/> All Pathways</Link>
       <div className="eg-reader-heading"><div><span className="eg-eyebrow">PATHWAY {String(index + 1).padStart(2, "0")} / {String(total).padStart(2, "0")} · {pathway.collection}</span>
         <h1 lang={draft.title?.trim() ? "guz" : "en"}>{draft.title?.trim() || pathway.title}</h1>
         <p lang={draft.summary?.trim() ? "guz" : "en"}>{draft.summary?.trim() || pathway.summary}</p>
-      </div><div className="eg-status"><ShieldCheck size={17}/> {drafted} / {pathway.steps.length} draft steps</div></div>
-      <div className="eg-ai-status" role="status">
-        <Languages size={17}/>
-        {aiState === "pending" || aiState === "loading"
-          ? <span>Preparing AI-generated Ekegusii translation for review...</span>
-          : aiState === "ready"
-          ? <span>Ekegusii draft loaded where available. All wording requires native-speaker and doctrinal review.</span>
-          : <span>Automatic draft unavailable: {aiError}. English source remains accessible.</span>}
-        {aiState === "failed" && <button type="button" onClick={() => void requestDraft()}>Retry translation</button>}
+      </div><div className="eg-status"><BookOpen size={17}/> {pathway.steps.length} Scripture passages</div></div>
+      <div className="eg-reader-controls">
+        <div role="group" aria-label="Reading or translation correction mode" className="eg-toggle">
+          <button type="button" className={mode === "read" ? "active" : ""} aria-pressed={mode === "read"} onClick={() => setMode("read")}><BookOpen size={15}/> Read teaching</button>
+          <button type="button" className={mode === "edit" ? "active" : ""} aria-pressed={mode === "edit"} onClick={() => setMode("edit")}><PencilLine size={15}/> Suggest corrections</button>
+        </div>
+        <span>{mode === "read" ? "AI-generated Ekegusii text · native review pending" : "Corrections save on this device and can be sent to Apostolic Guide."}</span>
       </div>
-      <div className="eg-reader-controls"><div role="group" aria-label="Reading or translation editing mode" className="eg-toggle"><button type="button" className={mode === "edit" ? "active" : ""} aria-pressed={mode === "edit"} onClick={() => setMode("edit")}><PencilLine size={15}/> Review translation</button><button type="button" className={mode === "read" ? "active" : ""} aria-pressed={mode === "read"} onClick={() => setMode("read")}><BookOpen size={15}/> Reading preview</button></div><span>Drafts are saved on this device. Export to share edits.</span></div>
     </section>
     <section className="eg-reader-grid">
       <aside className="eg-step-nav" aria-label="Teaching steps">
         <div className="eg-step-nav-title"><strong>STUDY SEQUENCE</strong><span>{pathway.steps.length} passages</span></div>
-        {pathway.steps.map((item, i) => <button type="button" key={item.reference} className={i === step ? "selected" : ""} aria-current={i === step ? "step" : undefined} onClick={() => setStep(i)}>
+        {pathway.steps.map((item, i) => <button type="button" key={item.reference} className={i === step ? "selected" : ""} aria-current={i === step ? "step" : undefined} onClick={() => selectStep(i)}>
           <span>{String(i + 1).padStart(2, "0")}</span><span>{draft.steps?.[String(i)]?.title?.trim() || item.title}<small>{item.reference}</small></span>
           {draft.steps?.[String(i)]?.explanation?.trim() && <Check size={14}/>}
         </button>)}
-        <a href="https://ebible.org/details.php?id=guz" className="eg-bible-link" target="_blank" rel="noopener noreferrer">Consult Ekegusii Bible <BookOpen size={14}/></a>
+        <Link href="/ekegusii/bible" className="eg-bible-link">Read Ekegusii Bible <BookOpen size={14}/></Link>
       </aside>
       <div className="eg-editor">
         {mode === "edit" && <div className="eg-intro-fields"><h2>Pathway details</h2><p>Keep the original theological meaning and references intact. Write a natural Ekegusii translation in the right-hand fields.</p>
           <div className="eg-pair"><div><span className="eg-field-label">ENGLISH TITLE · ORIGINAL</span><p className="eg-original">{pathway.title}</p></div><label><span className="eg-field-label">EKEGUSII TITLE · DRAFT</span><input value={draft.title ?? ""} onChange={(e) => updateField(pathway.slug, "title", e.target.value)} placeholder="Enter reviewed Ekegusii title"/></label></div>
           <div className="eg-pair"><div><span className="eg-field-label">ENGLISH SUMMARY · ORIGINAL</span><p className="eg-original">{pathway.summary}</p></div><label><span className="eg-field-label">EKEGUSII SUMMARY · DRAFT</span><textarea rows={3} value={draft.summary ?? ""} onChange={(e) => updateField(pathway.slug, "summary", e.target.value)} placeholder="Enter Ekegusii summary"/></label></div>
         </div>}
-        <article className="eg-lesson">
+        <article className="eg-lesson" ref={lessonRef}>
+          <div className="eg-progress-meter" role="progressbar" aria-label="Pathway progress" aria-valuemin={0} aria-valuemax={pathway.steps.length} aria-valuenow={step + 1}><span style={{ width: ((step + 1) / pathway.steps.length) * 100 + "%" }}/></div>
           <div className="eg-lesson-top"><span>STEP {String(step + 1).padStart(2, "0")} / {String(pathway.steps.length).padStart(2, "0")}</span><span>{original.reference}</span></div>
           {mode === "read" ? <>
             <div className="eg-reading-content"><span className="eg-field-label">{activeDraft.title?.trim() && activeDraft.explanation?.trim() ? "EKEGUSII DRAFT · NOT YET APPROVED" : "ENGLISH SOURCE · TRANSLATION PENDING"}</span>
               <h2 lang={activeDraft.title?.trim() ? "guz" : "en"}>{activeDraft.title?.trim() || original.title}</h2>
-              <p className="eg-scripture-ref"><BookOpen size={17}/> {original.reference} · <a href={englishUrl}>Read English KJV</a></p>
+              <p className="eg-scripture-ref"><BookOpen size={17}/> {original.reference} · <Link href="/ekegusii/bible">Ekegusii Bible</Link> · <a href={englishUrl}>English source</a></p>
               <h3>What this shows</h3><p lang={activeDraft.explanation?.trim() ? "guz" : "en"}>{activeDraft.explanation?.trim() || original.explanation}</p>
               <div className="eg-transition"><span>CONTINUE THE STUDY</span><p lang={activeDraft.hook?.trim() ? "guz" : "en"}>{activeDraft.hook?.trim() || original.hook || ""}</p></div>
+              <button type="button" className="eg-inline-edit" onClick={() => setMode("edit")}><PencilLine size={15}/> Notice a translation issue? Suggest a correction</button>
             </div>
           </> : <>
             <h2>Translate this passage</h2><p className="eg-reference"><BookOpen size={18}/> {original.reference} <a href={englishUrl} target="_blank" rel="noopener noreferrer">English study <ExternalLink size={13}/></a></p>
             {(["title", "explanation", "hook"] as const).map((field) => <div className="eg-pair eg-step-field" key={field}>
               <div><span className="eg-field-label">ENGLISH {field.toUpperCase()} · SOURCE</span><p className="eg-original">{original[field] ?? ""}</p></div>
               <label><span className="eg-field-label">EKEGUSII {field.toUpperCase()} · DRAFT</span>{field === "title" ?
-                <input lang="guz" value={activeDraft[field] ?? ""} onChange={(event) => updateStep(pathway.slug, step, field, event.target.value)} placeholder="Enter Ekegusii title"/> :
-                <textarea lang="guz" rows={field === "explanation" ? 8 : 5} value={activeDraft[field] ?? ""} onChange={(event) => updateStep(pathway.slug, step, field, event.target.value)} placeholder={"Enter Ekegusii " + field}/>}</label>
+                <input lang="guz" value={activeDraft[field] ?? ""} onChange={(event) => { updateStep(pathway.slug, step, field, event.target.value); setSubmitState("idle"); setSubmissionMessage(""); }} placeholder="Enter Ekegusii title"/> :
+                <textarea lang="guz" rows={field === "explanation" ? 8 : 5} value={activeDraft[field] ?? ""} onChange={(event) => { updateStep(pathway.slug, step, field, event.target.value); setSubmitState("idle"); setSubmissionMessage(""); }} placeholder={"Enter Ekegusii " + field}/>}</label>
             </div>)}
             <p className="eg-review-reminder"><ShieldCheck size={15}/> Confirm meaning, doctrinal accuracy, tone, and natural Ekegusii grammar. The Scripture reference is intentionally locked.</p>
           </>}
@@ -356,14 +345,18 @@ export function EkegusiiReader({ pathway, index, total }: { pathway: EkegusiiStu
               <label>Email address<input value={reviewerEmail} onChange={(event) => setReviewerEmail(event.target.value)} placeholder="name@example.com" type="email" autoComplete="email" required/></label>
               <label>Country or location<input value={reviewerLocation} onChange={(event) => setReviewerLocation(event.target.value)} placeholder="e.g. Kisii, Kenya" autoComplete="address-level2" required/></label>
             </div>
-            <label className="eg-note-label">Translation feedback or doctrinal notes<textarea value={reviewerNotes} onChange={(event) => setReviewerNotes(event.target.value)} rows={3} placeholder="Which words or phrases should change? What is the most natural Ekegusii expression?"/></label>
-            <div className="eg-submit-actions"><button type="button" disabled={submitState === "sending"} onClick={() => void submitCorrection()} className="eg-button eg-button-dark">{submitState === "sending" ? "Submitting..." : "Submit correction"} <ArrowRight size={15}/></button>
+            <label className="eg-note-label">Translation feedback or doctrinal notes<textarea value={reviewerNotes} onChange={(event) => { setReviewerNotes(event.target.value); setSubmitState("idle"); setSubmissionMessage(""); }} rows={3} placeholder="Which words or phrases should change? What is the most natural Ekegusii expression?"/></label>
+            <div className="eg-submit-actions"><button type="button" disabled={submitState === "sending" || submitState === "sent"} onClick={() => void submitCorrection()} className="eg-button eg-button-dark">{submitState === "sending" ? "Submitting..." : "Submit correction"} <ArrowRight size={15}/></button>
               <span role="status">{submissionMessage}</span>
             </div>
           </div>}
-          <div className="eg-lesson-bottom"><button type="button" onClick={() => setStep(prev)} disabled={step === 0}><ChevronLeft size={17}/> Previous</button><span>{step + 1} of {pathway.steps.length}</span><button type="button" onClick={() => setStep(next)} disabled={step === pathway.steps.length - 1}>Next passage <ChevronRight size={17}/></button></div>
+          <div className="eg-lesson-bottom"><button type="button" onClick={() => selectStep(prev)} disabled={step === 0}><ChevronLeft size={17}/> Previous</button><span>{step + 1} of {pathway.steps.length}</span><button type="button" onClick={() => selectStep(next)} disabled={step === pathway.steps.length - 1}>Next passage <ChevronRight size={17}/></button></div>
         </article>
-        <div className="eg-reader-end"><p><strong>No automatic public publishing.</strong> Review changes stay in your browser until exported and formally approved. Scripture quotations from the copyrighted Ekegusii Bible are not copied here.</p><button type="button" className="eg-button eg-button-dark" onClick={exportDrafts}><Download size={16}/> Export review file</button></div>
+        {step === pathway.steps.length - 1 && nextPathway && <Link className="eg-next-pathway" href={"/ekegusii/pathways/" + nextPathway.slug}>
+          <span>CONTINUE YOUR BIBLE STUDY</span><strong>{nextPathway.title}</strong><ArrowRight size={23}/>
+        </Link>}
+        {step === pathway.steps.length - 1 && !nextPathway && <div className="eg-final-pathway"><ShieldCheck size={23}/><strong>You reached the final Pathway.</strong><Link href="/ekegusii">Browse all studies <ArrowRight size={15}/></Link></div>}
+        <div className="eg-reader-end"><p><strong>Translation notice:</strong> These Ekegusii lessons are AI-generated drafts, not yet approved by a native-speaking editor. Consult the licensed Ekegusii Bible for Scripture text. Corrections require approval before the shared teaching changes.</p>{mode === "edit" && <button type="button" className="eg-button eg-button-dark" onClick={exportDrafts}><Download size={16}/> Export review file</button>}</div>
       </div>
     </section>
   </Frame>;
