@@ -5,6 +5,7 @@ import { Camera, Monitor, PauseCircle, Radio, ShieldAlert, SkipForward, Video, M
 import type { StudioProgramState } from "@/studio/types";
 import { connectHostMediaBridge, type HostBridgeStatus } from "./host-media-bridge";
 import { AutoDirectorControls } from "./auto-director-controls";
+import RemoteVenueMonitor from "./remote-venue-monitor";
 
 type CueRow = { id:string; label:string; position:number; presenter_notes?:string|null; enabled:boolean; studio_assets?:{snapshot_data?:Record<string,unknown>|null}|null };
 type DeviceOption = { deviceId:string; label:string };
@@ -42,7 +43,7 @@ export default function LiveConsole({ initialState, initialCues }:{ initialState
   const sourceLabel=bridgeStatus==="connected"?"LIVE TO OUTPUT":bridgeStatus==="signaling"?"CONNECTING":cameraReady?"LOCAL READY":"NOT CONNECTED";
 
   return <main className="ag-studio ag-studio-live-console"><header className="ag-studio-topbar"><div className="ag-studio-brand"><span className="ag-studio-mark">AG</span><div><strong>Broadcast Studio</strong><span>Live control</span></div></div><span className="ag-studio-status">STATE v{state.version}</span></header>
-    <AutoDirectorControls sessionId={state.sessionId} busy={busy} onScene={(sceneId,automatic)=>void setScene(sceneId,automatic)}/>
+    <AutoDirectorControls sessionId={state.sessionId} busy={busy} onScene={(sceneId,automatic)=>void setScene(sceneId,automatic)}/><RemoteVenueMonitor episodeId={state.episodeId} sessionId={state.sessionId}/>
     <section className="ag-live-workspace"><div className="ag-live-program-column"><div className="ag-live-preview-card"><div className="ag-live-preview-head"><span className="ag-studio-eyebrow">Host source</span><div className="ag-live-preview-tools"><button className={verticalGuide?"active":""} onClick={()=>setVerticalGuide(v=>!v)}><Smartphone size={13}/> 9:16 SAFE</button><span className={bridgeStatus==="connected"?"ready":"offline"}>{sourceLabel}</span></div></div>
       <div className={`ag-live-camera-frame ${verticalGuide?"show-vertical-guide":""}`}>{cameraReady?<video ref={videoRef} autoPlay muted playsInline/>:<div><Camera size={32}/><p>Connect an ATEM, HDMI-to-USB capture receiver, Continuity Camera, webcam, or other macOS video input.</p><button onClick={requestHostCamera}><Video size={16}/> Enable inputs</button></div>}{verticalGuide?<div className="ag-live-vertical-crop"><i/><span>9:16 CLIP CROP</span><i/></div>:null}</div>
       <div className="ag-live-device-panel"><label><span><Video size={14}/> VIDEO INPUT</span><select value={videoDeviceId} onChange={e=>void switchInput("video",e.target.value)}><option value="">System default / fallback</option>{videoDevices.map(d=><option key={d.deviceId} value={d.deviceId}>{d.label}</option>)}</select></label><label><span><Mic size={14}/> AUDIO INPUT</span><select value={audioDeviceId} onChange={e=>void switchInput("audio",e.target.value)}><option value="">System default / fallback</option>{audioDevices.map(d=><option key={d.deviceId} value={d.deviceId}>{d.label}</option>)}</select></label><div className="ag-live-meter"><span>AUDIO</span><div><i style={{width:`${Math.round(audioLevel*100)}%`}}/></div></div><button className="ag-live-refresh-devices" onClick={()=>void refreshDevices()} title="Refresh connected devices"><RefreshCw size={15}/></button></div>
