@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowLeft, ArrowRight, BookOpen, Check, ChevronLeft, ChevronRight, Download, ExternalLink, FileUp, Languages, PencilLine, ShieldCheck } from "lucide-react";
+import { ArrowLeft, ArrowRight, BookOpen, ChevronLeft, ChevronRight, Download, ExternalLink, FileUp, Languages, PencilLine, ShieldCheck } from "lucide-react";
 import { displayEkegusiiBibleReference, ekegusiiBibleReference } from "@/ekegusii-bible-references";
 import { verifiedEkegusiiExcerpt, reviewWarnings, rebaseReviewerDrafts } from "@/ekegusii-language-audit";
 
@@ -314,7 +314,7 @@ export function EkegusiiReader({ pathway, index, total, seed, nextPathway }: { p
         <div className="eg-step-nav-title"><strong>STUDY SEQUENCE</strong><span>{pathway.steps.length} passages</span></div>
         {pathway.steps.map((item, i) => <button type="button" key={item.reference} className={i === step ? "selected" : ""} aria-current={i === step ? "step" : undefined} onClick={() => selectStep(i)}>
           <span>{String(i + 1).padStart(2, "0")}</span><span>{draft.steps?.[String(i)]?.title?.trim() || item.title}<small>{displayEkegusiiBibleReference(item.reference)}</small></span>
-          {draft.steps?.[String(i)]?.explanation?.trim() && <Check size={14}/>}
+          <span className={"eg-ref-status " + (verifiedEkegusiiExcerpt(item.reference) ? "eg-ref-checked" : "eg-ref-pending")} title={verifiedEkegusiiExcerpt(item.reference) ? "Bible wording compared. Teaching explanation still needs review." : "Bible wording and teaching require native-speaker review."}>{verifiedEkegusiiExcerpt(item.reference) ? "Bible text checked" : "Draft"}</span>
         </button>)}
         <Link href="/ekegusii/bible" className="eg-bible-link">Read Ekegusii Bible <BookOpen size={14}/></Link>
       </aside>
@@ -340,7 +340,7 @@ export function EkegusiiReader({ pathway, index, total, seed, nextPathway }: { p
               <section className="eg-source-footnotes" aria-label="Scripture and editorial sources">
                 <h3>Scripture and sources</h3>
                 <p><strong>{linkedBibleReference?.label ?? original.reference}</strong> · <a href={linkedBibleReference?.url ?? "https://ebible.org/details.php?id=guz"} target="_blank" rel="noopener noreferrer">Ebibilia Enchenu <ExternalLink size={12}/></a> · © 2021 Bible Society of Kenya</p>
-                <p>Teaching explanation is a draft, not a Bible quotation. The Scripture and theological interpretation are kept separate.</p>
+                <p>{excerpt ? "Bible wording compared; the teaching explanation still requires review." : "Bible wording not yet compared in this edition. Teaching explanation is a draft, not a Bible quotation."} The Scripture and theological interpretation are kept separate.</p>
                 <details><summary>Compare with the approved English teaching</summary><p>{original.explanation}</p></details>
               </section>
               <button type="button" className="eg-inline-edit" onClick={() => setMode("edit")}><PencilLine size={15}/> Notice a translation issue? Suggest a correction</button>
