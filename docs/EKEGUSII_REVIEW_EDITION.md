@@ -47,3 +47,12 @@ Use an approved Ekegusii translator/model to produce initial drafts against the 
 - The original 20 English slugs and 106 Scriptures are locked. Completing a study offers the next Pathway, and a progress indicator tracks the current step. Shareable `#step-N` links work.
 - The public `/api/ekegusii/draft?slug=...` API is deterministic and read-only; on-demand OpenAI generation is retired, eliminating repeat model charges and inconsistent drafts between visitors.
 - Existing local reviewer edits take precedence when seeding the catalog. English editorial revisions must prompt translation updates and another native-language review.
+
+## Ekegusii Bible references and teaching-home localization (October 22, 2026)
+
+- Every canonical English book name used across the 106 Pathway steps maps to the matching **EBIBILIA ENCHENU** book name as printed in the published Bible index at https://ebible.org/guz/.
+- All references remain canonically stored in English. Only the Ekegusii teaching display is localized; reviewer submissions retain their English reference for source validation.
+- Displayed references in the reader and editor are clickable and open the correct Ekegusii eBible chapter, via https://ebible.org/guz/{USFMBOOK}{CHAPTER}.htm. Example: `Deuteronomy 6:4` renders `Okoiranerera 6:4` and links `https://ebible.org/guz/DEU06.htm`. Psalms chapters use 3-digit padding.
+- The link goes to the **chapter**, not necessarily the exact numbered verse. eBible's chapter HTML uses Roman-numbered verse typography. No Bible verses are copied into Apostolic Guide.
+- The home page now displays the draft Ekegusii teaching title and summary without repeating an English subtitle on each card. The primary release status is **Draft translation**, with a readable reminder that native-speaker approval is pending.
+- All mappings are covered by tests against the 106 canonical step references. Do not infer mappings for unfamiliar books. Update this mapping from the Bible Society's index if the Bible's wording changes.

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, BookOpen, Check, ChevronLeft, ChevronRight, Download, ExternalLink, FileUp, Languages, PencilLine, ShieldCheck } from "lucide-react";
+import { displayEkegusiiBibleReference, ekegusiiBibleReference } from "@/ekegusii-bible-references";
 
 export type EkegusiiStudy = {
   slug: string;
@@ -144,8 +145,8 @@ function Header({ onExport, onImport, showTools = false }: { onExport: () => voi
   return <header className="eg-nav">
     <Link href="/ekegusii" className="eg-brand"><span className="eg-brand-mark">AG</span><span><strong>APOSTOLIC GUIDE</strong><small>EKEGUSII EDITION</small></span></Link>
     <nav aria-label="Ekegusii edition">
-      <Link href="/ekegusii">All 20 Pathways</Link>
-      <a href="/ekegusii/bible" target="_blank" rel="noopener noreferrer">Ekegusii Bible <BookOpen size={13}/></a>
+      <Link href="/ekegusii">20 Pathways</Link>
+      <Link href="/ekegusii/bible">Ebibilia Enchenu <BookOpen size={13}/></Link>
     </nav>
     {showTools && <div className="eg-nav-actions">
       <input ref={input} className="eg-visually-hidden" type="file" accept=".json,application/json" aria-label="Import Ekegusii review JSON" onChange={(event) => { onImport(event.target.files?.[0]); event.currentTarget.value = ""; }} />
@@ -157,7 +158,7 @@ function Header({ onExport, onImport, showTools = false }: { onExport: () => voi
 function Footer() {
   return <footer className="eg-footer">
     <div><strong>APOSTOLIC GUIDE / EKEGUSII</strong><p>Scripture first. Faithful translation before public teaching.</p></div>
-    <span>Editorial review edition · Not approved Ekegusii Scripture or teaching</span>
+    <span>Draft translation · Native-speaker review pending</span>
     <Link href="/">Main Apostolic Guide <ArrowRight size={14}/></Link>
   </footer>;
 }
@@ -175,27 +176,27 @@ export function EkegusiiCatalog({ pathways }: { pathways: EkegusiiListing[] }) {
   return <Frame onExport={exportDrafts} onImport={importDrafts} message={message}>
     <section className="eg-hero">
       <div className="eg-hero-inner">
-        <div className="eg-eyebrow"><span className="eg-line"/> SCRIPTURE · TEACHING · TRANSLATION</div>
-        <h1>God’s Word.<br/><em>Every language.</em></h1>
-        <p className="eg-lead">Twenty connected Bible studies in Ekegusii. Open a teaching, read the Scripture sequence, and continue through every Pathway.</p>
+        <div className="eg-eyebrow"><span className="eg-line"/> EKEGUSII · APOSTOLIC GUIDE</div>
+        <h1>Amang’ana a Nyasae.<br/><em>Ekegusii.</em></h1>
+        <p className="eg-lead">20 Pathways · 106 Scripture steps · Ebibilia Enchenu</p>
         <div className="eg-hero-actions">
-          <Link className="eg-button eg-button-light" href="/ekegusii/pathways/god-is-one">Begin with God Is One <ArrowRight size={17}/></Link>
-          <span><ShieldCheck size={16}/> AI-assisted Ekegusii · native review pending</span>
+          <Link className="eg-button eg-button-light" lang="guz" href="/ekegusii/pathways/god-is-one">{pathways.find((item) => item.slug === "god-is-one")?.translatedTitle ?? "God Is One"} <ArrowRight size={17}/></Link>
+          <span><ShieldCheck size={16}/> Draft translation</span>
         </div>
-        <div className="eg-hero-stats"><div><strong>20</strong><span>Teaching pathways</span></div><div><strong>{total}</strong><span>Scripture steps</span></div><div><strong>20</strong><span>Ekegusii draft studies</span></div></div>
+        <div className="eg-hero-stats"><div><strong>20</strong><span>Pathways</span></div><div><strong>{total}</strong><span>References</span></div><div><strong>20</strong><span>Ekegusii</span></div></div>
       </div>
-      <div className="eg-hero-art" aria-hidden="true"><div className="eg-hero-orbit"><span>01</span><BookOpen size={83} strokeWidth={0.75}/><span>20</span></div><p>THE WORD<br/>FOR EVERY<br/>TONGUE</p></div>
+      <div className="eg-hero-art" aria-hidden="true"><div className="eg-hero-orbit"><span>01</span><BookOpen size={83} strokeWidth={0.75}/><span>20</span></div><p>AMANG’ANA<br/>A NYASAE<br/>EKEGUSII</p></div>
     </section>
-    <div className="eg-banner"><Languages size={19}/><p><strong>Start reading.</strong> All 20 studies include Ekegusii translation drafts. A fluent native speaker should check the wording and doctrine before treating these as final teaching. Use <strong>Suggest corrections</strong> inside any study to send improvements.</p></div>
+    <div className="eg-banner"><Languages size={19}/><p><strong>Draft translation.</strong> All 20 Ekegusii studies are ready to read, but their language and doctrinal wording are pending native-speaker review. Corrections can be submitted inside each lesson.</p></div>
     <section className="eg-index" aria-label="20 Bible study pathways">
-      <div className="eg-section-heading"><span>THE COMPLETE STUDY LIBRARY</span><h2>Follow the Scriptures.</h2><p>Four collections. Twenty Pathways. One connected study of Apostolic teaching.</p></div>
+      <div className="eg-section-heading"><span>EKEGUSII · 20 PATHWAYS</span><h2 lang="guz">Amang’ana a Nyasae.</h2><p>Ebibilia Enchenu · 106</p></div>
       {categories.map((category, categoryIndex) => <div className="eg-category" key={category}>
-        <div className="eg-category-heading"><span>0{categoryIndex + 1}</span><h3>{category}</h3></div>
+        <div className="eg-category-heading"><span>0{categoryIndex + 1}</span><h3 lang="guz">{pathways.find((item) => item.collection === category)?.translatedTitle || category}</h3></div>
         <div className="eg-study-grid">{pathways.filter((pathway) => pathway.collection === category).map((pathway) => {
           return <Link className="eg-study-card" href={"/ekegusii/pathways/" + pathway.slug} key={pathway.slug}>
-            <div className="eg-card-top"><BookOpen size={20}/><span>AI TRANSLATION · REVIEW PENDING</span></div>
-            <h4 lang="guz">{drafts[pathway.slug]?.title?.trim() || pathway.translatedTitle}</h4><span className="eg-card-english">{pathway.title}</span><p lang="guz">{drafts[pathway.slug]?.summary?.trim() || pathway.translatedSummary}</p>
-            <div className="eg-card-bottom"><span>{pathway.estimatedMinutes} MIN · {pathway.stepCount} STEPS</span><span className="eg-card-open">Read teaching <ArrowRight size={19}/></span></div>
+            <div className="eg-card-top"><BookOpen size={20}/><span>Draft translation</span></div>
+            <h4 lang="guz">{drafts[pathway.slug]?.title?.trim() || pathway.translatedTitle}</h4><p lang="guz">{drafts[pathway.slug]?.summary?.trim() || pathway.translatedSummary}</p>
+            <div className="eg-card-bottom"><span>{pathway.estimatedMinutes} min · {pathway.stepCount}</span><span className="eg-card-open"><ArrowRight size={19}/></span></div>
           </Link>;
         })}</div>
       </div>)}
@@ -285,10 +286,11 @@ export function EkegusiiReader({ pathway, index, total, seed, nextPathway }: { p
   const next = Math.min(pathway.steps.length - 1, step + 1);
   const prev = Math.max(0, step - 1);
   const englishUrl = "/pathways/" + pathway.slug + "#step-" + (step + 1);
+  const linkedBibleReference = ekegusiiBibleReference(original.reference);
   return <Frame onExport={exportDrafts} onImport={importDrafts} message={message} showTools={mode === "edit"}>
     <section className="eg-reader-header">
       <Link className="eg-back" href="/ekegusii"><ArrowLeft size={16}/> All Pathways</Link>
-      <div className="eg-reader-heading"><div><span className="eg-eyebrow">PATHWAY {String(index + 1).padStart(2, "0")} / {String(total).padStart(2, "0")} · {pathway.collection}</span>
+      <div className="eg-reader-heading"><div><span className="eg-eyebrow">PATHWAY {String(index + 1).padStart(2, "0")} / {String(total).padStart(2, "0")} · Draft translation</span>
         <h1 lang={draft.title?.trim() ? "guz" : "en"}>{draft.title?.trim() || pathway.title}</h1>
         <p lang={draft.summary?.trim() ? "guz" : "en"}>{draft.summary?.trim() || pathway.summary}</p>
       </div><div className="eg-status"><BookOpen size={17}/> {pathway.steps.length} Scripture passages</div></div>
@@ -297,14 +299,14 @@ export function EkegusiiReader({ pathway, index, total, seed, nextPathway }: { p
           <button type="button" className={mode === "read" ? "active" : ""} aria-pressed={mode === "read"} onClick={() => setMode("read")}><BookOpen size={15}/> Read teaching</button>
           <button type="button" className={mode === "edit" ? "active" : ""} aria-pressed={mode === "edit"} onClick={() => setMode("edit")}><PencilLine size={15}/> Suggest corrections</button>
         </div>
-        <span>{mode === "read" ? "AI-generated Ekegusii text · native review pending" : "Corrections save on this device and can be sent to Apostolic Guide."}</span>
+        <span>{mode === "read" ? "Draft translation · native review pending" : "Corrections save on this device and can be sent to Apostolic Guide."}</span>
       </div>
     </section>
     <section className="eg-reader-grid">
       <aside className="eg-step-nav" aria-label="Teaching steps">
         <div className="eg-step-nav-title"><strong>STUDY SEQUENCE</strong><span>{pathway.steps.length} passages</span></div>
         {pathway.steps.map((item, i) => <button type="button" key={item.reference} className={i === step ? "selected" : ""} aria-current={i === step ? "step" : undefined} onClick={() => selectStep(i)}>
-          <span>{String(i + 1).padStart(2, "0")}</span><span>{draft.steps?.[String(i)]?.title?.trim() || item.title}<small>{item.reference}</small></span>
+          <span>{String(i + 1).padStart(2, "0")}</span><span>{draft.steps?.[String(i)]?.title?.trim() || item.title}<small>{displayEkegusiiBibleReference(item.reference)}</small></span>
           {draft.steps?.[String(i)]?.explanation?.trim() && <Check size={14}/>}
         </button>)}
         <Link href="/ekegusii/bible" className="eg-bible-link">Read Ekegusii Bible <BookOpen size={14}/></Link>
@@ -316,17 +318,17 @@ export function EkegusiiReader({ pathway, index, total, seed, nextPathway }: { p
         </div>}
         <article className="eg-lesson" ref={lessonRef}>
           <div className="eg-progress-meter" role="progressbar" aria-label="Pathway progress" aria-valuemin={0} aria-valuemax={pathway.steps.length} aria-valuenow={step + 1}><span style={{ width: ((step + 1) / pathway.steps.length) * 100 + "%" }}/></div>
-          <div className="eg-lesson-top"><span>STEP {String(step + 1).padStart(2, "0")} / {String(pathway.steps.length).padStart(2, "0")}</span><span>{original.reference}</span></div>
+          <div className="eg-lesson-top"><span>STEP {String(step + 1).padStart(2, "0")} / {String(pathway.steps.length).padStart(2, "0")}</span>{linkedBibleReference ? <a href={linkedBibleReference.url} target="_blank" rel="noopener noreferrer" lang="guz" title={"Open " + linkedBibleReference.book + " chapter " + linkedBibleReference.chapter + " in the Ekegusii Bible"}>{linkedBibleReference.label} <ExternalLink size={13}/></a> : <span>{original.reference}</span>}</div>
           {mode === "read" ? <>
             <div className="eg-reading-content"><span className="eg-field-label">{activeDraft.title?.trim() && activeDraft.explanation?.trim() ? "EKEGUSII DRAFT · NOT YET APPROVED" : "ENGLISH SOURCE · TRANSLATION PENDING"}</span>
               <h2 lang={activeDraft.title?.trim() ? "guz" : "en"}>{activeDraft.title?.trim() || original.title}</h2>
-              <p className="eg-scripture-ref"><BookOpen size={17}/> {original.reference} · <Link href="/ekegusii/bible">Ekegusii Bible</Link> · <a href={englishUrl}>English source</a></p>
+              <p className="eg-scripture-ref"><BookOpen size={17}/> {linkedBibleReference ? <a lang="guz" href={linkedBibleReference.url} target="_blank" rel="noopener noreferrer" className="eg-scripture-chapter">{linkedBibleReference.label} <ExternalLink size={13}/></a> : <span>{original.reference}</span>} · <a href={englishUrl}>English source</a></p>
               <h3>What this shows</h3><p lang={activeDraft.explanation?.trim() ? "guz" : "en"}>{activeDraft.explanation?.trim() || original.explanation}</p>
               <div className="eg-transition"><span>CONTINUE THE STUDY</span><p lang={activeDraft.hook?.trim() ? "guz" : "en"}>{activeDraft.hook?.trim() || original.hook || ""}</p></div>
               <button type="button" className="eg-inline-edit" onClick={() => setMode("edit")}><PencilLine size={15}/> Notice a translation issue? Suggest a correction</button>
             </div>
           </> : <>
-            <h2>Translate this passage</h2><p className="eg-reference"><BookOpen size={18}/> {original.reference} <a href={englishUrl} target="_blank" rel="noopener noreferrer">English study <ExternalLink size={13}/></a></p>
+            <h2>Translate this passage</h2><p className="eg-reference"><BookOpen size={18}/> {linkedBibleReference ? <a lang="guz" href={linkedBibleReference.url} target="_blank" rel="noopener noreferrer">{linkedBibleReference.label} <ExternalLink size={13}/></a> : original.reference} <a href={englishUrl} target="_blank" rel="noopener noreferrer">English source <ExternalLink size={13}/></a></p>
             {(["title", "explanation", "hook"] as const).map((field) => <div className="eg-pair eg-step-field" key={field}>
               <div><span className="eg-field-label">ENGLISH {field.toUpperCase()} · SOURCE</span><p className="eg-original">{original[field] ?? ""}</p></div>
               <label><span className="eg-field-label">EKEGUSII {field.toUpperCase()} · DRAFT</span>{field === "title" ?
