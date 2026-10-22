@@ -207,3 +207,25 @@ body:has(.eg-shell) #main-content { padding:0; max-width:none; }
 .eg-hero-art p { letter-spacing:.095em; }
 .eg-category-heading h3[lang="guz"] { max-width:100%; overflow-wrap:anywhere; }
 @media(max-width:780px) { .eg-lesson-top a { max-width:65%; overflow-wrap:anywhere; } .eg-hero-art p { display:none; } .eg-hero h1 { overflow-wrap:anywhere; } }
+
+/* Bible wording and editorial provenance for the 106 source-aligned references. */
+.eg-bible-excerpt { margin:26px 0 30px; padding:25px; background:#f5f1e8; border-left:3px solid #9b7750; }
+.eg-bible-quotation-label { display:flex; align-items:center; gap:9px; font:700 11px Arial,Helvetica,sans-serif; text-transform:uppercase; letter-spacing:.08em; color:#476057; }
+.eg-bible-excerpt blockquote { margin:17px 0; padding:0; font:400 clamp(19px,2vw,24px)/1.75 Georgia,serif; color:#243e36; }
+.eg-bible-excerpt figcaption { color:#718078; font-size:11px; line-height:1.6; }
+.eg-bible-excerpt figcaption a { color:#285d50; text-decoration:underline; text-underline-offset:2px; display:inline-flex; align-items:center; gap:5px; }
+.eg-source-footnotes { margin-top:34px; padding:23px 0; border-top:1px solid #d5ddd4; color:#63756e; }
+.eg-source-footnotes h3 { font:700 11px Arial,Helvetica,sans-serif; letter-spacing:.1em; text-transform:uppercase; color:#385d51; margin:0 0 12px; }
+.eg-source-footnotes p { font:400 12px/1.75 Arial,Helvetica,sans-serif; margin:6px 0; }
+.eg-source-footnotes p a { text-decoration:underline; text-underline-offset:2px; display:inline-flex; align-items:center; gap:4px; }
+.eg-source-footnotes details { border-top:1px solid #dce2d9; margin-top:18px; padding-top:14px; }
+.eg-source-footnotes summary { cursor:pointer; color:#28584d; font-size:12px; font-weight:700; }
+.eg-source-footnotes details p { padding-top:10px; font:14px/1.8 Georgia,serif; color:#344b43; }
+.eg-review-flags { padding:17px 23px; border-top:1px solid #e6d1b3; background:#fcf7eb; }
+.eg-review-flags strong { color:#7b5c38; font-size:12px; }
+.eg-review-flags p { color:#866d4a; margin:6px 0; font-size:12px; }
+.eg-reference-check { padding:20px 25px; border-top:1px solid #d7ded5; background:#edf2e9; font-size:12px; color:#486054; line-height:1.65; }
+.eg-reference-check strong { font-size:13px; }
+.eg-reference-check p { margin:8px 0; }
+.eg-reference-check a { display:inline-flex; align-items:center; gap:7px; color:#245b4f; font-weight:700; text-decoration:underline; text-underline-offset:3px; }
+@media(max-width:780px) { .eg-bible-excerpt { padding:20px; } .eg-source-footnotes { padding:18px 0; } .eg-reference-check { padding:17px; } }

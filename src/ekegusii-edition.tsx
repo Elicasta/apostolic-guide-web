@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, BookOpen, Check, ChevronLeft, ChevronRight, Download, ExternalLink, FileUp, Languages, PencilLine, ShieldCheck } from "lucide-react";
 import { displayEkegusiiBibleReference, ekegusiiBibleReference } from "@/ekegusii-bible-references";
+import { verifiedEkegusiiExcerpt, reviewWarnings, rebaseReviewerDrafts } from "@/ekegusii-language-audit";
 
 export type EkegusiiStudy = {
   slug: string;
@@ -22,8 +23,9 @@ export type EkegusiiDraft = {
   steps?: Record<string, { title?: string; explanation?: string; hook?: string }>;
 };
 export type EkegusiiDrafts = Record<string, EkegusiiDraft>;
-export const EKEGUSII_DRAFT_KEY = "apostolic-guide:ekegusii:review-v1";
-const VERSION = 1;
+export const EKEGUSII_DRAFT_KEY = "apostolic-guide:ekegusii:review-v2";
+const LEGACY_DRAFT_KEY = "apostolic-guide:ekegusii:review-v1";
+const VERSION = 2;
 
 export function safeDrafts(value: unknown): EkegusiiDrafts {
   if (!value || typeof value !== "object" || Array.isArray(value)) return {};
@@ -62,8 +64,10 @@ function useReviewDrafts() {
   const [message, setMessage] = useState("");
   useEffect(() => {
     try {
-      const saved = window.localStorage.getItem(EKEGUSII_DRAFT_KEY);
-      if (saved) setDrafts(safeDrafts(JSON.parse(saved)));
+      const current = window.localStorage.getItem(EKEGUSII_DRAFT_KEY);
+      const legacy = current ? null : window.localStorage.getItem(LEGACY_DRAFT_KEY);
+      if (current) setDrafts(safeDrafts(JSON.parse(current)));
+      else if (legacy) setDrafts(rebaseReviewerDrafts(safeDrafts(JSON.parse(legacy))));
     } catch { setMessage("Previous browser draft could not be read. No source teachings were changed."); }
     setReady(true);
   }, []);
@@ -130,10 +134,11 @@ function useReviewDrafts() {
       const data: unknown = JSON.parse(await file.text());
       if (!data || typeof data !== "object") throw Error("Invalid file");
       const record = data as Record<string, unknown>;
-      if (record.format !== "apostolic-guide-ekegusii-review" || record.version !== VERSION || record.language !== "guz")
+      if (record.format !== "apostolic-guide-ekegusii-review" || ![1, VERSION].includes(Number(record.version)) || record.language !== "guz")
         throw Error("Wrong file format or version");
       if (!record.drafts || typeof record.drafts !== "object" || Array.isArray(record.drafts)) throw Error("Missing review entries");
-      setDrafts(safeDrafts(record.drafts));
+      const imported = safeDrafts(record.drafts);
+      setDrafts(record.version === 1 ? rebaseReviewerDrafts(imported) : imported);
       setMessage("Drafts imported in this browser. These changes are not published.");
     } catch { setMessage("Could not import the review file. Your current draft was kept."); }
   }, []);
@@ -287,6 +292,8 @@ export function EkegusiiReader({ pathway, index, total, seed, nextPathway }: { p
   const prev = Math.max(0, step - 1);
   const englishUrl = "/pathways/" + pathway.slug + "#step-" + (step + 1);
   const linkedBibleReference = ekegusiiBibleReference(original.reference);
+  const excerpt = verifiedEkegusiiExcerpt(original.reference);
+  const warnings = reviewWarnings(pathway.slug, step);
   return <Frame onExport={exportDrafts} onImport={importDrafts} message={message} showTools={mode === "edit"}>
     <section className="eg-reader-header">
       <Link className="eg-back" href="/ekegusii"><ArrowLeft size={16}/> All Pathways</Link>
@@ -323,8 +330,19 @@ export function EkegusiiReader({ pathway, index, total, seed, nextPathway }: { p
             <div className="eg-reading-content"><span className="eg-field-label">{activeDraft.title?.trim() && activeDraft.explanation?.trim() ? "EKEGUSII DRAFT · NOT YET APPROVED" : "ENGLISH SOURCE · TRANSLATION PENDING"}</span>
               <h2 lang={activeDraft.title?.trim() ? "guz" : "en"}>{activeDraft.title?.trim() || original.title}</h2>
               <p className="eg-scripture-ref"><BookOpen size={17}/> {linkedBibleReference ? <a lang="guz" href={linkedBibleReference.url} target="_blank" rel="noopener noreferrer" className="eg-scripture-chapter">{linkedBibleReference.label} <ExternalLink size={13}/></a> : <span>{original.reference}</span>} · <a href={englishUrl}>English source</a></p>
-              <h3>What this shows</h3><p lang={activeDraft.explanation?.trim() ? "guz" : "en"}>{activeDraft.explanation?.trim() || original.explanation}</p>
+              {excerpt && <figure className="eg-bible-excerpt">
+                <div className="eg-bible-quotation-label"><ShieldCheck size={15}/> Wording checked against Ebibilia Enchenu</div>
+                <blockquote lang="guz">“{excerpt.text}”</blockquote>
+                <figcaption>{excerpt.source}. <a href={linkedBibleReference?.url ?? "https://ebible.org/details.php?id=guz"} target="_blank" rel="noopener noreferrer">Read the full chapter <ExternalLink size={12}/></a></figcaption>
+              </figure>}
+              <h3>What this shows · Draft explanation</h3><p lang={activeDraft.explanation?.trim() ? "guz" : "en"}>{activeDraft.explanation?.trim() || original.explanation}</p>
               <div className="eg-transition"><span>CONTINUE THE STUDY</span><p lang={activeDraft.hook?.trim() ? "guz" : "en"}>{activeDraft.hook?.trim() || original.hook || ""}</p></div>
+              <section className="eg-source-footnotes" aria-label="Scripture and editorial sources">
+                <h3>Scripture and sources</h3>
+                <p><strong>{linkedBibleReference?.label ?? original.reference}</strong> · <a href={linkedBibleReference?.url ?? "https://ebible.org/details.php?id=guz"} target="_blank" rel="noopener noreferrer">Ebibilia Enchenu <ExternalLink size={12}/></a> · © 2021 Bible Society of Kenya</p>
+                <p>Teaching explanation is a draft, not a Bible quotation. The Scripture and theological interpretation are kept separate.</p>
+                <details><summary>Compare with the approved English teaching</summary><p>{original.explanation}</p></details>
+              </section>
               <button type="button" className="eg-inline-edit" onClick={() => setMode("edit")}><PencilLine size={15}/> Notice a translation issue? Suggest a correction</button>
             </div>
           </> : <>
@@ -335,7 +353,14 @@ export function EkegusiiReader({ pathway, index, total, seed, nextPathway }: { p
                 <input lang="guz" value={activeDraft[field] ?? ""} onChange={(event) => { updateStep(pathway.slug, step, field, event.target.value); setSubmitState("idle"); setSubmissionMessage(""); }} placeholder="Enter Ekegusii title"/> :
                 <textarea lang="guz" rows={field === "explanation" ? 8 : 5} value={activeDraft[field] ?? ""} onChange={(event) => { updateStep(pathway.slug, step, field, event.target.value); setSubmitState("idle"); setSubmissionMessage(""); }} placeholder={"Enter Ekegusii " + field}/>}</label>
             </div>)}
-            <p className="eg-review-reminder"><ShieldCheck size={15}/> Confirm meaning, doctrinal accuracy, tone, and natural Ekegusii grammar. The Scripture reference is intentionally locked.</p>
+            {warnings.length > 0 && <div className="eg-review-flags"><strong>Priority translation review</strong>{warnings.map((warning) => <p key={warning}>{warning}</p>)}</div>}
+            <div className="eg-reference-check">
+              <strong>Bible language check</strong>
+              <p>{excerpt ? "A short, checked Ekegusii Scripture excerpt is shown in reading mode." : "The linked Scripture is the wording source; its exact Ekegusii verse text has not yet been reviewed here."}</p>
+              <a href={linkedBibleReference?.url ?? "https://ebible.org/details.php?id=guz"} target="_blank" rel="noopener noreferrer">Compare {linkedBibleReference?.label ?? original.reference} in Ebibilia Enchenu <ExternalLink size={14}/></a>
+              <p>Doctrinal standard: preserve the full claim and qualifications of the English explanation displayed above. Do not treat an interpretation as a direct Bible quotation.</p>
+            </div>
+            <p className="eg-review-reminder"><ShieldCheck size={15}/> Confirm meaning, doctrinal accuracy, natural Ekegusii grammar, and Scripture wording. Bible references cannot be edited here.</p>
           </>}
           {mode === "edit" && <div className="eg-submit-panel">
             <div><span className="eg-field-label">SEND YOUR CORRECTION TO APOSTOLIC GUIDE</span>
