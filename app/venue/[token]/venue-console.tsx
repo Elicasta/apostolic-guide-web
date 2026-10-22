@@ -53,7 +53,14 @@ export default function VenueConsole({token,venueName}:{token:string;venueName:s
 
   useEffect(()=>{
     let cancelled=false;
-    const check=()=>load().catch(e=>{if(!cancelled){setError(e instanceof Error?e.message:"Connection check failed");setLoading(false);}});
+    const check=()=>load().catch(e=>{if(!cancelled){
+      if(String(e).includes("revoked")){
+        active.current=false;connection.current?.disconnect();connection.current=null;
+        stream.current?.getTracks().forEach(t=>t.stop());stream.current=null;
+        setStatus("offline");setIncomingOpen(false);setConfig(null);
+      }
+      setError(e instanceof Error?e.message:"Connection check failed");setLoading(false);
+    }});
     void check();
     const timer=setInterval(()=>void check(),7000);
     return()=>{cancelled=true;clearInterval(timer);active.current=false;connection.current?.disconnect();stream.current?.getTracks().forEach(t=>t.stop());};
