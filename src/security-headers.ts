@@ -9,7 +9,7 @@
 export const LOCKED_PERMISSIONS_POLICY = "camera=(), microphone=(), geolocation=(), payment=()";
 export const MEDIA_CAPTURE_PERMISSIONS_POLICY = "camera=(self), microphone=(self), geolocation=(), payment=()";
 
-const MEDIA_CAPTURE_PREFIXES = ["/guest/", "/studio/sessions/", "/sessions/"] as const;
+const MEDIA_CAPTURE_PREFIXES = ["/guest/", "/venue/", "/studio/sessions/", "/sessions/"] as const;
 
 export function mediaCaptureAllowed(pathname: string) {
   const path = pathname.split(/[?#]/, 1)[0] ?? pathname;

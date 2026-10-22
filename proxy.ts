@@ -28,6 +28,7 @@ function studioRewrite(request: NextRequest) {
     pathname.startsWith("/_next/") ||
     pathname.startsWith("/auth/") ||
     pathname.startsWith("/guest/") ||
+    pathname.startsWith("/venue/") ||
     pathname.startsWith("/output/")
   ) {
     return null;

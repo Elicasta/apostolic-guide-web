@@ -16,7 +16,8 @@ test("studio live and guest routes can capture camera and microphone", () => {
   for (const path of [
     "/studio/sessions/session-1",
     "/sessions/session-1",
-    "/guest/invite-token"
+    "/guest/invite-token",
+    "/venue/remote-invite-token"
   ]) {
     assert.equal(permissionsPolicyForPaths([path]), MEDIA_CAPTURE_PERMISSIONS_POLICY);
   }
