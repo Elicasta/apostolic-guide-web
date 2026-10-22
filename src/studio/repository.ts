@@ -152,7 +152,12 @@ export async function getOutputSnapshot(sessionId: string, outputToken: string) 
     if (assetError) throw new StudioPersistenceError(assetError.message);
     assets = data ?? [];
   }
-  return { session, state, stateVersion: Number(row?.state_version ?? 0), assets };
+  // Only guests explicitly approved by the producer may appear or be heard in program.
+  const { data: liveGuests, error: liveGuestError } = await client.from("studio_episode_guests")
+    .select("id").eq("episode_id", session.episode_id).eq("state", "live");
+  if (liveGuestError) throw new StudioPersistenceError(liveGuestError.message);
+  return { session, state, stateVersion: Number(row?.state_version ?? 0), assets,
+    liveGuestIds: (liveGuests ?? []).map(item => String(item.id)) };
 }
 
 export async function saveSessionState(sessionId: string, state: StudioProgramState, expectedVersion: number) {
