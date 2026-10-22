@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, BookOpen, ChevronLeft, ChevronRight, Download, ExternalLink, FileUp, Languages, PencilLine, ShieldCheck } from "lucide-react";
 import { displayEkegusiiBibleReference, ekegusiiBibleReference } from "@/ekegusii-bible-references";
 import { verifiedEkegusiiExcerpt, reviewWarnings, rebaseReviewerDrafts, rebaseV2ReviewerDrafts, sourceAlignmentRisks } from "@/ekegusii-language-audit";
+import { ekegusiiReviewStatus, ekegusiiPathwayCheck } from "@/ekegusii-editorial-standards";
 
 export type EkegusiiStudy = {
   slug: string;
@@ -301,6 +302,8 @@ export function EkegusiiReader({ pathway, index, total, seed, nextPathway }: { p
     ...sourceAlignmentRisks(pathway.slug, step),
   ]));
   const hasLanguageFlags = warnings.length > 0;
+  const sourceReview = ekegusiiReviewStatus(original.reference);
+  const pathwayGuide = ekegusiiPathwayCheck(pathway.slug);
   return <Frame onExport={exportDrafts} onImport={importDrafts} message={message} showTools={mode === "edit"}>
     <section className="eg-reader-header">
       <Link className="eg-back" href="/ekegusii"><ArrowLeft size={16}/> All Pathways</Link>
@@ -321,7 +324,7 @@ export function EkegusiiReader({ pathway, index, total, seed, nextPathway }: { p
         <div className="eg-step-nav-title"><strong>STUDY SEQUENCE</strong><span>{pathway.steps.length} passages</span></div>
         {pathway.steps.map((item, i) => <button type="button" key={item.reference} className={i === step ? "selected" : ""} aria-current={i === step ? "step" : undefined} onClick={() => selectStep(i)}>
           <span>{String(i + 1).padStart(2, "0")}</span><span>{draft.steps?.[String(i)]?.title?.trim() || item.title}<small>{displayEkegusiiBibleReference(item.reference)}</small></span>
-          <span className={"eg-ref-status " + (verifiedEkegusiiExcerpt(item.reference) ? "eg-ref-checked" : "eg-ref-pending")} title={verifiedEkegusiiExcerpt(item.reference) ? "Bible wording compared. Teaching explanation still needs review." : "Bible wording and teaching require native-speaker review."}>{verifiedEkegusiiExcerpt(item.reference) ? "Bible text checked" : "Draft"}</span>
+          <span className={"eg-ref-status " + (ekegusiiReviewStatus(item.reference).bibleTextInspected ? "eg-ref-checked" : "eg-ref-pending")} title={ekegusiiReviewStatus(item.reference).bibleTextInspected ? "2021 Bible verse wording inspected. Teaching translation still needs native-speaker and doctrinal approval." : "Bible verse wording not independently inspected. Teaching requires native-speaker review."}>{verifiedEkegusiiExcerpt(item.reference) ? "Bible text checked" : ekegusiiReviewStatus(item.reference).bibleTextInspected ? "Source inspected" : "Draft"}</span>
         </button>)}
         <Link href="/ekegusii/bible" className="eg-bible-link">Read Ekegusii Bible <BookOpen size={14}/></Link>
       </aside>
@@ -345,11 +348,22 @@ export function EkegusiiReader({ pathway, index, total, seed, nextPathway }: { p
               <h3>What this shows · Draft explanation</h3>
               {hasLanguageFlags && <div className="eg-reading-caution"><ShieldCheck size={17}/><div><strong>Translation review needed</strong><p>The Ekegusii draft may contain mixed-language or inaccurate theological wording. Compare with the English source before teaching this passage.</p></div></div>}
               <p lang={activeDraft.explanation?.trim() ? "guz" : "en"}>{activeDraft.explanation?.trim() || original.explanation}</p>
+              {hasLanguageFlags && <aside className="eg-canonical-meaning">
+                <strong>Original English teaching · doctrinal baseline</strong>
+                <p lang="en">{original.explanation}</p>
+              </aside>}
               <div className="eg-transition"><span>CONTINUE THE STUDY</span><p lang={activeDraft.hook?.trim() ? "guz" : "en"}>{activeDraft.hook?.trim() || original.hook || ""}</p></div>
               <section className="eg-source-footnotes" aria-label="Scripture and editorial sources">
                 <h3>Scripture and sources</h3>
                 <p><strong>{linkedBibleReference?.label ?? original.reference}</strong> · <a href={linkedBibleReference?.url ?? "https://ebible.org/details.php?id=guz"} target="_blank" rel="noopener noreferrer">Ebibilia Enchenu <ExternalLink size={12}/></a> · © 2021 Bible Society of Kenya</p>
-                <p>{excerpt ? "Bible wording compared; the teaching explanation still requires review." : "Bible wording not yet compared in this edition. Teaching explanation is a draft, not a Bible quotation."} The Scripture and theological interpretation are kept separate.</p>
+                <p>{sourceReview.bibleTextInspected ? "The cited verse's 2021 Ekegusii source wording was inspected. The teaching translation is still not linguistically or doctrinally approved." : "Bible wording not yet compared in this edition. Teaching explanation is a draft, not a Bible quotation."} The Scripture and theological interpretation are kept separate.</p>
+                {sourceReview.passageCue && <p><strong>Reference language:</strong> {sourceReview.passageCue}. These cues are editorial notes, not a complete Bible quotation.</p>}
+                {pathwayGuide && <details className="eg-doctrine-guide">
+                  <summary>Doctrinal and translation checks for this Pathway</summary>
+                  <p><strong>Study theme:</strong> {pathwayGuide.theme}</p>
+                  <p><strong>Preserve:</strong> {pathwayGuide.preserve}</p>
+                  <p><strong>Avoid:</strong> {pathwayGuide.avoid}</p>
+                </details>}
                 <p>Additional 2021 edition reference: <a href="https://www.bible.com/versions/2925-ekge-ebibilia-enchenu" target="_blank" rel="noopener noreferrer">Bible Society of Kenya EKGE on YouVersion <ExternalLink size={12}/></a></p>
                 <details><summary>Compare with the approved English teaching</summary><p>{original.explanation}</p></details>
               </section>
@@ -364,6 +378,12 @@ export function EkegusiiReader({ pathway, index, total, seed, nextPathway }: { p
                 <textarea lang="guz" rows={field === "explanation" ? 8 : 5} value={activeDraft[field] ?? ""} onChange={(event) => { updateStep(pathway.slug, step, field, event.target.value); setSubmitState("idle"); setSubmissionMessage(""); }} placeholder={"Enter Ekegusii " + field}/>}</label>
             </div>)}
             {warnings.length > 0 && <div className="eg-review-flags"><strong>Priority translation review</strong>{warnings.map((warning) => <p key={warning}>{warning}</p>)}</div>}
+            {pathwayGuide && <div className="eg-pathway-guardrails">
+              <strong>Editorial doctrine and language checklist</strong>
+              <p><b>Preserve:</b> {pathwayGuide.preserve}</p>
+              <p><b>Do not introduce:</b> {pathwayGuide.avoid}</p>
+              <p><b>Bible source status:</b> {sourceReview.bibleTextInspected ? "2021 source verse inspected; translation not approved" : "Exact 2021 verse wording awaits comparison"}</p>
+            </div>}
             <div className="eg-reference-check">
               <strong>Bible language check</strong>
               <p>{excerpt ? "A short, checked Ekegusii Scripture excerpt is shown in reading mode." : "The linked Scripture is the wording source; its exact Ekegusii verse text has not yet been reviewed here."}</p>
