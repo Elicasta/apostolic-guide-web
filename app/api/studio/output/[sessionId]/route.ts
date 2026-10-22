@@ -10,7 +10,9 @@ export async function GET(request: Request, context: { params: Promise<{ session
   try {
     const snapshot = await getOutputSnapshot(sessionId, token);
     if (!snapshot) return NextResponse.json({ error: "Invalid output session" }, { status: 403 });
-    return NextResponse.json(snapshot, { headers: { "Cache-Control": "no-store" } });
+    // The validation hash is a server-only credential verifier, not output data.
+    const { output_token_hash: _verifier, ...safeSession } = snapshot.session;
+    return NextResponse.json({ ...snapshot, session: safeSession }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Unable to load output" }, { status: error instanceof StudioPersistenceError ? 503 : 500 });
   }
