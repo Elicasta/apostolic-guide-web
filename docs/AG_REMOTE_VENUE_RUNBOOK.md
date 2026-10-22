@@ -27,7 +27,7 @@ A low-latency, two-way teaching connection between an Apostolic Guide Studio pro
 3. Ensure local PA playback is NOT fed into the audio interface input going back to Miami (mix-minus). Use headphones in initial tests.
 4. Check the mix-minus/headphones confirmation, select inputs and click **Connect camera + microphone**. Allow device access.
 5. Click **Open incoming program**, then **Fullscreen for projector** after the feed appears. The receiving screen shows the composed Studio presentation. Only the Miami producer decides when the local return camera appears in the broadcast.
-6. **Mute incoming audio** isolates the display audio for a controlled test. Check the **Interpreter mic** level indicator to confirm the local microphone is actually sending a signal. Use **Disconnect** and reconnect to change cameras or recover from a drop. A new Miami session requires reconnecting the return feed and reopening the receiving screen.
+6. **Mute incoming audio** isolates the display audio for a controlled test. Check the **Interpreter mic** level indicator to confirm the local microphone is actually sending a signal. Use **Mute mic** and **Stop camera** to isolate a problem without leaving the room. Use **Disconnect** and reconnect to change input devices or recover from a drop. A new Miami session requires reconnecting the return feed and reopening the receiving screen.
 7. The displayed API RTT is an HTTP diagnostic, not measured media jitter or true speech latency.
 
 ## Security and feed behavior

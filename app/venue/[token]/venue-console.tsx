@@ -25,6 +25,8 @@ export default function VenueConsole({token,venueName}:{token:string;venueName:s
   const [videoId,setVideoId]=useState("");
   const [latency,setLatency]=useState<number|null>(null);
   const [micLevel,setMicLevel]=useState(0);
+  const [micMuted,setMicMuted]=useState(false);
+  const [cameraOff,setCameraOff]=useState(false);
   const [confirmedHeadphones,setConfirmedHeadphones]=useState(false);
   const preview=useRef<HTMLVideoElement>(null);
   const programScreen=useRef<HTMLDivElement>(null);
@@ -110,7 +112,7 @@ export default function VenueConsole({token,venueName}:{token:string;venueName:s
     connection.current?.disconnect();connection.current=null;
     stream.current?.getTracks().forEach(t=>t.stop());stream.current=null;stopMeter();
     if(preview.current)preview.current.srcObject=null;
-    setStatus("offline");report("offline");
+    setStatus("offline");setMicMuted(false);setCameraOff(false);report("offline");
     void fetch(`/api/venue/${encodeURIComponent(token)}`,{
       method:"POST",headers:{"Content-Type":"application/json"},
       body:JSON.stringify({type:"state",state:"disconnected"})
@@ -128,6 +130,7 @@ export default function VenueConsole({token,venueName}:{token:string;venueName:s
         audio:audioId?{deviceId:{exact:audioId},echoCancellation:true,noiseSuppression:true,autoGainControl:true}:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}
       });
       stream.current=capture;
+      setMicMuted(false);setCameraOff(false);
       startMeter(capture);
       if(preview.current){preview.current.srcObject=capture;void preview.current.play().catch(()=>{});}
       active.current=true;
@@ -148,6 +151,12 @@ export default function VenueConsole({token,venueName}:{token:string;venueName:s
       setStatus("failed");report("failed");
       setError(e instanceof Error?e.message:"Unable to connect the venue");
     }finally{joining.current=false;}
+  }
+  function toggleTrack(kind:"audio"|"video"){
+    const target=kind==="audio"?stream.current?.getAudioTracks():stream.current?.getVideoTracks();
+    if(!target?.length)return;
+    if(kind==="audio"){const next=!micMuted;target.forEach(t=>t.enabled=!next);setMicMuted(next);}
+    else{const next=!cameraOff;target.forEach(t=>t.enabled=!next);setCameraOff(next);}
   }
   const canStart=Boolean(config?.sessionId&&config?.liveKitConfigured&&!loading);
   const program=config?.programUrl?config.programUrl+(incomingMuted?"&mute=1":""):null;
@@ -186,6 +195,8 @@ export default function VenueConsole({token,venueName}:{token:string;venueName:s
           Our audio mixer has a mix-minus feed, or we are testing with headphones to prevent echo.</label>
         <div className="ag-venue-actions">
           <button onClick={()=>void startReturn()} disabled={!canStart||!confirmedHeadphones||status==="connected"||status==="connecting"}>CONNECT CAMERA + MICROPHONE</button>
+          <button className="secondary" disabled={!stream.current} onClick={()=>toggleTrack("audio")}>{micMuted?"UNMUTE MIC":"MUTE MIC"}</button>
+          <button className="secondary" disabled={!stream.current} onClick={()=>toggleTrack("video")}>{cameraOff?"START CAMERA":"STOP CAMERA"}</button>
           <button className="secondary" onClick={()=>void disconnect()} disabled={status==="offline"}>DISCONNECT</button>
         </div>
         <p className="ag-venue-note">Selected input changes apply on the next connection. Use separate audio outputs and a mix-minus for a live PA system.</p>
