@@ -56,3 +56,16 @@ Use an approved Ekegusii translator/model to produce initial drafts against the 
 - The link goes to the **chapter**, not necessarily the exact numbered verse. eBible's chapter HTML uses Roman-numbered verse typography. No Bible verses are copied into Apostolic Guide.
 - The home page now displays the draft Ekegusii teaching title and summary without repeating an English subtitle on each card. The primary release status is **Draft translation**, with a readable reminder that native-speaker approval is pending.
 - All mappings are covered by tests against the 106 canonical step references. Do not infer mappings for unfamiliar books. Update this mapping from the Bible Society's index if the Bible's wording changes.
+
+## Bible-grounded translation correction pass (October 22, 2026)
+
+- **Important:** The original 20-pathway language drafts were machine-generated and contain demonstrable language errors. None should be marked native-approved.
+- The Deuteronomy 6:4 wording that a reviewer supplied and the independent Mark 12:29 wording are now separated from explanatory text, shown as clearly attributed short quotations with direct Bible chapter links. Never imply the AI paraphrase is a Bible quotation.
+- Revised translations include seven Bible-informed pathway titles, corrected Scripture book/chapter mentions and substitutions for a limited number of Bible-attested terms (e.g., `Omoika Omochenu`). These edits are helpful starting points, **not certified linguistic translations**.
+- The dictionary and source passages are in `src/ekegusii-language-audit.ts`. All glossary terms carry verse references.
+- Every step has a Bible Society of Kenya source credit, a link to the specific chapter, and an optional English teaching comparison. The published Ekegusii Bible remains the source of Scripture text, not a duplicated full Bible.
+- The report `docs/EKEGUSII_SCRIPTURE_ALIGNMENT_AUDIT.md` documents all 106 reference links and identifies which verse quotations were actually compared, so unverified ones are not overstated.
+- Reviewer browser drafts are upgraded from v1 to v2. When a field still matches the old machine draft, it receives the corrected baseline; a differing field is treated as a human correction and retained. v1 JSON imports use the same migration and v2 exports remain versioned.
+- Doctrinal claims are grounded in the existing English catalog. Differences between direct Scripture statements and Apostolic Oneness interpretations are preserved, not silently rewritten into supposed Bible quotations.
+- Bible Society of Kenya retains the copyright to `Ebibilia Enchenu` (© 2021). Obtain permission for extensive reproduction; this implementation uses two short, attributed excerpts and deep links for the other passages.
+- Native-speaker and theological signoff remains necessary for all 106 steps, including the first two checked quotations' surrounding prose.
