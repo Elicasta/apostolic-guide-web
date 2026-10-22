@@ -5,6 +5,7 @@ import { allPathways } from "../src/pathway-catalog";
 import { ekegusiiSeedDrafts } from "../src/ekegusii-seed-drafts";
 import {
   ekegusiiBibleGlossary,
+  rebaseV2ReviewerDrafts,
   localizeReferenceMentions,
   rebaseReviewerDrafts,
   reviewWarnings,
@@ -72,7 +73,7 @@ test("legacy migration accepts Bible-grounded fixes while preserving real human 
       },
     },
   };
-  const rebased = rebaseReviewerDrafts(original)["god-is-one"];
+  const rebased = rebaseV2ReviewerDrafts(rebaseReviewerDrafts(original))["god-is-one"];
   const current = revisedEkegusiiSeed("god-is-one");
   assert.equal(rebased.title, current.title);
   assert.equal(rebased.steps?.["0"]?.explanation, current.steps?.["0"]?.explanation);

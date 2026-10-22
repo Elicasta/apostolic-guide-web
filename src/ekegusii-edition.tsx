@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, BookOpen, ChevronLeft, ChevronRight, Download, ExternalLink, FileUp, Languages, PencilLine, ShieldCheck } from "lucide-react";
 import { displayEkegusiiBibleReference, ekegusiiBibleReference } from "@/ekegusii-bible-references";
-import { verifiedEkegusiiExcerpt, reviewWarnings, rebaseReviewerDrafts } from "@/ekegusii-language-audit";
+import { verifiedEkegusiiExcerpt, reviewWarnings, rebaseReviewerDrafts, rebaseV2ReviewerDrafts, sourceAlignmentRisks } from "@/ekegusii-language-audit";
 
 export type EkegusiiStudy = {
   slug: string;
@@ -23,9 +23,10 @@ export type EkegusiiDraft = {
   steps?: Record<string, { title?: string; explanation?: string; hook?: string }>;
 };
 export type EkegusiiDrafts = Record<string, EkegusiiDraft>;
-export const EKEGUSII_DRAFT_KEY = "apostolic-guide:ekegusii:review-v2";
-const LEGACY_DRAFT_KEY = "apostolic-guide:ekegusii:review-v1";
-const VERSION = 2;
+export const EKEGUSII_DRAFT_KEY = "apostolic-guide:ekegusii:review-v3";
+const LEGACY_DRAFT_KEY = "apostolic-guide:ekegusii:review-v2";
+const OLDEST_DRAFT_KEY = "apostolic-guide:ekegusii:review-v1";
+const VERSION = 3;
 
 export function safeDrafts(value: unknown): EkegusiiDrafts {
   if (!value || typeof value !== "object" || Array.isArray(value)) return {};
@@ -65,9 +66,11 @@ function useReviewDrafts() {
   useEffect(() => {
     try {
       const current = window.localStorage.getItem(EKEGUSII_DRAFT_KEY);
-      const legacy = current ? null : window.localStorage.getItem(LEGACY_DRAFT_KEY);
+      const v2 = current ? null : window.localStorage.getItem(LEGACY_DRAFT_KEY);
+      const v1 = current || v2 ? null : window.localStorage.getItem(OLDEST_DRAFT_KEY);
       if (current) setDrafts(safeDrafts(JSON.parse(current)));
-      else if (legacy) setDrafts(rebaseReviewerDrafts(safeDrafts(JSON.parse(legacy))));
+      else if (v2) setDrafts(rebaseV2ReviewerDrafts(safeDrafts(JSON.parse(v2))));
+      else if (v1) setDrafts(rebaseV2ReviewerDrafts(rebaseReviewerDrafts(safeDrafts(JSON.parse(v1)))));
     } catch { setMessage("Previous browser draft could not be read. No source teachings were changed."); }
     setReady(true);
   }, []);
@@ -134,11 +137,11 @@ function useReviewDrafts() {
       const data: unknown = JSON.parse(await file.text());
       if (!data || typeof data !== "object") throw Error("Invalid file");
       const record = data as Record<string, unknown>;
-      if (record.format !== "apostolic-guide-ekegusii-review" || ![1, VERSION].includes(Number(record.version)) || record.language !== "guz")
+      if (record.format !== "apostolic-guide-ekegusii-review" || ![1, 2, VERSION].includes(Number(record.version)) || record.language !== "guz")
         throw Error("Wrong file format or version");
       if (!record.drafts || typeof record.drafts !== "object" || Array.isArray(record.drafts)) throw Error("Missing review entries");
       const imported = safeDrafts(record.drafts);
-      setDrafts(record.version === 1 ? rebaseReviewerDrafts(imported) : imported);
+      setDrafts(record.version === 1 ? rebaseV2ReviewerDrafts(rebaseReviewerDrafts(imported)) : record.version === 2 ? rebaseV2ReviewerDrafts(imported) : imported);
       setMessage("Drafts imported in this browser. These changes are not published.");
     } catch { setMessage("Could not import the review file. Your current draft was kept."); }
   }, []);
@@ -293,7 +296,11 @@ export function EkegusiiReader({ pathway, index, total, seed, nextPathway }: { p
   const englishUrl = "/pathways/" + pathway.slug + "#step-" + (step + 1);
   const linkedBibleReference = ekegusiiBibleReference(original.reference);
   const excerpt = verifiedEkegusiiExcerpt(original.reference);
-  const warnings = reviewWarnings(pathway.slug, step);
+  const warnings = Array.from(new Set([
+    ...reviewWarnings(pathway.slug, step),
+    ...sourceAlignmentRisks(pathway.slug, step),
+  ]));
+  const hasLanguageFlags = warnings.length > 0;
   return <Frame onExport={exportDrafts} onImport={importDrafts} message={message} showTools={mode === "edit"}>
     <section className="eg-reader-header">
       <Link className="eg-back" href="/ekegusii"><ArrowLeft size={16}/> All Pathways</Link>
@@ -335,12 +342,15 @@ export function EkegusiiReader({ pathway, index, total, seed, nextPathway }: { p
                 <blockquote lang="guz">“{excerpt.text}”</blockquote>
                 <figcaption>{excerpt.source}. <a href={linkedBibleReference?.url ?? "https://ebible.org/details.php?id=guz"} target="_blank" rel="noopener noreferrer">Read the full chapter <ExternalLink size={12}/></a></figcaption>
               </figure>}
-              <h3>What this shows · Draft explanation</h3><p lang={activeDraft.explanation?.trim() ? "guz" : "en"}>{activeDraft.explanation?.trim() || original.explanation}</p>
+              <h3>What this shows · Draft explanation</h3>
+              {hasLanguageFlags && <div className="eg-reading-caution"><ShieldCheck size={17}/><div><strong>Translation review needed</strong><p>The Ekegusii draft may contain mixed-language or inaccurate theological wording. Compare with the English source before teaching this passage.</p></div></div>}
+              <p lang={activeDraft.explanation?.trim() ? "guz" : "en"}>{activeDraft.explanation?.trim() || original.explanation}</p>
               <div className="eg-transition"><span>CONTINUE THE STUDY</span><p lang={activeDraft.hook?.trim() ? "guz" : "en"}>{activeDraft.hook?.trim() || original.hook || ""}</p></div>
               <section className="eg-source-footnotes" aria-label="Scripture and editorial sources">
                 <h3>Scripture and sources</h3>
                 <p><strong>{linkedBibleReference?.label ?? original.reference}</strong> · <a href={linkedBibleReference?.url ?? "https://ebible.org/details.php?id=guz"} target="_blank" rel="noopener noreferrer">Ebibilia Enchenu <ExternalLink size={12}/></a> · © 2021 Bible Society of Kenya</p>
                 <p>{excerpt ? "Bible wording compared; the teaching explanation still requires review." : "Bible wording not yet compared in this edition. Teaching explanation is a draft, not a Bible quotation."} The Scripture and theological interpretation are kept separate.</p>
+                <p>Additional 2021 edition reference: <a href="https://www.bible.com/versions/2925-ekge-ebibilia-enchenu" target="_blank" rel="noopener noreferrer">Bible Society of Kenya EKGE on YouVersion <ExternalLink size={12}/></a></p>
                 <details><summary>Compare with the approved English teaching</summary><p>{original.explanation}</p></details>
               </section>
               <button type="button" className="eg-inline-edit" onClick={() => setMode("edit")}><PencilLine size={15}/> Notice a translation issue? Suggest a correction</button>
