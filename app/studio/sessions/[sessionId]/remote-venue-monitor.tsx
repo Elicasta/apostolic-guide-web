@@ -21,7 +21,7 @@ export default function RemoteVenueMonitor({episodeId,sessionId}:{episodeId:stri
         const r=await fetch(`/api/studio/episodes/${episodeId}/guests`,{cache:"no-store"});
         if(!r.ok)return;
         const p=await r.json();
-        const next=(p.guests??[] as Venue[]).filter(v=>v.is_remote_venue);
+        const next:Venue[]=(Array.isArray(p.guests)?p.guests:[]).filter((v:Venue)=>v.is_remote_venue);
         if(alive){setVenues(next);venueIds.current=new Set(next.map(v=>`guest-${v.id}`));}
       }catch{}
     }
