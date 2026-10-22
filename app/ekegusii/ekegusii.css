@@ -196,3 +196,14 @@ body:has(.eg-shell) #main-content { padding:0; max-width:none; }
 .eg-study-card h4[lang="guz"] { font-size:24px; }
 }
 @media(prefers-reduced-motion:reduce) { .eg-progress-meter span { transition:none; } }
+
+/* Book/chapter links use the Bible Society of Kenya's Ekegusii book names. */
+.eg-lesson-top a { display:inline-flex; align-items:center; flex-wrap:wrap; gap:5px; color:#3a6a5d; font-size:13px; font-weight:700; letter-spacing:0; text-decoration:underline; text-underline-offset:3px; text-transform:none; }
+.eg-lesson-top a:hover,.eg-scripture-chapter:hover { color:#a47748; }
+.eg-scripture-chapter { display:inline-flex; flex-wrap:wrap; gap:6px; align-items:center; color:#295e50 !important; font-weight:700; text-decoration:underline !important; text-underline-offset:3px; }
+.eg-scripture-ref { gap:8px; }
+.eg-reference a { gap:5px; align-items:center; display:inline-flex; text-decoration:underline !important; text-underline-offset:3px; }
+.eg-study-card h4[lang="guz"] { margin-bottom:17px; }
+.eg-hero-art p { letter-spacing:.095em; }
+.eg-category-heading h3[lang="guz"] { max-width:100%; overflow-wrap:anywhere; }
+@media(max-width:780px) { .eg-lesson-top a { max-width:65%; overflow-wrap:anywhere; } .eg-hero-art p { display:none; } .eg-hero h1 { overflow-wrap:anywhere; } }
