@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { pathwayBySlug } from "@/pathway-catalog";
-import { revisedEkegusiiSeed } from "@/ekegusii-language-audit";
+import { bibleSourcedEkegusiiSeed } from "@/ekegusii-language-audit";
 
 export const runtime = "nodejs";
 
@@ -10,7 +10,7 @@ export function GET(request: NextRequest) {
   if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug) || !pathwayBySlug(slug)) {
     return NextResponse.json({ error: "Unknown Pathway." }, { status: 404 });
   }
-  const draft = revisedEkegusiiSeed(slug);
+  const draft = bibleSourcedEkegusiiSeed(slug);
   if (!draft) return NextResponse.json({ error: "Translation draft unavailable." }, { status: 404 });
   return NextResponse.json({ language: "guz", approved: false, slug, draft }, { headers: { "Cache-Control": "public, s-maxage=86400" } });
 }

@@ -235,3 +235,10 @@ body:has(.eg-shell) #main-content { padding:0; max-width:none; }
 .eg-ref-checked { background:#ebf1e9; color:#315b42; border-color:#aec5ae; }
 .eg-ref-pending { background:#f2eee5; color:#82775f; }
 @media(max-width:780px) { .eg-ref-status { font-size:9px; padding:4px 6px; } }
+
+/* Auditable draft warning and source alignment */
+.eg-reading-caution { display:flex; gap:13px; align-items:flex-start; margin:19px 0; padding:17px 19px; border:1px solid #d7c6a8; background:#f8f1e3; color:#554c3a; }
+.eg-reading-caution svg { flex-shrink:0; margin-top:2px; }
+.eg-reading-caution strong { font:700 12px Arial,Helvetica,sans-serif; }
+.eg-reading-caution p { font:400 12px/1.65 Arial,Helvetica,sans-serif; margin:6px 0 0; }
+@media(max-width:780px) { .eg-reading-caution { padding:15px 13px; } }

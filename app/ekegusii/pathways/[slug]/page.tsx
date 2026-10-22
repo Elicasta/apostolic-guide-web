@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { allPathways, pathwayBySlug } from "@/pathway-catalog";
-import { revisedEkegusiiSeed } from "@/ekegusii-language-audit";
+import { bibleSourcedEkegusiiSeed } from "@/ekegusii-language-audit";
 import { EkegusiiReader } from "@/ekegusii-edition";
 
 type Props = { params: Promise<{ slug: string }> };
@@ -24,6 +24,6 @@ export default async function EkegusiiPathway({ params }: Props) {
   const index = allPathways.findIndex((item) => item.slug === slug);
   const next = allPathways[index + 1];
   return <EkegusiiReader pathway={pathway} index={index} total={allPathways.length}
-    seed={revisedEkegusiiSeed(slug)}
-    nextPathway={next ? { slug: next.slug, title: revisedEkegusiiSeed(next.slug).title || next.title } : undefined}/>;
+    seed={bibleSourcedEkegusiiSeed(slug)}
+    nextPathway={next ? { slug: next.slug, title: bibleSourcedEkegusiiSeed(next.slug).title || next.title } : undefined}/>;
 }

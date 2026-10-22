@@ -69,3 +69,13 @@ Use an approved Ekegusii translator/model to produce initial drafts against the 
 - Doctrinal claims are grounded in the existing English catalog. Differences between direct Scripture statements and Apostolic Oneness interpretations are preserved, not silently rewritten into supposed Bible quotations.
 - Bible Society of Kenya retains the copyright to `Ebibilia Enchenu` (© 2021). Obtain permission for extensive reproduction; this implementation uses two short, attributed excerpts and deep links for the other passages.
 - Native-speaker and theological signoff remains necessary for all 106 steps, including the first two checked quotations' surrounding prose.
+
+## 2021 publisher-aligned batch screening (October 22, 2026, pass three)
+
+- The updated audit distinguishes **mapped verse**, **short Bible excerpt compared**, **draft vocabulary normalized**, and **human-approved translation**. These are distinct states, not synonyms.
+- Used the Bible Society of Kenya's **2021 EKGE** on YouVersion to confirm the edition and compare Acts 4:12. The prior and correct Deuteronomy 6:4 and Mark 12:29 comparisons remain. The separate 2020 EKEGUSIIBBLE edition must not be substituted.
+- Applied a restricted Bible-attested vocabulary pass to all 106 teaching steps. It standardizes recognizable biblical names and the Holy Spirit term; removes unverified AI quotation marks and directs the reader to the original chapter instead. This corrects presentation problems but **does not validate full Ekegusii prose**.
+- The reading page warns when the original AI draft contains suspicious foreign-language or inconsistent wording. The full English original remains available for theological comparison.
+- Storage advances to v3, preserving genuine v1 and v2 reviewer corrections while refreshing fields that still match the previous AI draft.
+- All remaining uncollated Bible verse wordings stay marked as such in `EKEGUSII_SCRIPTURE_ALIGNMENT_AUDIT.md`; do not relabel them verified until the text was actually compared.
+- Human review should prioritize doctrinally sensitive topics: God and the Son, the Word becoming flesh, baptismal formula, salvation by grace, the Holy Spirit, tongues as initial evidence, and the right hand of God.

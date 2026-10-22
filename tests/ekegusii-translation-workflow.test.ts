@@ -6,7 +6,7 @@ import { readFileSync } from "node:fs";
 test("Ekegusii AI draft cannot publish itself or accept uncontrolled prompts", () => {
  const route = readFileSync("app/api/ekegusii/draft/route.ts", "utf8");
  assert.match(route, /pathwayBySlug\(slug\)/);
- assert.match(route, /revisedEkegusiiSeed\(slug\)/);
+ assert.match(route, /bibleSourcedEkegusiiSeed\(slug\)/);
  assert.doesNotMatch(route, /OPENAI_API_KEY|api.openai.com/);
  assert.match(route, /approved: false/);
  assert.doesNotMatch(route, /SUPABASE_SERVICE_ROLE_KEY/);
