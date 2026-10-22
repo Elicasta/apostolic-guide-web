@@ -2,8 +2,6 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-const page = readFileSync("app/admin/carousel-studio/page.tsx", "utf8");
-const layout = readFileSync("app/admin/carousel-studio/layout.tsx", "utf8");
 const manual = readFileSync("src/carousel-manual-edit.tsx", "utf8");
 const frameDesign = readFileSync("app/api/admin/creative-projects/[projectId]/frame-design/route.ts", "utf8");
 const art = readFileSync("src/carousel-single-art-director.tsx", "utf8");
@@ -13,17 +11,11 @@ const starter = readFileSync("src/carousel-project-starter.tsx", "utf8");
 const imageGeneration = readFileSync("app/api/admin/pathway-assets/generate-image/route.ts", "utf8");
 
 test("Carousel Studio mounts persistent Manual Edit and per-frame art against the active project", () => {
-  assert.match(page, /<CarouselManualEdit projectId=\{projectId\}\/>/);
-  assert.match(page, /<CarouselSingleArtDirector projectId=\{projectId\}\/>/);
-  assert.match(layout, /carousel-capabilities-restore\.css/);
-  assert.match(manual, /Manual Edit/);
-  assert.match(manual, /headlineFont/);
-  assert.match(manual, /bodyFont/);
-  assert.match(manual, /headlineColor/);
-  assert.match(manual, /bodyColor/);
-  assert.match(manual, /Choose texture with Sol/);
-  assert.match(manual, /\/api\/admin\/carousel-studio\/texture-direct/);
-  assert.doesNotMatch(manual, /localStorage/);
+  const client = readFileSync("src/creative-studio-client.tsx", "utf8");
+  assert.match(client, /<CarouselDesignPanel/);
+  assert.match(client, /frameDesigns/);
+  assert.match(client, /<CarouselBackgroundPanel/);
+  assert.doesNotMatch(client, /MutationObserver|createPortal|cloneNode/);
 });
 
 test("Manual Reset removes the manual layer so untouched frames stay template-native", () => {

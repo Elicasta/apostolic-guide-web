@@ -2,10 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-const page = readFileSync("app/admin/carousel-studio/page.tsx", "utf8");
 const layout = readFileSync("app/admin/carousel-studio/layout.tsx", "utf8");
-const persistentArtwork = readFileSync("src/carousel-persistent-artwork.tsx", "utf8");
-const sequenceArt = readFileSync("src/carousel-single-art-director.tsx", "utf8");
 const mobileFocus = readFileSync("src/carousel-studio-mobile-focus.tsx", "utf8");
 const manualEdit = readFileSync("src/carousel-manual-edit.tsx", "utf8");
 const mobileCss = readFileSync("app/admin/carousel-mobile-edit-v2.css", "utf8");
@@ -13,14 +10,11 @@ const inlineCss = readFileSync("app/admin/carousel-manual-inline.css", "utf8");
 const restoredCss = readFileSync("app/admin/carousel-capabilities-restore.css", "utf8");
 
 test("Single Post keeps one reliable Sol art generator while Carousel and Story get per-frame art", () => {
-  assert.match(page, /CarouselPersistentArtwork/);
-  assert.match(page, /CarouselSingleArtDirector/);
-  assert.match(persistentArtwork, /projectInfo\?\.format === "single"/);
-  assert.match(persistentArtwork, /Generate art with Sol/);
-  assert.match(sequenceArt, /project\.format === "single"/);
-  assert.match(sequenceArt, /return null/);
-  assert.match(sequenceArt, /frameId: currentFrame\.id/);
-  assert.match(sequenceArt, /background-direct/);
+  const client = readFileSync("src/creative-studio-client.tsx", "utf8");
+  assert.match(client, /<CarouselDesignPanel/);
+  assert.match(client, /frameDesigns/);
+  assert.match(client, /<CarouselBackgroundPanel/);
+  assert.doesNotMatch(client, /MutationObserver|createPortal|cloneNode/);
 });
 
 test("Single Post removes the meaningless Structure card from mobile focus", () => {

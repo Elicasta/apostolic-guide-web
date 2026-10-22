@@ -16,7 +16,7 @@ test("14-day carousel previews use the same glyph-outlined PNG renderer as saved
   assert.match(exportWorker, /await renderForgeFramePng\(/);
   assert.doesNotMatch(route, /sharp\(Buffer\.from\(svg\)\)/);
   assert.doesNotMatch(exportWorker, /sharp\(Buffer\.from\(svg\)\)/);
-  assert.equal(FORGE_CAROUSEL_RENDER_ENGINE, "forge-image-response-v3");
+  assert.equal(FORGE_CAROUSEL_RENDER_ENGINE, "carousel-studio-vector-v4");
 });
 
 test("Next image renderer emits a legible-size PNG with text independent of server-installed fonts", async () => {

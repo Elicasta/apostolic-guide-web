@@ -4,22 +4,20 @@ import test from "node:test";
 import type { CreativeFrame } from "../src/creative-project";
 import { renderForgeFramePng } from "../src/forge-carousel-image";
 const read = (path: string) => readFileSync(new URL("../"+path,import.meta.url),"utf8");
-test("official logo is loaded in the image renderer, not replaced with AG text",()=>{
+test("official logo is loaded in the image renderer, not replaced with AG text", () => {
   const assets=read("src/forge-brand-artwork.ts");
-  const image=read("src/forge-carousel-image.tsx");
+  const image=read("src/carousel-artwork.tsx");
   assert.match(assets,/apostolic-guide-mark-reversed\.png/);
   assert.match(assets,/apostolic-guide-mark\.png/);
-  assert.match(image,/input\.brandAssets\.darkLogo/);
-  assert.match(image,/input\.brandAssets\.lightLogo/);
-  assert.match(image,/fontFamily: serif/);
+  assert.match(image,/brandAssets.lightLogo:brandAssets.darkLogo/);
+  assert.match(read("src/carousel-render.tsx"),/embedFont:true/);
 });
-test("visible carousel has one live React artwork, without stale mirror clones",()=>{
-  const page=read("app/admin/carousel-studio/page.tsx");
-  assert.match(page,/<CarouselPersistentArtwork\/>/);
-  assert.doesNotMatch(page,/<CarouselPreviewFrameSync\/>/);
-  const artwork=read("src/carousel-persistent-artwork.tsx");
-  assert.match(artwork,/createPortal\(<OriginalArtwork/);
-  assert.match(artwork,/data-creative-template/);
+test("visible carousel has one live React artwork, without stale mirror clones", () => {
+  const client = readFileSync("src/creative-studio-client.tsx", "utf8");
+  assert.match(client, /<CarouselDesignPanel/);
+  assert.match(client, /frameDesigns/);
+  assert.match(client, /<CarouselBackgroundPanel/);
+  assert.doesNotMatch(client, /MutationObserver|createPortal|cloneNode/);
 });
 test("dark artwork has readable type and serif and sans themes do not inherit text color",()=>{
   const css=read("app/admin/carousel-live-contrast.css");

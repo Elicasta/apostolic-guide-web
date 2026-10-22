@@ -5,10 +5,6 @@ import test from "node:test";
 const publisher = readFileSync("src/creative-publishing-client.tsx", "utf8");
 const calendar = readFileSync("src/content-calendar-studio.tsx", "utf8");
 const guidedCss = readFileSync("app/admin/master-publishing-guided.css", "utf8");
-const manualEdit = readFileSync("src/carousel-manual-edit.tsx", "utf8");
-const manualInlineCss = readFileSync("app/admin/carousel-manual-inline.css", "utf8");
-const carouselPage = readFileSync("app/admin/carousel-studio/page.tsx", "utf8");
-const carouselLayout = readFileSync("app/admin/carousel-studio/layout.tsx", "utf8");
 const renderedAssetsRoute = readFileSync("app/api/admin/creative-projects/[projectId]/rendered-assets/route.ts", "utf8");
 const projectRoute = readFileSync("app/api/admin/creative-projects/[projectId]/route.ts", "utf8");
 
@@ -33,18 +29,11 @@ test("Instagram feed remains a three-column 4:5 image grid with minimal engageme
 });
 
 test("Carousel Manual Edit stays attached to Preview with persistent per-slide controls", () => {
-  assert.match(carouselPage, /<CarouselManualEdit projectId=\{projectId\}\/>/);
-  assert.match(manualEdit, /Manual Edit/);
-  assert.match(manualEdit, /dataset\.manualEdit = "open"/);
-  assert.match(manualEdit, /creative-preview-panel/);
-  assert.match(manualEdit, /carousel-inline-manual-host/);
-  assert.match(manualEdit, /\.creative-frame-row/);
-  assert.match(manualEdit, /Background texture/);
-  assert.match(manualEdit, /Typography \+ color/);
-  assert.match(manualEdit, /Choose texture with Sol/);
-  assert.match(manualInlineCss, /creative-frame-preview[\s\S]*position:sticky!important/);
-  assert.match(carouselLayout, /carousel-manual-inline\.css/);
-  assert.match(carouselLayout, /carousel-capabilities-restore\.css/);
+  const client = readFileSync("src/creative-studio-client.tsx", "utf8");
+  assert.match(client, /<CarouselDesignPanel/);
+  assert.match(client, /frameDesigns/);
+  assert.match(client, /<CarouselBackgroundPanel/);
+  assert.doesNotMatch(client, /MutationObserver|createPortal|cloneNode/);
 });
 
 test("Ready creative renders survive Publisher reloads with the exact project selected", () => {

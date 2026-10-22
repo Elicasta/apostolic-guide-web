@@ -5,13 +5,13 @@ This is the minimum behavior Carousel Studio must preserve across refactors.
 ## Project model
 
 - Creative Projects are persistent database records.
-- Manual slide design is stored per frame in `studio_creative_frame_designs`.
+- Manual slide design is stored in `editorState.visualSettings.frameDesigns` through the version-checked project save. Legacy `studio_creative_frame_designs` rows are read and merged on load; opening a project does not migrate or write data.
 - Generated background art is linked per project frame through `studio_creative_project_assets` with role `background`.
 - Do not replace project persistence with localStorage-only state.
 
 ## Manual Edit
 
-Manual Edit must remain visible below Preview for Single Post, Carousel, and Story projects.
+Art direction controls must remain visible below Preview for Single Post, Carousel, and Story projects.
 
 Per-frame controls include:
 
@@ -33,7 +33,7 @@ Untouched frames must keep the selected template's native styling. Merely openin
 
 ## Sol visual direction
 
-- Single Post uses the art director owned by `CarouselPersistentArtwork`.
+- All formats use the state-owned `CarouselBackgroundPanel` art director.
 - Carousel and Story use per-frame art direction.
 - Each generated image is attached to its exact frame and survives reload/export.
 - Generated imagery is the visual layer only. Typography, Scripture, logo, and layout stay editable.
