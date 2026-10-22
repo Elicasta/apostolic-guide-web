@@ -22,9 +22,9 @@ test("the third source alignment revision covers all 106 without fabricating Bib
       assert.ok(source.title?.trim());
       assert.ok(source?.explanation?.trim());
       assert.equal(referenceOfStep(pathway.slug, i), pathway.steps[i].reference);
-      assert.doesNotMatch(source.explanation, /\b(?:Holy Ghost|Holy Spirit|Ngai|Matthew|Isaiah|Jesus|Peter|John|Luke|Paul)\b/);
+      assert.doesNotMatch(source.explanation ?? "", /\b(?:Holy Ghost|Holy Spirit|Ngai|Matthew|Isaiah|Jesus|Peter|John|Luke|Paul)\b/);
       if (!verifiedEkegusiiExcerpt(pathway.steps[i].reference))
-        assert.doesNotMatch(source.explanation, /"[^"\n]{6,220}"|“[^”\n]{6,220}”|‘[^’\n]{6,220}’/);
+        assert.doesNotMatch(source.explanation ?? "", /"[^"\n]{6,220}"|“[^”\n]{6,220}”|‘[^’\n]{6,220}’/);
       seen++;
     }
   }
