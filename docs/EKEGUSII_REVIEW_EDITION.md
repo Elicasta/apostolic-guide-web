@@ -79,3 +79,14 @@ Use an approved Ekegusii translator/model to produce initial drafts against the 
 - Storage advances to v3, preserving genuine v1 and v2 reviewer corrections while refreshing fields that still match the previous AI draft.
 - All remaining uncollated Bible verse wordings stay marked as such in `EKEGUSII_SCRIPTURE_ALIGNMENT_AUDIT.md`; do not relabel them verified until the text was actually compared.
 - Human review should prioritize doctrinally sensitive topics: God and the Son, the Word becoming flesh, baptismal formula, salvation by grace, the Holy Spirit, tongues as initial evidence, and the right hand of God.
+
+## Comprehensive editorial baseline pass · 2026-10-22
+
+- Published book names and references are mapped for all **106** teaching steps; this is a *reference coverage test*, not automatic translation verification.
+- Added `src/ekegusii-editorial-standards.ts`: 20 topic-specific guardrail sets, one for every Pathway, that describe the English doctrinal claim to preserve and the most important mistranslation to avoid.
+- Nine additional **distinct** citations were inspected directly in the **2021 Ebibilia Enchenu** source: Genesis 1:1, Matthew 1:21/23, John 1:1/3/14/18 and John 3:3/5. Previously checked: Deuteronomy 6:4, Mark 12:29, Acts 4:12. These are **12 unique Scripture references**, covering more than 12 of the 106 teaching steps because some citations recur.
+- No new full Scripture quotations are copied into the site. The 2021 language cues are editorial summaries, and the linked source remains the place to read the actual verse.
+- Risky Ekegusii explanatory prose now surfaces the original, approved English teaching directly beneath it in reading mode. All other source and doctrinal caveats remain accessible in the source notes. The pastor can suggest a correction without losing the original.
+- **Human approved translations: 0**. No model or glossary can substitute for a fluent speaker's linguistic verification of full sentences; don't display an automatic “reviewed” badge for any of these teachings.
+
+Additional 2021 edition source inspections: Luke 1:35 (three teaching steps), Hebrews 1:3, Psalm 118:16, Romans 1:5, and 2 Corinthians 7:10. This brings the inspected register to **17 distinct Scripture references covering 21 of 106 teaching steps**. The remaining **85** are still waiting for exact-verse inspection, and no teaching prose has been approved.

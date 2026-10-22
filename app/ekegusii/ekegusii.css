@@ -242,3 +242,15 @@ body:has(.eg-shell) #main-content { padding:0; max-width:none; }
 .eg-reading-caution strong { font:700 12px Arial,Helvetica,sans-serif; }
 .eg-reading-caution p { font:400 12px/1.65 Arial,Helvetica,sans-serif; margin:6px 0 0; }
 @media(max-width:780px) { .eg-reading-caution { padding:15px 13px; } }
+
+/* All-pathway editorial checklist with verified 2021 Bible cues. */
+.eg-canonical-meaning { margin:28px 0 20px; padding:20px 23px; background:#e9efeb; border-left:3px solid #678e7a; color:#294b3c; }
+.eg-canonical-meaning strong { display:block; margin-bottom:12px; font:700 11px Arial,Helvetica,sans-serif; letter-spacing:.07em; text-transform:uppercase; }
+.eg-canonical-meaning p { font:15px/1.9 Georgia,serif; color:#304a40; margin:0; white-space:pre-wrap; }
+.eg-doctrine-guide { padding:12px 0; }
+.eg-doctrine-guide summary { cursor:pointer; color:#2b6656; font-weight:700; }
+.eg-doctrine-guide p { margin:8px 0; font-size:13px; line-height:1.8; color:#3f5e54; }
+.eg-pathway-guardrails { background:#eff1ea; border:1px solid #c9d5c8; padding:20px 23px; margin-top:14px; color:#3d564a; }
+.eg-pathway-guardrails strong { font-size:13px; }
+.eg-pathway-guardrails p { margin:12px 0 0; font-size:12px; line-height:1.75; }
+@media(max-width:780px) { .eg-canonical-meaning { padding:17px; } .eg-pathway-guardrails { padding:17px; } }
