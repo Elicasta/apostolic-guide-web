@@ -1,5 +1,6 @@
 import { createHash, randomBytes } from "node:crypto";
 import { createServiceClient } from "@/supabase";
+import { isActiveVenueGrant } from "./venue-access";
 import type { StudioAccessMode, StudioEpisodeType, StudioProgramState } from "./types";
 
 export class StudioPersistenceError extends Error {}
@@ -127,7 +128,20 @@ export async function getOutputSnapshot(sessionId: string, outputToken: string) 
   const client = db();
   const { data: session, error } = await client.from("studio_sessions").select("id, episode_id, output_token_hash, studio_episodes(title, slug)").eq("id", sessionId).maybeSingle();
   if (error) throw new StudioPersistenceError(error.message);
-  if (!session || !session.output_token_hash || session.output_token_hash !== hashOutputToken(outputToken)) return null;
+  if (!session || !session.output_token_hash) return null;
+  // A scoped, revocable remote-venue invitation may read this episode's program.
+  // Other guest invites MUST NOT grant access to the OBS output.
+  if (session.output_token_hash !== hashOutputToken(outputToken)) {
+    const { data: invite, error: inviteError } = await client.from("studio_guest_invites")
+      .select("guest_id,episode_id,status,expires_at")
+      .eq("token_hash", hashOutputToken(outputToken)).eq("status", "active").maybeSingle();
+    if (inviteError) throw new StudioPersistenceError(inviteError.message);
+    if (!invite) return null;
+    const { data: guest, error: guestError } = await client.from("studio_episode_guests")
+      .select("id,episode_id,is_remote_venue").eq("id", invite.guest_id).maybeSingle();
+    if (guestError) throw new StudioPersistenceError(guestError.message);
+    if (!isActiveVenueGrant({inviteEpisodeId:invite.episode_id,guestEpisodeId:guest?.episode_id??"",requestedEpisodeId:session.episode_id,status:invite.status,expiresAt:invite.expires_at,isRemoteVenue:Boolean(guest?.is_remote_venue)})) return null;
+  }
   const { data: row, error: stateError } = await client.from("studio_session_state").select("state, state_version").eq("session_id", sessionId).maybeSingle();
   if (stateError) throw new StudioPersistenceError(stateError.message);
   const state = (row?.state ?? null) as StudioProgramState | null;
