@@ -25,6 +25,7 @@ export async function GET(_request:Request,{params}:{params:Promise<{token:strin
     const db = createServiceClient();
     if (!db) throw new Error("Studio database is not configured");
     const {data:session,error} = await db.from("studio_sessions").select("id").eq("episode_id",guest.episode_id)
+      .in("status",["created","green_room","active"])
       .order("created_at",{ascending:false}).limit(1).maybeSingle();
     if (error) throw error;
     const media = session ? createStudioLiveKitToken({
