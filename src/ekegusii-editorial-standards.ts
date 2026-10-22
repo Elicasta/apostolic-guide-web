@@ -26,6 +26,11 @@ const INSPECTED_SCRIPTURE: Readonly<Record<string, {
   "John 1:18": { source: "ebible-2021", keywordCue: "Omwana omomoima / Tata / declared the invisible God" },
   "John 3:3": { source: "ebible-2021", keywordCue: "Omonto ataiboiri eria kabere / oborwoti bwa Nyasae" },
   "John 3:5": { source: "ebible-2021", keywordCue: "amaache na Omoika; keep water and Spirit distinct" },
+  "Luke 1:35": { source: "ebible-2021", keywordCue: "Omoika Omochenu / Omwana o Nyasae; preserve conception, divine power and Sonship" },
+  "Hebrews 1:3": { source: "ebible-2021", keywordCue: "obonene bwa Nyasae / obokobo bw'okorio; revelation and exaltation" },
+  "Psalm 118:16": { source: "ebible-2021", keywordCue: "Okoboko gw’okorio kw’Omonene; poetic image of divine action" },
+  "Romans 1:5": { source: "ebible-2021", keywordCue: "okwegena / okoigwera; obedience of faith in the gospel" },
+  "2 Corinthians 7:10": { source: "ebible-2021", keywordCue: "ogoichanigwa / okoonchoka; godly sorrow producing repentance" },
 };
 
 /**

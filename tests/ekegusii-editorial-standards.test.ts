@@ -28,6 +28,11 @@ test("only actually inspected publisher verses get the source-inspected label", 
   assert.equal(ekegusiiReviewStatus("John 1:14").bibleTextInspected, true);
   assert.equal(ekegusiiReviewStatus("Matthew 1:23").bibleTextInspected, true);
   assert.equal(ekegusiiReviewStatus("Genesis 1:1").bibleTextInspected, true);
+  assert.equal(ekegusiiReviewStatus("Luke 1:35").bibleTextInspected, true);
+  assert.equal(ekegusiiReviewStatus("Psalm 118:16").bibleTextInspected, true);
+  assert.equal(ekegusiiReviewStatus("Hebrews 1:3").bibleTextInspected, true);
+  assert.equal(ekegusiiReviewStatus("Romans 1:5").bibleTextInspected, true);
+  assert.equal(ekegusiiReviewStatus("2 Corinthians 7:10").bibleTextInspected, true);
   assert.equal(ekegusiiReviewStatus("Acts 2:38").bibleTextInspected, false);
   assert.equal(ekegusiiReviewStatus("Isaiah 43:10").bibleTextInspected, false);
   const body = readFileSync("src/ekegusii-edition.tsx","utf8");

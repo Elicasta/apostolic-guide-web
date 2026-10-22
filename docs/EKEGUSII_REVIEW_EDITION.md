@@ -88,3 +88,5 @@ Use an approved Ekegusii translator/model to produce initial drafts against the 
 - No new full Scripture quotations are copied into the site. The 2021 language cues are editorial summaries, and the linked source remains the place to read the actual verse.
 - Risky Ekegusii explanatory prose now surfaces the original, approved English teaching directly beneath it in reading mode. All other source and doctrinal caveats remain accessible in the source notes. The pastor can suggest a correction without losing the original.
 - **Human approved translations: 0**. No model or glossary can substitute for a fluent speaker's linguistic verification of full sentences; don't display an automatic “reviewed” badge for any of these teachings.
+
+Additional 2021 edition source inspections: Luke 1:35 (three teaching steps), Hebrews 1:3, Psalm 118:16, Romans 1:5, and 2 Corinthians 7:10. This brings the inspected register to **17 distinct Scripture references covering 21 of 106 teaching steps**. The remaining **85** are still waiting for exact-verse inspection, and no teaching prose has been approved.
