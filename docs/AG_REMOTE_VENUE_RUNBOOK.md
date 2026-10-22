@@ -26,8 +26,8 @@ A low-latency, two-way teaching connection between an Apostolic Guide Studio pro
 2. Connect a projector or TV, local PA speakers and the interpreter microphone.
 3. Ensure local PA playback is NOT fed into the audio interface input going back to Miami (mix-minus). Use headphones in initial tests.
 4. Check the mix-minus/headphones confirmation, select inputs and click **Connect camera + microphone**. Allow device access.
-5. Click **Open incoming program** and put the browser presentation on the large screen. Only the Miami producer decides when the local return camera appears in the broadcast.
-6. **Mute incoming audio** isolates the display audio for a controlled test. Use **Disconnect** and reconnect to change cameras or recover from a drop.
+5. Click **Open incoming program**, then **Fullscreen for projector** after the feed appears. The receiving screen shows the composed Studio presentation. Only the Miami producer decides when the local return camera appears in the broadcast.
+6. **Mute incoming audio** isolates the display audio for a controlled test. Check the **Interpreter mic** level indicator to confirm the local microphone is actually sending a signal. Use **Disconnect** and reconnect to change cameras or recover from a drop. A new Miami session requires reconnecting the return feed and reopening the receiving screen.
 7. The displayed API RTT is an HTTP diagnostic, not measured media jitter or true speech latency.
 
 ## Security and feed behavior
@@ -56,4 +56,4 @@ A low-latency, two-way teaching connection between an Apostolic Guide Studio pro
 
 ## Rollout
 
-The feature is additive and isolated to the remote venue screens, invitation validation, output receiving and Studio producer monitoring. Keep PR in draft until tests, migrations, a Vercel preview and a real multi-device test pass. On failure, return to the current OBS/YouTube workflow without touching regular guest invitations.
+The feature is additive and isolated to the remote venue screens, invitation validation, output receiving and Studio producer monitoring. Keep PR in draft until tests, migrations, a Vercel preview and a real multi-device test pass. The venue receiving browser must not share a LiveKit output identity with OBS or any other venue display. On failure, return to the current OBS/YouTube workflow without touching regular guest invitations.

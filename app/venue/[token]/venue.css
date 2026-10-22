@@ -10,3 +10,9 @@
 .ag-venue label{font-size:12px;color:#dbe3f3;line-height:1.5}.ag-venue-inputs{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}.ag-venue-inputs label{display:flex;flex-direction:column;gap:6px}.ag-venue-inputs select{min-width:0;width:100%;height:38px;background:#0d1525;color:white;border:1px solid #53627a;border-radius:6px;padding:6px}
 .ag-venue-safety{display:flex;align-items:flex-start;gap:10px;margin-top:16px}.ag-venue-safety input{margin-top:3px}.ag-venue-note{color:#9fb2cd;font-size:12px;line-height:1.6}.ag-venue-footer{max-width:1440px;margin:18px auto;padding:15px 18px;border:1px solid #344058;border-radius:10px}.ag-venue-footer div{display:flex;flex-direction:column;gap:5px}.ag-venue-footer span{font-size:12px;color:#9fb2cd}.ag-venue-error{max-width:1440px;margin:18px auto;border:1px solid #d13548;border-radius:8px;padding:16px;color:#ffbdc2}.ag-venue-privacy{max-width:1440px;margin:16px auto;color:#8799b8;font-size:11px}
 @media(max-width:950px){.ag-venue-grid{grid-template-columns:1fr}.ag-venue-inputs{grid-template-columns:1fr}}
+.ag-venue-meter{margin-top:15px;display:flex;align-items:center;gap:12px}
+.ag-venue-meter span,.ag-venue-meter b{font-size:10px;letter-spacing:.04em;color:#b4c6e3}
+.ag-venue-meter>div{flex:1;min-width:90px;background:#0b1220;border:1px solid #435474;height:11px;border-radius:6px;overflow:hidden}
+.ag-venue-meter i{display:block;height:100%;background:#36ae76;transition:width 75ms linear}
+.ag-venue-screen:fullscreen{height:100vh;width:100vw;aspect-ratio:auto;border:0;border-radius:0;background:#05070a}
+.ag-venue-screen:fullscreen iframe{height:100%;width:100%}

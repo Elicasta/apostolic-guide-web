@@ -24,14 +24,38 @@ export default function VenueConsole({token,venueName}:{token:string;venueName:s
   const [audioId,setAudioId]=useState("");
   const [videoId,setVideoId]=useState("");
   const [latency,setLatency]=useState<number|null>(null);
+  const [micLevel,setMicLevel]=useState(0);
   const [confirmedHeadphones,setConfirmedHeadphones]=useState(false);
   const preview=useRef<HTMLVideoElement>(null);
+  const programScreen=useRef<HTMLDivElement>(null);
+  const sessionSeen=useRef<string|null>(null);
+  const meter=useRef<{context:AudioContext;frame:number}|null>(null);
   const connection=useRef<LiveKitConnection|null>(null);
   const stream=useRef<MediaStream|null>(null);
   const joining=useRef(false);
   const active=useRef(false);
   const latest=useRef<Config|null>(null);
 
+  const stopMeter=()=>{
+    if(meter.current){cancelAnimationFrame(meter.current.frame);void meter.current.context.close();meter.current=null;}
+    setMicLevel(0);
+  };
+  const startMeter=(media:MediaStream)=>{
+    stopMeter();
+    const track=media.getAudioTracks()[0];if(!track)return;
+    const context=new AudioContext(),source=context.createMediaStreamSource(new MediaStream([track]));
+    const analyser=context.createAnalyser();analyser.fftSize=256;source.connect(analyser);
+    const samples=new Uint8Array(analyser.fftSize);
+    meter.current={context,frame:0};
+    const check=()=>{
+      if(!meter.current||meter.current.context!==context)return;
+      analyser.getByteTimeDomainData(samples);
+      let sum=0;for(const x of samples){const value=(x-128)/128;sum+=value*value;}
+      setMicLevel(Math.min(100,Math.round(Math.sqrt(sum/samples.length)*420)));
+      meter.current.frame=requestAnimationFrame(check);
+    };
+    void context.resume().then(check).catch(()=>{});
+  };
   const report=useCallback((state:VenueStatus)=>{
     void fetch(`/api/venue/${encodeURIComponent(token)}`,{
       method:"POST",headers:{"Content-Type":"application/json"},
@@ -45,6 +69,15 @@ export default function VenueConsole({token,venueName}:{token:string;venueName:s
     if(!response.ok)throw new Error(response.status===404?"Venue invitation has expired or been revoked":"Cannot retrieve session configuration");
     const next=await response.json() as Config;
     latest.current=next;
+    if(sessionSeen.current&&sessionSeen.current!==next.sessionId){
+      active.current=false;
+      connection.current?.disconnect();connection.current=null;
+      stream.current?.getTracks().forEach(t=>t.stop());stream.current=null;
+      if(meter.current){cancelAnimationFrame(meter.current.frame);void meter.current.context.close();meter.current=null;}
+      setMicLevel(0);setStatus("offline");setIncomingOpen(false);
+      setError("Miami started a new session. Reconnect the camera and reopen the program.");
+    }
+    sessionSeen.current=next.sessionId;
     setLatency(Math.round(performance.now()-start));
     setConfig(prev=>prev?.sessionId===next.sessionId&&prev.liveKitConfigured===next.liveKitConfigured?prev:next);
     setLoading(false);
@@ -58,12 +91,13 @@ export default function VenueConsole({token,venueName}:{token:string;venueName:s
         active.current=false;connection.current?.disconnect();connection.current=null;
         stream.current?.getTracks().forEach(t=>t.stop());stream.current=null;
         setStatus("offline");setIncomingOpen(false);setConfig(null);
+        if(meter.current){cancelAnimationFrame(meter.current.frame);void meter.current.context.close();meter.current=null;}
       }
       setError(e instanceof Error?e.message:"Connection check failed");setLoading(false);
     }});
     void check();
     const timer=setInterval(()=>void check(),7000);
-    return()=>{cancelled=true;clearInterval(timer);active.current=false;connection.current?.disconnect();stream.current?.getTracks().forEach(t=>t.stop());};
+    return()=>{cancelled=true;clearInterval(timer);active.current=false;connection.current?.disconnect();stream.current?.getTracks().forEach(t=>t.stop());if(meter.current){cancelAnimationFrame(meter.current.frame);void meter.current.context.close();meter.current=null;}};
   },[load]);
 
   async function devices(){
@@ -74,7 +108,7 @@ export default function VenueConsole({token,venueName}:{token:string;venueName:s
   async function disconnect(){
     active.current=false;
     connection.current?.disconnect();connection.current=null;
-    stream.current?.getTracks().forEach(t=>t.stop());stream.current=null;
+    stream.current?.getTracks().forEach(t=>t.stop());stream.current=null;stopMeter();
     if(preview.current)preview.current.srcObject=null;
     setStatus("offline");report("offline");
     void fetch(`/api/venue/${encodeURIComponent(token)}`,{
@@ -94,6 +128,7 @@ export default function VenueConsole({token,venueName}:{token:string;venueName:s
         audio:audioId?{deviceId:{exact:audioId},echoCancellation:true,noiseSuppression:true,autoGainControl:true}:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}
       });
       stream.current=capture;
+      startMeter(capture);
       if(preview.current){preview.current.srcObject=capture;void preview.current.play().catch(()=>{});}
       active.current=true;
       await devices();
@@ -109,7 +144,7 @@ export default function VenueConsole({token,venueName}:{token:string;venueName:s
       if(!active.current)joined.disconnect();else connection.current=joined;
     }catch(e){
       active.current=false;
-      stream.current?.getTracks().forEach(t=>t.stop());stream.current=null;
+      stream.current?.getTracks().forEach(t=>t.stop());stream.current=null;stopMeter();
       setStatus("failed");report("failed");
       setError(e instanceof Error?e.message:"Unable to connect the venue");
     }finally{joining.current=false;}
@@ -125,13 +160,14 @@ export default function VenueConsole({token,venueName}:{token:string;venueName:s
     <section className="ag-venue-grid">
       <div className="ag-venue-card">
         <div className="ag-venue-card-title"><h2>Miami program</h2><span>{config?.sessionId?"SESSION AVAILABLE":"WAITING FOR SESSION"}</span></div>
-        <div className="ag-venue-screen">
+        <div className="ag-venue-screen" ref={programScreen}>
           {incomingOpen&&program?<iframe key={program} src={program} title="Miami live program"
             allow="autoplay; fullscreen" allowFullScreen referrerPolicy="no-referrer"/>:
           <div className="ag-venue-placeholder"><strong>Receiving screen</strong><p>Open the program after Miami starts the producer session and OBS output.</p></div>}
         </div>
         <div className="ag-venue-actions">
           <button onClick={()=>setIncomingOpen(v=>!v)} disabled={!program}>{incomingOpen?"CLOSE PROGRAM":"OPEN INCOMING PROGRAM"}</button>
+          <button className="secondary" disabled={!incomingOpen} onClick={()=>void programScreen.current?.requestFullscreen?.().catch(()=>setError("Unable to enter fullscreen. Try the browser fullscreen control."))}>FULLSCREEN FOR PROJECTOR</button>
           <label><input type="checkbox" checked={incomingMuted} onChange={e=>setIncomingMuted(e.target.checked)}/> Mute incoming audio</label>
         </div>
         <p className="ag-venue-note">This is the composed Studio scene with Scriptures and graphics. Incoming audio must feed your PA without returning to Miami's microphone.</p>
@@ -139,6 +175,9 @@ export default function VenueConsole({token,venueName}:{token:string;venueName:s
       <div className="ag-venue-card">
         <div className="ag-venue-card-title"><h2>Kenya return feed</h2><span>{statusLabel[status]}</span></div>
         <div className="ag-venue-screen local"><video ref={preview} autoPlay muted playsInline/><span>LOCAL CAMERA PREVIEW</span></div>
+        <div className="ag-venue-meter" aria-label="Microphone input level">
+          <span>INTERPRETER MIC</span><div><i style={{width:`${micLevel}%`}}/></div><b>{micLevel>8?"SIGNAL":"QUIET"}</b>
+        </div>
         <div className="ag-venue-inputs">
           <label>Camera<select value={videoId} onChange={e=>setVideoId(e.target.value)}><option value="">System default</option>{videoInputs.map(x=><option value={x.id} key={x.id}>{x.label}</option>)}</select></label>
           <label>Microphone / interpreter<select value={audioId} onChange={e=>setAudioId(e.target.value)}><option value="">System default</option>{audioInputs.map(x=><option value={x.id} key={x.id}>{x.label}</option>)}</select></label>
