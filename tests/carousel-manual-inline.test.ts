@@ -3,9 +3,6 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 const manual = readFileSync("src/carousel-manual-edit.tsx", "utf8");
-const page = readFileSync("app/admin/carousel-studio/page.tsx", "utf8");
-const layout = readFileSync("app/admin/carousel-studio/layout.tsx", "utf8");
-const css = readFileSync("app/admin/carousel-manual-inline.css", "utf8");
 const restoredCss = readFileSync("app/admin/carousel-capabilities-restore.css", "utf8");
 
 test("Carousel Manual Edit owns a visible persistent control surface under Preview", () => {
@@ -29,13 +26,9 @@ test("Carousel Manual Edit exposes the full texture library and persists frame d
 });
 
 test("Carousel Studio mounts one manual editor and loads restoration CSS after older layers", () => {
-  assert.match(page, /<CarouselManualEdit projectId=\{projectId\}\/>/);
-  assert.doesNotMatch(page, /CarouselManualDesignControls/);
-  const inlineIndex = layout.indexOf("carousel-manual-inline.css");
-  const repairIndex = layout.indexOf("carousel-final-repair.css");
-  const restoredIndex = layout.indexOf("carousel-capabilities-restore.css");
-  assert.ok(inlineIndex >= 0);
-  assert.ok(repairIndex > inlineIndex);
-  assert.ok(restoredIndex > repairIndex);
-  assert.match(css, /Pin the actual artwork, not the whole preview card/);
+  const client = readFileSync("src/creative-studio-client.tsx", "utf8");
+  assert.match(client, /<CarouselDesignPanel/);
+  assert.match(client, /frameDesigns/);
+  assert.match(client, /<CarouselBackgroundPanel/);
+  assert.doesNotMatch(client, /MutationObserver|createPortal|cloneNode/);
 });

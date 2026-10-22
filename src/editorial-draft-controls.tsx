@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import type { CreativeEditorState } from "./creative-project";
 import { CAROUSEL_THEMES, normalizeCarouselTheme, type CarouselTheme } from "./carousel-theme";
+import { COMPOSITIONS, frameDesign, type Composition } from "./carousel-composition";
 import styles from "./editorial-engine.module.css";
 
 type Project = {
@@ -23,12 +24,12 @@ export function EditorialDraftControls({ projectId, frameIndex, canManage, onSav
   const [fields, setFields] = useState<Fields>({ headline: "", body: "", scripture: "", cta: "" });
   useEffect(() => {
     let live = true;
-    setProject(null); setError(""); setEditing(false);
+    const reset=window.setTimeout(()=>{setProject(null);setError("");setEditing(false);},0);
     void fetch("/api/admin/creative-projects/" + encodeURIComponent(projectId), {cache:"no-store"})
       .then(async r => { const data = await r.json(); if(!r.ok) throw new Error(data.error || "Draft unavailable."); return data.project as Project; })
       .then(p => {if (live) setProject(p);})
       .catch(e => {if (live) setError(e instanceof Error ? e.message : "Draft load failed.");});
-    return () => { live = false; };
+    return () => { live = false;window.clearTimeout(reset); };
   }, [projectId]);
   const editable = Boolean(canManage && project && project.status === "draft");
   const frame = project?.editorState.frames[frameIndex] ?? null;
@@ -66,7 +67,7 @@ export function EditorialDraftControls({ projectId, frameIndex, canManage, onSav
     if(!project || !editable) return;
     const seed=Number(project.editorState.visualSettings.regenerationSeed || 0);
     void save({...project, editorState:{...project.editorState,
-      visualSettings:{...project.editorState.visualSettings,regenerationSeed:(seed+1)%10001}
+      visualSettings:{...project.editorState.visualSettings,regenerationSeed:(seed+1)%10001,frameDesigns:Object.fromEntries(project.editorState.frames.map(item=>[item.id,{...frameDesign(project.editorState.visualSettings,item.id),layout:"automatic"}]))}
     }}, "New artwork variation generated. Scripture and captions are unchanged.");
   }
   function beginEdit() {
@@ -86,14 +87,17 @@ export function EditorialDraftControls({ projectId, frameIndex, canManage, onSav
     <p>Choose a Carousel Studio look for this draft. Your selection also applies to its exported PNGs.</p>
     <div className={styles.themeGrid}>
       {CAROUSEL_THEMES.map(t=><button type="button" key={t.id}
-        disabled={!editable || working} aria-pressed={chosen===t.id}
+        disabled={!editable || working || editing} aria-pressed={chosen===t.id}
         className={chosen===t.id?styles.themeSelected:""} onClick={()=>choose(t.id)}>
         <i className={styles.themeSwatch} data-theme={t.id} aria-hidden="true"/>
         <strong>{t.label}</strong><small>{t.detail}</small>
       </button>)}
     </div>
+    {frame && <label>Slide composition<select aria-label="Slide composition" disabled={!editable||working||editing} value={frameDesign(project!.editorState.visualSettings,frame.id).layout||'automatic'} onChange={event=>{
+      if(!project)return;void save({...project,editorState:{...project.editorState,visualSettings:{...project.editorState.visualSettings,frameDesigns:{...(project.editorState.visualSettings.frameDesigns as Record<string,unknown>||{}),[frame.id]:{...frameDesign(project.editorState.visualSettings,frame.id),layout:event.target.value as Composition}}}}},'Composition saved. Your teaching is unchanged.');
+    }}>{COMPOSITIONS.map(layout=><option key={layout}>{layout}</option>)}</select></label>}
     <div className={styles.actions}>
-      <button className="button" type="button" disabled={!editable || working} onClick={regenerate}>Regenerate artwork</button>
+      <button className="button" type="button" disabled={!editable || working || editing} onClick={regenerate}>Regenerate artwork</button>
       <button className="button" type="button" disabled={!editable || !frame || working} onClick={beginEdit}>Edit this frame</button>
     </div>
     {!project && !error && <p>Loading draft editor…</p>}

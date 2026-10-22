@@ -1,43 +1,16 @@
-import { readFile } from "node:fs/promises";
-import { join } from "node:path";
-
-type BrandFont = { name: string; data: ArrayBuffer; weight: 600 | 800; style: "normal" };
-export type BrandArtworkAssets = { darkLogo: string; lightLogo: string; fonts: BrandFont[] };
-
-// Logos are the actual official mark used by Carousel Studio, not AG text.
-// Static, SIL-OFL font files are pinned to a versioned Fontsource CDN. Downloaded
-// per server instance and cached; if unavailable, the bundled default font is
-// used without breaking artwork exports.
-const fontSources = [
-  { name: "Montserrat", weight: 800 as const, url: "https://cdn.jsdelivr.net/npm/@fontsource/montserrat@5.1.0/files/montserrat-latin-800-normal.woff" },
-  { name: "Cormorant Garamond", weight: 600 as const, url: "https://cdn.jsdelivr.net/npm/@fontsource/cormorant-garamond@5.1.0/files/cormorant-garamond-latin-600-normal.woff" }
-];
+import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
+import { FONT_FILES, type ArtworkAssets } from './carousel-render';
+export type BrandArtworkAssets = ArtworkAssets;
 let assetsPromise: Promise<BrandArtworkAssets> | undefined;
-
-async function optionalBrandFonts(): Promise<BrandFont[]> {
-  const loaded = await Promise.all(fontSources.map(async face => {
-    try {
-      const response = await fetch(face.url, { signal: AbortSignal.timeout(4500), cache: "force-cache" });
-      if (!response.ok) return null;
-      const data = await response.arrayBuffer();
-      if (data.byteLength < 10000 || data.byteLength > 2000000) return null;
-      return {name:face.name,weight:face.weight,style:"normal" as const,data};
-    } catch {
-      return null;
-    }
-  }));
-  return loaded.filter((face): face is BrandFont => Boolean(face));
-}
-
 export async function forgeBrandArtworkAssets(): Promise<BrandArtworkAssets> {
   if (!assetsPromise) assetsPromise = (async () => {
-    const [dark, light, fonts] = await Promise.all([
-      readFile(join(process.cwd(), "public/brand/apostolic-guide-mark-reversed.png")),
-      readFile(join(process.cwd(), "public/brand/apostolic-guide-mark.png")),
-      optionalBrandFonts()
+    const [dark,light,fonts] = await Promise.all([
+      readFile(join(process.cwd(),'public/brand/apostolic-guide-mark-reversed.png')),
+      readFile(join(process.cwd(),'public/brand/apostolic-guide-mark.png')),
+      Promise.all(FONT_FILES.map(async face=>({name:face.name,weight:face.weight,style:'normal' as const,data:await readFile(join(process.cwd(),'public/fonts',face.file))})))
     ]);
-    return {darkLogo: `data:image/png;base64,${dark.toString("base64")}`,
-      lightLogo:`data:image/png;base64,${light.toString("base64")}`, fonts};
-  })().catch(error => { assetsPromise = undefined; throw error; });
+    return {darkLogo:`data:image/png;base64,${dark.toString('base64')}`,lightLogo:`data:image/png;base64,${light.toString('base64')}`,fonts};
+  })().catch(error=>{assetsPromise=undefined;throw error;});
   return assetsPromise;
 }
