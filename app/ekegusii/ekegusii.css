@@ -127,3 +127,32 @@ body:has(.eg-shell) #main-content { padding:0; max-width:none; }
 @media(max-width:1100px) { .eg-nav { flex-wrap:wrap; } .eg-study-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } .eg-reader-grid { grid-template-columns:225px minmax(0,1fr); gap:20px; } }
 @media(max-width:780px) { .eg-nav { padding:16px 18px; gap:15px; } .eg-nav nav { order:3; width:100%; justify-content:space-between; border-top:1px solid #e5e6dc; padding-top:12px; } .eg-nav-actions { margin-left:auto; } .eg-nav-actions .eg-icon-button span { display:none; } .eg-nav-actions .eg-button { padding:10px; font-size:11px; } .eg-hero { grid-template-columns:1fr; min-height:0; } .eg-hero-inner { padding:58px 24px 48px; } .eg-hero-art { display:none; } .eg-hero-stats { flex-wrap:wrap; gap:24px; } .eg-banner { margin:15px 15px 0; } .eg-index { padding:50px 20px 75px; } .eg-study-grid { grid-template-columns:1fr; } .eg-study-card { min-height:260px; } .eg-study-card h4 { margin-top:30px; } .eg-category-heading h3 { font-size:22px; } .eg-footer { padding:28px 20px; flex-wrap:wrap; } .eg-reader-header { padding:27px 20px 0; } .eg-reader-heading { flex-direction:column; align-items:flex-start; padding:27px 0 15px; } .eg-reader-grid { display:block; padding:24px 15px 60px; } .eg-step-nav { position:static; display:flex; flex-wrap:nowrap; max-width:100%; overflow-x:auto; margin-bottom:18px; } .eg-step-nav-title,.eg-bible-link { display:none; } .eg-step-nav > button { flex:0 0 175px; border-bottom:none; border-right:1px solid var(--eg-border); } .eg-pair { grid-template-columns:1fr; } .eg-step-field { padding:15px; gap:12px; } .eg-lesson-top,.eg-lesson-bottom { padding:18px; } .eg-lesson > h2 { margin:22px 18px 8px; } .eg-reference { margin:0 18px 22px; } .eg-intro-fields { padding:18px; } .eg-reading-content { padding:25px 20px; } .eg-reader-end { align-items:flex-start; flex-direction:column; } }
 @media(prefers-reduced-motion:reduce) { .eg-shell *, .eg-shell *::before, .eg-shell *::after { transition:none !important; } }
+
+.eg-ai-status { display:flex; align-items:center; gap:12px; background:#ecf1eb; border:1px solid #d3ded4; padding:15px 20px; color:#405b50; font-size:12px; line-height:1.55; }
+.eg-ai-status span { flex:1; }
+.eg-ai-status button { border:1px solid #98b1a2; background:#fff; padding:7px 11px; }
+.eg-submit-panel { padding:30px 27px; background:#edf1ea; border-top:1px solid #c8d4c8; }
+.eg-submit-panel h3 { font:400 27px Georgia,serif; margin:0 0 9px; }
+.eg-submit-panel p { color:#567065; font-size:13px; line-height:1.65; }
+.eg-submit-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:13px; margin:20px 0; }
+.eg-submit-grid label,.eg-note-label { display:block; font-size:12px; font-weight:700; }
+.eg-submit-grid input,.eg-note-label textarea { display:block; width:100%; margin-top:6px; border:1px solid #aebfb2; background:#fffdf8; border-radius:0; padding:11px; font:400 13px/1.6 Arial,sans-serif; resize:vertical; }
+.eg-submit-actions { display:flex; align-items:center; gap:15px; margin-top:18px; font-size:12px; color:#3b5f47; }
+.eg-submit-actions span { overflow-wrap:anywhere; }
+@media(max-width:880px) {.eg-submit-grid { grid-template-columns:1fr; } .eg-submit-actions { align-items:flex-start; flex-direction:column; }}
+
+.eg-bible-page { max-width:1180px; padding:80px 30px 110px; margin:auto; }
+.eg-bible-page .eg-eyebrow { color:#ad855c; }
+.eg-bible-page h1 { font:400 clamp(57px,7vw,105px)/1.02 Georgia,serif; margin:28px 0 26px; }
+.eg-bible-page h1 em { color:#b58b5c; }
+.eg-bible-page .eg-lead { color:#63766d; max-width:700px; font-size:17px; }
+.eg-bible-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:20px; margin-top:55px; }
+.eg-bible-grid > a { display:flex; flex-direction:column; align-items:flex-start; min-height:280px; padding:30px; gap:17px; background:#fbfaf5; border:1px solid #d4d9ce; }
+.eg-bible-grid > a:hover { border-color:#7d9887; }
+.eg-bible-grid strong { font:400 26px Georgia,serif; margin-top:20px; }
+.eg-bible-grid span { font-size:13px; color:#718078; }
+.eg-bible-grid a > svg:last-child { margin-top:auto; align-self:flex-end; }
+.eg-bible-rights { display:flex; align-items:flex-start; gap:15px; padding:24px; margin-top:30px; background:#eae8df; font-size:13px; }
+.eg-bible-rights svg { flex-shrink:0; }
+.eg-bible-rights p { margin:0; line-height:1.7; }
+@media(max-width:780px) { .eg-bible-page { padding:55px 20px; } .eg-bible-grid { grid-template-columns:1fr; } .eg-bible-grid>a { min-height:235px; } }

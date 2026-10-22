@@ -11,7 +11,7 @@ export type EkegusiiStudy = {
   collection: string;
   level: string;
   estimatedMinutes: number;
-  steps: { title: string; reference: string; explanation: string; hook: string }[];
+  steps: { title: string; reference: string; explanation: string; hook?: string }[];
 };
 export type EkegusiiListing = Omit<EkegusiiStudy, "steps"> & { stepCount: number };
 
@@ -79,6 +79,26 @@ function useReviewDrafts() {
     window.addEventListener("storage", onStorage);
     return () => window.removeEventListener("storage", onStorage);
   }, []);
+  const mergeAIDraft = useCallback((slug: string, incoming: EkegusiiDraft) => {
+    setDrafts((current) => {
+      const old = current[slug] ?? {};
+      const steps = { ...(old.steps ?? {}) };
+      for (const [index, proposed] of Object.entries(incoming.steps ?? {})) {
+        const existing = steps[index] ?? {};
+        steps[index] = {
+          title: existing.title?.trim() ? existing.title : proposed.title,
+          explanation: existing.explanation?.trim() ? existing.explanation : proposed.explanation,
+          hook: existing.hook?.trim() ? existing.hook : proposed.hook,
+        };
+      }
+      return { ...current, [slug]: {
+        ...old,
+        title: old.title?.trim() ? old.title : incoming.title,
+        summary: old.summary?.trim() ? old.summary : incoming.summary,
+        steps,
+      } };
+    });
+  }, []);
   const updateField = useCallback((slug: string, key: "title" | "summary", value: string) => {
     setDrafts((current) => ({ ...current, [slug]: { ...(current[slug] ?? {}), [key]: value } }));
   }, []);
@@ -116,7 +136,7 @@ function useReviewDrafts() {
       setMessage("Drafts imported in this browser. These changes are not published.");
     } catch { setMessage("Could not import the review file. Your current draft was kept."); }
   }, []);
-  return { drafts, ready, message, setMessage, updateField, updateStep, exportDrafts, importDrafts };
+  return { drafts, ready, message, setMessage, updateField, updateStep, mergeAIDraft, exportDrafts, importDrafts };
 }
 
 function Header({ onExport, onImport }: { onExport: () => void; onImport: (file?: File) => void }) {
@@ -125,7 +145,7 @@ function Header({ onExport, onImport }: { onExport: () => void; onImport: (file?
     <Link href="/ekegusii" className="eg-brand"><span className="eg-brand-mark">AG</span><span><strong>APOSTOLIC GUIDE</strong><small>EKEGUSII EDITION</small></span></Link>
     <nav aria-label="Ekegusii edition">
       <Link href="/ekegusii">All 20 Pathways</Link>
-      <a href="https://ebible.org/details.php?id=guz" target="_blank" rel="noopener noreferrer">Ekegusii Bible <ExternalLink size={13}/></a>
+      <a href="/ekegusii/bible" target="_blank" rel="noopener noreferrer">Ekegusii Bible <BookOpen size={13}/></a>
     </nav>
     <div className="eg-nav-actions">
       <input ref={input} className="eg-visually-hidden" type="file" accept=".json,application/json" aria-label="Import Ekegusii review JSON" onChange={(event) => { onImport(event.target.files?.[0]); event.currentTarget.value = ""; }} />
@@ -186,7 +206,86 @@ export function EkegusiiCatalog({ pathways }: { pathways: EkegusiiListing[] }) {
   </Frame>;
 }
 export function EkegusiiReader({ pathway, index, total }: { pathway: EkegusiiStudy; index: number; total: number }) {
-  const { drafts, message, updateField, updateStep, exportDrafts, importDrafts } = useReviewDrafts();
+  const { drafts, ready, message, updateField, updateStep, mergeAIDraft, exportDrafts, importDrafts } = useReviewDrafts();
+  const [aiState, setAiState] = useState<"pending" | "loading" | "ready" | "failed">("pending");
+  const [aiError, setAiError] = useState("");
+  const [reviewerName, setReviewerName] = useState("");
+  const [reviewerEmail, setReviewerEmail] = useState("");
+  const [reviewerLocation, setReviewerLocation] = useState("");
+  const [reviewerNotes, setReviewerNotes] = useState("");
+  const [submitState, setSubmitState] = useState<"idle" | "sending" | "sent" | "error">("idle");
+  const [submissionMessage, setSubmissionMessage] = useState("");
+  const requestDraft = useCallback(async () => {
+    setAiState("loading");
+    setAiError("");
+    try {
+      const response = await fetch("/api/ekegusii/draft?slug=" + encodeURIComponent(pathway.slug));
+      const data = await response.json();
+      if (!response.ok) throw Error(data.error || "Automatic translation is unavailable right now.");
+      const validated = safeDrafts({ [pathway.slug]: data.draft });
+      const draft = validated[pathway.slug];
+      if (!draft || filledStepCount(draft) !== pathway.steps.length) throw Error("The automatic translation was incomplete.");
+      mergeAIDraft(pathway.slug, draft);
+      setAiState("ready");
+    } catch (err) {
+      setAiState("failed");
+      setAiError(err instanceof Error ? err.message : "Translation generation failed.");
+    }
+  }, [pathway.slug, pathway.steps.length, mergeAIDraft]);
+  useEffect(() => {
+    if (!ready) return;
+    if (filledStepCount(drafts[pathway.slug]) !== 0 || drafts[pathway.slug]?.title?.trim()) {
+      setAiState("ready");
+      return;
+    }
+    void requestDraft();
+    // Run once when local state finishes hydrating; do not restart generation after edits.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, pathway.slug]);
+  const submitCorrection = useCallback(async () => {
+    if (!reviewerName.trim() || !reviewerEmail.trim() || !reviewerLocation.trim()) {
+      setSubmissionMessage("Enter your name, email, and location to send your correction."); setSubmitState("error"); return;
+    }
+    const edit = (drafts[pathway.slug]?.steps ?? {})[String(step)] ?? {};
+    if (!edit.title?.trim() && !edit.explanation?.trim() && !edit.hook?.trim() && !reviewerNotes.trim()) {
+      setSubmissionMessage("Add a corrected translation or a review note before submitting."); setSubmitState("error"); return;
+    }
+    const details = [
+      "EKEGUSII PATHWAY REVIEW",
+      "Pathway: " + pathway.title + " (" + pathway.slug + ")",
+      "Step: " + (step + 1) + " of " + pathway.steps.length,
+      "Reference: " + pathway.steps[step].reference,
+      "Original English: " + pathway.steps[step].explanation,
+      "Proposed Ekegusii title: " + (edit.title ?? ""),
+      "Proposed Ekegusii explanation: " + (edit.explanation ?? ""),
+      "Proposed Ekegusii transition: " + (edit.hook ?? ""),
+      "Reviewer notes: " + reviewerNotes.trim(),
+      "DO NOT AUTO-PUBLISH. Requires editorial and doctrinal approval.",
+    ].join("\\n");
+    if (details.length > 6000) {
+      setSubmissionMessage("This correction is too long for one submission. Export your JSON file and contact the editorial team."); setSubmitState("error"); return;
+    }
+    setSubmitState("sending"); setSubmissionMessage("");
+    try {
+      const response = await fetch("/api/contact", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: reviewerName.trim(), email: reviewerEmail.trim(), location: reviewerLocation.trim(),
+          category: "Content or source correction",
+          context: "Ekegusii review: " + pathway.slug + " step " + (step + 1),
+          question: details, path: "/ekegusii/pathways/" + pathway.slug,
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok || !data.ok) throw Error(data.message || "Submission failed");
+      setSubmitState("sent");
+      setSubmissionMessage("Correction received by Apostolic Guide. Reference: " + data.referenceId + ". It is pending editorial approval.");
+      setReviewerNotes("");
+    } catch (err) {
+      setSubmitState("error");
+      setSubmissionMessage(err instanceof Error ? err.message : "Could not submit correction.");
+    }
+  }, [reviewerName, reviewerEmail, reviewerLocation, reviewerNotes, drafts, pathway, step]);
   const [step, setStep] = useState(0);
   const [mode, setMode] = useState<"read" | "edit">("edit");
   const draft = drafts[pathway.slug] ?? {};
@@ -203,6 +302,15 @@ export function EkegusiiReader({ pathway, index, total }: { pathway: EkegusiiStu
         <h1 lang={draft.title?.trim() ? "guz" : "en"}>{draft.title?.trim() || pathway.title}</h1>
         <p lang={draft.summary?.trim() ? "guz" : "en"}>{draft.summary?.trim() || pathway.summary}</p>
       </div><div className="eg-status"><ShieldCheck size={17}/> {drafted} / {pathway.steps.length} draft steps</div></div>
+      <div className="eg-ai-status" role="status">
+        <Languages size={17}/>
+        {aiState === "pending" || aiState === "loading"
+          ? <span>Preparing AI-generated Ekegusii translation for review...</span>
+          : aiState === "ready"
+          ? <span>Ekegusii draft loaded where available. All wording requires native-speaker and doctrinal review.</span>
+          : <span>Automatic draft unavailable: {aiError}. English source remains accessible.</span>}
+        {aiState === "failed" && <button type="button" onClick={() => void requestDraft()}>Retry translation</button>}
+      </div>
       <div className="eg-reader-controls"><div role="group" aria-label="Reading or translation editing mode" className="eg-toggle"><button type="button" className={mode === "edit" ? "active" : ""} aria-pressed={mode === "edit"} onClick={() => setMode("edit")}><PencilLine size={15}/> Review translation</button><button type="button" className={mode === "read" ? "active" : ""} aria-pressed={mode === "read"} onClick={() => setMode("read")}><BookOpen size={15}/> Reading preview</button></div><span>Drafts are saved on this device. Export to share edits.</span></div>
     </section>
     <section className="eg-reader-grid">
@@ -212,7 +320,7 @@ export function EkegusiiReader({ pathway, index, total }: { pathway: EkegusiiStu
           <span>{String(i + 1).padStart(2, "0")}</span><span>{draft.steps?.[String(i)]?.title?.trim() || item.title}<small>{item.reference}</small></span>
           {draft.steps?.[String(i)]?.explanation?.trim() && <Check size={14}/>}
         </button>)}
-        <a href="https://ebible.org/details.php?id=guz" className="eg-bible-link" target="_blank" rel="noopener noreferrer">Consult Ekegusii Bible <ExternalLink size={14}/></a>
+        <a href="https://ebible.org/details.php?id=guz" className="eg-bible-link" target="_blank" rel="noopener noreferrer">Consult Ekegusii Bible <BookOpen size={14}/></a>
       </aside>
       <div className="eg-editor">
         {mode === "edit" && <div className="eg-intro-fields"><h2>Pathway details</h2><p>Keep the original theological meaning and references intact. Write a natural Ekegusii translation in the right-hand fields.</p>
@@ -226,18 +334,33 @@ export function EkegusiiReader({ pathway, index, total }: { pathway: EkegusiiStu
               <h2 lang={activeDraft.title?.trim() ? "guz" : "en"}>{activeDraft.title?.trim() || original.title}</h2>
               <p className="eg-scripture-ref"><BookOpen size={17}/> {original.reference} · <a href={englishUrl}>Read English KJV</a></p>
               <h3>What this shows</h3><p lang={activeDraft.explanation?.trim() ? "guz" : "en"}>{activeDraft.explanation?.trim() || original.explanation}</p>
-              <div className="eg-transition"><span>CONTINUE THE STUDY</span><p lang={activeDraft.hook?.trim() ? "guz" : "en"}>{activeDraft.hook?.trim() || original.hook}</p></div>
+              <div className="eg-transition"><span>CONTINUE THE STUDY</span><p lang={activeDraft.hook?.trim() ? "guz" : "en"}>{activeDraft.hook?.trim() || original.hook || ""}</p></div>
             </div>
           </> : <>
             <h2>Translate this passage</h2><p className="eg-reference"><BookOpen size={18}/> {original.reference} <a href={englishUrl} target="_blank" rel="noopener noreferrer">English study <ExternalLink size={13}/></a></p>
             {(["title", "explanation", "hook"] as const).map((field) => <div className="eg-pair eg-step-field" key={field}>
-              <div><span className="eg-field-label">ENGLISH {field.toUpperCase()} · SOURCE</span><p className="eg-original">{original[field]}</p></div>
+              <div><span className="eg-field-label">ENGLISH {field.toUpperCase()} · SOURCE</span><p className="eg-original">{original[field] ?? ""}</p></div>
               <label><span className="eg-field-label">EKEGUSII {field.toUpperCase()} · DRAFT</span>{field === "title" ?
                 <input lang="guz" value={activeDraft[field] ?? ""} onChange={(event) => updateStep(pathway.slug, step, field, event.target.value)} placeholder="Enter Ekegusii title"/> :
                 <textarea lang="guz" rows={field === "explanation" ? 8 : 5} value={activeDraft[field] ?? ""} onChange={(event) => updateStep(pathway.slug, step, field, event.target.value)} placeholder={"Enter Ekegusii " + field}/>}</label>
             </div>)}
             <p className="eg-review-reminder"><ShieldCheck size={15}/> Confirm meaning, doctrinal accuracy, tone, and natural Ekegusii grammar. The Scripture reference is intentionally locked.</p>
           </>}
+          {mode === "edit" && <div className="eg-submit-panel">
+            <div><span className="eg-field-label">SEND YOUR CORRECTION TO APOSTOLIC GUIDE</span>
+              <h3>Submit this step for editorial review</h3>
+              <p>Make your changes above, then submit this passage. The team receives it in the Apostolic Guide inbox. Nothing updates publicly until approved.</p>
+            </div>
+            <div className="eg-submit-grid">
+              <label>Reviewer name<input value={reviewerName} onChange={(event) => setReviewerName(event.target.value)} placeholder="Full name" autoComplete="name" required/></label>
+              <label>Email address<input value={reviewerEmail} onChange={(event) => setReviewerEmail(event.target.value)} placeholder="name@example.com" type="email" autoComplete="email" required/></label>
+              <label>Country or location<input value={reviewerLocation} onChange={(event) => setReviewerLocation(event.target.value)} placeholder="e.g. Kisii, Kenya" autoComplete="address-level2" required/></label>
+            </div>
+            <label className="eg-note-label">Translation feedback or doctrinal notes<textarea value={reviewerNotes} onChange={(event) => setReviewerNotes(event.target.value)} rows={3} placeholder="Which words or phrases should change? What is the most natural Ekegusii expression?"/></label>
+            <div className="eg-submit-actions"><button type="button" disabled={submitState === "sending"} onClick={() => void submitCorrection()} className="eg-button eg-button-dark">{submitState === "sending" ? "Submitting..." : "Submit correction"} <ArrowRight size={15}/></button>
+              <span role="status">{submissionMessage}</span>
+            </div>
+          </div>}
           <div className="eg-lesson-bottom"><button type="button" onClick={() => setStep(prev)} disabled={step === 0}><ChevronLeft size={17}/> Previous</button><span>{step + 1} of {pathway.steps.length}</span><button type="button" onClick={() => setStep(next)} disabled={step === pathway.steps.length - 1}>Next passage <ChevronRight size={17}/></button></div>
         </article>
         <div className="eg-reader-end"><p><strong>No automatic public publishing.</strong> Review changes stay in your browser until exported and formally approved. Scripture quotations from the copyrighted Ekegusii Bible are not copied here.</p><button type="button" className="eg-button eg-button-dark" onClick={exportDrafts}><Download size={16}/> Export review file</button></div>

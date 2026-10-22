@@ -30,3 +30,11 @@
 ## Next phase
 
 Use an approved Ekegusii translator/model to produce initial drafts against the English source and a locked theological terminology glossary, then collect native-speaker approvals. Do not mark any translation as approved merely because a model returned text.
+
+## AI draft and direct review submission
+
+- The 20 canonical slugs are the only accepted translation requests. `GET /api/ekegusii/draft?slug=...` generates one complete Pathway via the configured server-only OpenAI API key and caches it for 30 days. Preview environments without the key show the English source and a retry warning.
+- Model-generated Ekegusii drafts are **not approved translations**. They load into the review form on the first visit to each Pathway, without overwriting edits already saved locally. A native reviewer must validate every word.
+- Reviewers can submit one corrected step through the existing `/api/contact` route. Its successful responses include a reference ID; the submission goes to the Studio Inbox/email workflow, NOT directly into the teaching catalog. A fully edited worksheet may also be exported as JSON. This feature does not need any production migration.
+- Model calls must be monitored for cost and abuse. The Next Data Cache reduces repeats for recognized slugs; CDN caching is also enabled. Do not use this alone as a universal distributed quota. Add persistent budgeting and reviewer access if the audience expands.
+- Bible library `/ekegusii/bible` directs visitors to the complete Bible reader and downloadable PDF/ePub from eBible.org. The independently found GitHub USFM extraction is incomplete and unlicensed; nothing is copied from it.
