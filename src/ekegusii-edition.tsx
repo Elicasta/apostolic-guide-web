@@ -207,6 +207,8 @@ export function EkegusiiCatalog({ pathways }: { pathways: EkegusiiListing[] }) {
 }
 export function EkegusiiReader({ pathway, index, total }: { pathway: EkegusiiStudy; index: number; total: number }) {
   const { drafts, ready, message, updateField, updateStep, mergeAIDraft, exportDrafts, importDrafts } = useReviewDrafts();
+  const [step, setStep] = useState(0);
+  const [mode, setMode] = useState<"read" | "edit">("edit");
   const [aiState, setAiState] = useState<"pending" | "loading" | "ready" | "failed">("pending");
   const [aiError, setAiError] = useState("");
   const [reviewerName, setReviewerName] = useState("");
@@ -286,8 +288,6 @@ export function EkegusiiReader({ pathway, index, total }: { pathway: EkegusiiStu
       setSubmissionMessage(err instanceof Error ? err.message : "Could not submit correction.");
     }
   }, [reviewerName, reviewerEmail, reviewerLocation, reviewerNotes, drafts, pathway, step]);
-  const [step, setStep] = useState(0);
-  const [mode, setMode] = useState<"read" | "edit">("edit");
   const draft = drafts[pathway.slug] ?? {};
   const activeDraft = draft.steps?.[String(step)] ?? {};
   const original = pathway.steps[step];
