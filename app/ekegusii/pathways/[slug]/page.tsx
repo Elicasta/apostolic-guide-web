@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { allPathways, pathwayBySlug } from "@/pathway-catalog";
+import { ekegusiiSeedDrafts } from "@/ekegusii-seed-drafts";
 import { EkegusiiReader } from "@/ekegusii-edition";
 
 type Props = { params: Promise<{ slug: string }> };
@@ -11,7 +12,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const pathway = pathwayBySlug(slug);
   return {
-    title: pathway ? pathway.title + " | Ekegusii Review | Apostolic Guide" : "Pathway Not Found",
+    title: pathway ? pathway.title + " | Ekegusii Bible Study | Apostolic Guide" : "Pathway Not Found",
     description: pathway?.summary,
     robots: { index: false, follow: false },
   };
@@ -20,5 +21,9 @@ export default async function EkegusiiPathway({ params }: Props) {
   const { slug } = await params;
   const pathway = pathwayBySlug(slug);
   if (!pathway) notFound();
-  return <EkegusiiReader pathway={pathway} index={allPathways.findIndex((item) => item.slug === slug)} total={allPathways.length}/>;
+  const index = allPathways.findIndex((item) => item.slug === slug);
+  const next = allPathways[index + 1];
+  return <EkegusiiReader pathway={pathway} index={index} total={allPathways.length}
+    seed={ekegusiiSeedDrafts[slug]}
+    nextPathway={next ? { slug: next.slug, title: ekegusiiSeedDrafts[next.slug]?.title || next.title } : undefined}/>;
 }
