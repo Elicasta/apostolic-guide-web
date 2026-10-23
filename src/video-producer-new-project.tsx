@@ -29,10 +29,10 @@ async function json<T>(url: string, init?: RequestInit): Promise<T> {
   return data as T;
 }
 
-export function VideoProducerNewProject({ initialMode = "podcast" }: { initialMode?: VideoProducerMode }) {
+export function VideoProducerNewProject({ initialMode = "podcast", initialTitle = "", importedFromLive = false }: { initialMode?: VideoProducerMode; initialTitle?: string; importedFromLive?: boolean }) {
   const router = useRouter();
   const [mode, setMode] = useState<VideoProducerMode>(initialMode);
-  const [title, setTitle] = useState("");
+  const [title, setTitle] = useState(initialTitle);
   const [pathwaySlug, setPathwaySlug] = useState("");
   const [pathways, setPathways] = useState<Pathway[]>([]);
   const [file, setFile] = useState<File | null>(null);
@@ -86,6 +86,10 @@ export function VideoProducerNewProject({ initialMode = "podcast" }: { initialMo
       <div className={styles.flowShell}>
         <div className={styles.flowTopline}><Link className={styles.backLink} href="/admin/video-producer"><ArrowLeft size={14}/> Projects</Link></div>
         <section className={styles.workspace}>
+          {importedFromLive ? <div role="status" className={styles.notice} style={{padding:14,marginBottom:15}}>
+            <strong>Recording from Apostolic Guide Live</strong>
+            <p>Save the finished recording from the Live Studio to your device, then choose that file below. It will become a private Video Producer source for editing, captions, Reels and approved YouTube publishing. Automatic cloud transfer is not configured yet.</p>
+          </div> : null}
           <header className={styles.workspaceHeader}>
             <div className={styles.workspaceHeaderRow}><div><div className={styles.eyebrow}>New project</div><h2>Start with context</h2><p>Set the production lane and, for a podcast, its real pathway before Sol ever sees the transcript. Then upload once.</p></div><span className={styles.statusPill}>Source</span></div>
           </header>
