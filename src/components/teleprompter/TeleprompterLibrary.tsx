@@ -22,6 +22,7 @@ export default function TeleprompterLibrary() {
   const [previewIndex, setPreviewIndex] = useState(0);
   const [previewTheme, setPreviewTheme] = useState<TeleprompterTheme>("night");
   const [hydrated, setHydrated] = useState(false);
+  const [copyStatus,setCopyStatus] = useState("");
 
   useEffect(() => {
     const loaded = loadTeleprompterDocuments();
@@ -74,6 +75,16 @@ export default function TeleprompterLibrary() {
     setDocuments((current) => [doc, ...current]);
     setSelectedId(doc.id);
     setPreviewIndex(0);
+  };
+
+  const copyForLive = async () => {
+    if (!selected) return;
+    try {
+      await navigator.clipboard.writeText(selected.content);
+      setCopyStatus("Copied! In Apostolic Guide Live, open Teleprompter → Edit script → Paste from library.");
+    } catch {
+      setCopyStatus("Clipboard access was blocked. Select your manuscript text and copy it manually.");
+    }
   };
 
   const duplicate = () => {
@@ -155,11 +166,13 @@ export default function TeleprompterLibrary() {
             />
             <div>
               <button type="button" onClick={duplicate}>Duplicate</button>
+              <button type="button" onClick={() => void copyForLive()}>Copy for Live Studio</button>
               <button type="button" onClick={remove} disabled={documents.length <= 1}>Delete</button>
               <a href={presentUrl}>Present</a>
             </div>
           </header>
 
+          {copyStatus ? <p role="status" style={{fontSize:12,padding:"7px 10px",background:"#152c2d",color:"#c7f5df"}}>{copyStatus}</p> : null}
           <textarea
             value={selected.content}
             onChange={(event) => updateSelected({ content: event.target.value })}
