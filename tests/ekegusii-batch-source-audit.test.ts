@@ -18,7 +18,8 @@ test("the third source alignment revision covers all 106 without fabricating Bib
     assert.equal(Object.keys(baseline.steps ?? {}).length, pathway.steps.length);
     for (let i = 0; i < pathway.steps.length; i++) {
       const source = baseline.steps?.[String(i)];
-      assert.ok(source?.title?.trim());
+      if (!source) throw new Error(`Missing Ekegusii baseline for ${pathway.slug} step ${i}`);
+      assert.ok(source.title.trim());
       assert.ok(source?.explanation?.trim());
       assert.equal(referenceOfStep(pathway.slug, i), pathway.steps[i].reference);
       assert.doesNotMatch(source.explanation, /\b(?:Holy Ghost|Holy Spirit|Ngai|Matthew|Isaiah|Jesus|Peter|John|Luke|Paul)\b/);
