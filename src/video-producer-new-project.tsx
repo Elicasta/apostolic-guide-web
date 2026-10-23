@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { upload } from "@vercel/blob/client";
 import { ArrowLeft, Film, Loader2, Smartphone, Upload as UploadIcon } from "lucide-react";
+import { RecentLiveRecording } from "./video-producer-live-import";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { VideoProducerMode } from "@/video-producer";
@@ -29,10 +30,10 @@ async function json<T>(url: string, init?: RequestInit): Promise<T> {
   return data as T;
 }
 
-export function VideoProducerNewProject({ initialMode = "podcast" }: { initialMode?: VideoProducerMode }) {
+export function VideoProducerNewProject({ initialMode = "podcast", initialTitle = "", importedFromLive = false, handoffId = "", sourceOrigin = "" }: { initialMode?: VideoProducerMode; initialTitle?: string; importedFromLive?: boolean; handoffId?: string; sourceOrigin?: string }) {
   const router = useRouter();
   const [mode, setMode] = useState<VideoProducerMode>(initialMode);
-  const [title, setTitle] = useState("");
+  const [title, setTitle] = useState(initialTitle);
   const [pathwaySlug, setPathwaySlug] = useState("");
   const [pathways, setPathways] = useState<Pathway[]>([]);
   const [file, setFile] = useState<File | null>(null);
@@ -86,6 +87,10 @@ export function VideoProducerNewProject({ initialMode = "podcast" }: { initialMo
       <div className={styles.flowShell}>
         <div className={styles.flowTopline}><Link className={styles.backLink} href="/admin/video-producer"><ArrowLeft size={14}/> Projects</Link></div>
         <section className={styles.workspace}>
+          {importedFromLive ? <div role="status" className={styles.notice} style={{padding:14,marginBottom:15}}>
+            <strong>Recording from Apostolic Guide Live</strong>
+            <p>{handoffId ? "Connecting to your recent Live Studio recording. You can import it below without downloading a copy first." : "Select a file below, or use Send to Video Producer after you finish a new Live Studio recording. Recorded media is not automatically archived in the cloud."}</p>
+          </div> : null}
           <header className={styles.workspaceHeader}>
             <div className={styles.workspaceHeaderRow}><div><div className={styles.eyebrow}>New project</div><h2>Start with context</h2><p>Set the production lane and, for a podcast, its real pathway before Sol ever sees the transcript. Then upload once.</p></div><span className={styles.statusPill}>Source</span></div>
           </header>
@@ -110,9 +115,18 @@ export function VideoProducerNewProject({ initialMode = "podcast" }: { initialMo
             </div> : null}
 
             <div className={styles.panel}>
+              <RecentLiveRecording handoffId={handoffId} sourceOrigin={sourceOrigin}
+                onUse={(recording, recordedTitle)=>{
+                  setFile(recording);
+                  if(!title.trim() || title===initialTitle) setTitle(recordedTitle.slice(0,180));
+                  setError("");
+                }}/>
+            </div>
+            <div className={styles.panel}>
               <h3 className={styles.panelTitle}><UploadIcon size={17}/> Raw recording</h3>
               <p className={styles.panelText}>The browser uploads directly to private storage. Large files use multipart upload; you do not need to keep the app thinking through the media processing.</p>
               <input className={styles.fileInput} disabled={busy} type="file" accept="video/mp4,video/quicktime,video/x-m4v,video/webm,video/mpeg,video/x-msvideo" onChange={(event) => { const next = event.target.files?.[0] ?? null; setFile(next); if (next && !title.trim()) setTitle(titleFromFile(next.name)); }}/>
+              {file ? <p className={styles.panelText} style={{marginTop:12,color:"#22754a"}}>Selected source: <strong>{file.name}</strong> · {(file.size/1048576).toFixed(1)} MB</p> : null}
               {busy ? <div className={styles.progressBox}><div className={styles.progressLine}><span>{message || "Working…"}</span><strong>{progress}%</strong></div><div className={styles.progressTrack}><i style={{ width: `${Math.max(progress, progress ? 3 : 0)}%` }}/></div></div> : null}
             </div>
 

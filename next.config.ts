@@ -12,7 +12,12 @@ const nextConfig: NextConfig = {
   async headers() {
     // Permissions-Policy is set per request in proxy.ts so Studio live
     // sessions and the guest green room can capture camera and microphone.
-    return [{ source: "/(.*)", headers: securityHeaders }];
+    return [
+      { source: "/(.*)", headers: securityHeaders },
+      // Narrow exception for cross-origin Live Studio -> editor File postMessage handoff.
+      // No other admin routes relax the COOP restriction.
+      { source: "/admin/video-producer/new", headers: [{ key: "Cross-Origin-Opener-Policy", value: "unsafe-none" }] }
+    ];
   },
   async redirects() {
     return [
