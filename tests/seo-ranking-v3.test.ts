@@ -24,6 +24,18 @@ test("priority search answers receive deeper ranking sections", () => {
   assert.match(ranking, /The Old Testament defines God's right hand as power and victory/);
 });
 
+test("who Jesus prayed to answer includes direct biblical examples without replacing the existing answer", () => {
+  const ranking = source("src/seo-ranking-content.ts");
+  const answerPage = source("app/answers/[slug]/page.tsx");
+  assert.match(ranking, /"who-was-jesus-praying-to": \\[/);
+  assert.match(ranking, /Who did Jesus address in his prayers\\?/);
+  assert.match(ranking, /Luke 22:42/);
+  assert.match(ranking, /John 17:1/);
+  assert.match(ranking, /Hebrews 5:7/);
+  assert.match(ranking, /John 14:10/);
+  assert.match(answerPage, /sections=\\{\\[\\.\\.\\.resolvedAnswer\\.sections, \\.\\.\\.rankingSections\\]\\}/);
+});
+
 test("topic metadata uses search-language title overrides without changing canonical slugs", () => {
   const ranking = source("src/seo-ranking-content.ts");
   const topicPage = source("app/topics/[slug]/page.tsx");
