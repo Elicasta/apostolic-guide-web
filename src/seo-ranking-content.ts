@@ -63,6 +63,22 @@ const answerRankingSections: Record<string, Section[]> = {
       ]
     }
   ],
+  "who-was-jesus-praying-to": [
+    {
+      heading: "Who did Jesus address in his prayers?",
+      paragraphs: [
+        "Jesus addressed God as his Father. In Luke 22:42 he prayed, “Father, if thou be willing, remove this cup from me: nevertheless not my will, but thine, be done.” John 17:1 likewise begins with Jesus lifting his eyes to heaven and addressing the Father. These are real prayers from the incarnate Son, not a staged conversation."
+      ],
+      scripture: { reference: "Luke 22:42", text: "Father, if thou be willing, remove this cup from me: nevertheless not my will, but thine, be done." }
+    },
+    {
+      heading: "Why did Jesus pray if the Father dwelt in him?",
+      paragraphs: [
+        "Hebrews 5:7 places Jesus' prayers in “the days of his flesh.” As a genuine man, he prayed, obeyed, and submitted his human will to God. John 14:10 says the Father dwelt in him and did the works. Apostolic teaching keeps both statements together: the Son's relationship to the Father is real, and the divine Spirit dwelling in Christ is the one God.",
+        "The Gospel accounts answer the question “who did Jesus pray to?” directly: he prayed to the Father. Understanding that relationship requires reading his prayers alongside the incarnation and the Father's presence in Christ, rather than assuming the prayers alone settle the question of distinct eternal divine persons."
+      ]
+    }
+  ],
   "does-matthew-28-19-contradict-acts-2-38": [
     {
       heading: "Matthew 28:19 gives the command; Acts shows how the apostles carried it out",
