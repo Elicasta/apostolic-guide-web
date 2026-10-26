@@ -1,3 +1,4 @@
+import {codeTheme} from '@/carousel-code';
 import { loadCarouselArtDirection } from "./carousel-artwork-server";
 import "server-only";
 import { createHash } from "node:crypto";
@@ -137,7 +138,7 @@ export async function renderForgeCarouselProject(input: {
       await input.onFrame?.({ completed, total: frames.length });
       continue;
     }
-    const png = await renderForgeFramePng({ design: direction.frameDesigns[frame.id], backgroundUrl: direction.backgrounds[frame.id], height: 1350, frame, index, total: frames.length, pathwayTitle: project.pathwayTitle, projectTitle: project.title, theme: project.editorState.visualSettings.style || (typeof project.editorState.visualSettings.template === "string" ? project.editorState.visualSettings.template : undefined), regenerationSeed: Number(project.editorState.visualSettings.regenerationSeed || 0) });
+    const png = await renderForgeFramePng({ codeTheme:codeTheme(project.editorState), design: direction.frameDesigns[frame.id], backgroundUrl: direction.backgrounds[frame.id], height: 1350, frame, index, total: frames.length, pathwayTitle: project.pathwayTitle, projectTitle: project.title, theme: project.editorState.visualSettings.style || (typeof project.editorState.visualSettings.template === "string" ? project.editorState.visualSettings.template : undefined), regenerationSeed: Number(project.editorState.visualSettings.regenerationSeed || 0) });
     if (!png.length || png.length > 12 * 1024 * 1024) throw new Error(`Forge rendered slide ${index + 1} outside the 12 MB asset limit.`);
     const saved = await saveRenderedFrame({
       service,

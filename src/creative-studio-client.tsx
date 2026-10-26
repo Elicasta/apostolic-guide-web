@@ -1,5 +1,7 @@
 "use client";
 
+import {CarouselCodePanel} from './carousel-code-panel';
+import {codeTheme,type CarouselCodeJson} from './carousel-code';
 import { CarouselPreview, artworkPng } from './carousel-preview';
 import { CarouselBackgroundPanel } from './carousel-background-panel';
 import { CarouselDesignPanel } from './carousel-design-panel';
@@ -99,6 +101,7 @@ export function CreativeStudioClient({ pathways, initialProjectId, aiReady }: { 
   const [checkpointSummary, setCheckpointSummary] = useState("");
   const [previewRevision, setPreviewRevision] = useState<Revision | null>(null);
   const editCounter = useRef(0);
+  const [codeOpen,setCodeOpen]=useState(false);
   const [backgrounds, setBackgrounds] = useState<Record<string,string>>({});
   const [issues, setIssues] = useState<string[]>([]);
   const [past,setPast] = useState<CreativeEditorState[]>([]);
@@ -440,8 +443,22 @@ export function CreativeStudioClient({ pathways, initialProjectId, aiReady }: { 
   }
 
 
+  async function applyCode(json:CarouselCodeJson) {
+    if(!project||project.status!=='draft')throw new Error('Code Mode only edits drafts.');
+    setWorking('code');
+    try {const saved=await autosaveNow();if(!saved)throw new Error('Save the project first.');
+      const result=await jsonRequest<{project:CreativeProject}>(`/api/admin/creative-projects/${saved.id}/code`,{method:'PUT',body:JSON.stringify({expectedStateVersion:saved.stateVersion,carousel:json})});
+      setProject(result.project);setDirty(false);setSaveState('saved');setPast([]);setFuture([]);
+    } finally {setWorking('');}
+  }
+  async function restoreCode(revisionId:string) {
+    if(!project||project.status!=='draft')throw new Error('Code Mode only edits drafts.');
+    setWorking('code');try {const saved=await autosaveNow();if(!saved)throw new Error('Save the project first.');
+      const result=await jsonRequest<{project:CreativeProject}>(`/api/admin/creative-projects/${saved.id}/code`,{method:'PUT',body:JSON.stringify({expectedStateVersion:saved.stateVersion,revisionId})});setProject(result.project);setDirty(false);setSaveState('saved');setPast([]);setFuture([]);
+    } finally {setWorking('');}
+  }
   function artworkInput(current:CreativeProject,frame:CreativeFrame,index:number):Omit<ArtworkInput,'brandAssets'> {
-    return {frame,index,total:current.editorState.frames.length,pathwayTitle:current.pathwayTitle,projectTitle:current.title,
+    return {codeTheme:codeTheme(current.editorState),projectId:current.id,stateVersion:current.stateVersion,frame,index,total:current.editorState.frames.length,pathwayTitle:current.pathwayTitle,projectTitle:current.title,
       theme:themeFromSettings(current.editorState.visualSettings),regenerationSeed:Number(current.editorState.visualSettings.regenerationSeed||0),
       design:frameDesign(current.editorState.visualSettings,frame.id),height:current.format==='story'?1920:1350,backgroundUrl:backgrounds[frame.id]};
   }
@@ -461,7 +478,7 @@ export function CreativeStudioClient({ pathways, initialProjectId, aiReady }: { 
   async function downloadFrame() {
     if(!project||!selectedFrame)return;
     setWorking('download');
-    try {const url=await artworkPng(artworkInput(project,selectedFrame,project.editorState.frames.indexOf(selectedFrame)));
+    try {const saved=await autosaveNow();if(!saved)throw new Error('Save first');const url=await artworkPng(artworkInput(saved,selectedFrame,saved.editorState.frames.findIndex(f=>f.id===selectedFrame.id)));
       const link=document.createElement('a');link.href=url;link.download=`${project.pathwaySlug}-${selectedFrame.order}.png`;link.click();
     }catch(error){setSaveError(error instanceof Error?error.message:'Export failed.');setSaveState('error');}
     finally {setWorking('');}
@@ -488,7 +505,7 @@ export function CreativeStudioClient({ pathways, initialProjectId, aiReady }: { 
     </div>
   </section>;
 
-  return <section className={styles.studio} data-studio-version="3" data-creative-template={String(project?.editorState.visualSettings.style || project?.editorState.visualSettings.template || "editorial-white")}>
+  return <section className={styles.studio} data-code-mode-open={codeOpen} data-studio-version="3" data-creative-template={String(project?.editorState.visualSettings.style || project?.editorState.visualSettings.template || "editorial-white")}>
     <div className="cs3-project-head">
       <div>
         <span className="cs3-kicker">Carousel Studio / 3.0</span>
@@ -507,6 +524,7 @@ export function CreativeStudioClient({ pathways, initialProjectId, aiReady }: { 
 
     <div className="cs3-context-bar"><span>PATHWAY <strong>{project.pathwayTitle}</strong></span><span>INTENT <strong>{CREATIVE_INTENT_LABELS[project.intent]}</strong></span><span>FORMAT <strong>{CREATIVE_FORMAT_LABELS[project.format]}</strong></span><span>STATE <strong>v{project.stateVersion}</strong></span></div>
 
+    <CarouselCodePanel key={project.id} open={codeOpen} onOpenChange={setCodeOpen} onSelectFrame={setSelectedFrameId} project={project} selectedId={selectedFrame?.id||project.editorState.frames[0].id} onApply={applyCode} onRestore={restoreCode} onFrame={updateFrame} busy={Boolean(working)}/>
     <fieldset disabled={Boolean(working)||project.status!=='draft'} style={{border:0,padding:0,margin:0,minWidth:0}}><div className="cs3-workspace-grid">
       <aside className="cs3-frame-rail">
         <div className="cs3-panel-head"><strong>{project.format === "story" ? "Frames" : project.format === "single" ? "Frame" : "Slides"}</strong>{project.format !== "single" ? <button type="button" aria-label="Add slide" onClick={() => addFrame(selectedFrame?.id)}><Plus size={15}/></button> : null}</div>
@@ -546,8 +564,8 @@ export function CreativeStudioClient({ pathways, initialProjectId, aiReady }: { 
             <button type="button" disabled={Boolean(working)||issues.length>0} onClick={()=>void downloadFrame()}>Download PNG</button>
             {saveState==='error'&&<button type="button" onClick={()=>void autosaveNow().catch(()=>undefined)}>Retry save</button>}
           </div>
-          <CarouselDesignPanel input={artworkInput(project,selectedFrame,project.editorState.frames.indexOf(selectedFrame))}
-            onTheme={theme=>mutateProject(current=>({...current,editorState:{...current.editorState,visualSettings:{...current.editorState.visualSettings,style:theme}}}))}
+          <CarouselDesignPanel onCustom={()=>setCodeOpen(true)} input={artworkInput(project,selectedFrame,project.editorState.frames.indexOf(selectedFrame))}
+            onTheme={theme=>mutateProject(current=>({...current,editorState:{...current.editorState,visualSettings:{...current.editorState.visualSettings,style:theme,...(codeTheme(current.editorState)?{codeMode:{...codeTheme(current.editorState),enabled:false}}:{})}}}))}
             onChange={patch=>updateDesign(selectedFrame.id,patch)} onReset={()=>updateDesign(selectedFrame.id,{},true)}
             onApplyTexture={()=>{const design=frameDesign(project.editorState.visualSettings,selectedFrame.id);mutateProject(current=>({...current,editorState:{...current.editorState,visualSettings:{...current.editorState.visualSettings,frameDesigns:Object.fromEntries(current.editorState.frames.map(frame=>[frame.id,{...frameDesign(current.editorState.visualSettings,frame.id),texture:design.texture,textureStrength:design.textureStrength}]))}}}));}}/>
           <CarouselBackgroundPanel key={selectedFrame.id} projectId={project.id} pathwaySlug={project.pathwaySlug} format={project.format} theme={themeFromSettings(project.editorState.visualSettings)} frame={selectedFrame} totalSlides={project.editorState.frames.length} hasBackground={Boolean(backgrounds[selectedFrame.id])} enabled={aiReady} onDesign={patch=>updateDesign(selectedFrame.id,patch)} onBackground={url=>{setBackgrounds(current=>({...current,[selectedFrame.id]:url}));mutateProject(current=>({...current,editorState:{...current.editorState,visualSettings:{...current.editorState.visualSettings,artworkRevision:Number(current.editorState.visualSettings.artworkRevision||0)+1}}}));}}/>

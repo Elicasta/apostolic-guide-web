@@ -1,4 +1,6 @@
 import "server-only";
+import {codeTheme} from "./carousel-code";
+import {hydrateCodeAssets} from "./carousel-code-assets";
 import { pathwayBySlug } from "./pathway-catalog";
 import {
   buildCreativeSearchText,
@@ -89,7 +91,8 @@ export function creativeProjectSnapshot(project: CreativeProjectRecord): Creativ
 export async function loadCreativeProject(service: Service, id: string) {
   const result = await service.from("studio_creative_projects").select("*").eq("id", id).maybeSingle();
   if (result.error) throw new Error(result.error.message);
-  return result.data ? creativeProjectFromRow(result.data as Record<string, unknown>) : null;
+  if(!result.data)return null;
+  const project=creativeProjectFromRow(result.data as Record<string,unknown>);const theme=codeTheme(project.editorState);if(theme?.assets.some(asset=>asset.assetId))project.editorState.visualSettings.codeMode=await hydrateCodeAssets(service,theme);return project;
 }
 
 export async function createCreativeCheckpoint(service: Service, project: CreativeProjectRecord, userId: string, input?: {
