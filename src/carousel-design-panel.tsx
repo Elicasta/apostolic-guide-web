@@ -5,12 +5,13 @@ import { COMPOSITIONS, DESIGN_DIRECTIONS, STUDIO_FONTS, type StudioDesign } from
 import { CarouselPreview } from './carousel-preview';
 import type { ArtworkInput } from './carousel-artwork';
 import styles from './carousel-studio-v3.module.css';
-export function CarouselDesignPanel({input,onTheme,onChange,onReset,onApplyTexture}:{input:Omit<ArtworkInput,'brandAssets'>;onTheme:(theme:string)=>void;onChange:(patch:StudioDesign)=>void;onReset:()=>void;onApplyTexture:()=>void}) {
+export function CarouselDesignPanel({input,onTheme,onChange,onReset,onApplyTexture,onCustom}:{input:Omit<ArtworkInput,'brandAssets'>;onTheme:(theme:string)=>void;onChange:(patch:StudioDesign)=>void;onReset:()=>void;onApplyTexture:()=>void;onCustom?:()=>void}) {
  const d=input.design||{};
  const range=(label:string,key:keyof StudioDesign,min:number,max:number,step:number,fallback:number)=><label>{label}<span>{Number(d[key]??fallback).toFixed(step<1?2:0)}</span><input type="range" aria-label={label} min={min} max={max} step={step} value={Number(d[key]??fallback)} onChange={e=>onChange({[key]:Number(e.target.value)})}/></label>;
  return <section className={styles.inspector} aria-label="Slide styling">
   <div className={styles.sectionTitle}><h2>Art direction</h2><button type="button" onClick={onReset}>Reset slide</button></div>
-  <div className={styles.themes}>{CAROUSEL_THEMES.map(t=><button key={t.id} type="button" aria-pressed={input.theme===t.id} onClick={()=>onTheme(t.id)}><CarouselPreview input={{...input,theme:t.id,design:{}}}/><strong>{t.label}</strong><small>{DESIGN_DIRECTIONS[t.id].label}</small></button>)}</div>
+  <div className={styles.themes}>{CAROUSEL_THEMES.map(t=><button key={t.id} type="button" aria-pressed={input.theme===t.id} onClick={()=>onTheme(t.id)}><CarouselPreview input={{...input,codeTheme:undefined,theme:t.id,design:{}}}/><strong>{t.label}</strong><small>{DESIGN_DIRECTIONS[t.id].label}</small></button>)}</div>
+  {onCustom&&<button type="button" onClick={onCustom}>Custom Theme · Code Mode</button>}
   <label>Composition<select aria-label="Composition" value={d.layout||'automatic'} onChange={e=>onChange({layout:e.target.value as StudioDesign['layout']})}>{COMPOSITIONS.map(c=><option key={c} value={c}>{c==='automatic'?'Art-directed automatically':c[0].toUpperCase()+c.slice(1)}</option>)}</select></label>
   <button type="button" className={styles.regenerate} onClick={()=>onChange({layout:'automatic',variant:(d.variant||0)+1})}>Regenerate artwork</button>
   <p className={styles.hint}>Changes the composition. Your words stay intact.</p>

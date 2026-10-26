@@ -1,0 +1,13 @@
+{
+  "browser": "HeadlessChrome/153.0.8010.0",
+  "passed": true,
+  "checks": [
+    "10 Chromium PNGs at 1080x1350",
+    "sandbox iframe versus server raw pixel equality",
+    "complete KJV passage",
+    "overflow flagged",
+    "fit text loop",
+    "SSRF allowlist",
+    "ZIP names and contents"
+  ]
+}

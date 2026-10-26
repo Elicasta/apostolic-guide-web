@@ -10,6 +10,8 @@ on:
       - 'app/api/admin/**'
       - 'app/api/cron/**'
       - 'src/studio/**'
+      - 'src/carousel-*'
+      - 'public/fonts/**'
       - 'src/creative-*.ts'
       - 'src/creative-*.tsx'
       - 'src/sol-*.ts'
@@ -33,10 +35,18 @@ jobs:
       - run: npm test
       - run: npm run typecheck
       - run: npm run build
+      - name: Verify Code Mode Chromium exports
+        env:
+          CAROUSEL_CHROMIUM_PATH: /tmp/carousel-code-chromium
+        run: |
+          node -e "const f=require('fs'),z=require('zlib');f.writeFileSync(process.env.CAROUSEL_CHROMIUM_PATH,z.brotliDecompressSync(f.readFileSync('node_modules/@sparticuz/chromium/bin/chromium.br')));f.chmodSync(process.env.CAROUSEL_CHROMIUM_PATH,0o755)"
+          node --conditions=react-server --import tsx scripts/carousel-code-proof.ts
       - run: npx playwright install --with-deps chromium --only-shell
       - run: node scripts/carousel-browser-proof.mjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: carousel-studio-proof
-          path: docs/carousel-studio-3/
+          path: |
+            docs/carousel-studio-3/
+            docs/carousel-code-mode/

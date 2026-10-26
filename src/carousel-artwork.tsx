@@ -1,9 +1,11 @@
+import type {CodeTheme} from './carousel-code';
 import type { CSSProperties } from 'react';
 import type { CreativeFrame } from './creative-project';
 import { carouselThemePalette, normalizeCarouselTheme } from './carousel-theme';
 import { DESIGN_DIRECTIONS, STUDIO_FONTS, designColor, finite, publicHeading, resolveComposition, type StudioDesign } from './carousel-composition';
 
 export type ArtworkInput = {
+  codeTheme?:CodeTheme;projectId?:string;stateVersion?:number;
   frame: CreativeFrame; index: number; total: number; pathwayTitle: string; projectTitle: string;
   theme?: string; regenerationSeed?: number; design?: StudioDesign; height?: number;
   backgroundUrl?: string; brandAssets: { darkLogo: string; lightLogo: string };
