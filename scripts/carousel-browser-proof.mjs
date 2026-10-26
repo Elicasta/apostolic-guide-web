@@ -28,7 +28,7 @@ try{
  await page.route('**/api/admin/creative-projects/**',async route=>{
   const req=route.request(),path=new URL(req.url()).pathname;let data;
   if(path.endsWith('/code')&&req.method()==='PUT'){const patch=req.postDataJSON();if(patch.expectedStateVersion!==saved.stateVersion||saved.status!=='draft'){await route.fulfill({status:409,json:{error:'Draft changed'}});return;}const prior=structuredClone(saved);let next;if(patch.revisionId)next=structuredClone(revisions.find(r=>r.id===patch.revisionId).snapshot);else {const value=patch.carousel;next={...saved,title:value.title,editorState:{...saved.editorState,visualSettings:{...value.settings,codeMode:{...value.theme,overrides:Object.fromEntries(value.frames.map(f=>[f.id,{html:f.html,css:f.css}]))}},frames:value.frames.map(({html,css,...f},i)=>({...f,order:i+1}))}};}revisions.unshift({id:crypto.randomUUID(),version:revisions.length+1,change_summary:'Before Code Mode Apply',snapshot:prior});saved={...next,stateVersion:saved.stateVersion+1};data={project:saved};}
-  else if(path.endsWith('/code-render')){const png=await readFile('docs/carousel-code-mode/export-slide-01.png');const files=Object.fromEntries(saved.editorState.frames.map((f,i)=>[`slide-${String(i+1).padStart(2,'0')}.png`,new Uint8Array(png)]));await route.fulfill({contentType:'application/zip',body:Buffer.from(zipSync(files))});return;}else if(path.endsWith('/frame-design'))data={designs:[]};else if(path.endsWith('/artwork'))data={backgrounds:[]};else if(req.method()==='PATCH'){
+  else if(path.endsWith('/code-render')){const png=await readFile('docs/carousel-code-mode/export-slide-01.png');if(req.postDataJSON()?.frameIndex!==undefined){await route.fulfill({contentType:'image/png',body:png});return;}const files=Object.fromEntries(saved.editorState.frames.map((f,i)=>[`slide-${String(i+1).padStart(2,'0')}.png`,new Uint8Array(png)]));await route.fulfill({contentType:'application/zip',body:Buffer.from(zipSync(files))});return;}else if(path.endsWith('/frame-design'))data={designs:[]};else if(path.endsWith('/artwork'))data={backgrounds:[]};else if(req.method()==='PATCH'){
    const patch=req.postDataJSON();if(conflict||patch.expectedStateVersion!==saved.stateVersion){await route.fulfill({status:409,json:{error:'This project changed in another editor.'}});return;}
    saved={...saved,...patch,stateVersion:saved.stateVersion+1};saveCount++;data={project:saved};
   }else data={project:saved,revisions:revisions.map(({snapshot,...r})=>r),assets:[]};
@@ -54,7 +54,7 @@ try{
  conflict=false;await page.getByRole('button',{name:'Retry save'}).click();await page.waitForTimeout(1000);assert.equal(saved.editorState.frames[1].headline,'Draft kept after save conflict');
 
  await page.getByRole('button',{name:'Open Code Mode',exact:true}).click();
- await page.getByLabel('Carousel CSS',{exact:true}).fill('.slide{background:#10202a;color:white;font-family:Inter} h1{font-size:80px;line-height:1.2;margin:100px}p{font-size:30px;margin:100px}');
+ assert.match(await page.getByLabel('Carousel CSS',{exact:true}).evaluate(e=>getComputedStyle(e).fontFamily),/monospace/);await page.getByLabel('Carousel CSS',{exact:true}).fill('.slide{background:#10202a;color:white;font-family:Inter} h1{font-size:80px;line-height:1.2;margin:100px}p{font-size:30px;margin:100px}');
  await page.getByRole('button',{name:'Code',exact:true}).click();
  await page.getByLabel('Frame HTML',{exact:true}).fill('<h1>{{headline}}</h1><p>{{body}}</p><script>window.attacked=true</script>');
  await page.getByLabel('Frame CSS',{exact:true}).fill('h1{color:#a12d3d}');

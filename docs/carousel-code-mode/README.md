@@ -60,7 +60,7 @@ The optional bearer-token REST API is not included. This release uses existing s
 
 Apply `20261026211306_carousel_code_presets.sql` through the normal Supabase migration process. It adds one table and owner index, enables RLS, revokes direct public/anonymous/authenticated access and grants server-role access. API permission checks restrict operations to content administrators and filter preset reads by creator.
 
-The migration is tested against isolated PGlite with role-access assertions. No existing project, asset, publication or approval row is altered. Reverting the application does not require dropping the additive table.
+The migration was tested against isolated PGlite with role-access assertions, then applied to the configured Apostolic Guide database. RLS and the absence of direct anonymous/authenticated grants were verified. No existing project, asset, publication or approval row is altered. Reverting the application does not require dropping the additive table.
 
 ## Verification
 
@@ -76,5 +76,7 @@ node scripts/carousel-browser-proof.mjs
 ```
 
 For a local Chromium installation, set `CAROUSEL_CHROMIUM_PATH` to its executable. Production uses the packaged Lambda Chromium binary. Local tests used Chromium 153.0.8010.0, including raw-pixel equality between an unscaled sandbox iframe and exported PNG. Browser rendering on other engines can differ in font rasterization; both paths use the same HTML/CSS and bundled fonts.
+
+Release checks: 467 tests passed, typecheck passed and the production build passed. Code Mode scoped lint has zero errors. Chromium 153 pixel and UI proofs passed.
 
 See `proof.json`, `ui-report.json`, the exported PNG and desktop/mobile screenshots. UI persistence tests use synthetic API responses. Actual signed-in persistence still requires an app session; server authorization was not bypassed to manufacture one. Repository-wide lint has existing failures outside this feature; changed-file lint is recorded separately in the PR.

@@ -175,7 +175,7 @@ export function frameMarkup(
   );
 }
 // This is the only executable code in a preview/export. User scripts never enter the document.
-const HELPER = `(async()=>{await document.fonts.ready;await Promise.all([...document.images].map(i=>i.decode().catch(()=>{})));if(FIT){for(const e of document.querySelectorAll('[data-fit]')){let size=parseFloat(getComputedStyle(e).fontSize);const min=Math.max(60,Number(e.dataset.fitMin)||60);while(size>min&&(e.scrollWidth>e.clientWidth+1||e.scrollHeight>e.clientHeight+1)){size=Math.max(min,size-2);e.style.fontSize=size+'px';}}}const bad=[...document.querySelectorAll('.slide,.slide *')].filter(e=>{const s=getComputedStyle(e);if(s.display==='none'||e instanceof SVGElement)return false;return e.scrollHeight>e.clientHeight+1||e.scrollWidth>e.clientWidth+1;});window.__codeResult={overflow:bad.length>0,count:bad.length,elements:bad.map(e=>({tag:e.tagName,className:e.className,width:e.clientWidth,scrollWidth:e.scrollWidth,height:e.clientHeight,scrollHeight:e.scrollHeight})),fontsReady:true,resourceErrors:[...document.images].filter(i=>!i.naturalWidth).map(i=>i.src).concat([...document.fonts].filter(f=>f.status==='error').map(f=>f.family))};parent.postMessage({type:'ag-code-check',channel:CHANNEL,...window.__codeResult},'*');window.__codeReady=true;})();`;
+const HELPER = `(async()=>{window.__codeReady=false;window.__codeResult=null;await document.fonts.ready;await Promise.all([...document.images].map(i=>i.decode().catch(()=>{})));if(FIT){for(const e of document.querySelectorAll('[data-fit]')){let size=parseFloat(getComputedStyle(e).fontSize);const min=Math.max(60,Number(e.dataset.fitMin)||60);while(size>min&&(e.scrollWidth>e.clientWidth+1||e.scrollHeight>e.clientHeight+1)){size=Math.max(min,size-2);e.style.fontSize=size+'px';}}}const bad=[...document.querySelectorAll('.slide,.slide *')].filter(e=>{const s=getComputedStyle(e);if(s.display==='none'||e instanceof SVGElement)return false;return e.scrollHeight>e.clientHeight+1||e.scrollWidth>e.clientWidth+1;});window.__codeResult={overflow:bad.length>0,count:bad.length,elements:bad.map(e=>({tag:e.tagName,className:e.className,width:e.clientWidth,scrollWidth:e.scrollWidth,height:e.clientHeight,scrollHeight:e.scrollHeight})),fontsReady:true,resourceErrors:[...document.images].filter(i=>!i.naturalWidth).map(i=>i.src).concat([...document.fonts].filter(f=>f.status==='error').map(f=>f.family))};parent.postMessage({type:'ag-code-check',channel:CHANNEL,...window.__codeResult},'*');window.__codeReady=true;})();`;
 export function codeCss(css: string) {
   const sheet = postcss.parse(css);
   const imports: string[] = [];
@@ -235,7 +235,7 @@ const frameSchema = z.object({
   cta: z.string().max(500),
   pathwayLink: z.string().max(500),
   caption: z.string().max(2200),
-  altText: z.string().max(2000),
+  altText: z.string().max(1000),
   html: z.string().max(100000).default(""),
   css: z.string().max(100000).default(""),
   kicker: z.string().max(2000).optional(),

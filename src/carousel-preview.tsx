@@ -52,4 +52,4 @@ function VectorCarouselPreview({input,onIssues}:{input:Omit<ArtworkInput,'brandA
   </div>;
 }
 
-export function CarouselPreview(props:{input:Omit<ArtworkInput,'brandAssets'>;onIssues?:(issues:string[])=>void}) {const {input}=props;return input.codeTheme?.enabled?<CodeFramePreview frame={input.frame} index={input.index} total={input.total} theme={input.codeTheme}/>:<VectorCarouselPreview {...props}/>;}
+export function CarouselPreview(props:{input:Omit<ArtworkInput,'brandAssets'>;onIssues?:(issues:string[])=>void}) {const {input}=props;return input.codeTheme?.enabled?<CodeFramePreview frame={input.frame} index={input.index} total={input.total} theme={input.codeTheme} onIssues={props.onIssues}/>:<VectorCarouselPreview {...props}/>;}

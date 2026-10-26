@@ -8,16 +8,18 @@ export function CodeFramePreview({
   total,
   theme,
   full = false,
+  onIssues,
 }: {
   frame: CreativeFrame;
   index: number;
   total: number;
   theme: CodeTheme;
   full?: boolean;
+  onIssues?: (issues: string[]) => void;
 }) {
   const host = useRef<HTMLDivElement>(null);
   const iframe = useRef<HTMLIFrameElement>(null);
-  const channel = useId();
+  const baseChannel = useId();
   const [width, setWidth] = useState(300);
   const [overflow, setOverflow] = useState(false);
   const [resourceError, setResourceError] = useState(false);
@@ -36,6 +38,10 @@ export function CodeFramePreview({
       observer.disconnect();
     };
   }, []);
+  let fingerprint = 2166136261;
+  for (const char of JSON.stringify([frame, index, total, theme, origin]))
+    fingerprint = Math.imul(fingerprint ^ char.charCodeAt(0), 16777619);
+  const channel = baseChannel + "-" + (fingerprint >>> 0);
   const doc = codeDocument(frame, index, total, theme, origin, channel);
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -55,10 +61,13 @@ export function CodeFramePreview({
       setOverflow(Boolean(event.data.overflow));
       setResourceError(Boolean(event.data.resourceErrors?.length));
       setReady(true);
+      onIssues?.(
+        event.data.resourceErrors?.length ? ["Image or font unavailable"] : [],
+      );
     };
     window.addEventListener("message", listener);
     return () => window.removeEventListener("message", listener);
-  }, [channel]);
+  }, [channel, onIssues]);
   const scale = full ? 1 : Math.min(1, width / 1080);
   return (
     <div>

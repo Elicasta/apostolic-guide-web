@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { CreativeEditorState, CreativeFrame } from "./creative-project";
 import {
   BUILTIN_CODE_ASSETS,
@@ -53,6 +53,7 @@ export function CarouselCodePanel({
   const [json, setJson] = useState("");
   const [showJson, setShowJson] = useState(false);
   const [message, setMessage] = useState("");
+  const hasOpened = useRef(false);
   const [failed, setFailed] = useState(false);
   const [working, setWorking] = useState(false);
   const [full, setFull] = useState(false);
@@ -64,6 +65,7 @@ export function CarouselCodePanel({
   >([]);
   useEffect(() => {
     const warn = (event: BeforeUnloadEvent) => {
+      if (!hasOpened.current) return;
       const saved =
         codeTheme(project.editorState) ||
         initialCodeTheme(
@@ -93,15 +95,24 @@ export function CarouselCodePanel({
   }
   useEffect(() => {
     if (!open) return;
-    const timer = setTimeout(
-      () =>
-        void refresh().catch(() =>
-          setMessage(
-            "Could not load presets or revisions. Retry by reopening Code Mode.",
-          ),
+    const timer = setTimeout(() => {
+      if (!hasOpened.current) {
+        setTheme(
+          codeTheme(project.editorState) ||
+            initialCodeTheme(
+              String(
+                project.editorState.visualSettings.style || "editorial-white",
+              ),
+            ),
+        );
+        hasOpened.current = true;
+      }
+      void refresh().catch(() =>
+        setMessage(
+          "Could not load presets or revisions. Retry by reopening Code Mode.",
         ),
-      0,
-    );
+      );
+    }, 0);
     return () => clearTimeout(timer);
   }, [open, project.id]); // eslint-disable-line react-hooks/exhaustive-deps
   function patchOverride(patch: Partial<typeof override>) {
@@ -415,7 +426,7 @@ export function CarouselCodePanel({
                           supportingNotes: 1600,
                           cta: 500,
                           caption: 2200,
-                          altText: 2000,
+                          altText: 1000,
                           pathwayLink: 500,
                         }[key]
                       }
