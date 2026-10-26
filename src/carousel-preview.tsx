@@ -40,8 +40,8 @@ export function CarouselPreview({input,onIssues}:{input:Omit<ArtworkInput,'brand
     }).catch(e=>{if(!cancelled){setError(e.message);callback.current?.([e.message]);}});
     return ()=>{cancelled=true;if(url)URL.revokeObjectURL(url);};
   },[signature]);
-  return <div style={{width:'100%',aspectRatio:`1080 / ${input.height||1350}`,position:'relative',background:'#e5e2db'}}>
-    {result && <img src={result.url} alt={input.frame.altText||input.frame.headline} style={{display:'block',width:'100%',height:'100%'}}/>}
+  return <div style={{width:'100%',maxWidth:'100%',minWidth:0,overflow:'hidden',aspectRatio:`1080 / ${input.height||1350}`,position:'relative',background:'#e5e2db'}}>
+    {result && <img src={result.url} alt={input.frame.altText||input.frame.headline} style={{display:'block',width:'100%',maxWidth:'100%',height:'100%',objectFit:'contain'}}/>}
     {!result&&!error&&<span role="status">Preparing artwork…</span>}
     {error&&<p role="alert">{error}</p>}
   </div>;

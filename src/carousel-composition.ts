@@ -13,7 +13,7 @@ export type StudioDesign = {
   background?: string; accent?: string; gradient?: 'none'|'ambient'|'wash'; gradientColor?:string; texture?: string; textureStrength?: number; overlay?: number;
 };
 export const DESIGN_DIRECTIONS: Record<CarouselTheme, { titleFont: string; bodyFont: string; layouts: Composition[]; label: string }> = {
-  'street-theology': { titleFont: 'Bebas Neue', bodyFont: 'Montserrat', layouts: ['split','opening','statement'], label: 'Bold type. Urban print.' },
+  'street-theology': { titleFont: 'Montserrat', bodyFont: 'Montserrat', layouts: ['opening','statement','inset'], label: 'Bold type. Urban print.' },
   'editorial-white': { titleFont: 'Cormorant Garamond', bodyFont: 'Montserrat', layouts: ['opening','inset','split'], label: 'A study in quiet confidence.' },
   cinematic: { titleFont: 'Cormorant Garamond', bodyFont: 'Montserrat', layouts: ['inset','opening','split'], label: 'Light, depth, revelation.' },
   'verse-connection': { titleFont: 'Cormorant Garamond', bodyFont: 'Montserrat', layouts: ['opening','inset','split'], label: 'Let Scripture illuminate Scripture.' },
