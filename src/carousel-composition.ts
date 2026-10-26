@@ -16,7 +16,7 @@ export const DESIGN_DIRECTIONS: Record<CarouselTheme, { titleFont: string; bodyF
   'street-theology': { titleFont: 'Montserrat', bodyFont: 'Montserrat', layouts: ['opening','statement','inset'], label: 'Bold type. Urban print.' },
   'editorial-white': { titleFont: 'Cormorant Garamond', bodyFont: 'Montserrat', layouts: ['opening','inset','split'], label: 'A study in quiet confidence.' },
   cinematic: { titleFont: 'Cormorant Garamond', bodyFont: 'Montserrat', layouts: ['inset','opening','split'], label: 'Light, depth, revelation.' },
-  'verse-connection': { titleFont: 'Cormorant Garamond', bodyFont: 'Montserrat', layouts: ['opening','inset','split'], label: 'Let Scripture illuminate Scripture.' },
+  'verse-connection': { titleFont: 'Montserrat', bodyFont: 'Montserrat', layouts: ['opening','inset','split'], label: 'Let Scripture illuminate Scripture.' },
   manifesto: { titleFont: 'Montserrat', bodyFont: 'Montserrat', layouts: ['statement','split','opening'], label: 'Conviction, set in type.' }
 };
 export function frameDesign(settings: CreativeVisualSettings, id: string): StudioDesign {
