@@ -6,7 +6,7 @@ import {createBlankFrame,type CreativeFrame} from '../src/creative-project';
 import {renderCarouselSvg} from '../src/carousel-render';
 import {forgeBrandArtworkAssets} from '../src/forge-brand-artwork';
 export const samples:CreativeFrame[]=[
- {...createBlankFrame(1,'hook'),headline:'The fullness of God. Revealed in Jesus.',body:'Follow the testimony of Scripture.',scripture:''},
+ {...createBlankFrame(1,'hook'),headline:'Begin with one God',body:'Scripture’s controlling confession names the LORD as one—one indivisible God.',scripture:'Deuteronomy 6:4',overlayText:'The LORD is one'},
  {...createBlankFrame(2,'scripture'),headline:'The Word became flesh.',body:'And the Word was made flesh, and dwelt among us, (and we beheld his glory, the glory as of the only begotten of the Father,) full of grace and truth.',scripture:'John 1:14'},
  {...createBlankFrame(3,'explanation'),headline:'Begin with the text.',body:'Read the passage in context. Notice who is speaking, what is being revealed, and how the surrounding verses develop the thought. Let the language of Scripture guide the questions you bring to the next passage.'},
  {...createBlankFrame(4,'support'),headline:'Read the passages together.',body:'“I and my Father are one.”\n\n“For in him dwelleth all the fulness of the Godhead bodily.”',scripture:'John 10:30 · Colossians 2:9'},
