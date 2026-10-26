@@ -1,4 +1,5 @@
 "use client";
+import { initialCodeTheme } from "./carousel-code";
 
 import {CarouselCodePanel} from './carousel-code-panel';
 import {codeTheme,type CarouselCodeJson} from './carousel-code';
@@ -524,7 +525,10 @@ export function CreativeStudioClient({ pathways, initialProjectId, aiReady }: { 
 
     <div className="cs3-context-bar"><span>PATHWAY <strong>{project.pathwayTitle}</strong></span><span>INTENT <strong>{CREATIVE_INTENT_LABELS[project.intent]}</strong></span><span>FORMAT <strong>{CREATIVE_FORMAT_LABELS[project.format]}</strong></span><span>STATE <strong>v{project.stateVersion}</strong></span></div>
 
-    <CarouselCodePanel key={project.id} open={codeOpen} onOpenChange={setCodeOpen} onSelectFrame={setSelectedFrameId} project={project} selectedId={selectedFrame?.id||project.editorState.frames[0].id} onApply={applyCode} onRestore={restoreCode} onFrame={updateFrame} busy={Boolean(working)}/>
+    <CarouselCodePanel key={project.id} open={codeOpen} onOpenChange={setCodeOpen} onSelectFrame={setSelectedFrameId} project={project} selectedId={selectedFrame?.id||project.editorState.frames[0].id} onApply={applyCode} onRestore={restoreCode} onFrame={updateFrame} onCodeFields={(id, patch) => mutateProject(current => {
+      const theme = codeTheme(current.editorState) || initialCodeTheme(String(current.editorState.visualSettings.style || "editorial-white"));
+      return {...current, editorState: {...current.editorState, visualSettings: {...current.editorState.visualSettings, codeMode: {...theme, overrides: {...theme.overrides, [id]: {...(theme.overrides[id] || {html: "", css: ""}), ...patch}}}}}};
+    })} busy={Boolean(working)}/>
     <fieldset disabled={Boolean(working)||project.status!=='draft'} style={{border:0,padding:0,margin:0,minWidth:0}}><div className="cs3-workspace-grid">
       <aside className="cs3-frame-rail">
         <div className="cs3-panel-head"><strong>{project.format === "story" ? "Frames" : project.format === "single" ? "Frame" : "Slides"}</strong>{project.format !== "single" ? <button type="button" aria-label="Add slide" onClick={() => addFrame(selectedFrame?.id)}><Plus size={15}/></button> : null}</div>

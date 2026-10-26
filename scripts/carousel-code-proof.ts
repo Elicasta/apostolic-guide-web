@@ -97,6 +97,10 @@ async function main() {
       await sharp(pngs[0].png).raw().toBuffer(),
       "Sandbox preview and server PNG pixels differ",
     );
+    await page.setContent(codeDocument({...frames[0], headline: "One God", body: "The Lord our God is one Lord."}, 0, 1, initialCodeTheme("editorial-white"), origin), {waitUntil: "load"});
+    await page.waitForFunction("window.__codeReady===true");
+    const original = await page.evaluate(() => (window as unknown as {__codeResult: {overflow: boolean; elements: unknown[]}}).__codeResult);
+    assert.equal(original.overflow, false, JSON.stringify(original.elements));
     const overflow = {
       ...theme,
       template:
@@ -106,14 +110,17 @@ async function main() {
       waitUntil: "load",
     });
     await page.waitForFunction("window.__codeReady===true");
-    assert.equal(
-      await page.evaluate(
-        () =>
-          (window as unknown as { __codeResult: { overflow: boolean } })
-            .__codeResult.overflow,
-      ),
-      true,
-    );
+    const overflowResult = await page.evaluate(() => ({result: (window as unknown as {__codeResult: {overflow: boolean}}).__codeResult, html: document.body.innerHTML.slice(0, 500)}));
+    assert.equal(overflowResult.result.overflow, true, JSON.stringify(overflowResult));
+    const diagnostic = await page.evaluate(() => (window as unknown as {__codeResult: {fontsReady: boolean; elements: Array<{selector: string}>}}).__codeResult);
+    assert.equal(diagnostic.fontsReady, true);
+    assert.ok(diagnostic.elements.some(e => e.selector === "div"));
+    const serifTheme = {...initialCodeTheme("editorial-white"), css: '.slide{font-family:"Source Serif Pro"}h1{font-weight:900;font-size:100px}q{font-style:italic;font-weight:400;font-size:40px}', template: '<h1>One God</h1><q>Scripture quotation</q>'};
+    await page.setContent(codeDocument(frames[0], 0, 1, serifTheme, origin), {waitUntil: "load"});
+    await page.waitForFunction("window.__codeReady===true");
+    const fonts = await page.evaluate(() => [...document.fonts].filter(f => f.family === '"Source Serif Pro"' || f.family === 'Source Serif Pro').filter(f => f.status === "loaded").map(f => [f.weight, f.style].join(" ")));
+    assert.ok(fonts.includes("900 normal"));
+    assert.ok(fonts.includes("400 italic"));
     await renderCodeFrames([frames[0]], overflow, origin);
     const fitted = {
       ...theme,
