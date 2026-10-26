@@ -28,19 +28,20 @@ export function CarouselArtwork(input: ArtworkInput) {
   const dense = body.length > 420;
   const connection = composition === 'connection' && body.split(/\n\s*\n/).filter(Boolean).length === 2;
   const reading = scripture || composition === 'reading' || connection || dense;
-  const split = composition === 'split' && !dense && !scripture;
+  const classic = theme === 'street-theology';
+  const split = !classic && composition === 'split' && !dense && !scripture;
   const inset = composition === 'inset';
   const margin = theme === 'editorial-white' ? 100 : 80;
   const left = split ? 126 : inset ? 130 : margin;
   const width = 1080-left-margin-(inset?50:0);
-  const titleSize = finite((reading ? (scripture?35:78) : theme==='manifesto'?132:theme==='street-theology'?166:136) * Math.min(1,Math.sqrt(58/Math.max(1,title.length))) * finite(d.headlineScale,1,.55,1.45),80,28,156);
-  const bodySize = finite((scripture?72:44)*Math.min(1,Math.sqrt(330/Math.max(1,body.length)))*finite(d.bodyScale,1,.65,1.35),44,34,76);
+  const titleSize = finite((reading ? (scripture?35:78) : theme==='manifesto'?132:theme==='street-theology'?96:136) * Math.min(1,Math.sqrt(58/Math.max(1,title.length))) * finite(d.headlineScale,1,.55,1.45),80,28,156);
+  const bodySize = finite((scripture?72:classic?36:44)*Math.min(1,Math.sqrt(330/Math.max(1,body.length)))*finite(d.bodyScale,1,.65,1.35),44,34,76);
   const titleFont = STUDIO_FONTS.some(f=>f===d.headlineFont) ? d.headlineFont! : direction.titleFont;
   const bodyFont = STUDIO_FONTS.some(f=>f===d.bodyFont) ? d.bodyFont! : (scripture?'Cormorant Garamond':direction.bodyFont);
-  const align = d.alignment || (composition === 'inset' ? 'center':'left');
+  const align = d.alignment || (classic && !reading || composition === 'inset' ? 'center':'left');
   const gap = finite(d.copyGap,3,0.5,5)*10.8;
   const titleWidth = width*finite(d.titleWidth,100,48,100)/100;
-  const bodyWidth = width*finite(d.bodyWidth,split?83:100,45,100)/100;
+  const bodyWidth = width*finite(d.bodyWidth,classic && !reading?82:split?83:100,45,100)/100;
   // Conservative line estimates reserve a whole reading area, without truncating a single word.
   const estimatedTitle = Math.ceil(title.length*titleSize*(titleFont==='Bebas Neue'?.43:.54)/titleWidth)*titleSize*1.12;
   const estimatedBody = Math.ceil(body.length*bodySize*(bodyFont==='Cormorant Garamond'?.46:.55)/bodyWidth)*bodySize*1.3;
@@ -50,15 +51,15 @@ export function CarouselArtwork(input: ArtworkInput) {
   const bodyInk = designColor(d.bodyColor,c.fg);
   return <div style={{display:'flex',position:'relative',width:1080,height,backgroundColor:theme==='manifesto'&&composition==='statement'?c.accent:c.bg,color:c.fg,fontFamily:'Montserrat',overflow:'hidden'}}>
     {((theme==='cinematic'&&d.gradient!=='none')||d.gradient==='ambient') && <div style={{...abs(0,0,1080,height),backgroundImage:`radial-gradient(ellipse at ${composition==='split'?10:85}% 25%, #566b6e 0%, #142e3b 30%, #06131f 73%)`}}/>}
+    {classic && d.gradient !== 'none' && <div style={{...abs(0,0,1080,height),backgroundImage:'linear-gradient(180deg, #123345 0%, #091d29 70%, #06141d 100%)'}}/>}
     {d.gradient==='wash' && <div style={{...abs(0,0,1080,height),backgroundImage:`linear-gradient(145deg, ${c.bg}, ${designColor(d.gradientColor,c.soft)})`}}/>}
     {input.backgroundUrl && <img src={input.backgroundUrl} alt="" width={1080} height={height} style={{...abs(0,0,1080,height),objectFit:'cover'}}/>}
     {input.backgroundUrl && <div style={{...abs(0,0,1080,height),backgroundColor:c.bg,opacity:finite(d.overlay,.7,0,1)}}/>}
-    {theme==='street-theology' && <><div style={{...abs(790,reading?height-350:180,370,height),backgroundColor:c.accent,transform:'rotate(13deg)',opacity:.85}}/><div style={{...abs(810,reading?height-370:160,2,height),backgroundColor:c.fg,transform:'rotate(13deg)',opacity:.55}}/></>}
     {theme==='manifesto' && <><div style={{...abs(0,0,24,height),backgroundColor:c.accent}}/><div style={{...abs(760,190,270,270),border:`2px solid ${c.accent}`,borderRadius:135,opacity:.35}}/></>}
     {theme==='editorial-white' && <><div style={{...abs(52,52,976,height-104),border:'1px solid #d2cabc'}}/><div style={{...abs(78,210,920,1),backgroundColor:c.accent}}/></>}
     {theme==='verse-connection' && <><div style={{...abs(55,252,2,height-475),backgroundColor:c.accent,opacity:.4}}/>{[280,height-250].map(y=><div key={y} style={{...abs(48,y,16,16),border:`2px solid ${c.accent}`,borderRadius:8,backgroundColor:c.bg}}/>)}</>}
-    {inset && <div style={{...abs(88,232,904,height-420),border:`1px solid ${light?'#c6c1b4':'#647178'}`,backgroundColor:light?'#fffdf6':c.bg,opacity:.3}}/>}
-    {(d.texture !== 'none') && <div style={{...abs(0,0,1080,height),opacity:finite(d.textureStrength,16,0,70)/100,
+    {inset && !classic && <div style={{...abs(88,232,904,height-420),border:`1px solid ${light?'#c6c1b4':'#647178'}`,backgroundColor:light?'#fffdf6':c.bg,opacity:.3}}/>}
+    {(d.texture !== 'none' && (!classic || Boolean(d.texture))) && <div style={{...abs(0,0,1080,height),opacity:finite(d.textureStrength,16,0,70)/100,
       backgroundImage:d.texture==='light-leak-red'?`radial-gradient(ellipse at 0% 80%, ${c.accent}, transparent 60%)`:d.texture==='fog-soft'?'radial-gradient(ellipse at 80% 60%, #93adb3, transparent 65%)':undefined}}>
       {Array.from({length:d.texture==='grit-heavy'?180:90},(_,n)=>{
         const dot=['dust-speckle','ag-navy-speckle','grit-fine','grit-heavy','halftone'].includes(d.texture||'');
@@ -73,7 +74,7 @@ export function CarouselArtwork(input: ArtworkInput) {
     {split && <div style={{...abs(80,top+8,7,Math.min(600,copyHeight)),backgroundColor:c.accent}}/>}
     <div style={{...abs(left,top,width),flexDirection:'column',alignItems:align==='center'?'center':align==='right'?'flex-end':'flex-start',textAlign:align}}>
       {frame.scripture && !connection && <div style={{display:'flex',fontSize:18,letterSpacing:2,color:c.accent,fontWeight:800,marginBottom:30}}>{frame.scripture}{scripture?' · KJV':''}</div>}
-      {title && title!==frame.scripture && <div data-copy-block="headline" style={{display:'flex',width:titleWidth,maxWidth:'100%',fontFamily:titleFont,fontSize:titleSize,lineHeight:1.08,fontWeight:finite(d.headlineWeight,titleFont==='Montserrat'?800:600,400,800),letterSpacing:finite(d.letterSpacing,titleFont==='Bebas Neue'?0:-1.5,-4,8),color:ink,whiteSpace:'pre-wrap',overflowWrap:'break-word'}}>{title}</div>}
+      {title && title!==frame.scripture && <div data-copy-block="headline" style={{display:'flex',width:titleWidth,maxWidth:'100%',fontFamily:titleFont,fontSize:titleSize,lineHeight:1.08,fontWeight:finite(d.headlineWeight,titleFont==='Montserrat'?800:600,400,800),letterSpacing:finite(d.letterSpacing,titleFont==='Bebas Neue'?0:-1.5,-4,8),color:ink,whiteSpace:'pre-wrap',overflowWrap:'break-word'}}>{classic && !reading ? title.toUpperCase() : title}</div>}
       {body && !connection && <div data-copy-block="body" style={{display:'flex',width:bodyWidth,maxWidth:'100%',fontFamily:bodyFont,fontSize:bodySize,lineHeight:finite(d.lineHeight,scripture?1.22:1.45,1.05,1.8),fontWeight:finite(d.bodyWeight,bodyFont==='Cormorant Garamond'?600:400,400,800),marginTop:split?70:gap,alignSelf:split?'flex-end':undefined,paddingTop:split?30:0,borderTop:split?`1px solid ${c.accent}`:undefined,color:bodyInk,whiteSpace:'pre-wrap',overflowWrap:'break-word'}}>{body}</div>}
       {connection && <div style={{display:'flex',flexDirection:'column',width:'100%',marginTop:48,gap:28}}>
         {body.split(/\n\s*\n/).map((passage,n)=><div data-copy-block="passage" key={n} style={{display:'flex',flexDirection:'column',borderLeft:`3px solid ${c.accent}`,padding:'24px 30px',backgroundColor:light?'#fffdf6':'#ffffff09'}}>
