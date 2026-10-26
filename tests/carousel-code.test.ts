@@ -189,3 +189,21 @@ test("custom presets migration keeps direct anonymous and authenticated access c
     await db.close();
   }
 });
+
+ test("empty custom fields stay empty; absent fields opt into legacy fallbacks", () => {
+   const template = '<i>{{kicker}}</i><q>{{quote}}</q><b>{{label}}</b><small>{{eyebrow}}</small>';
+   const t = {...theme, template, overrides: {[frame.id]: {html: "", css: "", kicker: "", quote: "", label: "", eyebrow: ""}}};
+   assert.equal(frameMarkup(frame, 0, 1, t), '<i></i><q></q><b></b><small></small>');
+   const absent = frameMarkup(frame, 0, 1, {...theme, template});
+   assert.ok(absent.includes(frame.scripture));
+   assert.ok(absent.includes('One LORD'));
+   const state = {frames: [frame], visualSettings: {codeMode: t}, sourceImages: []} as CreativeEditorState;
+   const restored = parseCodeJson(JSON.stringify(toCodeJson("Test", state)));
+   assert.equal(restored.visualSettings.codeMode.overrides[frame.id].quote, "");
+ });
+ test("new code themes fit text by default and bundle serif Black and italic", () => {
+   assert.equal(initialCodeTheme("custom").fitText, true);
+   const doc = codeDocument(frame, 0, 1, theme, "https://www.apostolicguide.com");
+   assert.ok(doc.includes('source-serif-pro-latin-900-normal.woff2'));
+   assert.ok(doc.includes('source-serif-pro-latin-400-italic.woff2'));
+ });

@@ -122,3 +122,7 @@
     font-size: 16px;
   }
 }
+
+.large { width: min(640px, 100%); margin: 20px auto; }
+.panel .checkbox { display:flex; align-items:center; }
+.panel .checkbox input { width:auto; }

@@ -60,7 +60,24 @@ try{
  await page.getByLabel('Frame CSS',{exact:true}).fill('h1{color:#a12d3d}');
  await page.getByRole('button',{name:'Apply',exact:true}).click();try{await page.getByText('Applied and saved.',{exact:false}).waitFor();}catch(e){console.log(await page.locator('section[aria-label="Carousel Code Mode"]').innerText());throw e;}
  assert.ok(saved.editorState.visualSettings.codeMode.enabled);assert.ok(saved.editorState.visualSettings.codeMode.overrides.verse.html.includes('{{headline}}'));assert.equal(await page.locator('input[type=range]:visible').count(),0);
- await page.getByRole('button',{name:'JSON',exact:true}).click();const jsonBox=page.getByLabel('Whole-carousel JSON');const value=JSON.parse(await jsonBox.inputValue());const existingHeadline=saved.editorState.frames[0].headline;
+
+ assert.ok(await page.getByLabel('Whole-carousel JSON',{exact:true}).isVisible());
+ await page.getByLabel('Carousel template HTML',{exact:true}).fill('<h1>{{headline}}</h1><blockquote>{{quote}}</blockquote><p>{{body}}</p>');
+ await page.getByRole('button',{name:'Clear all Frame HTML overrides',exact:true}).click();
+ await page.getByRole('button',{name:'Apply',exact:true}).click();await page.waitForTimeout(600);
+ assert.ok(saved.editorState.visualSettings.codeMode.template.includes('{{quote}}'));
+ assert.equal(saved.editorState.visualSettings.codeMode.overrides.verse.html,'');
+ await page.getByRole('button',{name:'Normal fields',exact:true}).click();
+ await page.getByLabel('Code Mode quote',{exact:true}).fill('Separate Scripture quotation');await page.waitForTimeout(1000);
+ assert.equal(saved.editorState.visualSettings.codeMode.overrides.verse.quote,'Separate Scripture quotation');
+ await page.getByLabel('Code Mode quote',{exact:true}).fill('');await page.waitForTimeout(1000);
+ assert.equal(saved.editorState.visualSettings.codeMode.overrides.verse.quote,'');
+ await page.getByLabel('Use fallback for quote',{exact:true}).check();await page.waitForTimeout(1000);
+ assert.equal(saved.editorState.visualSettings.codeMode.overrides.verse.quote,undefined);
+ await page.getByRole('button',{name:'Open frame 2 large',exact:true}).click();
+ assert.ok(await page.getByRole('region',{name:'Large frame preview'}).isVisible());
+ await page.getByRole('button',{name:'Close large preview',exact:true}).click();
+ await page.getByRole('button',{name:'Refresh JSON from fields',exact:true}).click();const jsonBox=page.getByLabel('Whole-carousel JSON');const value=JSON.parse(await jsonBox.inputValue());const existingHeadline=saved.editorState.frames[0].headline;
  await jsonBox.fill('{\n bad }');await page.getByRole('button',{name:'Apply JSON',exact:true}).click();await page.getByText(/Line 2:/).waitFor();assert.equal(saved.editorState.frames[0].headline,existingHeadline);
  value.frames=Array.from({length:10},(_,i)=>({...value.frames[0],id:`code-${i}`,order:i+1,headline:`Slide ${i+1}<br>One God`,html:'<h1>{{headline}}</h1><p>{{body}}</p>',css:''}));await jsonBox.fill(JSON.stringify(value,null,2));await page.getByRole('button',{name:'Apply JSON',exact:true}).click();await page.waitForTimeout(1000);assert.equal(saved.editorState.frames.length,10);await page.locator('iframe[title^="Code preview slide"]').first().waitFor();
  await page.getByLabel('New preset name').fill('Test custom theme');await page.getByRole('button',{name:'Save as new preset',exact:true}).click();await page.getByText('Preset saved for future carousels.').waitFor();assert.equal(presets.length,1);

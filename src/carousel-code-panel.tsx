@@ -28,6 +28,7 @@ export function CarouselCodePanel({
   onApply,
   onRestore,
   onFrame,
+  onCodeFields,
   onSelectFrame,
   open,
   onOpenChange,
@@ -38,6 +39,7 @@ export function CarouselCodePanel({
   onApply: (json: CarouselCodeJson) => Promise<void>;
   onRestore: (revisionId: string) => Promise<void>;
   onFrame: (id: string, patch: Partial<CreativeFrame>) => void;
+  onCodeFields: (id: string, patch: Partial<CodeTheme["overrides"][string]>) => void;
   busy?: boolean;
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -50,13 +52,15 @@ export function CarouselCodePanel({
         String(project.editorState.visualSettings.style || "editorial-white"),
       ),
   );
-  const [json, setJson] = useState("");
-  const [showJson, setShowJson] = useState(false);
+  const [json, setJson] = useState(() => JSON.stringify(toCodeJson(project.title, project.editorState), null, 2));
+  const [jsonDirty, setJsonDirty] = useState(false);
+  const [showJson, setShowJson] = useState(true);
   const [message, setMessage] = useState("");
   const hasOpened = useRef(false);
   const [failed, setFailed] = useState(false);
   const [working, setWorking] = useState(false);
   const [full, setFull] = useState(false);
+  const [largeId, setLargeId] = useState<string | null>(null);
   const [tab, setTab] = useState("fields");
   const [presetName, setPresetName] = useState("");
   const [presets, setPresets] = useState<Preset[]>([]);
@@ -71,14 +75,14 @@ export function CarouselCodePanel({
         initialCodeTheme(
           String(project.editorState.visualSettings.style || "editorial-white"),
         );
-      if (JSON.stringify(theme) !== JSON.stringify(saved)) {
+      if (JSON.stringify(theme) !== JSON.stringify(saved) || jsonDirty) {
         event.preventDefault();
         event.returnValue = "";
       }
     };
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
-  }, [theme, project.editorState]);
+  }, [theme, project.editorState, jsonDirty]);
   const selected =
     project.editorState.frames.find((f) => f.id === selectedId) ||
     project.editorState.frames[0];
@@ -131,6 +135,13 @@ export function CarouselCodePanel({
       })),
     };
   }
+  async function paste(setValue: (text: string) => void) {
+    await run(async () => {
+      if (!navigator.clipboard?.readText) throw new Error("Clipboard unavailable. Paste directly into the textarea.");
+      setValue(await navigator.clipboard.readText());
+      setMessage("Clipboard pasted. Review before Apply.");
+    });
+  }
   async function run(action: () => Promise<void>) {
     setWorking(true);
     setMessage("");
@@ -147,6 +158,8 @@ export function CarouselCodePanel({
   async function apply(value: CarouselCodeJson = currentJson()) {
     await onApply(value);
     setTheme(value.theme);
+    setJson(JSON.stringify(value, null, 2));
+    setJsonDirty(false);
     setMessage("Applied and saved. Previous version is in revision history.");
     await refresh();
   }
@@ -294,6 +307,13 @@ export function CarouselCodePanel({
               </select>
             </label>
             <label>
+              Carousel template HTML
+              <textarea aria-label="Carousel template HTML" rows={12} spellCheck={false} value={theme.template} onChange={e => setTheme({...theme, template: e.target.value})} />
+            </label>
+            <button type="button" onClick={() => void paste(text => setTheme({...theme, template: text}))}>Paste from clipboard · Carousel template HTML</button>
+            <button type="button" onClick={() => setTheme({...theme, overrides: Object.fromEntries(Object.entries(theme.overrides).map(([id, value]) => [id, {...value, html: ""}]))})}>Clear all Frame HTML overrides</button>
+            <p className={styles.hint}>Apply saves the shared template and cleared overrides. Frame CSS remains in effect.</p>
+            <label>
               Carousel CSS
               <textarea
                 aria-label="Carousel CSS"
@@ -306,6 +326,7 @@ export function CarouselCodePanel({
                 onChange={(e) => setTheme({ ...theme, css: e.target.value })}
               />
             </label>
+            <button type="button" onClick={() => void paste(text => setTheme({...theme, css: text}))}>Paste from clipboard · Carousel CSS</button>
             <div className={styles.bar}>
               <button type="button" onClick={() => void run(() => apply())}>
                 Apply
@@ -326,10 +347,11 @@ export function CarouselCodePanel({
                 type="button"
                 onClick={() => {
                   setJson(JSON.stringify(currentJson(), null, 2));
-                  setShowJson((v) => !v);
+                  setShowJson(true);
+                  setJsonDirty(false);
                 }}
               >
-                JSON
+                Refresh JSON from fields
               </button>
               <button
                 type="button"
@@ -400,6 +422,14 @@ export function CarouselCodePanel({
             </div>
             {tab === "fields" ? (
               <>
+                {(["kicker", "quote", "label", "eyebrow"] as const).map(key => (
+                  <div key={key}>
+                    <label>{key[0].toUpperCase() + key.slice(1)}
+                      <textarea aria-label={`Code Mode ${key}`} maxLength={key === "quote" ? 10000 : 2000} value={override[key] ?? ""} onChange={e => { const patch = {[key]: e.target.value}; patchOverride(patch); onCodeFields(selected.id, patch); }} />
+                    </label>
+                    <label className={styles.checkbox}><input type="checkbox" checked={override[key] === undefined} onChange={e => { const patch = {[key]: e.target.checked ? undefined : ""}; patchOverride(patch); onCodeFields(selected.id, patch); }} />Use fallback for {key}</label>
+                  </div>
+                ))}
                 {(
                   [
                     "headline",
@@ -471,6 +501,9 @@ export function CarouselCodePanel({
                     onChange={(e) => patchOverride({ css: e.target.value })}
                   />
                 </label>
+                <button type="button" onClick={() => void paste(text => patchOverride({html: text}))}>Paste from clipboard · Frame HTML</button>
+                <button type="button" onClick={() => void paste(text => patchOverride({css: text}))}>Paste from clipboard · Frame CSS</button>
+                <button type="button" onClick={() => setTheme({...theme, overrides: Object.fromEntries(project.editorState.frames.map(frame => [frame.id, {...(theme.overrides[frame.id] || {html: "", css: ""}), css: override.css}]))})}>Copy Frame CSS to all</button>
                 <p className={styles.hint}>
                   {
                     "Placeholders: {{kicker}} {{headline}} {{quote}} {{body}} {{label}} {{page}} {{total}} {{logo}} {{eyebrow}}. Use <br> in Headline for manual breaks. Inline SVG is supported; scripts are removed."
@@ -488,9 +521,10 @@ export function CarouselCodePanel({
                     spellCheck={false}
                     autoComplete="off"
                     value={json}
-                    onChange={(e) => setJson(e.target.value)}
+                    onChange={(e) => { setJson(e.target.value); setJsonDirty(true); }}
                   />
                 </label>
+                <button type="button" onClick={() => void paste(text => {setJson(text); setJsonDirty(true);})}>Paste from clipboard · Whole-carousel JSON</button>
                 <div className={styles.bar}>
                   <button
                     type="button"
@@ -659,12 +693,17 @@ export function CarouselCodePanel({
               View 100%: {full ? "On" : "Off"}
             </button>
           </div>
+          {largeId && <div className={styles.large} role="region" aria-label="Large frame preview">
+            <button type="button" onClick={() => setLargeId(null)}>Close large preview</button>
+            {project.editorState.frames.filter(f => f.id === largeId).map(frame => <CodeFramePreview key={frame.id} frame={frame} index={project.editorState.frames.findIndex(f => f.id === frame.id)} total={project.editorState.frames.length} theme={codeTheme(project.editorState) || initialCodeTheme(theme.preset)} />)}
+          </div>}
           <div className={`${styles.gallery} ${full ? styles.gallery100 : ""}`}>
             {project.editorState.frames.map((frame, index) => (
               <div
                 key={frame.id}
                 className={full ? styles.tileFull : styles.tile}
               >
+                <button type="button" onClick={() => setLargeId(frame.id)}>Open frame {index + 1} large</button>
                 <CodeFramePreview
                   frame={frame}
                   index={index}

@@ -1,5 +1,5 @@
 import postcss from "postcss";
-import { CODE_FONT_CSS } from "./carousel-code-fonts";
+import { CODE_FONT_CSS, SOURCE_SERIF_EXTRA_CSS } from "./carousel-code-fonts";
 import { ORIGINAL_CAROUSEL_CSS } from "./carousel-code-preset-css";
 import {
   parseTree,
@@ -14,7 +14,7 @@ export const CODE_SIZE = { width: 1080, height: 1350 };
 export const CODE_TEMPLATE =
   '<div class="carousel-artwork"><div class="carousel-ambient carousel-ambient-red"></div><div class="carousel-ambient carousel-ambient-blue"></div><div class="carousel-grain"></div><div class="carousel-city"></div><img class="carousel-brand-mark" src="{{logo}}" alt=""><div class="carousel-pathway-label">SCRIPTURE PATHWAY</div><main class="carousel-copy"><span>{{eyebrow}}</span><strong data-fit>{{headline}}</strong><p>{{body}}</p><em>{{label}}</em></main><footer class="carousel-footer"><span>APOSTOLICGUIDE.COM</span><span>{{page}} / {{total}}</span></footer></div>';
 export const CODE_FONTS =
-  "https://fonts.googleapis.com/css2?family=Arimo:wght@400;700&family=Inter:wght@400;600;800&family=Inter+Tight:wght@400;600;800&family=Source+Serif+Pro:wght@400;600;700&display=swap";
+  "https://fonts.googleapis.com/css2?family=Arimo:wght@400;700&family=Inter:wght@400;600;800&family=Inter+Tight:wght@400;600;800&family=Source+Serif+Pro:ital,wght@0,400;0,600;0,700;0,900;1,400&display=swap";
 export function presetCss(theme: string) {
   return `/* Original Carousel Studio · ${theme} · 1080 × 1350 */\n${ORIGINAL_CAROUSEL_CSS}`;
 }
@@ -32,7 +32,7 @@ export const codeSchema = z.object({
   preset: z.string().max(100),
   css: z.string().max(200000),
   template: z.string().max(100000).default(CODE_TEMPLATE),
-  fitText: z.boolean().default(false),
+  fitText: z.boolean().default(true),
   overrides: z.record(z.string(), overrideSchema).default({}),
   assets: z
     .array(
@@ -58,7 +58,7 @@ export function initialCodeTheme(theme: string): CodeTheme {
     preset: theme,
     css: presetCss(theme),
     template: CODE_TEMPLATE,
-    fitText: false,
+    fitText: true,
     overrides: {},
     assets: [],
   };
@@ -152,10 +152,10 @@ export function frameMarkup(
   const o = theme.overrides[frame.id] || { html: "", css: "" };
   const light = ["editorial-white", "verse-connection"].includes(theme.preset);
   const fields: Record<string, string> = {
-    kicker: o.kicker || frame.scripture,
-    eyebrow: o.eyebrow || frame.scripture,
+    kicker: o.kicker ?? frame.scripture,
+    eyebrow: o.eyebrow ?? frame.scripture,
     headline: frame.headline,
-    quote: o.quote || frame.body,
+    quote: o.quote ?? frame.body,
     body: frame.body,
     label: o.label ?? (frame.overlayText || frame.cta),
     page: String(index + 1).padStart(2, "0"),
@@ -175,7 +175,36 @@ export function frameMarkup(
   );
 }
 // This is the only executable code in a preview/export. User scripts never enter the document.
-const HELPER = `(async()=>{window.__codeReady=false;window.__codeResult=null;await document.fonts.ready;await Promise.all([...document.images].map(i=>i.decode().catch(()=>{})));if(FIT){for(const e of document.querySelectorAll('[data-fit]')){let size=parseFloat(getComputedStyle(e).fontSize);const min=Math.max(60,Number(e.dataset.fitMin)||60);while(size>min&&(e.scrollWidth>e.clientWidth+1||e.scrollHeight>e.clientHeight+1)){size=Math.max(min,size-2);e.style.fontSize=size+'px';}}}const bad=[...document.querySelectorAll('.slide,.slide *')].filter(e=>{const s=getComputedStyle(e);if(s.display==='none'||e instanceof SVGElement)return false;return e.scrollHeight>e.clientHeight+1||e.scrollWidth>e.clientWidth+1;});window.__codeResult={overflow:bad.length>0,count:bad.length,elements:bad.map(e=>({tag:e.tagName,className:e.className,width:e.clientWidth,scrollWidth:e.scrollWidth,height:e.clientHeight,scrollHeight:e.scrollHeight})),fontsReady:true,resourceErrors:[...document.images].filter(i=>!i.naturalWidth).map(i=>i.src).concat([...document.fonts].filter(f=>f.status==='error').map(f=>f.family))};parent.postMessage({type:'ag-code-check',channel:CHANNEL,...window.__codeResult},'*');window.__codeReady=true;})();`;
+const HELPER = `(async()=>{
+window.__codeReady=false;window.__codeResult=null;
+await document.fonts.ready;
+await Promise.all([...document.images].map(i=>i.decode().catch(()=>{})));
+await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
+const slide=document.querySelector('.slide');
+const bounds=slide.getBoundingClientRect();
+const ignored=e=>e.closest('[data-overflow="ignore"],.carousel-ambient,.carousel-grain,.carousel-city') || e instanceof SVGElement;
+const over=e=>{
+ const s=getComputedStyle(e),r=e.getBoundingClientRect();
+ if(s.display==='none'||!e.getClientRects().length||ignored(e))return false;
+ const clips=v=>['hidden','clip','auto','scroll'].includes(v);
+ const text=[...e.childNodes].some(n=>n.nodeType===3&&n.textContent.trim());
+ const own=s.display!=='inline'&&text&&(e.scrollWidth>e.clientWidth+2||(clips(s.overflowY)&&e.scrollHeight>e.clientHeight+2));
+ let clipped=false;
+ for(let p=e.parentElement;p&&p!==slide;p=p.parentElement){
+  const ps=getComputedStyle(p),pr=p.getBoundingClientRect();
+  if((clips(ps.overflowX)&&(r.left<pr.left-2||r.right>pr.right+2))||(clips(ps.overflowY)&&(r.top<pr.top-2||r.bottom>pr.bottom+2))){clipped=true;break;}
+ }
+ return own||clipped||r.left<bounds.left-2||r.right>bounds.right+2||r.top<bounds.top-2||r.bottom>bounds.bottom+2;
+};
+if(FIT){for(const e of document.querySelectorAll('[data-fit]')){
+ let size=parseFloat(getComputedStyle(e).fontSize);const min=Math.min(size,Math.max(12,Number(e.dataset.fitMin)||60));
+ const clipped=()=>over(e)||[...e.parentElement.children].some(child=>over(child))||over(e.parentElement);
+ while(size>min&&clipped()){size=Math.max(min,size-2);e.style.fontSize=size+'px';}
+}}
+const bad=[...document.querySelectorAll('.slide,.slide *')].filter(over);
+window.__codeResult={overflow:bad.length>0,count:bad.length,elements:bad.map(e=>({tag:e.tagName,className:e.className,selector:e.tagName.toLowerCase()+(e.id?'#'+e.id:'')+(typeof e.className==='string'?e.className.trim().split(/\\s+/).filter(Boolean).map(c=>'.'+c).join(''):''),width:e.clientWidth,scrollWidth:e.scrollWidth,height:e.clientHeight,scrollHeight:e.scrollHeight})),fontsReady:true,resourceErrors:[...document.images].filter(i=>!i.naturalWidth).map(i=>i.src).concat([...document.fonts].filter(f=>f.status==='error').map(f=>f.family))};
+parent.postMessage({type:'ag-code-check',channel:CHANNEL,...window.__codeResult},'*');window.__codeReady=true;
+})();`;
 export function codeCss(css: string) {
   const sheet = postcss.parse(css);
   const imports: string[] = [];
@@ -214,7 +243,7 @@ export function codeDocument(
   const imports = parsedCss.imports.replace(/<\/style/gi, "<\\/style");
   const css = parsedCss.css.replace(/<\/style/gi, "<\\/style");
   const csp = `default-src 'none'; script-src 'nonce-ag-code-helper'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src ${origin} https://fonts.gstatic.com data:; img-src ${origin}/brand/ ${origin}/fonts/ https://*.supabase.co https://*.public.blob.vercel-storage.com https://*.private.blob.vercel-storage.com data:; connect-src 'none'; form-action 'none'; base-uri ${origin}; frame-src 'none'; object-src 'none'`;
-  return `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${escapeHtml(csp)}"><base href="${escapeHtml(origin)}/"><link rel="preload" href="/fonts/inter-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin="anonymous"><link rel="preload" href="/fonts/inter-tight-latin-800-normal.woff2" as="font" type="font/woff2" crossorigin="anonymous"><style>${imports}\nhtml,body{margin:0;padding:0;width:1080px;height:1350px;overflow:hidden}*{box-sizing:border-box}.slide{position:relative!important;width:1080px!important;height:1350px!important;max-width:none!important;margin:0!important;overflow:hidden;container-type:inline-size}${CODE_FONT_CSS}\n${css}\n*,*::before,*::after{animation:none!important;transition:none!important;caret-color:transparent!important}</style></head><body><div class="slide carousel-studio-page carousel-artboard is-${escapeHtml(visual)} is-${escapeHtml(kind)}">${frameMarkup(frame, index, total, theme)}</div><script nonce="ag-code-helper">const FIT=${theme.fitText};const CHANNEL=${JSON.stringify(channel).replace(/</g, "\\u003c")};${HELPER}</script></body></html>`;
+  return `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${escapeHtml(csp)}"><base href="${escapeHtml(origin)}/"><link rel="preload" href="/fonts/inter-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin="anonymous"><link rel="preload" href="/fonts/inter-tight-latin-800-normal.woff2" as="font" type="font/woff2" crossorigin="anonymous"><style>${imports}\nhtml,body{margin:0;padding:0;width:1080px;height:1350px;overflow:hidden}*{box-sizing:border-box}.slide{position:relative!important;width:1080px!important;height:1350px!important;max-width:none!important;margin:0!important;overflow:hidden;container-type:inline-size}${CODE_FONT_CSS}\n${SOURCE_SERIF_EXTRA_CSS}\n${css}\n*,*::before,*::after{animation:none!important;transition:none!important;caret-color:transparent!important}</style></head><body><div class="slide carousel-studio-page carousel-artboard is-${escapeHtml(visual)} is-${escapeHtml(kind)}">${frameMarkup(frame, index, total, theme)}</div><script nonce="ag-code-helper">(()=>{const FIT=${theme.fitText};const CHANNEL=${JSON.stringify(channel).replace(/</g, "\\u003c")};${HELPER}})();</script></body></html>`;
 }
 const frameSchema = z.object({
   id: z.string().min(1).max(100),

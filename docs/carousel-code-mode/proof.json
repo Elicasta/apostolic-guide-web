@@ -1,5 +1,5 @@
 {
-  "browser": "HeadlessChrome/153.0.8010.0",
+  "browser": "HeadlessChrome/141.0.7390.37",
   "passed": true,
   "checks": [
     "10 Chromium PNGs at 1080x1350",

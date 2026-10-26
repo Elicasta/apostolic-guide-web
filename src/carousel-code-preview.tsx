@@ -22,6 +22,7 @@ export function CodeFramePreview({
   const baseChannel = useId();
   const [width, setWidth] = useState(300);
   const [overflow, setOverflow] = useState(false);
+  const [elements, setElements] = useState<Array<{selector: string; width: number; scrollWidth: number; height: number; scrollHeight: number}>>([]);
   const [resourceError, setResourceError] = useState(false);
   const [ready, setReady] = useState(false);
   const [origin, setOrigin] = useState("https://www.apostolicguide.com");
@@ -47,6 +48,8 @@ export function CodeFramePreview({
     const timer = setTimeout(() => {
       setReady(false);
       setOverflow(false);
+      setResourceError(false);
+      setElements([]);
     }, 0);
     return () => clearTimeout(timer);
   }, [doc]);
@@ -59,6 +62,7 @@ export function CodeFramePreview({
       )
         return;
       setOverflow(Boolean(event.data.overflow));
+      setElements(event.data.elements || []);
       setResourceError(Boolean(event.data.resourceErrors?.length));
       setReady(true);
       onIssues?.(
@@ -88,6 +92,7 @@ export function CodeFramePreview({
               : "Fits"
           : "Checking fonts and layout…"}
       </div>
+      {ready && elements.length > 0 && <details><summary>Overflow details · {elements.length} elements</summary><ul>{elements.map((e, i) => <li key={i}>{e.selector}: box {e.width} × {e.height}, content {e.scrollWidth} × {e.scrollHeight}. Check clipping and artboard edges.</li>)}</ul></details>}
       <div
         ref={host}
         data-code-preview
@@ -98,12 +103,17 @@ export function CodeFramePreview({
           position: "relative",
           outline: overflow ? "3px solid #c32032" : "1px solid #d8d8d0",
           overflow: "hidden",
+          background: "#f2f3f0",
         }}
+        aria-busy={!ready}
       >
+        {!ready && <div style={{position: "absolute", inset: 0, zIndex: 1, display: "grid", placeItems: "center", background: "#f2f3f0", color: "#20313a", fontSize: 13}}>Loading fonts and artwork…</div>}
         <iframe
           ref={iframe}
           title={`Code preview slide ${index + 1}`}
           sandbox="allow-scripts"
+          key={channel}
+          loading="eager"
           srcDoc={doc}
           width={1080}
           height={1350}
