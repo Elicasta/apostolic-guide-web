@@ -1,5 +1,6 @@
 import { createHash, randomBytes } from "node:crypto";
 import {videoSceneDocument} from "@/code-mode/video-scenes";
+import {resolveVideoGraphicAssets} from "@/code-mode/video-assets-server";
 import {evaluateDoctrine,textDoctrineSource} from "@/doctrine-gate";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -91,6 +92,9 @@ export async function POST(request: Request) {
       if(verdict.review.status!=="pass")return NextResponse.json({error:"Video Studio V2 scenes must pass doctrine review before rendering.",issues:verdict.review.issues},{status:409});
     }catch(error){return NextResponse.json({error:error instanceof Error?error.message:"Doctrine validator unavailable. Render blocked."},{status:503});}
   }
+
+  let renderStyle=style;
+  if(rawScenes){try{renderStyle={...style,kineticSceneV2:await resolveVideoGraphicAssets(service,videoSceneDocument.parse(rawScenes))}}catch(error){return NextResponse.json({error:error instanceof Error?error.message:"Could not resolve Graphics library assets."},{status:409})}}
 
   const callbackUrl = `${new URL(request.url).origin}/api/admin/video-studio/render-callback`;
   const queued = [];
@@ -190,7 +194,7 @@ export async function POST(request: Request) {
           format,
           audio_url: audioResult.data.audio_url,
           timeline: projectResult.data.timeline,
-          style: projectResult.data.style,
+          style: renderStyle,
           upload_url: signedUpload.data.signedUrl,
           callback_url: callbackUrl,
           callback_token: callbackToken
