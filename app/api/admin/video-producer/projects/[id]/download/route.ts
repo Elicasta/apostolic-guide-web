@@ -30,12 +30,9 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
   if (projectResult.error) return NextResponse.json({ error: projectResult.error.message }, { status: 500 });
   if (renderResult.error) return NextResponse.json({ error: renderResult.error.message }, { status: 500 });
   if (!projectResult.data) return NextResponse.json({ error: "Video Producer project not found." }, { status: 404 });
-  if (!["review", "completed"].includes(projectResult.data.status)) {
-    return NextResponse.json({ error: "The master must be rendered and ready for review before it can be downloaded." }, { status: 409 });
-  }
 
   const render = renderResult.data;
-  if (!render?.output_storage_path) return NextResponse.json({ error: "No completed review master is available yet." }, { status: 404 });
+  if (!render?.output_storage_path) return NextResponse.json({ error: "No completed MP4 exists for this project. Open the project, confirm approval and retry the render before downloading." }, { status: 404 });
 
   try {
     const signedUrl = await createPrivateBlobDownloadUrl(render.output_storage_path, 10 * 60 * 1000);
