@@ -135,6 +135,21 @@ export async function POST(request: Request) {
     const codeScenes=project.director_metadata?.videoCodeV2;
     const rawCode=codeScenes?videoCodeV2Schema.parse(codeScenes):null;
     const videoCodeV2=rawCode?resolveVideoSceneAnchors(rawCode,localTranscript.words,t=>sourceTimeToOutputTime(t,plan.cuts,plan.sourceDuration)):null;
+    const graphicKeys=videoCodeV2?.assets.filter(a=>a.kind==="graphic").map(a=>a.id)??[];
+    const videoCodeAssetUrls:Record<string,string>={};
+    if(graphicKeys.length){
+      const uuidIds=graphicKeys.map(k=>k.replace(/^graphic-/,""));
+      if(uuidIds.some((uuid)=>!z.string().uuid().safeParse(uuid).success))throw new Error("Invalid graphics library asset ID");
+      const registered=await service.from("video_producer_graphic_assets")
+        .select("id,active,storage_locator,content_type,storage_provider")
+        .in("id",uuidIds).eq("active",true);
+      if(registered.error||registered.data?.length!==uuidIds.length)throw new Error("A selected graphics asset is missing or inactive");
+      for(const graphic of registered.data){
+        if(!["image/png","image/jpeg","image/webp"].includes(graphic.content_type)||graphic.storage_provider!=="vercel_blob")
+          throw new Error("Selected graphics asset must be a supported private image");
+        videoCodeAssetUrls["graphic-"+graphic.id]=await createPrivateBlobDownloadUrl(graphic.storage_locator,8*60*60*1000);
+      }
+    }
     const videoCodeWords=videoCodeV2?localTranscript.words.flatMap(word=>{
       const start=sourceTimeToOutputTime(Number(word.start),plan.cuts,plan.sourceDuration);
       const end=sourceTimeToOutputTime(Number(word.end),plan.cuts,plan.sourceDuration);
@@ -157,7 +172,7 @@ export async function POST(request: Request) {
       },
       source: { filename: project.source_filename, duration: project.source_duration, range: sourceRange },
       renderPlan,
-      ...(videoCodeV2 ? {videoCodeV2,videoCodeWords} : {}),
+      ...(videoCodeV2 ? {videoCodeV2,videoCodeWords,videoCodeAssetUrls} : {}),
       transcript: localTranscript,
       musicTracks,
       ...(production.usesMulticam ? {
