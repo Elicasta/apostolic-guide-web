@@ -6,7 +6,6 @@ import os
 import subprocess
 import sys
 import tempfile
-import time
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BROADCAST_PATH = os.path.join(ROOT, "scripts", "render_video_producer_broadcast_worker.py")
@@ -16,6 +15,7 @@ assert SPEC and SPEC.loader
 SPEC.loader.exec_module(bw)
 
 from video_producer_broadcast_graphics_v2 import build_broadcast_ass_v2  # noqa: E402
+from video_producer_audio_master import master_packaged_audio, target_for_plan  # noqa: E402
 
 bw.build_broadcast_ass = build_broadcast_ass_v2
 bw.base.build_ass = build_broadcast_ass_v2
@@ -57,7 +57,7 @@ def audio_filter_v2(plan):
             "equalizer=f=3600:t=q:w=1:g=1.4,"
             "deesser=i=0.14:m=0.5:f=0.5,"
             "acompressor=threshold=-22dB:ratio=3.0:attack=8:release=125:makeup=1.5,"
-            "alimiter=limit=0.94,loudnorm=I=-14:TP=-1:LRA=6," + tail
+            "alimiter=limit=0.94," + tail
         )
     if preset == "ag-voice-clean":
         return (
@@ -66,7 +66,7 @@ def audio_filter_v2(plan):
             "equalizer=f=3600:t=q:w=1:g=1.0,"
             "deesser=i=0.12:m=0.5:f=0.5,"
             "acompressor=threshold=-21dB:ratio=2.4:attack=12:release=160:makeup=1.2,"
-            "alimiter=limit=0.94,loudnorm=I=-16:TP=-1.5:LRA=7," + tail
+            "alimiter=limit=0.94," + tail
         )
     return tail
 
@@ -190,9 +190,9 @@ def apply_music(graph, plan, selected_music, music_index, audio_input):
         if bool(selected_music.get("duckUnderVoice", True)):
             graph.append(f"[{audio_input}]asplit=2[voice_sidechain][voice_mix]")
             graph.append("[musicbed][voice_sidechain]sidechaincompress=threshold=0.035:ratio=8:attack=15:release=350:makeup=1[ducked]")
-            graph.append("[voice_mix][ducked]amix=inputs=2:duration=first:dropout_transition=0,alimiter=limit=0.94[aout]")
+            graph.append("[voice_mix][ducked]amix=inputs=2:duration=first:dropout_transition=0:normalize=0,alimiter=limit=0.94[aout]")
         else:
-            graph.append(f"[{audio_input}][musicbed]amix=inputs=2:duration=first:dropout_transition=0,alimiter=limit=0.94[aout]")
+            graph.append(f"[{audio_input}][musicbed]amix=inputs=2:duration=first:dropout_transition=0:normalize=0,alimiter=limit=0.94[aout]")
         audio_output = "aout"
     return audio_output
 
@@ -462,6 +462,14 @@ def main():
         bw.package_with_bumpers(manifest, main_path, sys.argv[2], directory)
         if not os.path.exists(sys.argv[2]) or os.path.getsize(sys.argv[2]) < 1024:
             raise RuntimeError("Video Producer package did not create a usable output file")
+
+        # Apply two-pass loudnorm only after speech, the optional music bed, and
+        # bumper audio have been combined. Never change the video bitstream.
+        if target_for_plan(manifest["renderPlan"]):
+            bw.safe_progress_callback(payload, 91, "Measuring final post-mix audio loudness")
+            mastered_path = os.path.join(directory, "mastered-final.mp4")
+            master_packaged_audio(sys.argv[2], mastered_path, manifest["renderPlan"])
+            os.replace(mastered_path, sys.argv[2])
 
         bw.base.callback(payload, "rendering", 94, "Uploading finished master")
         bw.base.upload_file(payload["output_upload_url"], sys.argv[2])
