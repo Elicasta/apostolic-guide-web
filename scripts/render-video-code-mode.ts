@@ -92,7 +92,7 @@ export async function renderSceneVideo(args:string[]){
    if(frame%30===0)process.stdout.write("Rendered "+frame+"/"+count+" frames\n");
   }
   await page.close();
-  const pngCount=(await readdir(dir)).filter(file=>/^\\d{6}\\.png$/.test(file)).length;
+  const pngCount=(await readdir(dir)).filter(file=>/^[0-9]{6}[.]png$/.test(file)).length;
   if(pngCount!==count)throw new Error("Frame generator was incomplete: expected "+count+", got "+pngCount);
   // Overlay is a transparent RGBA PNG stream. Preserve the existing finished
   // master's audio without a second audio mastering pass.
