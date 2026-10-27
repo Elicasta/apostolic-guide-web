@@ -101,7 +101,7 @@ export function videoSceneHtml(doc:VideoScenesDocument,options:{fontBase?:string
  const layers=parsed.scenes.map(s=>`<section id="scene-${s.id}" data-scene="${s.id}" data-layer="${s.layer}" data-motion="${s.motion}" class="ag-scene">${cleanHtml(s.html)}</section>`).join("");
  const styles=parsed.scenes.map(s=>`#scene-${s.id}{${scrub(s.css)}}`).join("\n");
  const guides=options.guides?'<div id="ag-guides" aria-hidden="true"></div>':"";
- const payload=safeJson({scenes:parsed.scenes,assets:parsed.assets.filter(a=>a.resolvedUrl?.startsWith("https://")).map(a=>({id:a.id,url:a.resolvedUrl}))});
+ const payload=safeJson({scenes:parsed.scenes.map(s=>({...s,html:cleanHtml(s.html)})),assets:parsed.assets.filter(a=>a.resolvedUrl?.startsWith("https://")).map(a=>({id:a.id,url:a.resolvedUrl}))});
  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>
 ${fonts}*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:transparent;color:#F5F7F4}
 #ag-root{width:${parsed.format.w}px;height:${parsed.format.h}px;position:relative;background:${parsed.style.background};overflow:hidden}
