@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import TeleprompterLibrary from "@/components/teleprompter/TeleprompterLibrary";
 
 export const metadata: Metadata = {
@@ -7,5 +8,5 @@ export const metadata: Metadata = {
 };
 
 export default function TeleprompterLibraryPage() {
-  return <TeleprompterLibrary />;
+  return <><p><Link href="/admin/code-mode?tool=teleprompter">Open private Script Code Mode</Link></p><TeleprompterLibrary /></>;
 }

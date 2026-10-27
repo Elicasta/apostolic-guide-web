@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { getStudioPermission } from "@/auth";
 import { allPathways } from "@/pathway-catalog";
 import { PathwayVideoStudio } from "@/pathway-video-studio";
@@ -159,7 +160,8 @@ export default async function AdminVideoStudioPage() {
   const aiReady = Boolean(process.env.OPENAI_API_KEY?.trim());
 
   return <>
-    <PathwayVideoStudio pathways={pathways} databaseReady={databaseReady} rendererReady={rendererReady}/>
+    <p><Link className="button" href="/admin/code-mode?tool=video">Open Code Mode · Video Metadata</Link></p>
+      <PathwayVideoStudio pathways={pathways} databaseReady={databaseReady} rendererReady={rendererReady}/>
     <VideoStudioWorkflow aiReady={aiReady}/>
   </>;
 }
