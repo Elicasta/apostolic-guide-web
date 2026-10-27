@@ -1,7 +1,9 @@
 import {findNodeAtLocation,parseTree,printParseErrorCode,type ParseError} from "jsonc-parser";
 import {z} from "zod";
 export const codeTool=z.enum(["carousel","broadcast","threads","website","content_engine","episode","audio","teleprompter","video"]);
-export const envelope=z.object({tool:codeTool,version:z.literal(1)});
+export const envelope=z.object({tool:codeTool,version:z.union([z.literal(1),z.literal(2)])}).superRefine((value,ctx)=>{
+ if(value.version===2&&value.tool!=="video")ctx.addIssue({code:"custom",path:["version"],message:"Only Video Code Mode uses envelope V2."});
+});
 export type CodeAdapter<T>={tool:z.infer<typeof codeTool>;version:1;schema:z.ZodType<T>;fromJson:(value:T)=>unknown;toJson:(draft:unknown)=>T};
 export function defineCodeAdapter<T>(adapter:CodeAdapter<T>){return adapter;}
 export function parseCodeDocument<T>(raw:string,fromJson:(value:unknown)=>T):T {
