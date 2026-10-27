@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 import { getStudioPermission } from "@/auth";
 import { createServiceClient } from "@/supabase";
+import { startVideoProducerTranscription } from "@/video-producer-transcription-start";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -84,6 +85,13 @@ export async function POST(request: Request) {
         if (blob.pathname !== expectedPath) throw new Error("Completed blob path does not match the project.");
         const service = createServiceClient();
         if (!service) throw new Error("Supabase service access is not configured.");
+        const existing = await service.from("video_producer_projects")
+          .select("id,director_metadata").eq("id", payload.projectId)
+          .eq("status", "uploading").eq("source_locator", blob.pathname).maybeSingle();
+        if (existing.error) throw new Error(existing.error.message);
+        if (!existing.data) return; // Replay or a stale upload completion.
+        const metadata = existing.data.director_metadata && typeof existing.data.director_metadata === "object"
+          ? existing.data.director_metadata as Record<string, unknown> : {};
         const update = await service.from("video_producer_projects").update({
           status: "uploaded",
           source_provider: "vercel_blob",
@@ -91,9 +99,27 @@ export async function POST(request: Request) {
           source_filename: payload.filename,
           source_mime_type: payload.contentType,
           source_size_bytes: Math.round(payload.size),
+          director_metadata: {
+            ...metadata, transcriptionError: null,
+            transcriptionBridge: null,
+            autoTranscribe: { enabled: true, attempts: 0, nextAttemptAt: new Date().toISOString() }
+          },
           updated_by: payload.userId
-        }).eq("id", payload.projectId);
+        }).eq("id", payload.projectId).eq("status", "uploading")
+          .eq("source_locator", blob.pathname).select("id").maybeSingle();
         if (update.error) throw new Error(update.error.message);
+        if (!update.data) return;
+        // The upload callback is independent of the browser. If GitHub dispatch
+        // fails, keep the persisted queue marker for the authenticated cron.
+        try {
+          await startVideoProducerTranscription({
+            service, projectId: payload.projectId,
+            callbackOrigin: new URL(request.url).origin, autoOnly: true
+          });
+        } catch (error) {
+          console.error("Video upload queued for transcription retry", payload.projectId,
+            error instanceof Error ? error.message : error);
+        }
       }
     });
     return NextResponse.json(jsonResponse);
