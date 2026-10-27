@@ -131,6 +131,7 @@ export function PathwayVideoStudio({
   const timingCurrent = Boolean(selected?.audioContentHash && effectiveProject?.audioContentHash === selected.audioContentHash && alignment?.status === "aligned-rich");
 
   useEffect(() => {
+    void Promise.resolve().then(() => {
     setDuration(0);
     setCurrentTime(0);
     setMessage("");
@@ -143,13 +144,15 @@ export function PathwayVideoStudio({
     const saved = current ? project?.timeline : null;
     setTimeline(saved?.length ? saved : []);
     setSelectedCueId(saved?.[0]?.id ?? null);
+    });
   }, [selectedSlug]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!selected || !duration || timeline.length) return;
     const next = buildEstimatedPathwayVideoTimeline(selected, duration);
-    setTimeline(next);
-    setSelectedCueId(next[0]?.id ?? null);
+    let active = true;
+    void Promise.resolve().then(() => { if (active) { setTimeline(next); setSelectedCueId(next[0]?.id ?? null); } });
+    return () => { active = false; };
   }, [duration, selected, timeline.length]);
 
   useEffect(() => {
@@ -183,11 +186,7 @@ export function PathwayVideoStudio({
   const reviewRender = useMemo(() => readyRenders.find((render) => render.id === reviewRenderId) ?? readyRenders[0] ?? null, [readyRenders, reviewRenderId]);
 
   useEffect(() => {
-    if (!readyRenders.length) {
-      setReviewRenderId(null);
-      return;
-    }
-    setReviewRenderId((current) => current && readyRenders.some((render) => render.id === current) ? current : readyRenders[0].id);
+    void Promise.resolve().then(() => setReviewRenderId((current) => readyRenders.length ? (current && readyRenders.some((render) => render.id === current) ? current : readyRenders[0].id) : null));
   }, [readyRenders]);
 
   async function analyzeAudio(force = false) {
