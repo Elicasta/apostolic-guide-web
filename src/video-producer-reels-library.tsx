@@ -98,7 +98,7 @@ export function VideoProducerReelsLibrary({ parentProjectId = null, embedded = f
     finally { setLoading(false); }
   }, []);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => { queueMicrotask(() => { void load(); }); }, [load]);
   useEffect(() => {
     if (!projects.some((project) => project.mode === "reels" && (["directing", "rendering"].includes(project.status) || ["queued", "rendering"].includes(project.latest_render?.status || "")))) return;
     const timer = window.setInterval(() => void load(), 7000);
