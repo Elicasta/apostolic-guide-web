@@ -11,6 +11,7 @@ export type WelcomeAutomation = {
   copy: WelcomeCopy;
   revision: number;
   updatedAt: string | null;
+  migrationMissing?: boolean;
 };
 
 export async function getWelcomeAutomation(): Promise<WelcomeAutomation> {
@@ -19,7 +20,10 @@ export async function getWelcomeAutomation(): Promise<WelcomeAutomation> {
   const { data, error } = await service.from("email_automations").select("status,copy,revision,updated_at").eq("key", WELCOME_KEY).maybeSingle();
   if (error || !data || !["active","paused"].includes(data.status)) {
     if (error) console.error("Welcome automation config unavailable", { code: error.code });
-    return { available: false, status: "paused", copy: DEFAULT_WELCOME_COPY, revision: 0, updatedAt: null };
+    // Only a confirmed missing table allows the temporary legacy sender.
+    // Transient read failure must never bypass an intentionally paused automation.
+    return { available: false, status: "paused", copy: DEFAULT_WELCOME_COPY, revision: 0, updatedAt: null,
+      migrationMissing: error?.code === "42P01" || error?.code === "PGRST205" };
   }
   return { available: true, status: data.status as EmailAutomationStatus, copy: parseWelcomeCopy(data.copy), revision: Number(data.revision), updatedAt: data.updated_at };
 }
@@ -70,7 +74,7 @@ async function sendLegacyWelcomeEmail(subscriberId: string) {
 
 export async function enqueueWelcomeEmail(subscriberId: string) {
   const settings = await getWelcomeAutomation();
-  if (!settings.available) return sendLegacyWelcomeEmail(subscriberId);
+  if (!settings.available) return settings.migrationMissing ? sendLegacyWelcomeEmail(subscriberId) : "unavailable";
   if (settings.status !== "active") return "inactive";
   const service = createServiceClient();
   if (!service) return "unavailable";
