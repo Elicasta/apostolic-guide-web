@@ -4,7 +4,7 @@
  * Browser and Code Mode call the same renderVideoSceneFrame(doc, t, fonts).
  * Usage: node --import tsx scripts/render-video-code-mode.ts SCENE.json BASE.mp4 OUT.mp4 [startSeconds] [durationSeconds]
  */
-import {readFile,mkdir,readdir,rm} from "node:fs/promises";
+import {readFile,rm} from "node:fs/promises";
 import {spawnSync} from "node:child_process";
 import {join,resolve} from "node:path";
 import {tmpdir} from "node:os";
