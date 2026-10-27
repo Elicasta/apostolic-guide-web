@@ -62,7 +62,7 @@ jobs:
           PY
           ffmpeg -y -hide_banner -loglevel error -f lavfi -i testsrc2=size=360x640:rate=30 -f lavfi -i sine=frequency=220:sample_rate=48000 -t 5 -c:v libx264 -pix_fmt yuv420p -c:a aac /tmp/ag-motion-source-5s.mp4
           node --import tsx scripts/render-video-code-mode.ts tests/fixtures/video-code-mode-kinetic-5s.json /tmp/ag-motion-source-5s.mp4 /tmp/ag-motion-result-5s.mp4 0 5
-          ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 /tmp/ag-motion-result-5s.mp4
+          python3 -c "import subprocess; d=float(subprocess.check_output([\"ffprobe\",\"-v\",\"error\",\"-show_entries\",\"format=duration\",\"-of\",\"default=noprint_wrappers=1:nokey=1\",\"/tmp/ag-motion-result-5s.mp4\"])); assert 4.8 <= d <= 5.2, f\"Kinetic 5s proof truncated: {d}s\""
           test "$(stat -c %s /tmp/ag-motion-result-5s.mp4)" -gt 1024
           node scripts/check-video-code-mode-30s.mjs
 
