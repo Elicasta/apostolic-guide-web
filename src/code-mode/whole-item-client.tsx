@@ -1,11 +1,12 @@
 "use client";
 import {useEffect,useState} from "react";
 import {CodeModeJsonPanel} from "./json-panel";
+import {VideoKineticCodeEditor} from "./video-kinetic-editor";
 import {initialWholeItem,wholeItemSchema,type WholeItemCode} from "./whole-item";
 type Tool=WholeItemCode["tool"];
 const OPTIONS:Tool[]=["website","content_engine","episode","audio","teleprompter","video"];
 function initial(tool:Tool){return initialWholeItem(tool) as WholeItemCode;}
-export function WholeItemCodeMode({initialTool="website",initialId=""}:{initialTool?:string;initialId?:string}){
+export function WholeItemCodeMode({initialTool="website",initialId="",initialVideoKind="producer",initialScene=""}:{initialTool?:string;initialId?:string;initialVideoKind?:"producer"|"studio";initialScene?:string}){
  const [tool,setTool]=useState<Tool>(OPTIONS.includes(initialTool as Tool)?initialTool as Tool:"website");
  const [id,setId]=useState(initialId);
  const [kind,setKind]=useState("script");
@@ -38,6 +39,10 @@ export function WholeItemCodeMode({initialTool="website",initialId=""}:{initialT
    await load(parsed.tool,id,parsed.tool==="episode"?parsed.kind:parsed.tool==="video"?parsed.kind:kind);
   }catch(e){setError(e instanceof Error?e.message:"Apply failed.");}finally{setBusy(false);}
  }
+ if(tool==="video")return <section className="admin-card" style={{padding:20,display:"grid",gap:14}}>
+  <label>Code Mode tool <select value={tool} onChange={e=>select(e.target.value as Tool)}>{OPTIONS.map(v=><option key={v} value={v}>{v.replace("_"," ")}</option>)}</select></label>
+  <VideoKineticCodeEditor initialId={initialId} initialKind={initialVideoKind} initialScene={initialScene}/>
+ </section>;
  return <section className="admin-card" style={{padding:20,display:"grid",gap:14}}>
   <h2>Whole-item Code Mode</h2>
   <p>One versioned JSON format per tool. Apply saves draft content only. It cannot approve doctrine, schedule, publish, render, or send.</p>
