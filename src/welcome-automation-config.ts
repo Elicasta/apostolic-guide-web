@@ -23,7 +23,7 @@ export const DEFAULT_WELCOME_COPY: WelcomeCopy = {
   greeting: "We’re glad you’re here.",
   body: "Apostolic Guide exists to help people search the Scriptures, follow connected passages, ask honest questions, and understand not only what they believe, but why they believe it.",
   buttonLabel: "Explore Scripture Pathways",
-  buttonUrl: "https://www.apostolicguide.com/pathways"
+  buttonUrl: "https://apostolicguide.com/pathways"
 };
 
 export type EmailAutomationStatus = "active" | "paused";

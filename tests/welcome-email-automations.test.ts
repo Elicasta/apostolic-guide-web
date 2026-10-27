@@ -37,6 +37,7 @@ test("API uses idempotent delivery ledger instead of untracked welcome sends", (
   assert.match(automation, /already_claimed/);
   assert.match(automation, /subscriber.status !== "subscribed"/);
   assert.match(automation, /"uncertain"/);
+  assert.match(automation, /sendLegacyWelcomeEmail/);
   assert.match(sql, /unique \(automation_key,subscriber_id\)/);
   assert.match(sql, /enable row level security/);
 });

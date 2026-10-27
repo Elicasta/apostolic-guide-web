@@ -33,9 +33,45 @@ type Delivery = {
 };
 
 /** Insert at most once per subscriber, including across concurrent signup requests. */
+/** Preserve existing welcome behavior until the additive database migration is installed. */
+async function sendLegacyWelcomeEmail(subscriberId: string) {
+  const service = createServiceClient();
+  if (!service || !process.env.RESEND_API_KEY || !process.env.RESEND_FROM_EMAIL) return "unavailable";
+  const { data: subscriber, error } = await service.from("email_subscribers")
+    .select("id,email,status,wants_live_teachings,wants_new_articles,welcome_sent_at")
+    .eq("id", subscriberId).maybeSingle();
+  if (error || !subscriber || subscriber.status !== "subscribed" || subscriber.welcome_sent_at) return "skipped";
+  const email = buildWelcomeEmail({ liveTeachings: subscriber.wants_live_teachings, newArticles: subscriber.wants_new_articles });
+  try {
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer " + process.env.RESEND_API_KEY,
+        "Content-Type": "application/json",
+        "Idempotency-Key": ("apostolic-guide-welcome-" + subscriber.email).slice(0, 256)
+      },
+      body: JSON.stringify({
+        from: process.env.RESEND_FROM_EMAIL, to: [subscriber.email],
+        subject: email.subject, html: email.html, text: email.text,
+        tags: [{ name: "category", value: "subscriber_welcome" }]
+      })
+    });
+    if (!response.ok) return "failed";
+    const data = await response.json() as { id?: string };
+    const now = new Date().toISOString();
+    await service.from("email_subscribers").update({
+      welcome_email_id: data.id ?? null, welcome_sent_at: now, updated_at: now
+    }).eq("id", subscriber.id).is("welcome_sent_at", null);
+    return "sent";
+  } catch {
+    return "uncertain";
+  }
+}
+
 export async function enqueueWelcomeEmail(subscriberId: string) {
   const settings = await getWelcomeAutomation();
-  if (!settings.available || settings.status !== "active") return "inactive";
+  if (!settings.available) return sendLegacyWelcomeEmail(subscriberId);
+  if (settings.status !== "active") return "inactive";
   const service = createServiceClient();
   if (!service) return "unavailable";
   const { data, error } = await service.from("email_automation_deliveries")
