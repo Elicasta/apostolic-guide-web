@@ -152,7 +152,25 @@ export async function POST(request:Request){
     const res=await s.from("studio_teleprompter_code_drafts").insert({owner_id:access.user.id,title:d.title,script_text:d.scriptText,notes:d.notes}).select("id").single();
     if(res.error)throw new Error(res.error.message);id=res.data.id;
    }
-  }else{
+  }else if(d.tool==="video" && d.version===2){
+   const producer=d.kind==="producer",table=producer?"video_producer_projects":"pathway_video_projects";
+   const prior=await s.from(table).select("*").eq(producer?"id":"pathway_slug",d.id).maybeSingle();
+   if(prior.error||!prior.data)throw new Error("Video project not found.");
+   if(producer && !["draft","planned","approved"].includes(prior.data.status))throw new Error("Ready, Scheduled and rendering projects are read-only.");
+   matchDate(prior.data.updated_at,d.expectedUpdatedAt);
+   const running=await s.from(producer?"video_producer_renders":"pathway_video_renders").select("id").eq(producer?"project_id":"pathway_slug",d.id).in("status",["queued","rendering"]).limit(1);
+   if(running.error||running.data?.length)throw new Error("A render is active. Wait for it to finish before applying changes.");
+   await checkpoint(s,access.user.id,"video",d.id,prior.data);
+   const {expectedUpdatedAt:ignoredExpected,...stored}=d;
+   void ignoredExpected;
+   const now=new Date().toISOString();
+   const payload=producer?
+    {director_metadata:{...(prior.data.director_metadata||{}),videoCodeV2:stored},status:"draft",approval_fingerprint:null,approved_at:null,updated_by:access.user.id,updated_at:now}:
+    {style:{...(prior.data.style||{}),videoCodeV2:stored},updated_by:access.user.id,updated_at:now};
+   const query=s.from(table).update(payload).eq(producer?"id":"pathway_slug",d.id).eq("updated_at",prior.data.updated_at);
+   const res=producer?await query.eq("status",prior.data.status).select("id").maybeSingle():await query.select("id").maybeSingle();
+   if(res.error||!res.data)throw new Error("Video project changed during Apply.");id=d.id;
+  }else if(d.tool==="video" && d.version===1){
    const producer=d.kind==="producer",table=producer?"video_producer_projects":"pathway_video_projects";
    const prior=await s.from(table).select("*").eq(producer?"id":"pathway_slug",d.id).maybeSingle();
    if(prior.error||!prior.data||(producer&&prior.data.status!=="draft"))throw new Error("Video project is not an editable draft.");
