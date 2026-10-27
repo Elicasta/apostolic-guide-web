@@ -133,7 +133,7 @@ def render(payload: dict, output: Path, progress_callback: ProgressCallback | No
             hero_enable = f"between(t,{brand_start},{brand_end})"
         progress_y = height - 4
 
-        motion_layer = "[b6][3:v]overlay=0:0:format=auto:shortest=1:repeatlast=0[bmotion];" if scene_input else "[b6]null[bmotion];"
+        motion_layer = "[b6][3:v]overlay=0:0:format=auto:eof_action=pass:repeatlast=0[bmotion];" if scene_input else "[b6]null[bmotion];"
         filter_graph = (
             f"[0:a]asplit=2[aout][av];"
             f"[av]showfreqs=s={spec['spectrum_w']}x{spec['spectrum_h']}:mode=bar:ascale=log:fscale=log:"
