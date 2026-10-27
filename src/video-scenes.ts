@@ -8,7 +8,7 @@ const transition = z.enum(["none","crossfade","push","wipe","zoom"]);
 const property = z.union([z.number().finite(),z.string().max(100)]);
 const frame = z.object({
   t: z.number().finite().min(0).max(1),
-  target: z.string().min(1).max(120),
+  target: z.string().regex(/^[.#a-zA-Z0-9 _-]+$/).max(120),
   props: z.record(z.string(),property),
   ease: ease.default("ease-out"),
   bezier: z.tuple([z.number(),z.number(),z.number(),z.number()]).optional()
@@ -68,7 +68,7 @@ export function resolveVideoSceneAnchors(doc:VideoScenesDocument,words:VideoWord
   }
   return null;
  };
- const normalized=words.map(w=>w.word.toLowerCase().replace(/[^a-z0-9]/g,"")).filter(Boolean);
+ const normalized=words.map(w=>w.word.toLowerCase().replace(/[^a-z0-9]/g,""));
  const scenes=doc.scenes.map(scene=>{
   if(!scene.anchor)return scene;
   let index=scene.anchor.wordIndex;
@@ -117,7 +117,7 @@ ${fonts}*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overfl
 ${styles}
 </style></head><body><div id="ag-root">${layers}${guides}</div>
 <script>const DATA=${payload};
-function ease(x,kind,b){x=Math.max(0,Math.min(1,x));if(kind==='linear')return x;if(kind==='ease-in')return x*x;if(kind==='ease-in-out')return x*x*(3-2*x);if(kind==='spring')return 1-Math.exp(-8*x)*Math.cos(13*x);if(kind==='cubic-bezier'&&b)return x*x*(3-2*x)*(1-b[0]+b[2])/2+x*b[0];return 1-(1-x)*(1-x)}
+function ease(x,kind,b){x=Math.max(0,Math.min(1,x));if(kind==='linear')return x;if(kind==='ease-in')return x*x;if(kind==='ease-in-out')return x*x*(3-2*x);if(kind==='spring')return 1-Math.exp(-8*x)*Math.cos(13*x);if(kind==='cubic-bezier'&&b){let t=x;for(let i=0;i<9;i++){const m=1-t,actual=3*m*m*t*b[0]+3*m*t*t*b[2]+t*t*t,derivative=3*m*m*b[0]+6*m*t*(b[2]-b[0])+3*t*t*(1-b[2]);if(Math.abs(derivative)<.00001)break;t=Math.max(0,Math.min(1,t-(actual-x)/derivative))}const m=1-t;return 3*m*m*t*b[1]+3*m*t*t*b[3]+t*t*t;}return 1-(1-x)*(1-x)}
 function splitText(root,type){for(const el of root.querySelectorAll("h1,h2,h3,p,.kicker")){const text=el.textContent||'';el.textContent='';const parts=type==='letters'?[...text]:text.split(/(\\s+)/);for(const part of parts){const s=document.createElement('span');s.className='ag-unit';s.textContent=part;el.append(s)}}}
 for(const s of DATA.scenes)if(s.motion==='words'||s.motion==='letters')splitText(document.getElementById('scene-'+s.id),s.motion);
 function render(time){for(const s of DATA.scenes){const el=document.getElementById('scene-'+s.id);const on=time>=s.start&&time<s.end;el.style.display=on?'flex':'none';if(!on)continue;
@@ -131,8 +131,18 @@ if(s.motion==='rise')tx+=(1-entrance)*8;if(s.motion==='slide')tx+=(1-entrance)*2
 if(s.motion==='punch')scale*=1+.14*(1-ease(Math.min(1,p/.28),'spring'));
 if(s.motion==='wipe'||s.motion==='mask')clip='inset(0 '+(100-100*ease(Math.min(1,p/.32),'ease-out'))+'% 0 0)';
 el.style.opacity=alpha;el.style.transform='translateX('+tx+'%) scale('+scale+')';el.style.clipPath=clip;
+const headline=el.querySelector('h1,h2,h3');
+if(headline){const progress=ease(Math.min(1,p/.38),'ease-out');
+if(s.motion==='highlight'){headline.style.background='linear-gradient(transparent 61%,#A12D3D 61%)';headline.style.backgroundSize=(progress*100)+'% 100%';headline.style.backgroundRepeat='no-repeat'}
+if(s.motion==='underline'||s.motion==='strike'){headline.style.background='linear-gradient(#A12D3D,#A12D3D)';headline.style.backgroundRepeat='no-repeat';
+headline.style.backgroundPosition=s.motion==='underline'?'left bottom':'left 58%';headline.style.backgroundSize=(progress*100)+'% 9px'}
+}
 const units=el.querySelectorAll('.ag-unit');units.forEach((u,i)=>{const amount=ease(Math.min(1,Math.max(0,(p-i*.027)/.16)),'ease-out');u.style.opacity=String(amount);u.style.transform='translateY('+((1-amount)*26)+'px)'});
-for(const f of s.keyframes){const found=el.querySelectorAll(f.target);const local=ease(Math.max(0,Math.min(1,(p-f.t)/.22)),f.ease,f.bezier);found.forEach(node=>{for(const [key,value] of Object.entries(f.props)){if(!/^(opacity|transform|color|backgroundColor|filter|clipPath|letterSpacing)$/.test(key))continue;if(typeof value==='number'&&key==='opacity')node.style[key]=String(value*local);else if(local>=.999)node.style[key]=String(value)}})}
+const tracks=new Map();for(const f of s.keyframes){for(const k of Object.keys(f.props)){const id=f.target+'|'+k;if(!tracks.has(id))tracks.set(id,[]);tracks.get(id).push({t:f.t,value:f.props[k],ease:f.ease,bezier:f.bezier,target:f.target,key:k})}}
+for(const track of tracks.values()){track.sort((a,b)=>a.t-b.t);let a=track[0],b=track[0];for(let i=0;i<track.length;i++){if(p>=track[i].t)a=track[i];if(track[i].t>=p){b=track[i];break}b=a}
+const x=a===b?1:ease((p-a.t)/(b.t-a.t),b.ease,b.bezier);
+let val=a.value;if(typeof a.value==='number'&&typeof b.value==='number')val=a.value+(b.value-a.value)*x;
+const targets=el.querySelectorAll(a.target);targets.forEach(node=>{if(a.key==='opacity')node.style.opacity=String(val);else if(a.key==='scale')node.style.scale=String(val);else if(a.key==='x')node.style.translate=String(val)+'px 0';else if(a.key==='y')node.style.translate='0 '+String(val)+'px';else if(a.key==='rotate')node.style.rotate=String(val)+'deg';else if(/^(color|backgroundColor|filter|clipPath|letterSpacing)$/.test(a.key))node.style[a.key]=String(val)})}
 }}window.__AGSeekFrame=render;window.addEventListener('message',ev=>{if(ev.data?.type==='ag-seek'&&Number.isFinite(ev.data.time))render(ev.data.time)});render(0);</script></body></html>`;
 }
 
