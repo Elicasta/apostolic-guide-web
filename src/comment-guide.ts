@@ -248,6 +248,11 @@ const OUT_OF_DOCTRINE_PATTERNS: Array<[RegExp, string]> = [
   [/\b(?:earn|merit|deserve)\s+(?:our\s+)?salvation\b/i, "treats salvation as human merit"]
 ];
 
+export function findPublicDoctrineViolation(text: string) {
+  for (const [pattern, reason] of OUT_OF_DOCTRINE_PATTERNS) if (pattern.test(text)) return reason;
+  return null;
+}
+
 export function validatePublicCommentReply(input: {
   reply: string;
   intent: CommentGuideIntent;
