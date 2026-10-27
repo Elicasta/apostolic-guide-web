@@ -27,7 +27,7 @@ export const videoScenesSchema = z.object({
   id:z.string().min(1).max(150),
   format:z.object({w:z.number().int().min(240).max(3840),h:z.number().int().min(240).max(3840),fps:z.number().int().min(15).max(60)}).strict(),
   assets:z.array(z.object({id:safeId,assetId:z.string().max(150).optional(),kind:z.enum(["graphic","logo","image"]),resolvedUrl:z.string().max(4000).optional()}).strict()).max(100),
-  style:z.object({preset:z.enum(["apostolic","editorial","minimal"]).default("apostolic"),background:z.string().max(80).default("transparent"),accent:z.string().max(80).default("#A12D3D"),font:z.enum(["Montserrat","Bebas Neue","Playfair Display","Cormorant","Inter"]).default("Montserrat")}).strict(),
+  style:z.object({preset:z.enum(["apostolic","editorial","minimal"]).default("apostolic"),background:z.string().regex(/^(transparent|#[0-9a-fA-F]{3,8})$/).default("transparent"),accent:z.string().regex(/^#[0-9a-fA-F]{6}$/).default("#A12D3D"),font:z.enum(["Montserrat","Bebas Neue","Playfair Display","Cormorant","Inter"]).default("Montserrat")}).strict(),
   scenes:z.array(sceneSchema).max(120),
   expectedUpdatedAt:z.string().datetime({offset:true}).optional()
 }).strict().superRefine((v,ctx)=>{
@@ -86,8 +86,8 @@ export function resolveVideoSceneAnchors(doc:VideoScenesDocument,words:VideoWord
 }
 function cleanHtml(html:string){
  return sanitizeHtml(html,{
-  allowedTags:["div","span","strong","em","b","i","small","h1","h2","h3","p","section","article","br","ul","li","svg","path","line","rect","circle"],
-  allowedAttributes:{"*":["class","data-motion","aria-label"],svg:["viewBox"],path:["d","fill","stroke","stroke-width"],line:["x1","x2","y1","y2","stroke","stroke-width"],rect:["x","y","width","height","rx","fill"],circle:["cx","cy","r","fill"]},
+  allowedTags:["div","span","strong","em","b","i","small","h1","h2","h3","p","section","article","br","ul","li","img","svg","path","line","rect","circle"],
+  allowedAttributes:{"*":["class","data-motion","aria-label"],img:["data-asset","alt"],svg:["viewBox"],path:["d","fill","stroke","stroke-width"],line:["x1","x2","y1","y2","stroke","stroke-width"],rect:["x","y","width","height","rx","fill"],circle:["cx","cy","r","fill"]},
   allowedSchemes:[],disallowedTagsMode:"discard"
  });
 }
@@ -101,7 +101,7 @@ export function videoSceneHtml(doc:VideoScenesDocument,options:{fontBase?:string
  const layers=parsed.scenes.map(s=>`<section id="scene-${s.id}" data-scene="${s.id}" data-layer="${s.layer}" data-motion="${s.motion}" class="ag-scene">${cleanHtml(s.html)}</section>`).join("");
  const styles=parsed.scenes.map(s=>`#scene-${s.id}{${scrub(s.css)}}`).join("\n");
  const guides=options.guides?'<div id="ag-guides" aria-hidden="true"></div>':"";
- const payload=safeJson({scenes:parsed.scenes});
+ const payload=safeJson({scenes:parsed.scenes,assets:parsed.assets.filter(a=>a.resolvedUrl?.startsWith("https://")).map(a=>({id:a.id,url:a.resolvedUrl}))});
  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>
 ${fonts}*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:transparent;color:#F5F7F4}
 #ag-root{width:${parsed.format.w}px;height:${parsed.format.h}px;position:relative;background:${parsed.style.background};overflow:hidden}
@@ -120,6 +120,7 @@ ${styles}
 function ease(x,kind,b){x=Math.max(0,Math.min(1,x));if(kind==='linear')return x;if(kind==='ease-in')return x*x;if(kind==='ease-in-out')return x*x*(3-2*x);if(kind==='spring')return 1-Math.exp(-8*x)*Math.cos(13*x);if(kind==='cubic-bezier'&&b){let t=x;for(let i=0;i<9;i++){const m=1-t,actual=3*m*m*t*b[0]+3*m*t*t*b[2]+t*t*t,derivative=3*m*m*b[0]+6*m*t*(b[2]-b[0])+3*t*t*(1-b[2]);if(Math.abs(derivative)<.00001)break;t=Math.max(0,Math.min(1,t-(actual-x)/derivative))}const m=1-t;return 3*m*m*t*b[1]+3*m*t*t*b[3]+t*t*t;}return 1-(1-x)*(1-x)}
 function splitText(root,type){for(const el of root.querySelectorAll("h1,h2,h3,p,.kicker")){const text=el.textContent||'';el.textContent='';const parts=type==='letters'?[...text]:text.split(/(\\s+)/);for(const part of parts){const s=document.createElement('span');s.className='ag-unit';s.textContent=part;el.append(s)}}}
 for(const s of DATA.scenes)if(s.motion==='words'||s.motion==='letters')splitText(document.getElementById('scene-'+s.id),s.motion);
+const assetMap=new Map(DATA.assets.map(a=>[a.id,a.url]));for(const img of document.querySelectorAll('img[data-asset]')){const url=assetMap.get(img.getAttribute('data-asset'));if(url)img.src=url;else img.style.display='none'}
 function render(time){for(const s of DATA.scenes){const el=document.getElementById('scene-'+s.id);const on=time>=s.start&&time<s.end;el.style.display=on?'flex':'none';if(!on)continue;
 const duration=Math.max(.001,s.end-s.start),p=(time-s.start)/duration,entrance=ease(Math.min(1,p/.16),'ease-out'),departure=ease(Math.min(1,(1-p)/.14),'ease-out');
 let alpha=1,tx=0,scale=1,clip='inset(0 0 0 0)';
@@ -149,4 +150,9 @@ const targets=el.querySelectorAll(a.target);targets.forEach(node=>{if(a.key==='o
 /** All words potentially seen or heard in the final export; HTML is reduced to actual visible text. */
 export function videoScenesVisibleCopy(doc:VideoScenesDocument){
  return doc.scenes.map(scene=>({location:"Video scene "+scene.id,text:sanitizeHtml(scene.html,{allowedTags:[],allowedAttributes:{}}).replace(/&amp;/g,"&").trim()})).filter(line=>Boolean(line.text));
+}
+
+/** Signed URLs belong to the read/export projection only, never persisted as client-provided credentials. */
+export function stripVideoSceneResolvedUrls(doc:VideoScenesDocument):VideoScenesDocument{
+ return {...doc,assets:doc.assets.map(({resolvedUrl:_unused,...asset})=>asset)};
 }
