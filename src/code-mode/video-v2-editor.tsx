@@ -5,6 +5,7 @@ import {parseCodeDocument} from "./core";
 import {VIDEO_SCENE_TEMPLATES,insertVideoTemplate,videoCodeV2Schema,videoFrameHtml,resolveVideoSceneAnchors,type VideoCodeV2} from "./video-v2";
 
 type Word={word?:string;text?:string;start?:number;end?:number};
+type GraphicAsset={id:string;title:string;previewUrl:string;contentType:string};
 type Props={value:VideoCodeV2;onApply:(next:VideoCodeV2)=>Promise<void>;disabled?:boolean;readOnly?:boolean;words?:Word[];initialScene?:string};
 const inputStyle={width:"100%",padding:10,background:"#0e1820",color:"#f5f7f4",border:"1px solid #405360",borderRadius:7} as const;
 const btnStyle={padding:"8px 12px",border:"1px solid #617080",borderRadius:8,color:"inherit",background:"#1c303b"} as const;
@@ -25,6 +26,8 @@ export function VideoCodeEditor({value,onApply,disabled=false,readOnly=false,wor
  const [template,setTemplate]=useState<string>(VIDEO_SCENE_TEMPLATES[0].id);
  const [undo,setUndo]=useState<string[]>([]);
  const [busy,setBusy]=useState(false);
+ const [graphics,setGraphics]=useState<GraphicAsset[]>([]);
+ const [graphicId,setGraphicId]=useState("");
  const editorRef=useRef<HTMLTextAreaElement>(null);
  const codeRef=useRef<HTMLPreElement>(null);
  const parsed=useMemo(()=>{try{return parseCodeDocument(raw,(v)=>videoCodeV2Schema.parse(v));}catch{return null;}},[raw]);
@@ -56,6 +59,22 @@ export function VideoCodeEditor({value,onApply,disabled=false,readOnly=false,wor
     frame=requestAnimationFrame(tick);
    };frame=requestAnimationFrame(tick);return()=>cancelAnimationFrame(frame);
  },[playing,duration,loop]);
+ useEffect(()=>{let mounted=true;
+   fetch("/api/admin/video-producer/graphics",{cache:"no-store"})
+    .then(async res=>res.ok?res.json():{assets:[]})
+    .then(data=>{if(mounted)setGraphics((data.assets||[]).filter((a:GraphicAsset)=>["image/png","image/jpeg","image/webp"].includes(a.contentType)));})
+    .catch(()=>{if(mounted)setGraphics([]);});
+   return ()=>{mounted=false;};
+ },[]);
+ const assetSources=Object.fromEntries(graphics.map(a=>["graphic-"+a.id,a.previewUrl]));
+ function insertGraphic(){
+   if(!ready||!active||!graphicId)return;
+   const graphic=graphics.find(a=>a.id===graphicId);if(!graphic)return;
+   const key="graphic-"+graphic.id;
+   const exists=document.assets.some(a=>a.id===key);
+   update({...document,assets:exists?document.assets:[...document.assets,{id:key,kind:"graphic"}],
+      scenes:document.scenes.map(s=>s.id===sceneId?{...s,html:s.html+'<ag-asset data-id="'+key+'"></ag-asset>'}:s)});
+ }
  const visibleWords=words.filter(w=>Number(w.start||0)<=time+2&&Number(w.end||0)>=time-2).slice(0,35);
  return <div style={{display:"grid",gap:16,gridTemplateColumns:"repeat(auto-fit,minmax(min(100%,340px),1fr))"}}>
   <div style={{display:"grid",gap:12,minWidth:0,alignContent:"start"}}>
@@ -80,6 +99,12 @@ export function VideoCodeEditor({value,onApply,disabled=false,readOnly=false,wor
       <textarea ref={editorRef} aria-label="Editable video JSON" disabled={!ready} spellCheck={false} value={raw} onChange={e=>{setRaw(e.target.value);setError("");}} onScroll={e=>{if(codeRef.current){codeRef.current.scrollTop=e.currentTarget.scrollTop;codeRef.current.scrollLeft=e.currentTarget.scrollLeft;}}} style={{width:"100%",height:440,position:"relative",display:"block",resize:"vertical",padding:14,margin:0,background:"transparent",color:"transparent",WebkitTextFillColor:"transparent",caretColor:"#fff",border:0,outline:"none",font:"13px/1.5 ui-monospace,monospace",whiteSpace:"pre-wrap",overflowWrap:"anywhere"}}/>
     </div>}
    <div style={{display:"grid",gap:8}}>
+    <label>Graphics library<select style={inputStyle} value={graphicId} onChange={e=>setGraphicId(e.target.value)} disabled={!ready||!active||graphics.length===0}>
+       <option value="">Select uploaded graphic</option>
+       {graphics.map(a=><option key={a.id} value={a.id}>{a.title}</option>)}
+    </select></label>
+    <button type="button" disabled={!ready||!active||!graphicId} onClick={insertGraphic} style={btnStyle}>Insert registered graphic</button>
+    {graphics.length===0?<p style={{fontSize:12,opacity:.7}}>No active image assets in the Graphics library.</p>:null}
     <label>Insert starter template<select style={inputStyle} disabled={!ready} value={template} onChange={e=>setTemplate(e.target.value)}>{VIDEO_SCENE_TEMPLATES.map(t=><option value={t.id} key={t.id}>{t.label}</option>)}</select></label>
     <button type="button" onClick={insert} disabled={!ready} style={btnStyle}>Apply template: Insert scene</button>
     <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
@@ -96,7 +121,7 @@ export function VideoCodeEditor({value,onApply,disabled=false,readOnly=false,wor
     <h3 style={{margin:0}}>Deterministic frame preview</h3>
     <div style={{background:"#05090c",border:"1px solid #425360",padding:10,borderRadius:10,display:"grid",placeItems:"center",minHeight:240}}>
       <div style={{width:document.format.w*scale,height:document.format.h*scale,position:"relative",overflow:"hidden"}}>
-      <iframe title="Video scene at playhead" sandbox="" referrerPolicy="no-referrer" srcDoc={videoFrameHtml(resolveVideoSceneAnchors(document,words),time,guides,words)} width={document.format.w} height={document.format.h}
+      <iframe title="Video scene at playhead" sandbox="" referrerPolicy="no-referrer" srcDoc={videoFrameHtml(resolveVideoSceneAnchors(document,words),time,guides,words,assetSources)} width={document.format.w} height={document.format.h}
         style={{width:document.format.w,height:document.format.h,position:"absolute",top:0,left:0,transform:`scale(${scale})`,transformOrigin:"top left",border:0,background:"#152631"}}/>
       </div>
     </div>
