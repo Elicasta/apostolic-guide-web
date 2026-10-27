@@ -5,7 +5,8 @@ import {renderVideoSceneFrame,type SceneFontMap} from "./video-scene-frame";
 const FILES:Record<keyof SceneFontMap,string>={
  montserrat400:"/fonts/montserrat-400.woff",montserrat800:"/fonts/montserrat-800.woff",
  bebas400:"/fonts/bebas-400.woff",cormorant400:"/fonts/cormorant-400.woff",
- cormorant700:"/fonts/cormorant-700.woff"
+ cormorant700:"/fonts/cormorant-700.woff",
+ playfairVariable:"/fonts/playfair-display-variable.ttf"
 };
 export function KineticScenePreview({raw}:{raw:string}){
  const [frame,setFrame]=useState(0),[guides,setGuides]=useState(true),[playing,setPlaying]=useState(false),[loop,setLoop]=useState(true);
