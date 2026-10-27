@@ -71,7 +71,7 @@ export async function GET(request:Request){
   }
  }
  return NextResponse.json({document,readOnly:kind==="producer"&&!writableProducer.has(status),projectStatus:status,
-  previewSourceUrl,transcriptLane,keptRanges,
+  previewSourceUrl,sourceOffset:kind==="producer"?Number(row.source_range_start??0):0,transcriptLane,keptRanges,
   history:(previous.data||[]).map(h=>({id:h.id,createdAt:h.created_at}))});
 }
 export async function POST(request:Request){
