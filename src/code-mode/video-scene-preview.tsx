@@ -10,11 +10,24 @@ const FILES:Record<keyof SceneFontMap,string>={
 export function KineticScenePreview({raw}:{raw:string}){
  const [frame,setFrame]=useState(0),[guides,setGuides]=useState(true),[playing,setPlaying]=useState(false),[loop,setLoop]=useState(true);
  const [fonts,setFonts]=useState<SceneFontMap>({});
+ const [images,setImages]=useState<Record<string,string>>({});
  const previewRef=useRef<HTMLDivElement>(null),[previewWidth,setPreviewWidth]=useState(380);
  const parsed=useMemo(()=>videoSceneDocument.safeParse((()=>{try{return JSON.parse(raw)}catch{return null}})()),[raw]);
  const doc=parsed.success?parsed.data:null;
  const fps=doc?.format.fps||30;
  const duration=doc?Math.max(...doc.scenes.map(s=>s.end)):0;
+ const assetIds=JSON.stringify(doc?.assets.map(a=>a.id)??[]);
+ useEffect(()=>{let alive=true;const ids=JSON.parse(assetIds) as string[];
+  Promise.all(ids.map(async id=>{
+   const res=await fetch("/api/admin/code-mode/video-v2/assets/"+encodeURIComponent(id),{cache:"no-store"});
+   if(!res.ok)throw new Error("Graphic unavailable");
+   const type=(res.headers.get("content-type")||"").split(";")[0];
+   const bytes=new Uint8Array(await res.arrayBuffer());
+   let base="";for(const b of bytes)base+=String.fromCharCode(b);
+   return [id,"data:"+type+";base64,"+btoa(base)] as const;
+  })).then(items=>{if(alive)setImages(Object.fromEntries(items))}).catch(()=>{if(alive)setImages({})});
+  return ()=>{alive=false};
+ },[assetIds]);
  useEffect(()=>{const element=previewRef.current;if(!element)return;
   const observer=new ResizeObserver(()=>setPreviewWidth(element.clientWidth));observer.observe(element);
   return ()=>observer.disconnect();
@@ -37,7 +50,7 @@ export function KineticScenePreview({raw}:{raw:string}){
  },[playing,loop,doc,endFrame,fps]);
  const current=Math.min(frame,endFrame)/fps;
  let source:string;
- try{source=doc?renderVideoSceneFrame(doc,current,fonts):""}catch{source=""}
+ try{source=doc?renderVideoSceneFrame(doc,current,fonts,images):""}catch{source=""}
  if(!doc)return <p role="alert">Fix Video V2 JSON to preview: {parsed.success?"Unknown validation error":parsed.error.issues[0]?.path.join(".")+": "+parsed.error.issues[0]?.message}</p>;
  return <section aria-label="Kinetic scene frame preview" style={{display:"grid",gap:12}}>
   <div style={{display:"flex",gap:10,alignItems:"center",flexWrap:"wrap"}}>
