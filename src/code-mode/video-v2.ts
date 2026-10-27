@@ -35,7 +35,7 @@ export const videoSceneV2 = z.object({
   transitionIn: transition.optional(),
   transitionOut: transition.optional(),
   stagger: z.object({ mode: z.enum(["word", "letter"]), interval: z.number().min(0.01).max(0.5) }).optional()
-}).strict().refine(s => s.end > s.start, { path: ["end"], message: "Scene end must be after start" }).refine(s => !/\@import|url\s*\(|expression\s*\(|behavior\s*:|@font-face|\\\\/i.test(s.css), { path: ["css"], message: "External CSS resources and escapes are prohibited" });
+}).strict().refine(s => s.end > s.start, { path: ["end"], message: "Scene end must be after start" }).refine(s => !/\@import|url\s*\(|expression\s*\(|behavior\s*:|content\s*:|@font-face|\\\\/i.test(s.css), { path: ["css"], message: "External CSS resources and escapes are prohibited" });
 export const videoCodeV2Schema = z.object({
   tool: z.literal("video"),
   version: z.literal(2),
@@ -131,7 +131,7 @@ export function videoFrameHtml(doc: VideoCodeV2, seconds: number, guides=false, 
       const active=ease((seconds-s.start-i*s.stagger!.interval)/0.26,"ease-out");
       return `.${className} .${s.stagger!.mode}:nth-child(${i+1}){opacity:${active};transform:translateY(${(1-active)*24}px);display:inline-block}`;
     }).join("\n"):"";
-    return `<style>${s.css.replace(/<\/style/gi,"")}\n.${className}{${styleFor(at(s,"root",seconds))};${transition}}\n${animated}\n${staggerCss}</style><section class="ag-scene ${className} ${s.layer}">${sanitizeHtml(s.html,sceneMarkupOptions)}</section>`;
+    return `<style>${s.css.replace(/[<>]/g,"")}\n.${className}{${styleFor(at(s,"root",seconds))};${transition}}\n${animated}\n${staggerCss}</style><section class="ag-scene ${className} ${s.layer}">${sanitizeHtml(s.html,sceneMarkupOptions)}</section>`;
   }).join("\n");
   const bg=doc.style.background === "paper" ? "#F5F7F4" : doc.style.background === "ink" ? "#10202A" : "transparent";
   const captionWords=doc.style.kineticCaptions===true ? words.filter(w=>Number.isFinite(w.start)&&Number.isFinite(w.end)) : [];
