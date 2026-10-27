@@ -26,7 +26,7 @@ export function VideoProducerMasterDownload() {
   const syncProject = useCallback(() => setProjectId(currentProjectId()), []);
 
   useEffect(() => {
-    syncProject();
+    void Promise.resolve().then(syncProject);
     const onPopState = () => syncProject();
     const onChange = (event: Event) => {
       const target = event.target;
@@ -45,7 +45,7 @@ export function VideoProducerMasterDownload() {
 
   useEffect(() => {
     if (!projectId) {
-      setDetail(null);
+      void Promise.resolve().then(() => setDetail(null));
       return;
     }
     let cancelled = false;
@@ -69,7 +69,7 @@ export function VideoProducerMasterDownload() {
 
   const project = detail?.project;
   const completed = detail?.renders?.find((render) => render.status === "completed" && render.output_storage_path);
-  if (!projectId || !project || !completed || !["review", "completed"].includes(project.status)) return null;
+  if (!projectId || !project || !completed) return null;
 
   return (
     <section style={{ width: "min(calc(100% - 32px), 1480px)", margin: "0 auto 24px" }} aria-label="Download reviewed master">
@@ -90,14 +90,14 @@ export function VideoProducerMasterDownload() {
             {loading ? <Loader2 size={19} /> : <Film size={19} />}
           </div>
           <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: 10, fontWeight: 900, letterSpacing: ".16em", textTransform: "uppercase", color: "#75dfb0" }}>Review master ready</div>
+            <div style={{ fontSize: 10, fontWeight: 900, letterSpacing: ".16em", textTransform: "uppercase", color: "#75dfb0" }}>{["review","completed"].includes(project.status)?"Review master ready":"Earlier completed master"}</div>
             <div style={{ marginTop: 3, fontSize: 17, fontWeight: 850, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{project.title}</div>
-            <div style={{ marginTop: 4, fontSize: 11, lineHeight: 1.45, color: "#8296a3" }}>Private MP4 · the download link is generated only when you tap it.</div>
+            <div style={{ marginTop: 4, fontSize: 11, lineHeight: 1.45, color: "#8296a3" }}>{["review","completed"].includes(project.status)?"Private MP4 · the download link is generated only when you tap it.":"This file is from a prior completed render and may not reflect the current edit."}</div>
           </div>
         </div>
         <a
           href={`/api/admin/video-producer/projects/${project.id}/download`}
-          target="_blank"
+          download={`${project.title.replace(/[^a-zA-Z0-9._-]+/g,"-").slice(0,100)||"Apostolic-Guide"}-master.mp4`}
           rel="noopener noreferrer"
           style={{
             minHeight: 46,
