@@ -10,11 +10,11 @@ function initial(tool:Tool){return initialWholeItem(tool) as WholeItemCode;}
 export function WholeItemCodeMode({initialTool="website",initialId="",initialKind="script"}:{initialTool?:string;initialId?:string;initialKind?:string}){
  const [tool,setTool]=useState<Tool>(OPTIONS.includes(initialTool as Tool)?initialTool as Tool:"website");
  const [id,setId]=useState(initialId);
- const [kind,setKind]=useState(initialKind);
+ const [kind,setKind]=useState(initialTool==="video"&&!["producer","studio"].includes(initialKind)?"studio":initialKind);
  const [document,setDocument]=useState<WholeItemCode>(initial(OPTIONS.includes(initialTool as Tool)?initialTool as Tool:"website"));
  const [busy,setBusy]=useState(false),[error,setError]=useState(""),[message,setMessage]=useState("");
  const [words,setWords]=useState<VideoWord[]>([]),[readOnly,setReadOnly]=useState(false);
- function select(next:Tool){setTool(next);setId("");setDocument(initial(next));setMessage("");setError("");}
+ function select(next:Tool){setTool(next);setId("");setKind(next==="video"?"studio":"script");setDocument(next==="video"?freshVideoScenes("studio",""):initial(next));setWords([]);setReadOnly(false);setMessage("");setError("");}
  async function load(nextTool=tool,nextId=id,nextKind=kind){
   setBusy(true);setError("");
   try{
