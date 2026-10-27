@@ -6,6 +6,8 @@ on:
       - 'scripts/render_video_producer_worker.py'
       - 'scripts/render_video_producer_broadcast_worker.py'
       - 'scripts/render_video_producer_finishing_worker.py'
+      - 'scripts/video_producer_audio_master.py'
+      - 'scripts/check_video_producer_audio_master.py'
       - 'scripts/video_producer_broadcast_graphics.py'
       - 'scripts/video_producer_broadcast_graphics_v2.py'
       - 'scripts/video_producer_thumbnail_worker.py'
@@ -64,6 +66,8 @@ jobs:
             scripts/render_video_producer_worker.py \
             scripts/render_video_producer_broadcast_worker.py \
             scripts/render_video_producer_finishing_worker.py \
+            scripts/video_producer_audio_master.py \
+            scripts/check_video_producer_audio_master.py \
             scripts/video_producer_broadcast_graphics.py \
             scripts/video_producer_broadcast_graphics_v2.py \
             scripts/video_producer_thumbnail_worker.py \
@@ -80,6 +84,9 @@ jobs:
 
       - name: Render Podcast and Reels smoke files
         run: python3 scripts/check_video_producer_worker.py
+
+      - name: Verify post-mix LUFS targets and untouched video bitstream
+        run: python3 scripts/check_video_producer_audio_master.py
 
       - name: Render Graphics V2, mastering, music, and thumbnail smoke files
         shell: bash
