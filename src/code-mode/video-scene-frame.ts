@@ -1,6 +1,6 @@
 import {videoSceneDocument,sceneAt,propsAt,easingAt,type VideoSceneDocument,type VideoScene} from "./video-scenes";
 
-export type SceneFontMap=Partial<Record<"montserrat400"|"montserrat800"|"bebas400"|"cormorant400"|"cormorant700",string>>;
+export type SceneFontMap=Partial<Record<"montserrat400"|"montserrat800"|"bebas400"|"cormorant400"|"cormorant700"|"playfairVariable",string>>;
 function htmlEscape(s:string){return s.replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]||c));}
 function cssEscape(s:string){return s.replace(/["\\]/g,c=>"\\"+c);}
 function fontsCss(fonts:SceneFontMap){
@@ -10,7 +10,7 @@ function fontsCss(fonts:SceneFontMap){
   const value=fonts[key];if(!value||!/^[A-Za-z0-9+/=]+$/.test(value))return [];
   const ext=key.startsWith("montserrat")||key.startsWith("bebas")||key.startsWith("cormorant")?"woff":"woff";
   return ['@font-face{font-family:"'+cssEscape(family)+'";font-weight:'+weight+';src:url(data:font/'+ext+';base64,'+value+') format("woff");font-display:block}'];
- }).join("\n");
+ }).join("\n")+(fonts.playfairVariable&&/^[A-Za-z0-9+/=]+$/.test(fonts.playfairVariable)?'\n@font-face{font-family:"Playfair Display";font-weight:100 900;src:url(data:font/ttf;base64,'+fonts.playfairVariable+') format("truetype");font-display:block}':'');
 }
 function clamp(v:number){return Math.min(1,Math.max(0,v));}
 function transitionFrame(scene:VideoScene,time:number){
