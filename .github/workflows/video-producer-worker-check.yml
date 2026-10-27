@@ -30,7 +30,7 @@ permissions:
 jobs:
   transcription-readiness:
     name: transcription readiness
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 3
     steps:
       - name: Verify transcription secret
@@ -45,7 +45,7 @@ jobs:
 
   smoke:
     name: media smoke
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
       - name: Check out branch
