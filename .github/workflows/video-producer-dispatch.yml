@@ -109,6 +109,16 @@ jobs:
             fi
           done
           fc-cache -f >/dev/null 2>&1 || true
+      - name: Install deterministic Chromium scene renderer
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install motion renderer dependencies and bundled browser
+        shell: bash
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          npx playwright install --with-deps chromium
       - name: Write render payload
         env:
           RENDER_PAYLOAD: ${{ toJson(github.event.client_payload) }}
