@@ -16,7 +16,7 @@ export function DoctrineCheckPanel({sourceType,sourceId,caption="",fields={},onC
  const key=JSON.stringify({sourceType,sourceId,caption,fields});
  useEffect(()=>{
   let live=true;
-  setState("not_checked");setIssues([]);setError("");setSummary("");onChange?.(false,"not_checked");
+  queueMicrotask(()=>{if(live){setState("not_checked");setIssues([]);setError("");setSummary("");onChange?.(false,"not_checked");}});
   const params=new URLSearchParams({sourceType,sourceId,caption,fields:JSON.stringify(fields)});
   fetch("/api/admin/doctrine-check?"+params.toString(),{cache:"no-store"}).then(async r=>{
    const data=await r.json();if(!r.ok)throw new Error(data.error||"Cannot read doctrine status.");
