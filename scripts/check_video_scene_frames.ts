@@ -42,4 +42,5 @@ try{
  process.stdout.write("Kinetic screenshot + MP4 proof PASS: 23 frames, 480x854@15fps.\\n");
 }finally{await rm(folder,{recursive:true,force:true})}
 }
-\nvoid main().catch(error=>{console.error(error);process.exitCode=1});\n
+
+void main().catch(error=>{console.error(error);process.exitCode=1});
