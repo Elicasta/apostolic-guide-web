@@ -180,10 +180,14 @@ export function videoFrameHtml(doc: VideoCodeV2, seconds: number, guides=false, 
   .ag-frame{position:relative;width:${w}px;height:${h}px;overflow:hidden}
   .ag-scene{position:absolute;inset:0;overflow:hidden;display:grid;align-content:center;justify-items:center;padding:8%;text-align:center}
   .ag-scene.lowerthird{top:auto;height:33%;align-content:end;padding-bottom:8%}
-  .ag-stagger{display:inline-block;white-space:pre}\n  .ag-registered-asset{display:block;max-width:100%;max-height:100%;object-fit:contain}\n  .ag-scene h1{font:800 clamp(34px,7vw,150px)/.95 'Montserrat',Arial,sans-serif;letter-spacing:-.04em;text-wrap:balance;margin:0}
+  .ag-stagger{display:inline-block;white-space:pre}
+  .ag-registered-asset{display:block;max-width:100%;max-height:100%;object-fit:contain}
+  .ag-scene h1{font:800 clamp(34px,7vw,150px)/.95 'Montserrat',Arial,sans-serif;letter-spacing:-.04em;text-wrap:balance;margin:0}
   .ag-scene p{font-size:clamp(22px,3vw,52px);margin:1rem 0}
   .ag-scene mark{background:var(--ag-crimson);color:var(--ag-paper);padding:0 .15em}
-  .ag-captions{position:absolute;bottom:10%;left:6%;right:6%;z-index:90;display:flex;justify-content:center;gap:.3em;flex-wrap:wrap;font:800 clamp(24px,5.2vw,98px)/1.1 Montserrat,sans-serif;text-align:center;text-shadow:0 3px 12px #10202A}\n  .ag-captions span{display:inline-block;padding:.07em .18em;border-radius:.08em}\n  .ag-guides{position:absolute;inset:5%;border:2px dashed #f5f7f480;pointer-events:none}.ag-guides div{position:absolute;inset:7%;border:1px dashed #f5f7f480}
+  .ag-captions{position:absolute;bottom:10%;left:6%;right:6%;z-index:90;display:flex;justify-content:center;gap:.3em;flex-wrap:wrap;font:800 clamp(24px,5.2vw,98px)/1.1 Montserrat,sans-serif;text-align:center;text-shadow:0 3px 12px #10202A}
+  .ag-captions span{display:inline-block;padding:.07em .18em;border-radius:.08em}
+  .ag-guides{position:absolute;inset:5%;border:2px dashed #f5f7f480;pointer-events:none}.ag-guides div{position:absolute;inset:7%;border:1px dashed #f5f7f480}
   @font-face{font-family:Montserrat;src:url('/fonts/montserrat-400.woff') format('woff');font-weight:400}
   @font-face{font-family:Montserrat;src:url('/fonts/montserrat-800.woff') format('woff');font-weight:800}
   @font-face{font-family:Bebas;src:url('/fonts/bebas-400.woff') format('woff')}
