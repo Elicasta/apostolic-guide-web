@@ -1,41 +1,53 @@
 "use client";
-import {useMemo,useState} from "react";
-import {videoSceneDocument,sceneAt,propsAt,type VideoSceneDocument} from "./video-scenes";
-
-function safeMarkup(markup:string){
- // React never inserts markup into the parent app, only into a fully sandboxed iframe.
- return markup.replace(/<\/script/gi,"&lt;/script");
-}
+import {useEffect,useMemo,useState} from "react";
+import {videoSceneDocument} from "./video-scenes";
+import {renderVideoSceneFrame,type SceneFontMap} from "./video-scene-frame";
+const FILES:Record<keyof SceneFontMap,string>={
+ montserrat400:"/fonts/montserrat-400.woff",montserrat800:"/fonts/montserrat-800.woff",
+ bebas400:"/fonts/bebas-400.woff",cormorant400:"/fonts/cormorant-400.woff",
+ cormorant700:"/fonts/cormorant-700.woff"
+};
 export function KineticScenePreview({raw}:{raw:string}){
- const [frame,setFrame]=useState(0),[guides,setGuides]=useState(true);
+ const [frame,setFrame]=useState(0),[guides,setGuides]=useState(true),[playing,setPlaying]=useState(false),[loop,setLoop]=useState(true);
+ const [fonts,setFonts]=useState<SceneFontMap>({});
  const parsed=useMemo(()=>videoSceneDocument.safeParse((()=>{try{return JSON.parse(raw)}catch{return null}})()),[raw]);
- if(!parsed.success)return <p role="alert">Scene preview requires a valid Video V2 document: {parsed.error.issues[0]?.path.join(".")}: {parsed.error.issues[0]?.message}</p>;
- const doc:VideoSceneDocument=parsed.data;
- const duration=Math.max(...doc.scenes.map(s=>s.end));
- const current=frame/doc.format.fps;
- const layers=sceneAt(doc,current);
- const html=layers.map((scene)=>{
-  let markup=scene.html;
-  const targets=[...new Set(scene.keyframes.map(k=>k.target))];
-  for(const target of targets){
-   const p=propsAt(scene,target,current) as Record<string,number>;
-   const transform="translate("+Number(p.x||0)+"px,"+Number(p.y||0)+"px) rotate("+Number(p.rotate||0)+"deg) scale("+Number(p.scale??1)+")";
-   const style="opacity:"+Number(p.opacity??1)+";transform:"+transform+";clip-path:inset(0 "+(100-Number(p.clip??100))+"% 0 0)";
-   // Limited data-motion selector; only the validated target string can be interpolated.
-   markup=markup.replace(new RegExp('data-motion=["\\x27]'+target+'["\\x27]','g'),match=>match+' style="'+style+'"');
-  }
-  return '<section class="layer '+scene.layer+'">'+safeMarkup(markup)+'</section><style>'+scene.css+'</style>';
- }).join("");
- const source=`<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src data:"><style>*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden}body{container-type:inline-size;background:${doc.style.ink};color:${doc.style.paper};font-family:Montserrat,Arial,sans-serif}.layer{position:absolute;inset:0;display:grid;place-items:center;overflow:hidden}.lowerthird{inset:65% 5% 8%}.overlay{background:transparent}.fullframe{background:${doc.style.ink}}.guide{position:absolute;inset:7% 7% 15%;border:1px dashed #fff8;pointer-events:none}</style></head><body>${html}${guides?'<div class="guide"></div>':''}</body></html>`;
+ const doc=parsed.success?parsed.data:null;
+ const fps=doc?.format.fps||30;
+ const duration=doc?Math.max(...doc.scenes.map(s=>s.end)):0;
+ const endFrame=Math.max(0,Math.ceil(duration*fps)-1);
+ useEffect(()=>{
+  let active=true;
+  Promise.all(Object.entries(FILES).map(async([key,url])=>{
+   const res=await fetch(url);if(!res.ok)throw new Error("Font not available");
+   const bytes=new Uint8Array(await res.arrayBuffer());
+   let s="";for(const b of bytes)s+=String.fromCharCode(b);
+   return [key,btoa(s)] as const;
+  })).then(entries=>{if(active)setFonts(Object.fromEntries(entries));}).catch(()=>{/* fallback fonts until bundled assets load */});
+  return ()=>{active=false};
+ },[]);
+ useEffect(()=>{
+  if(!playing||!doc)return;
+  const timer=setInterval(()=>setFrame(f=>f>=endFrame?(loop?0:endFrame):f+1),1000/fps);
+  return ()=>clearInterval(timer);
+ },[playing,loop,doc,endFrame,fps]);
+ const current=Math.min(frame,endFrame)/fps;
+ let source:string;
+ try{source=doc?renderVideoSceneFrame(doc,current,fonts):""}catch{source=""}
+ if(!doc)return <p role="alert">Fix Video V2 JSON to preview: {parsed.error.issues[0]?.path.join(".")}: {parsed.error.issues[0]?.message}</p>;
  return <section aria-label="Kinetic scene frame preview" style={{display:"grid",gap:12}}>
   <div style={{display:"flex",gap:10,alignItems:"center",flexWrap:"wrap"}}>
-   <button type="button" onClick={()=>setFrame(Math.max(0,frame-1))}>Previous frame</button>
-   <button type="button" onClick={()=>setFrame(Math.min(Math.ceil(duration*doc.format.fps)-1,frame+1))}>Next frame</button>
+   <button type="button" onClick={()=>setPlaying(v=>!v)}>{playing?"Pause":"Play"}</button>
+   <button type="button" onClick={()=>setFrame(f=>Math.max(0,f-1))}>Previous frame</button>
+   <button type="button" onClick={()=>setFrame(f=>Math.min(endFrame,f+1))}>Next frame</button>
+   <label><input type="checkbox" checked={loop} onChange={e=>setLoop(e.target.checked)}/>Loop</label>
    <label><input type="checkbox" checked={guides} onChange={e=>setGuides(e.target.checked)}/>Safe guides</label>
    <output>{current.toFixed(3)}s / {duration.toFixed(3)}s | frame {frame}</output>
   </div>
-  <input aria-label="Timeline scrubber" type="range" min={0} max={Math.max(0,Math.ceil(duration*doc.format.fps)-1)} step={1} value={Math.min(frame,Math.ceil(duration*doc.format.fps)-1)} onChange={e=>setFrame(Number(e.target.value))}/>
-  <iframe title="Kinetic composition preview" sandbox="" referrerPolicy="no-referrer" srcDoc={source} style={{width:"100%",maxWidth:doc.format.w>doc.format.h?780:380,aspectRatio:doc.format.w+"/"+doc.format.h,border:"1px solid #66777D",background:"#10202A"}}/>
-  <small>Frame-stepped scene preview. Footage/audio compositing and production export are not connected yet.</small>
+  <input aria-label="Timeline scrubber" type="range" min={0} max={endFrame} step={1} value={Math.min(frame,endFrame)} onChange={e=>setFrame(Number(e.target.value))}/>
+  <div style={{position:"relative",width:"100%",maxWidth:doc.format.w>doc.format.h?780:380,aspectRatio:doc.format.w+"/"+doc.format.h,background:"#10202A"}}>
+   <iframe title="Kinetic composition preview" sandbox="" referrerPolicy="no-referrer" srcDoc={source} style={{display:"block",width:"100%",height:"100%",border:"1px solid #66777D"}}/>
+   {guides?<div aria-hidden="true" style={{position:"absolute",inset:"7% 7% 15%",border:"1px dashed #ffffff80",pointerEvents:"none"}}/>:null}
+  </div>
+  <small>Frame-stepped preview shares the HTML generator with the Chromium export worker. Source video and audio are not shown here.</small>
  </section>;
 }
