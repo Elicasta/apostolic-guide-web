@@ -1,3 +1,4 @@
+import {videoScenesSchema} from "../video-scenes";
 import {z} from "zod";
 import {defineCodeAdapter} from "./core";
 const uuid=z.string().uuid();
@@ -18,7 +19,7 @@ const video=z.discriminatedUnion("kind",[
  z.object({tool:z.literal("video"),version,kind:z.literal("studio"),id:slug,timeline:z.array(cue).min(1).max(80),style:z.record(z.string(),z.unknown()),expectedUpdatedAt:dated.optional()}).strict(),
  z.object({tool:z.literal("video"),version,kind:z.literal("producer"),id:uuid,title:z.string().min(1).max(180),directorMetadata:z.record(z.string(),z.unknown()),expectedUpdatedAt:dated.optional()}).strict()
 ]);
-export const wholeItemSchema=z.discriminatedUnion("tool",[website,editorial,episode,audio,teleprompter,video]);
+export const wholeItemSchema=z.union([z.discriminatedUnion("tool",[website,editorial,episode,audio,teleprompter,video]),videoScenesSchema]);
 export type WholeItemCode=z.infer<typeof wholeItemSchema>;
 export const wholeItemAdapter=defineCodeAdapter({tool:"website",version:1,schema:wholeItemSchema,fromJson:d=>d,toJson:value=>wholeItemSchema.parse(value)});
 export function initialWholeItem(tool:WholeItemCode["tool"]):unknown{
