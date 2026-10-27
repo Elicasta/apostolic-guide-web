@@ -28,6 +28,17 @@ jobs:
             sudo apt-get install -y --no-install-recommends "${missing[@]}"
           fi
 
+      - name: Install bundled Chromium scene renderer
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Prepare Node modules and Chromium
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          npx playwright install --with-deps chromium
+
       - name: Write render payload
         env:
           RENDER_PAYLOAD: ${{ toJson(github.event.client_payload) }}
