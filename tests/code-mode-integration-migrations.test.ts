@@ -73,7 +73,7 @@ test("phase 2-4 SQL migrations apply together with RLS and doctrine constraint",
   await assert.rejects(db.query("select public.apply_studio_threads_code($1::jsonb)",[JSON.stringify({...document,batchId:saved.batchId,posts:[{...document.posts[0],body:"x".repeat(501)}]})]));
   await db.query("update public.studio_threads_posts set status='approved' where id=$1",[saved.posts[0].id]);
   await assert.rejects(db.query("select public.apply_studio_threads_code($1::jsonb)",[JSON.stringify(modified)]));
-  await db.query("insert into public.studio_creative_projects(id,title,editor_state) values ($1,'Old',{\"frames\":[{\"id\":\"slide-1\",\"headline\":\"Old\"}]}::jsonb)",[ids.project]);
+  await db.query("insert into public.studio_creative_projects(id,title,editor_state) values ($1,'Old',$2::jsonb)",[ids.project,JSON.stringify({frames:[{id:"slide-1",headline:"Old"}]})]);
   await db.query("insert into public.studio_editorial_packs(production_date,project_id,payload) values('2026-11-02',$1,$2::jsonb)",[ids.project,JSON.stringify({title:"Old",caption:"Old",artDirection:"Old",frames:[{id:"slide-1"}],newsletter:null})]);
   const updatedFrames=[{id:"slide-1",headline:"New",body:"John 1:1"}];
   const result=await db.query<{v:number}>("select public.apply_code_editorial_pack('2026-11-02','New','New caption','New direction',$1::jsonb,'null'::jsonb,1,$2) as v",[JSON.stringify(updatedFrames),ids.actor]);
