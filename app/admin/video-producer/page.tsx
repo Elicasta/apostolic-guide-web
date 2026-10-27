@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { getStudioPermission } from "@/auth";
 import { VideoProducerDashboard } from "@/video-producer-dashboard";
 import { VideoProducerReadiness } from "@/video-producer-readiness";
@@ -10,6 +11,7 @@ export default async function AdminVideoProducerPage() {
   return (
     <>
       <VideoProducerUploadRecovery />
+      <p><Link className="button" href="/admin/code-mode?tool=video">Open Code Mode · Video Producer JSON</Link></p>
       <VideoProducerDashboard />
       <VideoProducerReadiness />
     </>
