@@ -6,6 +6,7 @@ import os
 import subprocess
 import sys
 import tempfile
+import threading
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BROADCAST_PATH = os.path.join(ROOT, "scripts", "render_video_producer_broadcast_worker.py")
@@ -436,8 +437,18 @@ def main():
         if manifest.get("sceneProgram"):
             frames_dir = os.path.join(directory, "motion-frames")
             bw.base.callback(payload, "rendering", 11, "Rendering deterministic Chromium scene frames")
-            subprocess.run(["node", "--import", "tsx", "scripts/render_video_scene_frames.ts",
-                            manifest_path, frames_dir], check=True)
+            heartbeat_stop = threading.Event()
+            def scene_heartbeat():
+                while not heartbeat_stop.wait(15):
+                    bw.safe_progress_callback(payload, 11, "Rendering kinetic scenes")
+            heartbeat_thread = threading.Thread(target=scene_heartbeat, daemon=True)
+            heartbeat_thread.start()
+            try:
+                subprocess.run(["node", "--import", "tsx", "scripts/render_video_scene_frames.ts",
+                                manifest_path, frames_dir], check=True)
+            finally:
+                heartbeat_stop.set()
+                heartbeat_thread.join(timeout=2)
             manifest["sceneFrames"] = os.path.join(frames_dir, "frame-%06d.png")
         bw.base.callback(payload, "rendering", 12, "Building Graphics V2 and mastering chain")
         build_broadcast_ass_v2(manifest, ass_path)
