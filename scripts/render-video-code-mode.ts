@@ -12,6 +12,7 @@ import {mkdtemp} from "node:fs/promises";
 import {chromium} from "playwright";
 import {videoSceneDocument} from "../src/code-mode/video-scenes";
 import {renderVideoSceneFrame,type SceneFontMap} from "../src/code-mode/video-scene-frame";
+import {footageFilter} from "../src/code-mode/video-footage-motion";
 
 const fontNames:Record<keyof SceneFontMap,string>={
  montserrat400:"montserrat-400.woff",
@@ -91,7 +92,7 @@ export async function renderSceneVideo(args:string[]){
    "-ss",String(start),"-i",input,
    "-framerate",String(fps),"-i",pattern,
    "-filter_complex",
-   "[0:v]fps="+fps+",scale="+doc.format.w+":"+doc.format.h+":force_original_aspect_ratio=increase,crop="+doc.format.w+":"+doc.format.h+",setsar=1[base];[base][1:v]overlay=shortest=1:format=auto,format=yuv420p[composite]",
+   "[0:v]"+footageFilter(doc)+"[base];[base][1:v]overlay=shortest=1:format=auto,format=yuv420p[composite]",
    "-map","[composite]","-map","0:a?",
    "-frames:v",String(count),"-shortest",
    "-c:v","libx264","-preset","superfast","-crf","18","-pix_fmt","yuv420p",
