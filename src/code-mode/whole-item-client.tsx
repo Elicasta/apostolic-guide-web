@@ -13,7 +13,7 @@ export function WholeItemCodeMode({initialTool="website",initialId="",initialKin
  const [kind,setKind]=useState(initialTool==="video"&&!["producer","studio"].includes(initialKind)?"studio":initialKind);
  const [document,setDocument]=useState<WholeItemCode>(initial(OPTIONS.includes(initialTool as Tool)?initialTool as Tool:"website"));
  const [busy,setBusy]=useState(false),[error,setError]=useState(""),[message,setMessage]=useState("");
- const [words,setWords]=useState<VideoWord[]>([]),[readOnly,setReadOnly]=useState(false);
+ const [words,setWords]=useState<VideoWord[]>([]),[keepSegments,setKeepSegments]=useState<Array<{start:number;end:number}>>([]),[readOnly,setReadOnly]=useState(false);
  function select(next:Tool){setTool(next);setId("");setKind(next==="video"?"studio":"script");setDocument(next==="video"?freshVideoScenes("studio",""):initial(next));setWords([]);setReadOnly(false);setMessage("");setError("");}
  async function load(nextTool=tool,nextId=id,nextKind=kind){
   setBusy(true);setError("");
@@ -22,7 +22,7 @@ export function WholeItemCodeMode({initialTool="website",initialId="",initialKin
    const response=await fetch("/api/admin/code-mode?"+params.toString(),{cache:"no-store"});
    const data=await response.json();if(!response.ok)throw new Error(data.error||"Could not open draft.");
    setDocument(data.document as WholeItemCode);
-   setWords(Array.isArray(data.words)?data.words:[]);setReadOnly(Boolean(data.readOnly));
+   setWords(Array.isArray(data.words)?data.words:[]);setKeepSegments(Array.isArray(data.keepSegments)?data.keepSegments:[]);setReadOnly(Boolean(data.readOnly));
    setMessage(data.readOnly?"This project is read-only. Preview remains available.":nextId?"Loaded the scene document.":"Empty Code Mode document. Choose a project to save.");
   }catch(e){setError(e instanceof Error?e.message:"Load failed.");}finally{setBusy(false);}
  }
@@ -51,7 +51,7 @@ export function WholeItemCodeMode({initialTool="website",initialId="",initialKin
    {["episode","video"].includes(tool)?<label>Subtype<select value={kind} onChange={e=>{setKind(e.target.value);if(tool==="video"){setDocument(freshVideoScenes(e.target.value==="producer"?"producer":"studio",id));setWords([]);}}}>{tool==="episode"?<><option value="script">Script</option><option value="article">Article</option></>:<><option value="studio">Video Studio</option><option value="producer">Video Producer</option></>}</select></label>:null}
   </div>
   <button type="button" disabled={busy} onClick={()=>void load()}>{busy?"Loading…":"Load existing draft / New document"}</button>
-  {tool==="video"&&document.tool==="video"&&document.version===2? <VideoScenesCodeEditor key={id+":"+kind+":"+document.expectedUpdatedAt} data={document as VideoScenesDocument} words={words} onApply={apply} disabled={busy||readOnly}/>:<CodeModeJsonPanel key={tool+":"+id+":"+kind} label={tool+" whole-item JSON"} data={document} parse={raw=>wholeItemSchema.parse(raw)} onApply={apply} disabled={busy}/>}
+  {tool==="video"&&document.tool==="video"&&document.version===2? <VideoScenesCodeEditor key={id+":"+kind+":"+document.expectedUpdatedAt} data={document as VideoScenesDocument} words={words} keepSegments={keepSegments} onApply={apply} disabled={busy||readOnly}/>:<CodeModeJsonPanel key={tool+":"+id+":"+kind} label={tool+" whole-item JSON"} data={document} parse={raw=>wholeItemSchema.parse(raw)} onApply={apply} disabled={busy}/>}
   {tool==="teleprompter"?<p>Saved scripts stay in a private drafting library. They do not update a live Teleprompter session or remote display.</p>:null}
   {tool==="video"?<p>Scene changes create a checkpoint and return eligible Producer edits to Draft for fresh approval. Ready and completed projects remain read-only. Source footage and existing renders are untouched.</p>:null}
   {error?<p role="alert">{error}</p>:null}
