@@ -63,6 +63,10 @@ export async function POST(request: Request) {
           source_filename: payload.filename,
           source_mime_type: payload.contentType,
           source_size_bytes: Math.round(payload.size),
+          // A replacement upload must not inherit the prior video transcript.
+          transcript_text: null,
+          transcript: { words: [], segments: [] },
+          source_duration: null,
           edit_plan: null,
           approval_fingerprint: null,
           approved_at: null,
