@@ -54,7 +54,6 @@ export function WholeItemCodeMode({initialTool="website",initialId="",initialVid
   <button type="button" disabled={busy} onClick={()=>void load()}>{busy?"Loading…":"Load existing draft / New document"}</button>
   <CodeModeJsonPanel key={tool+":"+id+":"+kind} label={tool+" whole-item JSON"} data={document} parse={raw=>wholeItemSchema.parse(raw)} onApply={apply} disabled={busy}/>
   {tool==="teleprompter"?<p>Saved scripts stay in a private drafting library. They do not update a live Teleprompter session or remote display.</p>:null}
-  {tool==="video"?<p>Only draft project metadata, graphics cues and saved style settings are editable. Source footage and render jobs are untouched.</p>:null}
   {error?<p role="alert">{error}</p>:null}
   {message?<p role="status">{message}</p>:null}
  </section>;
