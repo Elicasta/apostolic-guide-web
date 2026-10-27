@@ -82,7 +82,7 @@
         }
       ],
       "transitionIn": {
-        "type": "zoom",
+        "type": "punch",
         "duration": 0.5,
         "ease": "ease-out"
       },
