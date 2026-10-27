@@ -66,7 +66,14 @@ export async function POST(request:Request){
  // Scene editing is allowed only with data that doesn't load executable resources.
  // Assets are registry IDs; arbitrary resolvedUrl values are never persisted.
  if(doc.assets.some(a=>a.resolvedUrl||a.storageLocator))return responseError("Asset URLs cannot be hand-edited. Use registered IDs.",400);
- if(doc.assets.length)return responseError("Linked scene assets require registry resolution before Apply. Use embedded text templates for now.",409);
+ if(doc.assets.some(a=>!(a.kind==="graphic"||a.kind==="image")||!idSchema.safeParse(a.id).success))
+  return responseError("Only registered graphic/image UUIDs can be attached to a scene.",400);
+ if(doc.assets.length){
+  const assets=await s.from("video_producer_graphic_assets").select("id,content_type,size_bytes,active").in("id",doc.assets.map(a=>a.id)).eq("active",true);
+  if(assets.error)return responseError(assets.error.message,500);
+  if(!assets.data||assets.data.length!==doc.assets.length||assets.data.some(a=>!["image/png","image/webp","image/jpeg"].includes(a.content_type)||Number(a.size_bytes)>5*1024*1024))
+   return responseError("A selected graphic is unavailable, unsupported, or larger than 5 MB.",409);
+ }
  const saved={...doc,expectedUpdatedAt:undefined};
  const data=record(doc.kind==="producer"?row.director_metadata:row.style);
  const newMetadata={...data,kineticSceneV2:saved,kineticDoctrineStatus:"not_checked"};
