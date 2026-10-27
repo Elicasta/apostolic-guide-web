@@ -1,3 +1,7 @@
+import {compileVideoProducerRenderPlan,type VideoProducerEditPlan} from "@/video-producer";
+import {resolveVideoSceneAssetRegistry} from "@/video-scenes-server";
+import {freshVideoScenes,videoScenesSchema,stripVideoSceneResolvedUrls} from "@/video-scenes";
+import {normalizeVideoProducerTranscript,sliceVideoProducerTranscript} from "@/video-producer-ai";
 import {NextResponse} from "next/server";
 import {createHash} from "node:crypto";
 import {z} from "zod";
@@ -24,9 +28,9 @@ function bodyText(document:unknown){
 }
 export async function GET(request:Request){
  const {access,allowed}=await getStudioPermission("manage_content");if(!allowed||access.state!=="allowed"||!access.user)return fail("Forbidden",403);
- const url=new URL(request.url),tool=url.searchParams.get("tool"),id=url.searchParams.get("id")||"",kind=url.searchParams.get("kind")||"script";
+ const url=new URL(request.url),tool=url.searchParams.get("tool"),id=url.searchParams.get("id")||"",kind=url.searchParams.get("kind")||"script",v2=url.searchParams.get("version")==="2";
  if(!["website","content_engine","episode","audio","teleprompter","video"].includes(tool||""))return fail("Invalid tool",400);
- if(!id)return NextResponse.json({document:initialWholeItem(tool as WholeItemCode["tool"])});
+ if(!id)return NextResponse.json({document:v2&&tool==="video"?freshVideoScenes(kind==="producer"?"producer":"studio",""):initialWholeItem(tool as WholeItemCode["tool"])});
  const s=createServiceClient();if(!s)return fail("Draft database unavailable",503);
  try{
   if(tool==="website"){
@@ -69,7 +73,24 @@ export async function GET(request:Request){
   const isProducer=kind==="producer",table=isProducer?"video_producer_projects":"pathway_video_projects";
   const r=await s.from(table).select("*").eq(isProducer?"id":"pathway_slug",id).maybeSingle();
   if(r.error||!r.data)throw new Error("Video project not found.");
-  if(isProducer&&r.data.status!=="draft")throw new Error("Video Producer project is not a draft.");
+  if(isProducer&&r.data.status!=="draft"&&!v2)throw new Error("Video Producer project is not a draft.");
+  if(v2){
+   const storage=isProducer?(r.data.director_metadata||{}):(r.data.style||{});
+   const persisted=storage.sceneProgram;
+   const document=persisted&&videoScenesSchema.safeParse(persisted).success?persisted:freshVideoScenes(isProducer?"producer":"studio",id);
+   const signedDocument=await resolveVideoSceneAssetRegistry(s,videoScenesSchema.parse(document));
+   const transcript=isProducer?normalizeVideoProducerTranscript(r.data.transcript):null;
+   const words=transcript?(r.data.source_range_start!=null&&r.data.source_range_end!=null?
+      sliceVideoProducerTranscript(transcript,Number(r.data.source_range_start),Number(r.data.source_range_end)).words:transcript.words):[];
+   let keepSegments:Array<{start:number;end:number}>|undefined;
+   if(isProducer&&r.data.edit_plan){
+     try{keepSegments=compileVideoProducerRenderPlan(r.data.edit_plan as VideoProducerEditPlan).keepSegments;}
+     catch{/* The legacy plan can still be inspected and repaired. */}
+   }
+   const status=String(r.data.status||"draft");
+   return NextResponse.json({document:{...signedDocument,expectedUpdatedAt:r.data.updated_at},words,keepSegments,status,
+    readOnly:isProducer&&["rendering","review","completed","ready","scheduled"].includes(status)});
+  }
   return NextResponse.json({document:isProducer?{tool,version:1,kind:"producer",id,title:r.data.title,directorMetadata:r.data.director_metadata,expectedUpdatedAt:r.data.updated_at}:{tool,version:1,kind:"studio",id,timeline:r.data.timeline,style:r.data.style,expectedUpdatedAt:r.data.updated_at}});
  }catch(error){return fail(error);}
 }
@@ -138,6 +159,31 @@ export async function POST(request:Request){
     const res=await s.from("studio_teleprompter_code_drafts").insert({owner_id:access.user.id,title:d.title,script_text:d.scriptText,notes:d.notes}).select("id").single();
     if(res.error)throw new Error(res.error.message);id=res.data.id;
    }
+  }else if(d.tool==="video"&&d.version===2){
+   const producer=d.kind==="producer",table=producer?"video_producer_projects":"pathway_video_projects";
+   const prior=await s.from(table).select("*").eq(producer?"id":"pathway_slug",d.id).maybeSingle();
+   if(prior.error||!prior.data)throw new Error("Video project was not found.");
+   if(producer&&["rendering","review","completed","ready","scheduled"].includes(prior.data.status))
+     throw new Error("Ready, Scheduled and rendering projects are read-only. Duplicate or return the project to draft in Producer first.");
+   matchDate(prior.data.updated_at,d.expectedUpdatedAt);
+   if(!producer){
+    const running=await s.from("pathway_video_renders").select("id").eq("pathway_slug",d.id).in("status",["queued","rendering"]).limit(1);
+    if(running.error||running.data?.length)throw new Error("This Studio project is rendering and cannot be edited.");
+   }
+   const scenes=stripVideoSceneResolvedUrls(videoScenesSchema.parse(d));
+   await checkpoint(s,access.user.id,d.tool,d.id,prior.data);
+   const updatedAt=new Date().toISOString();
+   const payload=producer?{
+     director_metadata:{...(prior.data.director_metadata||{}),sceneProgram:{...scenes,expectedUpdatedAt:undefined}},
+     status:"draft",approval_fingerprint:null,approved_at:null,updated_by:access.user.id,updated_at:updatedAt
+   }:{
+     style:{...(prior.data.style||{}),sceneProgram:{...scenes,expectedUpdatedAt:undefined}},
+     updated_by:access.user.id,updated_at:updatedAt
+   };
+   const res=await s.from(table).update(payload).eq(producer?"id":"pathway_slug",d.id)
+     .eq("updated_at",prior.data.updated_at).select("id").maybeSingle();
+   if(res.error||!res.data)throw new Error("Video scenes changed during Apply. Reload the document.");
+   id=d.id;
   }else{
    const producer=d.kind==="producer",table=producer?"video_producer_projects":"pathway_video_projects";
    const prior=await s.from(table).select("*").eq(producer?"id":"pathway_slug",d.id).maybeSingle();

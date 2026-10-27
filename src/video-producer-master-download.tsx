@@ -26,7 +26,7 @@ export function VideoProducerMasterDownload() {
   const syncProject = useCallback(() => setProjectId(currentProjectId()), []);
 
   useEffect(() => {
-    syncProject();
+    const boot = window.setTimeout(syncProject, 0);
     const onPopState = () => syncProject();
     const onChange = (event: Event) => {
       const target = event.target;
@@ -37,6 +37,7 @@ export function VideoProducerMasterDownload() {
     document.addEventListener("change", onChange, true);
     const timer = window.setInterval(syncProject, 2000);
     return () => {
+      window.clearTimeout(boot);
       window.removeEventListener("popstate", onPopState);
       document.removeEventListener("change", onChange, true);
       window.clearInterval(timer);
@@ -45,8 +46,8 @@ export function VideoProducerMasterDownload() {
 
   useEffect(() => {
     if (!projectId) {
-      setDetail(null);
-      return;
+      const clear = window.setTimeout(() => setDetail(null), 0);
+      return () => window.clearTimeout(clear);
     }
     let cancelled = false;
     const load = async () => {
@@ -59,17 +60,18 @@ export function VideoProducerMasterDownload() {
         if (!cancelled) setLoading(false);
       }
     };
-    void load();
+    const boot = window.setTimeout(() => { void load(); }, 0);
     const timer = window.setInterval(() => { void load(); }, 5000);
     return () => {
       cancelled = true;
+      window.clearTimeout(boot);
       window.clearInterval(timer);
     };
   }, [projectId]);
 
   const project = detail?.project;
   const completed = detail?.renders?.find((render) => render.status === "completed" && render.output_storage_path);
-  if (!projectId || !project || !completed || !["review", "completed"].includes(project.status)) return null;
+  if (!projectId || !project || !completed ) return null;
 
   return (
     <section style={{ width: "min(calc(100% - 32px), 1480px)", margin: "0 auto 24px" }} aria-label="Download reviewed master">
@@ -90,7 +92,7 @@ export function VideoProducerMasterDownload() {
             {loading ? <Loader2 size={19} /> : <Film size={19} />}
           </div>
           <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: 10, fontWeight: 900, letterSpacing: ".16em", textTransform: "uppercase", color: "#75dfb0" }}>Review master ready</div>
+            <div style={{ fontSize: 10, fontWeight: 900, letterSpacing: ".16em", textTransform: "uppercase", color: "#75dfb0" }}>Previous rendered master available</div>
             <div style={{ marginTop: 3, fontSize: 17, fontWeight: 850, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{project.title}</div>
             <div style={{ marginTop: 4, fontSize: 11, lineHeight: 1.45, color: "#8296a3" }}>Private MP4 · the download link is generated only when you tap it.</div>
           </div>

@@ -47,6 +47,12 @@ jobs:
           node --conditions=react-server --import tsx scripts/carousel-code-proof.ts
       - run: npx playwright install --with-deps chromium --only-shell
       - run: node scripts/carousel-browser-proof.mjs
+      - name: Install FFmpeg for end-to-end MP4 proof
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+      - name: Verify deterministic kinetic video scene frames
+        run: node --import tsx scripts/check_video_scene_frames.ts
       - uses: actions/upload-artifact@v4
         if: always()
         with:

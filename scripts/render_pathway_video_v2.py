@@ -102,6 +102,24 @@ def render(payload: dict, output: Path, progress_callback: ProgressCallback | No
         timeline_ass = temp / "timeline.ass"
         make_ass(timeline_ass, payload, duration, spec)
 
+        scene_input = None
+        scene_program = (payload.get("style") or {}).get("sceneProgram")
+        if scene_program:
+            if scene_program.get("kind") != "studio" or scene_program.get("version") != 2:
+                raise RuntimeError("Unsupported Video Studio scene program")
+            if scene_program.get("format", {}).get("w") != spec["width"] or scene_program.get("format", {}).get("h") != spec["height"]:
+                raise RuntimeError("Scene document dimensions do not match this output. Select a matching Code Mode format.")
+            manifest = temp / "scene-manifest.json"
+            frames_dir = temp / "scene-frames"
+            manifest.write_text(__import__("json").dumps({
+                "sceneProgram": scene_program, "duration": duration,
+                "transcript": {"words": []}
+            }), encoding="utf-8")
+            _report(progress_callback, 3, "Rendering animated scene frames")
+            subprocess.run(["node", "--import", "tsx", "scripts/render_video_scene_frames.ts",
+                            str(manifest), str(frames_dir)], check=True)
+            scene_input = str(frames_dir / "frame-%06d.png")
+
         _report(progress_callback, 4, "Building background")
         _build_background(background, spec)
 
@@ -115,6 +133,7 @@ def render(payload: dict, output: Path, progress_callback: ProgressCallback | No
             hero_enable = f"between(t,{brand_start},{brand_end})"
         progress_y = height - 4
 
+        motion_layer = "[b6][3:v]overlay=0:0:format=auto:eof_action=pass:repeatlast=0[bmotion];" if scene_input else "[b6]null[bmotion];"
         filter_graph = (
             f"[0:a]asplit=2[aout][av];"
             f"[av]showfreqs=s={spec['spectrum_w']}x{spec['spectrum_h']}:mode=bar:ascale=log:fscale=log:"
@@ -125,7 +144,8 @@ def render(payload: dict, output: Path, progress_callback: ProgressCallback | No
             f"[b3][hero]overlay=(W-w)/2:{spec['hero_y']}:enable='{hero_enable}'[b4];"
             f"[b4][specviz]overlay=(W-w)/2:{spec['spectrum_y']}[b5];"
             f"[b5]ass='{timeline_ass}'[b6];"
-            f"[b6]drawbox=x=0:y={progress_y}:w={width}:h=4:color=0x537BA4@0.42:t=fill,"
+            f"{motion_layer}"
+            f"[bmotion]drawbox=x=0:y={progress_y}:w={width}:h=4:color=0x537BA4@0.42:t=fill,"
             f"drawbox=x=0:y={progress_y}:w='{width}*t/{duration}':h=4:color=0x8B2431@0.96:t=fill,"
             f"fps=30[v]"
         )
@@ -136,6 +156,7 @@ def render(payload: dict, output: Path, progress_callback: ProgressCallback | No
             "-i", str(audio),
             "-loop", "1", "-framerate", "30", "-i", str(background),
             "-loop", "1", "-framerate", "30", "-i", str(wordmark),
+            *([] if scene_input is None else ["-framerate", str(scene_program["format"]["fps"]), "-i", scene_input]),
             "-filter_complex", filter_graph,
             "-map", "[v]", "-map", "[aout]", "-t", str(duration),
             "-c:v", "libx264", "-preset", "veryfast", "-crf", "19", "-pix_fmt", "yuv420p",

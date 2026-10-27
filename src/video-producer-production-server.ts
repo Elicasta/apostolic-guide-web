@@ -1,4 +1,5 @@
 import "server-only";
+import type {VideoScenesDocument} from "./video-scenes";
 import type { createServiceClient } from "./supabase";
 import { buildKeepSegments, type VideoProducerEditPlan } from "./video-producer";
 import {
@@ -23,6 +24,7 @@ export type VideoProducerProductionProject = {
   source_range_start?: number | null;
   source_range_end?: number | null;
   edit_plan: VideoProducerEditPlan;
+  scene_program?:VideoScenesDocument|null;
   camera_plan?: VideoProducerCameraPlan | null;
   audio_plan?: VideoProducerAudioPlan | null;
 };
@@ -100,7 +102,7 @@ export async function resolveVideoProducerProductionState(service: ServiceClient
     cameraPlan,
     audioPlan,
     cameraRanges,
-    fingerprint: videoProducerPlanFingerprint(fingerprintInput),
+    fingerprint: videoProducerPlanFingerprint(project.scene_program?{version:2,production:fingerprintInput,sceneProgram:project.scene_program}:fingerprintInput),
     usesMulticam
   };
 }

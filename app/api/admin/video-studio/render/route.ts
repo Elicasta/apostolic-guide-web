@@ -1,3 +1,5 @@
+import {resolveVideoSceneAssetRegistry} from "@/video-scenes-server";
+import {videoScenesSchema} from "@/video-scenes";
 import { createHash, randomBytes } from "node:crypto";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -70,6 +72,17 @@ export async function POST(request: Request) {
   if (!audioResult.data?.audio_url) return NextResponse.json({ error: "Pathway audio is missing." }, { status: 409 });
   if (projectResult.data.audio_content_hash !== audioResult.data.content_hash) return NextResponse.json({ error: "The Pathway audio changed after this video timeline was saved. Review and save the timeline again before rendering." }, { status: 409 });
 
+  let signedStyle=projectResult.data.style as Record<string,unknown>||{};
+  if(signedStyle.sceneProgram){
+    const document=videoScenesSchema.safeParse(signedStyle.sceneProgram);
+    if(!document.success||document.data.kind!=="studio")return NextResponse.json({error:"Video Studio scene program is invalid."},{status:422});
+    const formats:{[key:string]:[number,number]}={youtube:[1920,1080],vertical:[1080,1920],square:[1080,1080]};
+    if(parsed.data.formats.some(fmt=>{
+      const [w,h]=formats[fmt];return document.data.format.w!==w||document.data.format.h!==h;
+    }))return NextResponse.json({error:"Video Code Mode scene dimensions must match the requested output format."},{status:422});
+    try{signedStyle={...signedStyle,sceneProgram:await resolveVideoSceneAssetRegistry(service,document.data,8*60*60*1000)};}
+    catch(e){return NextResponse.json({error:e instanceof Error?e.message:"Graphic assets unavailable."},{status:422});}
+  }
   const callbackUrl = `${new URL(request.url).origin}/api/admin/video-studio/render-callback`;
   const queued = [];
   for (const format of [...new Set(parsed.data.formats)]) {
@@ -97,7 +110,7 @@ export async function POST(request: Request) {
       audioUrl: audioResult.data.audio_url,
       audioContentHash: audioResult.data.content_hash,
       timeline: projectResult.data.timeline,
-      style: projectResult.data.style,
+      style: signedStyle,
       assetId: publishingAsset.data.id,
       replaceExisting: parsed.data.replaceExisting
     };

@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 """Video Producer finishing worker: Graphics V2, mastering, AG music, and optional synchronized multicam."""
 import importlib.util
+import copy
 import json
 import os
 import subprocess
 import sys
 import tempfile
+import threading
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BROADCAST_PATH = os.path.join(ROOT, "scripts", "render_video_producer_broadcast_worker.py")
@@ -137,7 +139,7 @@ def motion_crop(scale, fx, fy):
     return crop_w, crop_h, x, y
 
 
-def append_reel_motion_graph(graph, plan):
+def append_reel_motion_graph(graph, plan, eased=False):
     graph.append(
         "[vcat]fps=30,crop=w='min(iw,ih*9/16)':h=ih:"
         "x='(iw-min(iw,ih*9/16))*0.5':y=0,"
@@ -150,8 +152,13 @@ def append_reel_motion_graph(graph, plan):
         _start, _end, scale, fx, fy = intervals[0]
         if scale <= 1.001:
             return "vbase"
-        crop_w, crop_h, x, y = motion_crop(scale, fx, fy)
-        graph.append(f"[vbase]crop={crop_w}:{crop_h}:{x}:{y},scale=1080:1920:flags=fast_bilinear,setsar=1[vmotion]")
+        if eased:
+            frame_count = max(2, int(round((_end - _start) * 30)))
+            zoom = f"1+{(scale - 1):.5f}*sin(PI*min(1,on/{frame_count}))"
+            graph.append(f"[vbase]zoompan=z='{zoom}':x='(iw-iw/zoom)*{fx:.4f}':y='(ih-ih/zoom)*{fy:.4f}':d=1:s=1080x1920:fps=30,setsar=1[vmotion]")
+        else:
+            crop_w, crop_h, x, y = motion_crop(scale, fx, fy)
+            graph.append(f"[vbase]crop={crop_w}:{crop_h}:{x}:{y},scale=1080:1920:flags=fast_bilinear,setsar=1[vmotion]")
         return "vmotion"
 
     split_labels = "".join(f"[vm{i}]" for i in range(len(intervals)))
@@ -160,8 +167,13 @@ def append_reel_motion_graph(graph, plan):
     for index, (start, end, scale, fx, fy) in enumerate(intervals):
         chain = f"trim=start={start:.4f}:end={end:.4f},setpts=PTS-STARTPTS"
         if scale > 1.001:
-            crop_w, crop_h, x, y = motion_crop(scale, fx, fy)
-            chain += f",crop={crop_w}:{crop_h}:{x}:{y},scale=1080:1920:flags=fast_bilinear"
+            if eased:
+                frame_count = max(2, int(round((end - start) * 30)))
+                zoom = f"1+{(scale - 1):.5f}*sin(PI*min(1,on/{frame_count}))"
+                chain += f",zoompan=z='{zoom}':x='(iw-iw/zoom)*{fx:.4f}':y='(ih-ih/zoom)*{fy:.4f}':d=1:s=1080x1920:fps=30"
+            else:
+                crop_w, crop_h, x, y = motion_crop(scale, fx, fy)
+                chain += f",crop={crop_w}:{crop_h}:{x}:{y},scale=1080:1920:flags=fast_bilinear"
         chain += ",setsar=1"
         label = f"vms{index}"
         graph.append(f"[vm{index}]{chain}[{label}]")
@@ -223,6 +235,11 @@ def build_ffmpeg_multicam(manifest, source, ass_file, output_file):
     if selected_music and selected_music.get("localPath"):
         music_index = next_index
         command += ["-stream_loop", "-1", "-i", selected_music["localPath"]]
+        next_index += 1
+    scene_index = None
+    if manifest.get("sceneFrames"):
+        scene_index = next_index
+        command += ["-framerate", str(plan["output"]["fps"]), "-i", manifest["sceneFrames"]]
         next_index += 1
 
     source_range_start = float(multicam.get("sourceRangeStart") or 0)
@@ -288,11 +305,14 @@ def build_ffmpeg_multicam(manifest, source, ass_file, output_file):
         raise RuntimeError("multicam render has no usable audio segments")
     graph.append("".join(audio_labels) + f"concat=n={len(audio_labels)}:v=0:a=1[acat]")
 
+    final_layer = "vscenebase" if scene_index is not None else "vout"
     if mode == "reels":
-        video_input = append_reel_motion_graph(graph, plan)
-        graph.append(f"[{video_input}]{color_filter_v2(plan)},ass='{ass_file}'[vout]")
+        video_input = append_reel_motion_graph(graph, plan, eased=bool(manifest.get("sceneProgram")))
+        graph.append(f"[{video_input}]{color_filter_v2(plan)},ass='{ass_file}'[{final_layer}]")
     else:
-        graph.append(f"[vcat]{color_filter_v2(plan)},ass='{ass_file}'[vout]")
+        graph.append(f"[vcat]{color_filter_v2(plan)},ass='{ass_file}'[{final_layer}]")
+    if scene_index is not None:
+        graph.append(f"[{final_layer}][{scene_index}:v]overlay=0:0:format=auto:eof_action=pass:repeatlast=0,format=yuv420p[vout]")
     graph.append(f"[acat]{audio_filter_v2(plan)}[voice]")
     audio_output = apply_music(graph, plan, selected_music, music_index, "voice")
 
@@ -331,6 +351,10 @@ def build_ffmpeg_v2(manifest, source, ass_file, output_file):
     if selected_music and selected_music.get("localPath"):
         music_index = 1
         command += ["-stream_loop", "-1", "-i", selected_music["localPath"]]
+    scene_index = None
+    if manifest.get("sceneFrames"):
+        scene_index = 2 if music_index is not None else 1
+        command += ["-framerate", str(plan["output"]["fps"]), "-i", manifest["sceneFrames"]]
 
     graph = []
     concat_inputs = []
@@ -346,12 +370,15 @@ def build_ffmpeg_v2(manifest, source, ass_file, output_file):
         raise RuntimeError("no valid keep segments remained")
     graph.append("".join(concat_inputs) + f"concat=n={len(concat_inputs)}:v=1:a=1[vcat][acat]")
 
+    final_layer = "vscenebase" if scene_index is not None else "vout"
     if mode == "reels":
         video_input = append_reel_motion_graph(graph, plan)
-        graph.append(f"[{video_input}]{color_filter_v2(plan)},ass='{ass_file}'[vout]")
+        graph.append(f"[{video_input}]{color_filter_v2(plan)},ass='{ass_file}'[{final_layer}]")
     else:
         video_chain = "fps=30,scale=1920:1080:force_original_aspect_ratio=decrease:flags=fast_bilinear,pad=1920:1080:(ow-iw)/2:(oh-ih)/2:black"
-        graph.append(f"[vcat]{video_chain},{color_filter_v2(plan)},ass='{ass_file}'[vout]")
+        graph.append(f"[vcat]{video_chain},{color_filter_v2(plan)},ass='{ass_file}'[{final_layer}]")
+    if scene_index is not None:
+        graph.append(f"[{final_layer}][{scene_index}:v]overlay=0:0:format=auto:eof_action=pass:repeatlast=0,format=yuv420p[vout]")
 
     graph.append(f"[acat]{audio_filter_v2(plan)}[voice]")
     audio_output = apply_music(graph, plan, selected_music, music_index, "voice")
@@ -418,8 +445,32 @@ def main():
             bw.base.download(url, local_path)
             track["localPath"] = local_path
 
+        if manifest.get("sceneProgram"):
+            frames_dir = os.path.join(directory, "motion-frames")
+            bw.base.callback(payload, "rendering", 11, "Rendering deterministic Chromium scene frames")
+            heartbeat_stop = threading.Event()
+            def scene_heartbeat():
+                while not heartbeat_stop.wait(15):
+                    bw.safe_progress_callback(payload, 11, "Rendering kinetic scenes")
+            heartbeat_thread = threading.Thread(target=scene_heartbeat, daemon=True)
+            heartbeat_thread.start()
+            try:
+                subprocess.run(["node", "--import", "tsx", "scripts/render_video_scene_frames.ts",
+                                manifest_path, frames_dir], check=True)
+            finally:
+                heartbeat_stop.set()
+                heartbeat_thread.join(timeout=2)
+            manifest["sceneFrames"] = os.path.join(frames_dir, "frame-%06d.png")
         bw.base.callback(payload, "rendering", 12, "Building Graphics V2 and mastering chain")
-        build_broadcast_ass_v2(manifest, ass_path)
+        if manifest.get("sceneProgram"):
+            # A single scene document owns the frame. Never render old fixed Scripture
+            # cards or ASS captions underneath its frame-aligned kinetic captions.
+            graphics_manifest = copy.deepcopy(manifest)
+            graphics_manifest["renderPlan"]["overlays"] = []
+            graphics_manifest["renderPlan"]["captions"]["enabled"] = False
+        else:
+            graphics_manifest = manifest
+        build_broadcast_ass_v2(graphics_manifest, ass_path)
 
         bw.safe_progress_callback(payload, 18, "Encoding mastered video · estimating")
         bw.run_main_render_with_progress(payload, manifest, source_path, ass_path, main_path)

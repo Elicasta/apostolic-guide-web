@@ -1,3 +1,5 @@
+import {resolveVideoSceneAssetRegistry} from "@/video-scenes-server";
+import {videoScenesSchema,resolveVideoSceneAnchors} from "@/video-scenes";
 import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -50,7 +52,7 @@ export async function POST(request: Request) {
   if (!service) return NextResponse.json({ error: "Supabase service access is not configured." }, { status: 503 });
 
   const result = await service.from("video_producer_projects")
-    .select("id,title,mode,status,parent_project_id,pathway_slug,selected_music_track_id,source_provider,source_locator,source_filename,source_duration,source_range_start,source_range_end,transcript,edit_plan,camera_plan,audio_plan,approval_fingerprint,approved_at")
+    .select("id,title,mode,status,parent_project_id,pathway_slug,selected_music_track_id,source_provider,source_locator,source_filename,source_duration,source_range_start,source_range_end,transcript,edit_plan,camera_plan,audio_plan,director_metadata,approval_fingerprint,approved_at")
     .eq("id", parsed.data.projectId).is("deleted_at", null).maybeSingle();
   if (result.error) return NextResponse.json({ error: result.error.message }, { status: 500 });
   const project = result.data;
@@ -59,6 +61,9 @@ export async function POST(request: Request) {
   if (project.source_provider !== "vercel_blob") return NextResponse.json({ error: "This source provider is not renderable yet." }, { status: 409 });
 
   const plan = project.edit_plan as VideoProducerEditPlan;
+  const rawScenes=(project.director_metadata as Record<string,unknown>|null)?.sceneProgram;
+  const sceneProgram=rawScenes?videoScenesSchema.safeParse(rawScenes):null;
+  if(sceneProgram&&!sceneProgram.success)return NextResponse.json({error:"Scene Code Mode document is invalid. Reapply it before rendering."},{status:422});
   let renderPlan;
   let production;
   try {
@@ -72,6 +77,7 @@ export async function POST(request: Request) {
       source_range_start: project.source_range_start,
       source_range_end: project.source_range_end,
       edit_plan: plan,
+      scene_program:sceneProgram?.success?sceneProgram.data:null,
       camera_plan: project.camera_plan as VideoProducerCameraPlan | null,
       audio_plan: project.audio_plan as VideoProducerAudioPlan | null
     });
@@ -85,6 +91,11 @@ export async function POST(request: Request) {
     ? sliceVideoProducerTranscript(fullTranscript, Number(project.source_range_start), Number(project.source_range_end))
     : fullTranscript;
   if (renderPlan.captions.enabled && !localTranscript.words.length) return NextResponse.json({ error: "Captioned renders require word-level transcript timing." }, { status: 409 });
+  let resolvedSceneProgram=null;
+  if(sceneProgram?.success){
+    try{resolvedSceneProgram=await resolveVideoSceneAssetRegistry(service,resolveVideoSceneAnchors(sceneProgram.data,localTranscript.words,renderPlan.keepSegments),8*60*60*1000);}
+    catch(e){return NextResponse.json({error:e instanceof Error?e.message:"Scene timing is invalid."},{status:422});}
+  }
 
   const pathway = project.pathway_slug ? pathwayBySlug(project.pathway_slug) : null;
   if (project.pathway_slug && !pathway) return NextResponse.json({ error: "The selected pathway is no longer available." }, { status: 409 });
@@ -141,6 +152,7 @@ export async function POST(request: Request) {
       source: { filename: project.source_filename, duration: project.source_duration, range: sourceRange },
       renderPlan,
       transcript: localTranscript,
+      ...(resolvedSceneProgram?{sceneProgram:resolvedSceneProgram}:{}),
       musicTracks,
       ...(production.usesMulticam ? {
         multicam: {
