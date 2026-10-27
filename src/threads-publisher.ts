@@ -1,5 +1,6 @@
 import { createServiceClient } from "./supabase";
 import { getThreadsCredentialValues } from "./threads-meta";
+import { assertDoctrineApproved, textDoctrineSource } from "./doctrine-gate";
 
 type ThreadsApiResponse = { id?: string; permalink?: string; error?: { message?: string } };
 
@@ -45,6 +46,7 @@ export async function publishScheduledThreadsPost(postId: string) {
     .single();
   if (row.error || !row.data) throw new Error(row.error?.message || "Scheduled Threads post not found.");
   if (row.data.status !== "scheduled") return { skipped: true };
+  await assertDoctrineApproved(service,textDoctrineSource("threads",postId,{body:String(row.data.body)}));
   await service.from("studio_threads_posts").update({ status: "publishing", updated_at: new Date().toISOString() }).eq("id", postId);
   try {
     const result = await publishThreadsText(String(row.data.body));

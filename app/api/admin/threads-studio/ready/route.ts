@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getStudioPermission } from "@/auth";
 import { createServiceClient } from "@/supabase";
+import { randomUUID } from "node:crypto";
+import { assertDoctrineApproved, evaluateDoctrine, recordDoctrineCheck, textDoctrineSource } from "@/doctrine-gate";
+
 
 const categorySchema = z.enum(["oneness","scripture","witty","question","prayer-news","app","response"]);
 const doctrineSchema = z.enum(["pass","warning","blocked"]);
@@ -48,6 +51,16 @@ export async function POST(request: Request) {
   const service = createServiceClient();
   if (!service) return NextResponse.json({ error: "Supabase service access is not configured." }, { status: 503 });
 
+  // Never trust a browser-provided doctrineStatus. A current server verdict is mandatory.
+  for (const item of parsed.data.items) {
+    try {
+      if(item.id)await assertDoctrineApproved(service,textDoctrineSource("threads",item.id,{body:item.body}));
+      else {
+        const draft=await evaluateDoctrine(textDoctrineSource("threads",randomUUID(),{body:item.body}));
+        if(draft.review.status!=="pass")throw new Error("Thread requires revision or owner approval before entering Publishing.");
+      }
+    }catch(error){return NextResponse.json({error:error instanceof Error?error.message:"Doctrine check unavailable."},{status:409});}
+  }
   let batchId = parsed.data.batchId;
   if (!batchId) {
     const created = await service.from("studio_threads_batches").insert({
@@ -68,7 +81,7 @@ export async function POST(request: Request) {
     const values = {
       body: item.body,
       category: item.category,
-      doctrine_status: item.doctrineStatus ?? null,
+      doctrine_status: "pass",
       status: "ready",
       scheduled_for: null,
       published_at: null,
@@ -93,6 +106,15 @@ export async function POST(request: Request) {
       row = result.data as Record<string, unknown>;
     }
 
+    if(!item.id) {
+      try {
+        const result=await recordDoctrineCheck(service,textDoctrineSource("threads",String(row.id),{body:item.body}),access.user.id);
+        if(result.review.status!=="pass")throw new Error("Doctrine status changed. Publishing blocked.");
+      } catch(error){
+        await service.from("studio_threads_posts").update({status:"draft"}).eq("id",row.id);
+        return NextResponse.json({error:error instanceof Error?error.message:"Doctrine check unavailable."},{status:409});
+      }
+    }
     saved.push(row);
   }
 
