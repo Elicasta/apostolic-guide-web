@@ -35,15 +35,22 @@ function decoratedHtml(scene:VideoScene,time:number){
  }
  return html;
 }
-export function renderVideoSceneFrame(input:VideoSceneDocument,time:number,fonts:SceneFontMap={}){
+export function renderVideoSceneFrame(input:VideoSceneDocument,time:number,fonts:SceneFontMap={},imageData:Record<string,string>={}){
  // Parse again even when input came from a caller claiming to be typed.
  const doc=videoSceneDocument.parse(input);
  if(!Number.isFinite(time)||time<0)throw new Error("Invalid frame time");
  const scenes=sceneAt(doc,time);
  const body=scenes.map((scene,i)=>{
   const opacity=transitionOpacity(scene,time);
+  let markup=decoratedHtml(scene,time);
+  markup=markup.replace(/<img\b[^>]*\bdata-asset-id=["']([a-zA-Z0-9_-]+)["'][^>]*>/gi,(tag,id:string)=>{
+   if(!doc.assets.some(a=>a.id===id)||!imageData[id])return tag;
+   const data=imageData[id];
+   if(!/^data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(data))throw new Error("Invalid registered image data");
+   return tag.replace(/\s+src\s*=\s*(?:"[^"]*"|'[^']*')/gi,"").replace(/\s*\/?>(?=$)/,' src="'+data+'">');
+  });
   return '<section data-scene="'+htmlEscape(scene.id)+'" class="ag-scene ag-'+scene.layer+'" style="opacity:'+opacity+'">'+
-     decoratedHtml(scene,time)+'</section><style data-scene-style="'+i+'">'+scene.css+'</style>';
+     markup+'</section><style data-scene-style="'+i+'">'+scene.css+'</style>';
  }).join("");
  const css='*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:transparent}'+
  'body{container-type:inline-size;font-family:"Montserrat",Arial,sans-serif;color:'+doc.style.paper+'}'+
