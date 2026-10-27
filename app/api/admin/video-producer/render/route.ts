@@ -4,8 +4,8 @@ import { z } from "zod";
 import { getStudioPermission } from "@/auth";
 import { pathwayBySlug } from "@/pathway-catalog";
 import { createServiceClient } from "@/supabase";
-import { compileVideoProducerRenderPlan, type VideoProducerEditPlan } from "@/video-producer";
-import { videoCodeV2Schema } from "@/code-mode/video-v2";
+import { compileVideoProducerRenderPlan,sourceTimeToOutputTime, type VideoProducerEditPlan } from "@/video-producer";
+import { videoCodeV2Schema,resolveVideoSceneAnchors } from "@/code-mode/video-v2";
 import { normalizeVideoProducerTranscript, sliceVideoProducerTranscript } from "@/video-producer-ai";
 import type { VideoProducerAudioPlan, VideoProducerCameraPlan } from "@/video-producer-multicam";
 import { resolveVideoProducerProductionState } from "@/video-producer-production-server";
@@ -127,7 +127,13 @@ export async function POST(request: Request) {
       production.externalAudio ? createPrivateBlobDownloadUrl(production.externalAudio.storage_locator, 8 * 60 * 60 * 1000) : Promise.resolve(null)
     ]);
     const codeScenes=project.director_metadata?.videoCodeV2;
-    const videoCodeV2=codeScenes?videoCodeV2Schema.parse(codeScenes):null;
+    const rawCode=codeScenes?videoCodeV2Schema.parse(codeScenes):null;
+    const videoCodeV2=rawCode?resolveVideoSceneAnchors(rawCode,localTranscript.words,t=>sourceTimeToOutputTime(t,plan.cuts,plan.sourceDuration)):null;
+    const videoCodeWords=videoCodeV2?localTranscript.words.flatMap(word=>{
+      const start=sourceTimeToOutputTime(Number(word.start),plan.cuts,plan.sourceDuration);
+      const end=sourceTimeToOutputTime(Number(word.end),plan.cuts,plan.sourceDuration);
+      return start==null||end==null?[]:[{word:word.word,start,end}];
+    }):[];
     if(videoCodeV2 && (videoCodeV2.format.w!==renderPlan.output.width || videoCodeV2.format.h!==renderPlan.output.height || videoCodeV2.format.fps!==renderPlan.output.fps))
       return NextResponse.json({error:"Scene canvas must match the approved output dimensions and frame rate."},{status:422});
     const manifest = {
@@ -145,7 +151,7 @@ export async function POST(request: Request) {
       },
       source: { filename: project.source_filename, duration: project.source_duration, range: sourceRange },
       renderPlan,
-      ...(videoCodeV2 ? {videoCodeV2} : {}),
+      ...(videoCodeV2 ? {videoCodeV2,videoCodeWords} : {}),
       transcript: localTranscript,
       musicTracks,
       ...(production.usesMulticam ? {
