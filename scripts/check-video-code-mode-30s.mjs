@@ -24,6 +24,10 @@ try{
     "-f","lavfi","-i","sine=frequency=220:sample_rate=48000",
     "-t","30","-c:v","libx264","-preset","ultrafast","-pix_fmt","yuv420p",
     "-c:a","aac","-b:a","128k",source]);
+  const input=JSON.parse(execute("ffprobe",["-v","error","-show_streams","-show_format","-of","json",source]));
+  const sourceDuration=Number(input.format?.duration);
+  if(!(sourceDuration>=29.8&&sourceDuration<=30.2))
+    throw new Error("30-second acceptance input itself is malformed: "+sourceDuration);
   execute("node",["--import","tsx","scripts/render-video-code-mode.ts",doc,source,out,"0","30"]);
   const probe=JSON.parse(execute("ffprobe",["-v","error","-show_streams","-show_format","-of","json",out]));
   const video=probe.streams.find(s=>s.codec_type==="video");
