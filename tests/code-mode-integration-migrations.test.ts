@@ -4,11 +4,11 @@ import {readFileSync} from "node:fs";
 import {PGlite} from "@electric-sql/pglite";
 
 const ids={actor:"10000000-0000-4000-8000-000000000001",project:"20000000-0000-4000-8000-000000000002"};
-const init=String.raw\`
+const init=String.raw`
 create role anon;create role authenticated;create role service_role;
 create schema auth;
 create table auth.users(id uuid primary key);
-insert into auth.users(id) values ('\${ids.actor}');
+insert into auth.users(id) values ('${ids.actor}');
 create table public.studio_doctrine_verdicts(
  id uuid primary key default gen_random_uuid(),
  source_type text not null constraint studio_doctrine_verdicts_source_type_check
@@ -39,7 +39,7 @@ create table public.studio_editorial_packs(
  production_date date primary key,project_id uuid not null references public.studio_creative_projects(id),
  payload jsonb not null
 );
-\`;
+`;
 test("phase 2-4 SQL migrations apply together with RLS and doctrine constraint",async()=>{
  const db=new PGlite();
  try{
