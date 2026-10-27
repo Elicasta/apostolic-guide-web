@@ -26,7 +26,7 @@ export function VideoProducerMasterDownload() {
   const syncProject = useCallback(() => setProjectId(currentProjectId()), []);
 
   useEffect(() => {
-    syncProject();
+    const boot = window.setTimeout(syncProject, 0);
     const onPopState = () => syncProject();
     const onChange = (event: Event) => {
       const target = event.target;
@@ -37,6 +37,7 @@ export function VideoProducerMasterDownload() {
     document.addEventListener("change", onChange, true);
     const timer = window.setInterval(syncProject, 2000);
     return () => {
+      window.clearTimeout(boot);
       window.removeEventListener("popstate", onPopState);
       document.removeEventListener("change", onChange, true);
       window.clearInterval(timer);
@@ -45,8 +46,8 @@ export function VideoProducerMasterDownload() {
 
   useEffect(() => {
     if (!projectId) {
-      setDetail(null);
-      return;
+      const clear = window.setTimeout(() => setDetail(null), 0);
+      return () => window.clearTimeout(clear);
     }
     let cancelled = false;
     const load = async () => {
@@ -59,10 +60,11 @@ export function VideoProducerMasterDownload() {
         if (!cancelled) setLoading(false);
       }
     };
-    void load();
+    const boot = window.setTimeout(() => { void load(); }, 0);
     const timer = window.setInterval(() => { void load(); }, 5000);
     return () => {
       cancelled = true;
+      window.clearTimeout(boot);
       window.clearInterval(timer);
     };
   }, [projectId]);
