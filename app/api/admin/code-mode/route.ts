@@ -8,6 +8,9 @@ import {wholeItemSchema,initialWholeItem,type WholeItemCode} from "@/code-mode/w
 import {normalizeEditorState} from "@/creative-project";
 import {initialVideoV2,videoCodeV2Schema} from "@/code-mode/video-v2";
 import {escapeCodeText} from "@/code-mode/core";
+import {createPrivateBlobDownloadUrl} from "@/video-producer-server";
+import {normalizeVideoProducerTranscript,sliceVideoProducerTranscript} from "@/video-producer-ai";
+import {buildKeepSegments,sourceTimeToOutputTime,type VideoProducerEditPlan} from "@/video-producer";
 import {pathwayBySlug} from "@/pathway-catalog";
 export const runtime="nodejs";
 type Service=NonNullable<ReturnType<typeof createServiceClient>>;
@@ -82,8 +85,30 @@ export async function GET(request:Request){
         layer:"overlay",html:"<h1 class='headline'>"+escapeCodeText(cue.title||"")+"</h1>",css:"",
         keyframes:[{t:0,target:".headline",props:{opacity:0,y:50},ease:"ease-out"},{t:.4,target:".headline",props:{opacity:1,y:0},ease:"ease-out"}]
        }))};
+  let words:Array<{word:string;start:number;end:number}>=[];
+  let sourcePreviewUrl:string|null=null;
+  let keepSegments:Array<{start:number;end:number}>=[];
+  let sourceOffset=0;
+  if(isProducer){
+    const plan=r.data.edit_plan as VideoProducerEditPlan|null;
+    const full=normalizeVideoProducerTranscript(r.data.transcript);
+    sourceOffset=Number(r.data.source_range_start||0);
+    const local=r.data.source_range_start!=null&&r.data.source_range_end!=null
+      ?sliceVideoProducerTranscript(full,Number(r.data.source_range_start),Number(r.data.source_range_end)):full;
+    if(plan){
+      keepSegments=buildKeepSegments(plan.cuts,plan.sourceDuration);
+      words=local.words.flatMap(w=>{
+        const start=sourceTimeToOutputTime(w.start,plan.cuts,plan.sourceDuration);
+        const end=sourceTimeToOutputTime(w.end,plan.cuts,plan.sourceDuration);
+        return start===null||end===null?[]:[{word:w.word,start,end}];
+      });
+    }else words=local.words;
+    if(r.data.source_provider==="vercel_blob"&&r.data.source_locator){
+      try{sourcePreviewUrl=await createPrivateBlobDownloadUrl(r.data.source_locator,45*60*1000);}catch{sourcePreviewUrl=null;}
+    }
+  }
   return NextResponse.json({document:{...base,expectedUpdatedAt:r.data.updated_at},readOnly,
-    words:isProducer?(r.data.transcript?.words||[]):[]});
+    words,sourcePreviewUrl,sourceOffset,keepSegments},{headers:{"cache-control":"private, no-store"}});
 
  }catch(error){return fail(error);}
 }
