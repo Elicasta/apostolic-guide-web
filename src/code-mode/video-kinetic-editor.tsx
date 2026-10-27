@@ -35,7 +35,7 @@ export function VideoKineticCodeEditor({initialId="",initialKind="producer",init
   setBusy(true);setError("");setNotice("");
   try{const query=new URLSearchParams({kind,id:projectId});const res=await fetch("/api/admin/code-mode/video-v2?"+query.toString(),{cache:"no-store"});const value=await res.json();if(!res.ok)throw new Error(value.error||"Load failed");setRaw(JSON.stringify(value.document,null,2));setReadOnly(Boolean(value.readOnly));setSelected(initialScene||value.document.scenes?.[0]?.id||"scene-1");setHistory([]);setNotice("Loaded "+value.projectStatus+" project.");}catch(e){setError(e instanceof Error?e.message:"Load failed");}finally{setBusy(false)}
  }
- useEffect(()=>{if(initialId)void loadProject();/* Initial link owns first load. */
+ useEffect(()=>{if(initialId)void Promise.resolve().then(()=>loadProject());/* Initial link owns first load. */
  // eslint-disable-next-line react-hooks/exhaustive-deps
  },[]);
  async function applyProject(){
