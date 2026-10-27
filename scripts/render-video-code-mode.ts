@@ -74,16 +74,14 @@ export async function renderSceneVideo(args:string[]){
    "-filter_complex",
    "[0:v]fps="+fps+",scale="+doc.format.w+":"+doc.format.h+":force_original_aspect_ratio=increase,crop="+doc.format.w+":"+doc.format.h+",setsar=1[base];[base][1:v]overlay=shortest=1:format=auto,format=yuv420p[composite]",
    "-map","[composite]","-map","0:a?",
-   "-frames:v",String(count),
+   "-frames:v",String(count),"-shortest",
    "-c:v","libx264","-preset","superfast","-crf","18","-pix_fmt","yuv420p",
    "-c:a","copy","-movflags","+faststart",result
   ]);
   return {frames:count,fps,start,duration,output:result};
  }finally{
   await browser.close();
-  const files=await readdir(dir).catch(()=>[]);
-  if(files.length)await rm(dir,{recursive:true,force:true});
-  else await rm(dir,{recursive:true,force:true});
+  await rm(dir,{recursive:true,force:true});
  }
 }
 if(process.argv[1]?.includes("render-video-code-mode")){
