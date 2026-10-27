@@ -15,6 +15,21 @@ async function main(){
  const input=JSON.parse(await readFile(manifestPath,"utf8"));
  const doc=videoCodeV2Schema.parse(input.document||input);
  const words=Array.isArray(input.words)?input.words:[];
+ const assetSources:Record<string,string>={};
+ const chosen=new Set(doc.assets.map(asset=>asset.id));
+ const entries=Object.entries(input.assetUrls||{}) as Array<[string,unknown]>;
+ if(entries.length>20)throw new Error("Too many motion graphics assets");
+ for(const [id,rawUrl] of entries){
+   if(!chosen.has(id))throw new Error("Unregistered motion asset");
+   if(typeof rawUrl!=="string" || !rawUrl.startsWith("https://"))throw new Error("Motion asset URL not HTTPS");
+   const response=await fetch(rawUrl,{redirect:"error",signal:AbortSignal.timeout(30000)});
+   if(!response.ok)throw new Error("Could not fetch registered graphic asset");
+   const mime=response.headers.get("content-type")?.split(";")[0]||"";
+   if(!["image/png","image/jpeg","image/webp"].includes(mime))throw new Error("Unsupported graphic MIME type");
+   const bytes=Buffer.from(await response.arrayBuffer());
+   if(bytes.length>6*1024*1024)throw new Error("Graphic asset exceeds 6MB");
+   assetSources[id]="data:"+mime+";base64,"+bytes.toString("base64");
+ }
  const duration=Number(rawDuration);
  if(!Number.isFinite(duration)||duration<=0||duration>7200)throw new Error("Invalid render duration");
  if(doc.format.fps!==30)throw new Error("Video Producer output currently requires 30 fps");
@@ -34,7 +49,7 @@ async function main(){
   const frameCount=Math.ceil(duration*doc.format.fps);
   const start=Date.now();
   for(let i=0;i<frameCount;i++){
-   const html=inline(videoFrameHtml(doc,i/doc.format.fps,false,words));
+   const html=inline(videoFrameHtml(doc,i/doc.format.fps,false,words,assetSources));
    await page.setContent(html,{waitUntil:"load"});
    await page.evaluate(()=>document.fonts.ready);
    await page.screenshot({path:resolve(folder,`${String(i).padStart(6,"0")}.png`),omitBackground:true,animations:"disabled",type:"png"});
