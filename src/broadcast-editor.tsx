@@ -87,13 +87,14 @@ export function BroadcastEditor({ sources, audienceCounts, initialCampaign }: { 
   const [broadcastId, setBroadcastId] = useState<string | null>(null);
   const [codeOpen,setCodeOpen]=useState(false);
   const [codeDoc,setCodeDoc]=useState<EmailCodeDocument|null>(null);
+  const [savedDoc,setSavedDoc]=useState<EmailCodeDocument|null>(null);
   const [draftId,setDraftId]=useState<string|null>(null);
   const [version,setVersion]=useState(0);
   const [revisions,setRevisions]=useState<Array<{version:number;created_at:string}>>([]);
   const [doctrineReady,setDoctrineReady]=useState(false);
   const [codeError,setCodeError]=useState("");
   const editableDoc:EmailCodeDocument={...(codeDoc||initialEmailCodeDocument(campaign)),campaign};
-  const documentMatches=Boolean(codeDoc&&JSON.stringify(codeDoc.campaign)===JSON.stringify(campaign));
+  const documentMatches=Boolean(savedDoc&&JSON.stringify(savedDoc)===JSON.stringify(editableDoc));
   const authorized=Boolean(draftId&&doctrineReady&&documentMatches);
   async function saveCode(next:EmailCodeDocument){
    setCodeError("");
@@ -101,7 +102,7 @@ export function BroadcastEditor({ sources, audienceCounts, initialCampaign }: { 
    const response=await fetch("/api/admin/broadcast-code",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({id:draftId||undefined,expectedVersion:version||undefined,document:checked})});
    const result=await response.json();if(!response.ok)throw new Error(result.error||"Draft save failed.");
    setDraftId(result.draft.id);setVersion(result.draft.version);
-   setCodeDoc(result.draft.document);setCampaign(result.draft.document.campaign);
+   setCodeDoc(result.draft.document);setSavedDoc(result.draft.document);setCampaign(result.draft.document.campaign);
    setDoctrineReady(false);setBroadcastId(null);
    const history=await fetch("/api/admin/broadcast-code?id="+encodeURIComponent(result.draft.id)).then(r=>r.json());
    setRevisions(history.revisions||[]);setMessage("Code Mode draft saved. Run the required doctrine check before any email action.");
@@ -111,7 +112,7 @@ export function BroadcastEditor({ sources, audienceCounts, initialCampaign }: { 
    setCodeError("");
    const response=await fetch("/api/admin/broadcast-code",{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify({id:draftId,expectedVersion:version,revisionVersion})});
    const result=await response.json();if(!response.ok)throw new Error(result.error||"Restore failed.");
-   setCodeDoc(result.draft.document);setCampaign(result.draft.document.campaign);setVersion(result.draft.version);
+   setCodeDoc(result.draft.document);setSavedDoc(result.draft.document);setCampaign(result.draft.document.campaign);setVersion(result.draft.version);
    setDoctrineReady(false);setBroadcastId(null);
    const history=await fetch("/api/admin/broadcast-code?id="+encodeURIComponent(draftId)).then(r=>r.json());setRevisions(history.revisions||[]);
   }
@@ -125,7 +126,7 @@ export function BroadcastEditor({ sources, audienceCounts, initialCampaign }: { 
     setCampaign(next);
     setSourceUrl(source?.url ?? "");
     setAudience(defaultAudience(type));
-    setBroadcastId(null);setDraftId(null);setVersion(0);setCodeDoc(null);setDoctrineReady(false);
+    setBroadcastId(null);setDraftId(null);setVersion(0);setCodeDoc(null);setSavedDoc(null);setDoctrineReady(false);
     setState("idle");
     setMessage("");
   }
@@ -134,7 +135,7 @@ export function BroadcastEditor({ sources, audienceCounts, initialCampaign }: { 
     setSourceUrl(url);
     const source = matchingSources.find((item) => item.url === url);
     if (source) setCampaign(campaignFrom(campaign.type, source));
-    setDraftId(null);setCodeDoc(null);setDoctrineReady(false);setBroadcastId(null);
+    setDraftId(null);setCodeDoc(null);setSavedDoc(null);setDoctrineReady(false);setBroadcastId(null);
   }
 
   async function callApi(payload: unknown) {

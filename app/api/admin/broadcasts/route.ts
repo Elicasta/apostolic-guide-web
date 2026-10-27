@@ -5,6 +5,7 @@ import { createBroadcastDraft, sendBroadcastDraft, sendBroadcastTest } from "@/r
 import { recordStudioAudit } from "@/studio-audit";
 import {createServiceClient} from "@/supabase";
 import {approvedBroadcastCode} from "@/code-mode/broadcast-server";
+import {emailCampaignSchema} from "@/code-mode/broadcast";
 
 const campaignSchema = z.object({
   type: z.enum(["article", "topic", "answer", "pathway", "youtube", "podcast", "announcement"]),
@@ -36,7 +37,7 @@ export async function POST(request: Request) {
   let approved;
   try{approved=await approvedBroadcastCode(service,parsed.data.draftId,access.user.id);}
   catch(error){return NextResponse.json({error:error instanceof Error?error.message:"Doctrine check is required."},{status:409});}
-  if(parsed.data.action!=="send"&&JSON.stringify(parsed.data.campaign)!==JSON.stringify(approved.document.campaign))
+  if(parsed.data.action!=="send"&&JSON.stringify(emailCampaignSchema.parse(parsed.data.campaign))!==JSON.stringify(emailCampaignSchema.parse(approved.document.campaign)))
    return NextResponse.json({error:"Broadcast fields changed after approval. Save and review the exact email again."},{status:409});
   try {
     if (parsed.data.action === "create") {
