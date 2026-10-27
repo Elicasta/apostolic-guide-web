@@ -116,9 +116,9 @@ export async function renderSceneVideo(args:string[]){
    "-ss",String(start),"-i",input,
    "-framerate",String(fps),"-i",pattern,
    "-filter_complex",
-   "[0:v]"+footageFilter(doc)+"[base];[base][1:v]overlay=shortest=0:eof_action=pass:repeatlast=0:format=auto,format=yuv420p[composite]",
+   "[0:v]"+footageFilter(doc)+",setpts=N/("+fps+"*TB)[base];[1:v]setpts=N/("+fps+"*TB),format=rgba[graphics];[base][graphics]overlay=shortest=0:eof_action=pass:repeatlast=0:format=auto,format=yuv420p,setpts=N/("+fps+"*TB)[composite]",
    "-map","[composite]","-map","0:a?",
-   "-frames:v",String(count),"-t",String(duration),
+   "-fps_mode:v","passthrough","-frames:v",String(count),"-t",String(duration),
    "-c:v","libx264","-preset","superfast","-crf","18","-pix_fmt","yuv420p",
    "-c:a","copy","-movflags","+faststart",result
   ]);
