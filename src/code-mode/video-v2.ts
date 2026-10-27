@@ -86,7 +86,7 @@ function ease(t: number, kind: string): number {
   }
   return 1-Math.pow(1-t,3);
 }
-function at(scene: VideoCodeV2["scenes"][number], target: string, time: number) {
+function at(scene: VideoCodeV2["scenes"][number], target: string, time: number): Partial<Record<"opacity"|"x"|"y"|"scale"|"rotation"|"reveal",number>> {
   const frames=scene.keyframes.filter(k=>k.target===target).sort((a,b)=>a.t-b.t);
   if (!frames.length) return {};
   const t=Math.max(0,time-scene.start);
