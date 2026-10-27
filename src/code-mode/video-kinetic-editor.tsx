@@ -30,14 +30,14 @@ export function VideoKineticCodeEditor({initialId="",initialKind="producer",init
  const [libraryAssets,setLibraryAssets]=useState<Array<{id:string;title:string}>>([]),[graphicId,setGraphicId]=useState("");
  const [checkpoints,setCheckpoints]=useState<Array<{id:string;createdAt:string}>>([]),[checkpointId,setCheckpointId]=useState("");
  const [sourceUrl,setSourceUrl]=useState(""),[transcriptLane,setTranscriptLane]=useState<Array<{word:string;start:number;end:number}>>([]);
- const [keptRanges,setKeptRanges]=useState<Array<{start:number;end:number}>>([]);
+ const [keptRanges,setKeptRanges]=useState<Array<{start:number;end:number}>>([]),[sourceOffset,setSourceOffset]=useState(0);
  const parsed=useMemo(()=>{try{return videoSceneDocument.safeParse(JSON.parse(raw))}catch{return null}},[raw]);
  const document=parsed?.success?parsed.data:null;
  const scene=document?.scenes.find(s=>s.id===selected)||document?.scenes[0];
  async function loadProject(checkpoint=""){
   if(!projectId){setError("Enter a project ID or Pathway slug.");return}
   setBusy(true);setError("");setNotice("");
-  try{const query=new URLSearchParams({kind,id:projectId});if(checkpoint)query.set("checkpoint",checkpoint);const res=await fetch("/api/admin/code-mode/video-v2?"+query.toString(),{cache:"no-store"});const value=await res.json();if(!res.ok)throw new Error(value.error||"Load failed");setRaw(JSON.stringify(value.document,null,2));setReadOnly(Boolean(value.readOnly));setSelected(initialScene||value.document.scenes?.[0]?.id||"scene-1");setHistory([]);setCheckpoints(Array.isArray(value.history)?value.history:[]);setSourceUrl(String(value.previewSourceUrl||""));setTranscriptLane(Array.isArray(value.transcriptLane)?value.transcriptLane:[]);setKeptRanges(Array.isArray(value.keptRanges)?value.keptRanges:[]);setNotice(checkpoint?"Loaded checkpoint for review. Apply JSON to restore this version.":"Loaded "+value.projectStatus+" project.");}catch(e){setError(e instanceof Error?e.message:"Load failed");}finally{setBusy(false)}
+  try{const query=new URLSearchParams({kind,id:projectId});if(checkpoint)query.set("checkpoint",checkpoint);const res=await fetch("/api/admin/code-mode/video-v2?"+query.toString(),{cache:"no-store"});const value=await res.json();if(!res.ok)throw new Error(value.error||"Load failed");setRaw(JSON.stringify(value.document,null,2));setReadOnly(Boolean(value.readOnly));setSelected(initialScene||value.document.scenes?.[0]?.id||"scene-1");setHistory([]);setCheckpoints(Array.isArray(value.history)?value.history:[]);setSourceUrl(String(value.previewSourceUrl||""));setTranscriptLane(Array.isArray(value.transcriptLane)?value.transcriptLane:[]);setKeptRanges(Array.isArray(value.keptRanges)?value.keptRanges:[]);setSourceOffset(Number(value.sourceOffset||0));setNotice(checkpoint?"Loaded checkpoint for review. Apply JSON to restore this version.":"Loaded "+value.projectStatus+" project.");}catch(e){setError(e instanceof Error?e.message:"Load failed");}finally{setBusy(false)}
  }
  useEffect(()=>{void fetch("/api/admin/video-producer/graphics",{cache:"no-store"}).then(r=>r.ok?r.json():{assets:[]}).then(value=>{
   const rows=Array.isArray(value.assets)?value.assets:[];
@@ -110,6 +110,6 @@ export function VideoKineticCodeEditor({initialId="",initialKind="producer",init
     <label style={{gridColumn:"1 / -1"}}>CSS<textarea rows={7} style={{width:"100%",fontFamily:"monospace"}} value={scene.css} onChange={e=>patchScene({css:e.target.value})}/></label>
    </div>:<p>JSON is invalid. Return to Code to repair it.</p>}
   {error?<p role="alert">{error}</p>:null}{notice?<p role="status">{notice}</p>:null}
-  <KineticScenePreview raw={raw} sourceUrl={sourceUrl} transcriptWords={transcriptLane} keepSegments={keptRanges}/>
+  <KineticScenePreview raw={raw} sourceUrl={sourceUrl} sourceOffset={sourceOffset} transcriptWords={transcriptLane} keepSegments={keptRanges}/>
  </section>;
 }
