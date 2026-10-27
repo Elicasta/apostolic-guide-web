@@ -22,7 +22,7 @@ export function WholeItemCodeMode({initialTool="website",initialId=""}:{initialT
    setMessage(nextId?"Loaded an existing draft.":"Empty Code Mode document. Fill required fields before Apply.");
   }catch(e){setError(e instanceof Error?e.message:"Load failed.");}finally{setBusy(false);}
  }
- useEffect(()=>{if(initialId)void load(tool,initialId,kind);
+ useEffect(()=>{if(initialId)void Promise.resolve().then(()=>load(tool,initialId,kind));
  // Initial page route uniquely scopes the first load.
  // eslint-disable-next-line react-hooks/exhaustive-deps
  },[]);
