@@ -3,6 +3,7 @@ import chromium from "@sparticuz/chromium";
 import puppeteer, { type Browser } from "puppeteer-core";
 import { codeDocument, type CodeTheme } from "./carousel-code";
 import type { CreativeFrame } from "./creative-project";
+import { inlineCodeAssets } from "./code-mode/assets";
 export function codeResourceAllowed(raw: string, origin: string) {
   try {
     const url = new URL(raw);
@@ -53,7 +54,7 @@ export async function renderCodeFrames(
     for (const [index, frame] of frames.entries()) {
       if (only !== undefined && index !== only) continue;
       await page.setContent(
-        codeDocument(frame, index, frames.length, theme, origin),
+        await inlineCodeAssets(codeDocument(frame, index, frames.length, theme, origin)),
         { waitUntil: "load", timeout: 25000 },
       );
       await page.waitForFunction("window.__codeReady === true");

@@ -1,12 +1,7 @@
 import postcss from "postcss";
 import { CODE_FONT_CSS, SOURCE_SERIF_EXTRA_CSS } from "./carousel-code-fonts";
 import { ORIGINAL_CAROUSEL_CSS } from "./carousel-code-preset-css";
-import {
-  parseTree,
-  findNodeAtLocation,
-  printParseErrorCode,
-  type ParseError,
-} from "jsonc-parser";
+import {parseCodeDocument, escapeCodeText, expandCodePlaceholders} from "./code-mode/core";
 import sanitizeHtml from "sanitize-html";
 import { z } from "zod";
 import type { CreativeFrame, CreativeEditorState } from "./creative-project";
@@ -72,14 +67,7 @@ export const BUILTIN_CODE_ASSETS = [
   },
   { name: "Skyline SVG", url: "/brand/carousel-skyline.svg" },
 ];
-export function escapeHtml(s: string) {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
+export function escapeHtml(s: string) { return escapeCodeText(s); }
 export function cleanCodeHtml(html: string) {
   return sanitizeHtml(html, {
     allowedTags: [
@@ -165,13 +153,9 @@ export function frameMarkup(
       : "/brand/apostolic-guide-mark-reversed.png",
   };
   return cleanCodeHtml(
-    resolveCodeAssets(o.html || theme.template, theme).replace(
-      /\{\{(\w+)\}\}/g,
-      (_, key: string) =>
-        key === "headline"
-          ? escapeHtml(fields[key] || "").replace(/&lt;br\s*\/?&gt;/gi, "<br>")
-          : escapeHtml(fields[key] || ""),
-    ),
+    expandCodePlaceholders(resolveCodeAssets(o.html || theme.template, theme), {
+      ...fields, headline: escapeHtml(fields.headline || "").replace(/&lt;br\s*\/?&gt;/gi, "<br>")
+    }, ["headline"]),
   );
 }
 // This is the only executable code in a preview/export. User scripts never enter the document.
@@ -362,25 +346,5 @@ export function fromCodeJson(value: unknown) {
   };
 }
 export function parseCodeJson(text: string) {
-  const errors: ParseError[] = [];
-  const tree = parseTree(text, errors, {
-    disallowComments: true,
-    allowTrailingComma: false,
-  });
-  if (errors.length) {
-    const error = errors[0];
-    const line = text.slice(0, error.offset).split("\n").length;
-    throw new Error(`Line ${line}: ${printParseErrorCode(error.error)}`);
-  }
-  try {
-    return fromCodeJson(JSON.parse(text));
-  } catch (error) {
-    const path = error instanceof z.ZodError ? error.issues[0]?.path : [];
-    const node =
-      tree && findNodeAtLocation(tree, (path || []) as (string | number)[]);
-    const line = text.slice(0, node?.offset || 0).split("\n").length;
-    throw new Error(
-      `Line ${line}: ${error instanceof Error ? error.message : String(error)}`,
-    );
-  }
+ return parseCodeDocument(text,fromCodeJson);
 }
