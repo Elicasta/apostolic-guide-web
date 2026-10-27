@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createServiceClient } from "@/supabase";
 import { normalizeVideoProducerTranscript } from "@/video-producer-ai";
+import { videoSourceProbeSchema } from "@/video-producer-source-probe";
 import { workerTokenMatches } from "@/video-producer-server";
 
 export const runtime = "nodejs";
@@ -14,7 +15,8 @@ const schema = z.object({
   progress: z.number().int().min(0).max(100).optional(),
   stage: z.string().min(1).max(100).optional(),
   error: z.string().max(3000).optional(),
-  transcript: z.unknown().optional()
+  transcript: z.unknown().optional(),
+  source_probe: videoSourceProbeSchema.optional()
 });
 
 export async function POST(request: Request) {
@@ -78,7 +80,8 @@ export async function POST(request: Request) {
     ...nextMetadata,
     transcriptionBridge: { ...bridge, callbackTokenHash: null, completedAt: now },
     transcriptionWordCount: transcript.words.length,
-    transcriptionSegmentCount: transcript.segments.length
+    transcriptionSegmentCount: transcript.segments.length,
+    ...(parsed.data.source_probe ? { sourceProbe: parsed.data.source_probe } : {})
   };
   const update = await service.from("video_producer_projects").update({
     status: "uploaded",
