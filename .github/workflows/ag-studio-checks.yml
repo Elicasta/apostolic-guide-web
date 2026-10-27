@@ -36,7 +36,7 @@ jobs:
       - name: Lint changed Code Mode TypeScript and TSX
         run: |
           git fetch origin main --depth=1
-          git diff --name-only origin/main HEAD -- '*.ts' '*.tsx' | tr '\\n' '\\0' | xargs -0 -r npx eslint
+          git diff --name-only -z origin/main HEAD -- '*.ts' '*.tsx' | xargs -0 -r npx eslint
       - run: npm run typecheck
       - run: npm run build
       - name: Verify Code Mode Chromium exports
