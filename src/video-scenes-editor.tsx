@@ -3,8 +3,8 @@ import {useEffect,useMemo,useRef,useState} from "react";
 import {parseCodeDocument} from "./code-mode/core";
 import {freshVideoScenes,resolveVideoSceneAnchors,videoSceneHtml,videoSceneTemplates,videoScenesSchema,type VideoScenesDocument,type VideoWord} from "./video-scenes";
 
-type Props={data:VideoScenesDocument;words?:VideoWord[];disabled?:boolean;onApply:(doc:VideoScenesDocument)=>Promise<void>};
-export function VideoScenesCodeEditor({data,words=[],disabled=false,onApply}:Props){
+type Props={data:VideoScenesDocument;words?:VideoWord[];keepSegments?:Array<{start:number;end:number}>;disabled?:boolean;onApply:(doc:VideoScenesDocument)=>Promise<void>};
+export function VideoScenesCodeEditor({data,words=[],keepSegments=[],disabled=false,onApply}:Props){
  const [value,setValue]=useState<VideoScenesDocument>(data),[raw,setRaw]=useState(JSON.stringify(data,null,2));
  const [tab,setTab]=useState<"fields"|"code">("fields"),[selected,setSelected]=useState(()=>typeof window==="undefined"?"":new URLSearchParams(window.location.search).get("scene")||"");
  const [time,setTime]=useState(0),[playing,setPlaying]=useState(false),[loop,setLoop]=useState(true),[guides,setGuides]=useState(false);
@@ -13,7 +13,7 @@ export function VideoScenesCodeEditor({data,words=[],disabled=false,onApply}:Pro
  const duration=Math.max(1,...value.scenes.map(s=>s.end));
  const fps=value.format.fps,frames=Math.ceil(duration*fps);
  const current=value.scenes.find(s=>s.id===selected)||value.scenes.find(s=>time>=s.start&&time<s.end);
- const safePreview=useMemo(()=>{try{return videoSceneHtml(value,{guides});}catch{return videoSceneHtml(freshVideoScenes(value.kind,value.id),{guides});}},[value,guides]);
+ const safePreview=useMemo(()=>{try{return videoSceneHtml(resolveVideoSceneAnchors(value,words,keepSegments),{guides});}catch{return videoSceneHtml(freshVideoScenes(value.kind,value.id),{guides});}},[value,guides,words,keepSegments]);
  const previewWidth=320,previewHeight=Math.round(previewWidth*value.format.h/value.format.w);
  const scale=previewWidth/value.format.w;
  function update(next:VideoScenesDocument){setHistory(old=>[...old.slice(-29),value]);setValue(next);setRaw(JSON.stringify(next,null,2));setDirty(true);setError("");}
