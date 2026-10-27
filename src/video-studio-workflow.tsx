@@ -8,7 +8,7 @@ import { PathwayAssetLibrary } from "@/pathway-asset-library";
 
 const STEPS = [
   ["Pathway", "Source + readiness"],
-  ["Direct", "Script + audio timing"],
+  ["Direct", "Sol + audio timing"],
   ["Edit", "Visual beats"],
   ["Render", "Create MP4s"],
   ["Review", "QC + handoff"]
