@@ -44,6 +44,10 @@
     {
       "path": "/api/cron/meta-token-health",
       "schedule": "41 10 * * *"
+    },
+    {
+      "path": "/api/cron/video-producer-transcription",
+      "schedule": "* * * * *"
     }
   ]
 }
