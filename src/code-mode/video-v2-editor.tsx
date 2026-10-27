@@ -2,7 +2,7 @@
 
 import {useEffect,useMemo,useRef,useState} from "react";
 import {parseCodeDocument} from "./core";
-import {VIDEO_SCENE_TEMPLATES,insertVideoTemplate,videoCodeV2Schema,videoFrameHtml,type VideoCodeV2} from "./video-v2";
+import {VIDEO_SCENE_TEMPLATES,insertVideoTemplate,videoCodeV2Schema,videoFrameHtml,resolveVideoSceneAnchors,type VideoCodeV2} from "./video-v2";
 
 type Word={word?:string;text?:string;start?:number;end?:number};
 type Props={value:VideoCodeV2;onApply:(next:VideoCodeV2)=>Promise<void>;disabled?:boolean;readOnly?:boolean;words?:Word[]};
@@ -97,7 +97,7 @@ export function VideoCodeEditor({value,onApply,disabled=false,readOnly=false,wor
     <h3 style={{margin:0}}>Deterministic frame preview</h3>
     <div style={{background:"#05090c",border:"1px solid #425360",padding:10,borderRadius:10,display:"grid",placeItems:"center",minHeight:240}}>
       <div style={{width:document.format.w*scale,height:document.format.h*scale,position:"relative",overflow:"hidden"}}>
-      <iframe title="Video scene at playhead" sandbox="" referrerPolicy="no-referrer" srcDoc={videoFrameHtml(document,time,guides)} width={document.format.w} height={document.format.h}
+      <iframe title="Video scene at playhead" sandbox="" referrerPolicy="no-referrer" srcDoc={videoFrameHtml(resolveVideoSceneAnchors(document,words),time,guides,words)} width={document.format.w} height={document.format.h}
         style={{width:document.format.w,height:document.format.h,position:"absolute",top:0,left:0,transform:`scale(${scale})`,transformOrigin:"top left",border:0,background:"#152631"}}/>
       </div>
     </div>
