@@ -1,5 +1,5 @@
 "use client";
-import {useEffect,useMemo,useState} from "react";
+import {useEffect,useMemo,useRef,useState} from "react";
 import {videoSceneDocument} from "./video-scenes";
 import {renderVideoSceneFrame,type SceneFontMap} from "./video-scene-frame";
 const FILES:Record<keyof SceneFontMap,string>={
@@ -10,10 +10,15 @@ const FILES:Record<keyof SceneFontMap,string>={
 export function KineticScenePreview({raw}:{raw:string}){
  const [frame,setFrame]=useState(0),[guides,setGuides]=useState(true),[playing,setPlaying]=useState(false),[loop,setLoop]=useState(true);
  const [fonts,setFonts]=useState<SceneFontMap>({});
+ const previewRef=useRef<HTMLDivElement>(null),[previewWidth,setPreviewWidth]=useState(380);
  const parsed=useMemo(()=>videoSceneDocument.safeParse((()=>{try{return JSON.parse(raw)}catch{return null}})()),[raw]);
  const doc=parsed.success?parsed.data:null;
  const fps=doc?.format.fps||30;
  const duration=doc?Math.max(...doc.scenes.map(s=>s.end)):0;
+ useEffect(()=>{const element=previewRef.current;if(!element)return;
+  const observer=new ResizeObserver(()=>setPreviewWidth(element.clientWidth));observer.observe(element);
+  setPreviewWidth(element.clientWidth);return ()=>observer.disconnect();
+ },[doc?.format.w,doc?.format.h]);
  const endFrame=Math.max(0,Math.ceil(duration*fps)-1);
  useEffect(()=>{
   let active=true;
@@ -44,8 +49,8 @@ export function KineticScenePreview({raw}:{raw:string}){
    <output>{current.toFixed(3)}s / {duration.toFixed(3)}s | frame {frame}</output>
   </div>
   <input aria-label="Timeline scrubber" type="range" min={0} max={endFrame} step={1} value={Math.min(frame,endFrame)} onChange={e=>setFrame(Number(e.target.value))}/>
-  <div style={{position:"relative",width:"100%",maxWidth:doc.format.w>doc.format.h?780:380,aspectRatio:doc.format.w+"/"+doc.format.h,background:"#10202A"}}>
-   <iframe title="Kinetic composition preview" sandbox="" referrerPolicy="no-referrer" srcDoc={source} style={{display:"block",width:"100%",height:"100%",border:"1px solid #66777D"}}/>
+  <div ref={previewRef} style={{position:"relative",width:"100%",maxWidth:doc.format.w>doc.format.h?780:380,aspectRatio:doc.format.w+"/"+doc.format.h,background:"#10202A",overflow:"hidden"}}>
+   <iframe title="Kinetic composition preview" sandbox="" referrerPolicy="no-referrer" srcDoc={source} style={{display:"block",width:doc.format.w,height:doc.format.h,transformOrigin:"top left",transform:"scale("+(previewWidth/doc.format.w)+")",border:0}}/>
    {guides?<div aria-hidden="true" style={{position:"absolute",inset:"7% 7% 15%",border:"1px dashed #ffffff80",pointerEvents:"none"}}/>:null}
   </div>
   <small>Frame-stepped preview shares the HTML generator with the Chromium export worker. Source video and audio are not shown here.</small>
