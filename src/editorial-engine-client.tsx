@@ -20,7 +20,7 @@ export function EditorialEngineClient({ canManage }: { canManage: boolean }) {
     if (!response.ok) throw new Error(data.error || "Could not load editorial production.");
     setSnapshot(data);
   }, []);
-  useEffect(() => { void load().catch(e => setMessage(e.message)); }, [load]);
+  useEffect(() => { void Promise.resolve().then(load).catch(e => setMessage(e.message)); }, [load]);
   async function act(body: object) {
     setBusy(true); setMessage("");
     try {
