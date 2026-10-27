@@ -8,6 +8,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import threading
 
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -106,21 +107,38 @@ def run_main_render_with_progress(payload, manifest, source, ass_file, output_fi
             last_callback_at = now
             last_percent = percent
 
+    heartbeat_stop = threading.Event()
+    progress_lock = threading.Lock()
+
+    def heartbeat():
+        # FFmpeg may spend minutes inside a filter without emitting out_time_us.
+        # Keep the render alive without fabricating progress.
+        while not heartbeat_stop.wait(20):
+            with progress_lock:
+                report(force=True)
+
+    heartbeat_thread = threading.Thread(target=heartbeat, name="ag-video-render-heartbeat", daemon=True)
     report(force=True)
-    for raw_line in process.stdout:
-        line = raw_line.strip()
-        if not line or "=" not in line:
-            continue
-        key, value = line.split("=", 1)
-        if key == "out_time_us":
-            try:
-                processed_seconds = max(processed_seconds, float(value) / 1_000_000.0)
-            except ValueError:
-                pass
-            report()
-        elif key == "progress" and value == "end":
-            processed_seconds = output_duration
-            report(force=True)
+    heartbeat_thread.start()
+    try:
+        for raw_line in process.stdout:
+            line = raw_line.strip()
+            if not line or "=" not in line:
+                continue
+            key, value = line.split("=", 1)
+            with progress_lock:
+                if key in ("out_time_us", "out_time_ms"):
+                    try:
+                        processed_seconds = max(processed_seconds, float(value) / 1_000_000.0)
+                    except ValueError:
+                        pass
+                    report()
+                elif key == "progress" and value == "end":
+                    processed_seconds = output_duration
+                    report(force=True)
+    finally:
+        heartbeat_stop.set()
+        heartbeat_thread.join(timeout=2)
 
     return_code = process.wait()
     if return_code != 0:
