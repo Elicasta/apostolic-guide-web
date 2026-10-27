@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getStudioPermission } from "@/auth";
 import { createServiceClient } from "@/supabase";
+import { loadCreativeProject } from "@/creative-project-server";
+import { assertDoctrineApproved, creativeDoctrineSource } from "@/doctrine-gate";
 
 const schema = z.object({
   publishedUrl: z.string().url().max(1000).optional().nullable(),
@@ -18,10 +20,16 @@ export async function POST(request: Request, context: { params: Promise<{ public
   const service = createServiceClient();
   if (!service) return NextResponse.json({ error: "Supabase is not configured." }, { status: 503 });
 
-  const current = await service.from("pathway_publications").select("id,status,creative_project_id").eq("id", publicationId).maybeSingle();
+  const current = await service.from("pathway_publications").select("id,status,creative_project_id,metadata").eq("id", publicationId).maybeSingle();
   if (current.error) return NextResponse.json({ error: current.error.message }, { status: 500 });
   if (!current.data?.creative_project_id) return NextResponse.json({ error: "Creative publication not found." }, { status: 404 });
   if (current.data.status !== "needs_manual_finish") return NextResponse.json({ error: "This publication is not waiting for manual finish." }, { status: 409 });
+  try {
+    const project=await loadCreativeProject(service,current.data.creative_project_id);
+    if(!project)throw new Error("Creative Project not found.");
+    const metadata=(current.data.metadata||{}) as Record<string,unknown>;
+    await assertDoctrineApproved(service,creativeDoctrineSource(project,String(metadata.caption||"")));
+  } catch(error){return NextResponse.json({error:error instanceof Error?error.message:"Doctrine check required."},{status:409});}
   const now = new Date().toISOString();
   const [publication, project] = await Promise.all([
     service.from("pathway_publications").update({

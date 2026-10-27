@@ -6,6 +6,7 @@ import { CREATIVE_PUBLICATION_MODES, currentRenderSet, nextAvailablePublishingSl
 import { executePublication } from "@/creative-publication-executor";
 import { loadCreativeProject } from "@/creative-project-server";
 import { createServiceClient } from "@/supabase";
+import { assertDoctrineApproved, creativeDoctrineSource } from "@/doctrine-gate";
 
 const createSchema = z.object({
   projectId: z.string().uuid(),
@@ -29,7 +30,7 @@ export async function GET() {
 
   const [projectResult, publicationResult] = await Promise.all([
     service.from("studio_creative_projects")
-      .select("id,title,pathway_slug,pathway_collection,intent,format,frame_count,status,unified_caption,updated_at")
+      .select("id,title,pathway_slug,pathway_collection,intent,format,frame_count,status,unified_caption,doctrine_status,doctrine_hash,doctrine_checked_at,updated_at")
       .neq("status", "archived")
       .order("updated_at", { ascending: false })
       .limit(300),
@@ -69,6 +70,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Mark the Creative Project Ready before publishing it." }, { status: 409 });
     }
     assertEditorialSourceCurrent(project);
+    const caption = parsed.data.caption ?? project.unifiedCaption;
+    await assertDoctrineApproved(service, creativeDoctrineSource(project, caption));
     const active = await service.from("pathway_publications")
       .select("id,status,scheduled_for")
       .eq("creative_project_id", project.id)
@@ -125,7 +128,6 @@ export async function POST(request: Request) {
       };
     });
     const status = publicationStatusForMode(parsed.data.mode);
-    const caption = parsed.data.caption ?? project.unifiedCaption;
     const created = await service.from("pathway_publications").insert({
       pathway_slug: project.pathwaySlug,
       asset_id: null,
