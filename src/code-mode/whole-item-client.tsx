@@ -1,5 +1,7 @@
 "use client";
 import {useEffect,useState} from "react";
+import {VideoScenesCodeEditor} from "../video-scenes-editor";
+import {freshVideoScenes,type VideoScenesDocument,type VideoWord} from "../video-scenes";
 import {CodeModeJsonPanel} from "./json-panel";
 import {initialWholeItem,wholeItemSchema,type WholeItemCode} from "./whole-item";
 type Tool=WholeItemCode["tool"];
@@ -11,18 +13,20 @@ export function WholeItemCodeMode({initialTool="website",initialId=""}:{initialT
  const [kind,setKind]=useState("script");
  const [document,setDocument]=useState<WholeItemCode>(initial(OPTIONS.includes(initialTool as Tool)?initialTool as Tool:"website"));
  const [busy,setBusy]=useState(false),[error,setError]=useState(""),[message,setMessage]=useState("");
+ const [words,setWords]=useState<VideoWord[]>([]),[readOnly,setReadOnly]=useState(false);
  function select(next:Tool){setTool(next);setId("");setDocument(initial(next));setMessage("");setError("");}
  async function load(nextTool=tool,nextId=id,nextKind=kind){
   setBusy(true);setError("");
   try{
-   const params=new URLSearchParams({tool:nextTool,kind:nextKind});if(nextId)params.set("id",nextId);
+   const params=new URLSearchParams({tool:nextTool,kind:nextKind});if(nextTool==="video")params.set("version","2");if(nextId)params.set("id",nextId);
    const response=await fetch("/api/admin/code-mode?"+params.toString(),{cache:"no-store"});
    const data=await response.json();if(!response.ok)throw new Error(data.error||"Could not open draft.");
    setDocument(data.document as WholeItemCode);
-   setMessage(nextId?"Loaded an existing draft.":"Empty Code Mode document. Fill required fields before Apply.");
+   setWords(Array.isArray(data.words)?data.words:[]);setReadOnly(Boolean(data.readOnly));
+   setMessage(data.readOnly?"This project is read-only. Preview remains available.":nextId?"Loaded the scene document.":"Empty Code Mode document. Choose a project to save.");
   }catch(e){setError(e instanceof Error?e.message:"Load failed.");}finally{setBusy(false);}
  }
- useEffect(()=>{if(initialId)void Promise.resolve().then(()=>load(tool,initialId,kind));
+ useEffect(()=>{if(initialId)void Promise.resolve().then(()=>load(tool,initialId,kind));else if(tool==="video")setDocument(freshVideoScenes("studio",""));
  // Initial page route uniquely scopes the first load.
  // eslint-disable-next-line react-hooks/exhaustive-deps
  },[]);
@@ -44,12 +48,12 @@ export function WholeItemCodeMode({initialTool="website",initialId=""}:{initialT
   <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))",gap:12}}>
    <label>Tool<select value={tool} onChange={e=>select(e.target.value as Tool)}>{OPTIONS.map(v=><option key={v} value={v}>{v.replace("_"," ")}</option>)}</select></label>
    <label>Existing draft ID, date or slug<input value={id} onChange={e=>setId(e.target.value)} placeholder="UUID, 2026-11-01 or pathway-slug"/></label>
-   {["episode","video"].includes(tool)?<label>Subtype<select value={kind} onChange={e=>setKind(e.target.value)}>{tool==="episode"?<><option value="script">Script</option><option value="article">Article</option></>:<><option value="studio">Video Studio</option><option value="producer">Video Producer</option></>}</select></label>:null}
+   {["episode","video"].includes(tool)?<label>Subtype<select value={kind} onChange={e=>{setKind(e.target.value);if(tool==="video"){setDocument(freshVideoScenes(e.target.value==="producer"?"producer":"studio",id));setWords([]);}}}>{tool==="episode"?<><option value="script">Script</option><option value="article">Article</option></>:<><option value="studio">Video Studio</option><option value="producer">Video Producer</option></>}</select></label>:null}
   </div>
   <button type="button" disabled={busy} onClick={()=>void load()}>{busy?"Loading…":"Load existing draft / New document"}</button>
-  <CodeModeJsonPanel key={tool+":"+id+":"+kind} label={tool+" whole-item JSON"} data={document} parse={raw=>wholeItemSchema.parse(raw)} onApply={apply} disabled={busy}/>
+  {tool==="video"&&document.tool==="video"&&document.version===2? <VideoScenesCodeEditor key={id+":"+kind+":"+document.expectedUpdatedAt} data={document as VideoScenesDocument} words={words} onApply={apply} disabled={busy||readOnly}/>:<CodeModeJsonPanel key={tool+":"+id+":"+kind} label={tool+" whole-item JSON"} data={document} parse={raw=>wholeItemSchema.parse(raw)} onApply={apply} disabled={busy}/>}
   {tool==="teleprompter"?<p>Saved scripts stay in a private drafting library. They do not update a live Teleprompter session or remote display.</p>:null}
-  {tool==="video"?<p>Only draft project metadata, graphics cues and saved style settings are editable. Source footage and render jobs are untouched.</p>:null}
+  {tool==="video"?<p>Scene changes create a checkpoint and return eligible Producer edits to Draft for fresh approval. Ready and completed projects remain read-only. Source footage and existing renders are untouched.</p>:null}
   {error?<p role="alert">{error}</p>:null}
   {message?<p role="status">{message}</p>:null}
  </section>;
