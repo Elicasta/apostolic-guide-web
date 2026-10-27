@@ -5,7 +5,7 @@ import {parseCodeDocument} from "./core";
 import {VIDEO_SCENE_TEMPLATES,insertVideoTemplate,videoCodeV2Schema,videoFrameHtml,resolveVideoSceneAnchors,type VideoCodeV2} from "./video-v2";
 
 type Word={word?:string;text?:string;start?:number;end?:number};
-type Props={value:VideoCodeV2;onApply:(next:VideoCodeV2)=>Promise<void>;disabled?:boolean;readOnly?:boolean;words?:Word[]};
+type Props={value:VideoCodeV2;onApply:(next:VideoCodeV2)=>Promise<void>;disabled?:boolean;readOnly?:boolean;words?:Word[];initialScene?:string};
 const inputStyle={width:"100%",padding:10,background:"#0e1820",color:"#f5f7f4",border:"1px solid #405360",borderRadius:7} as const;
 const btnStyle={padding:"8px 12px",border:"1px solid #617080",borderRadius:8,color:"inherit",background:"#1c303b"} as const;
 function highlight(raw:string){
@@ -13,7 +13,7 @@ function highlight(raw:string){
  return esc(raw).replace(/("(?:\\.|[^"\\])*")(?=\s*:)|("(?:\\.|[^"\\])*")|\b(true|false|null)\b|(-?\d+(?:\.\d+)?)/g,(_m,key,value,keyword)=>`<span style="color:${key?"#8acee6":value?"#f4bb93":keyword?"#c6a0dc":"#a5d6a7"}">${_m}</span>`);
 }
 function fmt(n:number){const m=Math.floor(n/60),s=(n%60).toFixed(1).padStart(4,"0");return `${m}:${s}`;}
-export function VideoCodeEditor({value,onApply,disabled=false,readOnly=false,words=[]}:Props){
+export function VideoCodeEditor({value,onApply,disabled=false,readOnly=false,words=[],initialScene=""}:Props){
  const [raw,setRaw]=useState(()=>JSON.stringify(value,null,2));
  const [tab,setTab]=useState<"fields"|"code">("fields");
  const [error,setError]=useState("");
@@ -21,7 +21,7 @@ export function VideoCodeEditor({value,onApply,disabled=false,readOnly=false,wor
  const [playing,setPlaying]=useState(false);
  const [loop,setLoop]=useState(false);
  const [guides,setGuides]=useState(true);
- const [sceneId,setSceneId]=useState(value.scenes[0]?.id||"");
+ const [sceneId,setSceneId]=useState(value.scenes.find(s=>s.id===initialScene)?.id||value.scenes[0]?.id||"");
  const [template,setTemplate]=useState<string>(VIDEO_SCENE_TEMPLATES[0].id);
  const [undo,setUndo]=useState<string[]>([]);
  const [busy,setBusy]=useState(false);
