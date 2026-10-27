@@ -6,5 +6,5 @@ export default async function SharedCodeModePage({searchParams}:{searchParams:Pr
  if(!allowed||access.state!=="allowed")redirect("/admin");
  const q=await searchParams;
  return <main className="admin-page"><div className="studio-page-heading"><h1>Shared Code Mode</h1><p>Apply complete JSON documents directly into existing Studio drafts. All review and publication controls stay separate.</p></div>
-  <WholeItemCodeMode initialTool={q.tool} initialId={q.id||q.project||q.projectId} initialKind={q.kind}/></main>;
+  <WholeItemCodeMode initialTool={q.tool} initialId={q.id||q.project||q.projectId} initialKind={q.kind||(/^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(q.id||q.project||q.projectId||"")?"producer":"studio")}/></main>;
 }
