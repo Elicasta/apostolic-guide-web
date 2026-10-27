@@ -12,7 +12,9 @@ import {videoCodeV2Schema,videoFrameHtml} from "../src/code-mode/video-v2";
 async function main(){
  const [manifestPath,folder,rawDuration]=process.argv.slice(2);
  if(!manifestPath||!folder||!rawDuration)throw new Error("Expected document.json, folder and duration");
- const doc=videoCodeV2Schema.parse(JSON.parse(await readFile(manifestPath,"utf8")));
+ const input=JSON.parse(await readFile(manifestPath,"utf8"));
+ const doc=videoCodeV2Schema.parse(input.document||input);
+ const words=Array.isArray(input.words)?input.words:[];
  const duration=Number(rawDuration);
  if(!Number.isFinite(duration)||duration<=0||duration>7200)throw new Error("Invalid render duration");
  if(doc.format.fps!==30)throw new Error("Video Producer output currently requires 30 fps");
@@ -32,7 +34,7 @@ async function main(){
   const frameCount=Math.ceil(duration*doc.format.fps);
   const start=Date.now();
   for(let i=0;i<frameCount;i++){
-   const html=inline(videoFrameHtml(doc,i/doc.format.fps));
+   const html=inline(videoFrameHtml(doc,i/doc.format.fps,false,words));
    await page.setContent(html,{waitUntil:"load"});
    await page.evaluate(()=>document.fonts.ready);
    await page.screenshot({path:resolve(folder,`${String(i).padStart(6,"0")}.png`),omitBackground:true,animations:"disabled",type:"png"});
