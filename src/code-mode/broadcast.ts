@@ -66,7 +66,10 @@ export function emailCodeRender(doc:EmailCodeDocument){
  const width=value.theme.containerWidth;
  // Footer and CTA are outside user templates, so no custom document can suppress legal unsubscribe links.
  const footer='<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td style="padding:24px 32px;font:13px Arial;color:#68777d"><a href="https://www.apostolicguide.com">Apostolic Guide</a> · <a href="'+unsubscribe+'">Unsubscribe</a></td></tr></table>';
- const button='<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td align="center" bgcolor="#a12d3d" style="background:#a12d3d;padding:14px 24px"><a href="'+escapeCodeText(safeUrl(c.url))+'" style="font:700 15px Arial;color:#fff;text-decoration:none">'+escapeCodeText(c.ctaLabel)+'</a></td></tr></table>';
+ const link=escapeCodeText(safeUrl(c.url)),label=escapeCodeText(c.ctaLabel);
+ const button='<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td align="center" bgcolor="#a12d3d" style="background:#a12d3d;padding:14px 24px">'+
+ '<!--[if mso]><v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" href="'+link+'" arcsize="8%" fillcolor="#a12d3d" strokecolor="#a12d3d" style="height:42px;v-text-anchor:middle;width:220px"><w:anchorlock xmlns:w="urn:schemas-microsoft-com:office:word"/><center style="font-family:Arial;font-size:15px;color:#ffffff;font-weight:bold">'+label+'</center></v:roundrect><![endif]-->'+
+ '<!--[if !mso]><!--><a href="'+link+'" style="font:700 15px Arial;color:#fff;text-decoration:none">'+label+'</a><!--<![endif]--></td></tr></table>';
  const html='<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'+
  '<meta name="color-scheme" content="light dark"><title>'+escapeCodeText(c.subject)+'</title><style>@media(max-width:600px){.email-container{width:100%!important;max-width:100%!important}}'+css.head+'</style></head>'+
  '<body style="margin:0;padding:0;background:#eef2f1"><div style="display:none!important;max-height:0;opacity:0;overflow:hidden;font-size:1px">'+escapeCodeText(c.previewText)+'</div>'+
