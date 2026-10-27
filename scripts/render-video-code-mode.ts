@@ -18,7 +18,8 @@ const fontNames:Record<keyof SceneFontMap,string>={
  montserrat800:"montserrat-800.woff",
  bebas400:"bebas-400.woff",
  cormorant400:"cormorant-400.woff",
- cormorant700:"cormorant-700.woff"
+ cormorant700:"cormorant-700.woff",
+ playfairVariable:"playfair-display-variable.ttf"
 };
 const safeNumber=(raw:string|undefined,fallback:number)=>{
  if(raw===undefined)return fallback;
