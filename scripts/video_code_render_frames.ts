@@ -5,7 +5,7 @@
  * Usage: node --import tsx scripts/video_code_render_frames.ts <document.json> <outdir> <duration>
  */
 import {readFile,mkdir,writeFile} from "node:fs/promises";
-import {resolve,dirname} from "node:path";
+import {resolve} from "node:path";
 import {chromium} from "playwright";
 import {videoCodeV2Schema,videoFrameHtml} from "../src/code-mode/video-v2";
 
