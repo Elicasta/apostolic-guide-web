@@ -8,6 +8,7 @@ import {compileVideoProducerRenderPlan} from "@/video-producer";
 import {wordsOnOutput} from "@/code-mode/video-word-sync";
 import {createPrivateBlobDownloadUrl} from "@/video-producer-server";
 import {z} from "zod";
+import {videoCheckpointTableMissing} from "@/code-mode/video-checkpoints";
 
 export const runtime="nodejs";
 const idSchema=z.string().uuid();
@@ -43,10 +44,12 @@ export async function GET(request:Request){
  const row=r.data as Record<string,unknown>;
  const status=String(row.status||"draft");
  const previous=await s.from("studio_code_mode_checkpoints").select("id,created_at").eq("tool","video").eq("source_id",id).order("created_at",{ascending:false}).limit(25);
- if(previous.error)return responseError(previous.error.message,500);
+ if(previous.error&&!videoCheckpointTableMissing(previous.error))return responseError(previous.error.message,500);
+ const historyAvailable=!previous.error;
  const versionId=url.searchParams.get("checkpoint")||"";
  let document=extract(row,kind,id);
  if(versionId){
+  if(!historyAvailable)return responseError("Scene history is not configured for this environment.",409);
   if(!idSchema.safeParse(versionId).success)return responseError("Invalid checkpoint.",400);
   const snapshot=await s.from("studio_code_mode_checkpoints").select("document").eq("tool","video").eq("source_id",id).eq("id",versionId).maybeSingle();
   if(snapshot.error)return responseError(snapshot.error.message,500);
@@ -72,7 +75,8 @@ export async function GET(request:Request){
  }
  return NextResponse.json({document,readOnly:kind==="producer"&&!writableProducer.has(status),projectStatus:status,
   previewSourceUrl,sourceOffset:kind==="producer"?Number(row.source_range_start??0):0,transcriptLane,keptRanges,
-  history:(previous.data||[]).map(h=>({id:h.id,createdAt:h.created_at}))});
+  history:(previous.data||[]).map(h=>({id:h.id,createdAt:h.created_at})),
+  historyAvailable});
 }
 export async function POST(request:Request){
  const {access,allowed}=await getStudioPermission("manage_content");
@@ -113,7 +117,9 @@ export async function POST(request:Request){
  const newMetadata={...data,kineticSceneV2:saved,kineticDoctrineStatus:"not_checked"};
  // Checkpoint previous state on every successful Apply attempt.
  const checkpoint=await s.from("studio_code_mode_checkpoints").insert({tool:"video",source_id:doc.id,actor_user_id:access.user.id,document:row});
- if(checkpoint.error)return responseError("Could not create undo checkpoint: "+checkpoint.error.message,500);
+ if(checkpoint.error&&!videoCheckpointTableMissing(checkpoint.error))
+  return responseError("Could not create undo checkpoint: "+checkpoint.error.message,500);
+ const historySaved=!checkpoint.error;
  const update=doc.kind==="producer"?
   {director_metadata:newMetadata,status:row.edit_plan?"planned":row.status,approval_fingerprint:null,approved_at:null,updated_by:access.user.id,updated_at:new Date().toISOString()}:
   {style:newMetadata,updated_by:access.user.id,updated_at:new Date().toISOString()};
@@ -121,5 +127,8 @@ export async function POST(request:Request){
  if(applied.error)return responseError(applied.error.message,500);
  if(!applied.data)return responseError("Concurrent project edit detected. Reload and try again.",409);
  await recordStudioAudit({actorUserId:access.user.id,action:"code_mode.video.scene_applied",resourceType:"video",resourceId:doc.kind==="producer"?doc.id:null,metadata:{sourceId:doc.id,kind:doc.kind,version:2,draftOnly:true}});
- return NextResponse.json({ok:true,document:extract(applied.data as Record<string,unknown>,doc.kind,doc.id),notice:"Scene draft saved. Previous approvals are invalidated; review and approve before rendering."});
+ return NextResponse.json({ok:true,document:extract(applied.data as Record<string,unknown>,doc.kind,doc.id),
+  historyAvailable:historySaved,
+  notice:historySaved?"Scene draft saved. Previous approvals are invalidated; review and approve before rendering.":
+   "Scene draft saved. Undo checkpoints are unavailable until the optional history table is installed. Previous approvals are invalidated."});
 }
