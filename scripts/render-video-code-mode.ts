@@ -33,6 +33,23 @@ async function fontMap(){
  }
  return fonts;
 }
+async function graphicData(doc:ReturnType<typeof videoSceneDocument.parse>){
+ const resolved:Record<string,string>={};
+ for(const asset of doc.assets){
+  if(!asset.resolvedUrl)throw new Error("Graphic "+asset.id+" has no signed render URL.");
+  const url=new URL(asset.resolvedUrl);
+  if(url.protocol!=="https:"||!(url.hostname==="blob.vercel-storage.com"||url.hostname.endsWith(".blob.vercel-storage.com")))
+   throw new Error("Graphic URL is not on the trusted Vercel Blob storage host.");
+  const res=await fetch(url,{signal:AbortSignal.timeout(60000)});
+  if(!res.ok)throw new Error("Could not retrieve graphic "+asset.id+": "+res.status);
+  const type=(res.headers.get("content-type")||"").split(";")[0];
+  if(!["image/png","image/jpeg","image/webp"].includes(type))throw new Error("Graphic has unsupported content type.");
+  const bytes=Buffer.from(await res.arrayBuffer());
+  if(bytes.length<1||bytes.length>5*1024*1024)throw new Error("Graphic exceeds 5MB limit.");
+  resolved[asset.id]="data:"+type+";base64,"+bytes.toString("base64");
+ }
+ return resolved;
+}
 function run(program:string,args:string[]){
  const proc=spawnSync(program,args,{stdio:"inherit",timeout:60*60*1000});
  if(proc.error)throw proc.error;
@@ -53,9 +70,10 @@ export async function renderSceneVideo(args:string[]){
  try{
   const page=await browser.newPage({viewport:{width:doc.format.w,height:doc.format.h},deviceScaleFactor:1});
   const fonts=await fontMap();
+  const images=await graphicData(doc);
   for(let frame=0;frame<count;frame++){
    const clock=start+frame/fps;
-   const markup=renderVideoSceneFrame(doc,clock,fonts);
+   const markup=renderVideoSceneFrame(doc,clock,fonts,images);
    await page.setContent(markup,{waitUntil:"load"});
    await page.evaluate(()=>document.fonts.ready);
    await page.screenshot({path:join(dir,String(frame).padStart(6,"0")+".png"),omitBackground:true,animations:"disabled"});
