@@ -5,6 +5,7 @@ import { getStudioPermission } from "@/auth";
 import { pathwayBySlug } from "@/pathway-catalog";
 import { createServiceClient } from "@/supabase";
 import { compileVideoProducerRenderPlan, type VideoProducerEditPlan } from "@/video-producer";
+import { videoCodeV2Schema } from "@/code-mode/video-v2";
 import { normalizeVideoProducerTranscript, sliceVideoProducerTranscript } from "@/video-producer-ai";
 import type { VideoProducerAudioPlan, VideoProducerCameraPlan } from "@/video-producer-multicam";
 import { resolveVideoProducerProductionState } from "@/video-producer-production-server";
@@ -50,7 +51,7 @@ export async function POST(request: Request) {
   if (!service) return NextResponse.json({ error: "Supabase service access is not configured." }, { status: 503 });
 
   const result = await service.from("video_producer_projects")
-    .select("id,title,mode,status,parent_project_id,pathway_slug,selected_music_track_id,source_provider,source_locator,source_filename,source_duration,source_range_start,source_range_end,transcript,edit_plan,camera_plan,audio_plan,approval_fingerprint,approved_at")
+    .select("id,title,mode,status,parent_project_id,pathway_slug,selected_music_track_id,source_provider,source_locator,source_filename,source_duration,source_range_start,source_range_end,transcript,edit_plan,director_metadata,camera_plan,audio_plan,approval_fingerprint,approved_at")
     .eq("id", parsed.data.projectId).is("deleted_at", null).maybeSingle();
   if (result.error) return NextResponse.json({ error: result.error.message }, { status: 500 });
   const project = result.data;
@@ -125,6 +126,10 @@ export async function POST(request: Request) {
       production.cameraB ? createPrivateBlobDownloadUrl(production.cameraB.storage_locator, 8 * 60 * 60 * 1000) : Promise.resolve(null),
       production.externalAudio ? createPrivateBlobDownloadUrl(production.externalAudio.storage_locator, 8 * 60 * 60 * 1000) : Promise.resolve(null)
     ]);
+    const codeScenes=project.director_metadata?.videoCodeV2;
+    const videoCodeV2=codeScenes?videoCodeV2Schema.parse(codeScenes):null;
+    if(videoCodeV2 && (videoCodeV2.format.w!==renderPlan.output.width || videoCodeV2.format.h!==renderPlan.output.height || videoCodeV2.format.fps!==renderPlan.output.fps))
+      return NextResponse.json({error:"Scene canvas must match the approved output dimensions and frame rate."},{status:422});
     const manifest = {
       version: production.usesMulticam ? 2 : 1,
       project: {
@@ -140,6 +145,7 @@ export async function POST(request: Request) {
       },
       source: { filename: project.source_filename, duration: project.source_duration, range: sourceRange },
       renderPlan,
+      ...(videoCodeV2 ? {videoCodeV2} : {}),
       transcript: localTranscript,
       musicTracks,
       ...(production.usesMulticam ? {
