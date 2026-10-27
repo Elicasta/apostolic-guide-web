@@ -10,7 +10,7 @@ test("completed master remains downloadable after a new edit changes project sta
  assert.doesNotMatch(route,/\["review", "completed"\]\.includes\(projectResult\.data\.status\)/);
  const ui=readFileSync("src/video-producer-master-download.tsx","utf8");
  assert.match(ui,/Earlier completed master/);
- assert.match(ui,/completed\.output_storage_path/);
+ assert.match(ui,/render.status === "completed" && render.output_storage_path/);
  assert.match(ui,/download=\{/);
  assert.doesNotMatch(ui,/!\["review", "completed"\]\.includes\(project\.status\)/);
 });
