@@ -1,4 +1,5 @@
-import {freshVideoScenes,videoScenesSchema} from "@/video-scenes";
+import {resolveVideoSceneAssetRegistry} from "@/video-scenes-server";
+import {freshVideoScenes,videoScenesSchema,stripVideoSceneResolvedUrls} from "@/video-scenes";
 import {normalizeVideoProducerTranscript,sliceVideoProducerTranscript} from "@/video-producer-ai";
 import {NextResponse} from "next/server";
 import {createHash} from "node:crypto";
@@ -76,11 +77,12 @@ export async function GET(request:Request){
    const storage=isProducer?(r.data.director_metadata||{}):(r.data.style||{});
    const persisted=storage.sceneProgram;
    const document=persisted&&videoScenesSchema.safeParse(persisted).success?persisted:freshVideoScenes(isProducer?"producer":"studio",id);
+   const signedDocument=await resolveVideoSceneAssetRegistry(s,videoScenesSchema.parse(document));
    const transcript=isProducer?normalizeVideoProducerTranscript(r.data.transcript):null;
    const words=transcript?(r.data.source_range_start!=null&&r.data.source_range_end!=null?
       sliceVideoProducerTranscript(transcript,Number(r.data.source_range_start),Number(r.data.source_range_end)).words:transcript.words):[];
    const status=String(r.data.status||"draft");
-   return NextResponse.json({document:{...document,expectedUpdatedAt:r.data.updated_at},words,status,
+   return NextResponse.json({document:{...signedDocument,expectedUpdatedAt:r.data.updated_at},words,status,
     readOnly:isProducer&&["rendering","review","completed","ready","scheduled"].includes(status)});
   }
   return NextResponse.json({document:isProducer?{tool,version:1,kind:"producer",id,title:r.data.title,directorMetadata:r.data.director_metadata,expectedUpdatedAt:r.data.updated_at}:{tool,version:1,kind:"studio",id,timeline:r.data.timeline,style:r.data.style,expectedUpdatedAt:r.data.updated_at}});
@@ -162,7 +164,7 @@ export async function POST(request:Request){
     const running=await s.from("pathway_video_renders").select("id").eq("pathway_slug",d.id).in("status",["queued","rendering"]).limit(1);
     if(running.error||running.data?.length)throw new Error("This Studio project is rendering and cannot be edited.");
    }
-   const scenes=videoScenesSchema.parse(d);
+   const scenes=stripVideoSceneResolvedUrls(videoScenesSchema.parse(d));
    await checkpoint(s,access.user.id,d.tool,d.id,prior.data);
    const updatedAt=new Date().toISOString();
    const payload=producer?{
