@@ -1,5 +1,5 @@
 import { createServiceClient } from "./supabase";
-import { getMetaTokenHealth, type MetaTokenHealth } from "./meta-token-health";
+import type { MetaTokenHealth } from "./meta-token-health";
 
 export type SocialPublishingPlatform = "youtube" | "instagram" | "threads" | "tiktok";
 
@@ -135,6 +135,7 @@ export async function getSocialPublishingCredentialStatus(): Promise<SocialPubli
   const statuses = new Map((statusResult.error ? [] : statusResult.data ?? []).map((row) => [String(row.platform), row]));
   const summaries=summarizeSocialPublishingCredentials((secretsResult.data??[]) as SecretRow[],
     statuses.get("instagram") as ConnectionStatus,statuses.get("threads") as ConnectionStatus);
+  const { getMetaTokenHealth }=await import("./meta-token-health");
   const checks=await Promise.all(["instagram","threads"].map(channel=>getMetaTokenHealth(channel as "instagram"|"threads")));
   return summaries.map(item=>{
     const token=checks.find(check=>check.platform===item.platform);
