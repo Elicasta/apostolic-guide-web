@@ -46,7 +46,11 @@ export async function publishScheduledThreadsPost(postId: string) {
     .single();
   if (row.error || !row.data) throw new Error(row.error?.message || "Scheduled Threads post not found.");
   if (row.data.status !== "scheduled") return { skipped: true };
-  await assertDoctrineApproved(service,textDoctrineSource("threads",postId,{body:String(row.data.body)}));
+  try{await assertDoctrineApproved(service,textDoctrineSource("threads",postId,{body:String(row.data.body)}));}catch(error){
+    const message=error instanceof Error?error.message:"Doctrine recheck required.";
+    await service.from("studio_threads_posts").update({status:"failed",metadata:{publish_error:message},updated_at:new Date().toISOString()}).eq("id",postId);
+    throw error;
+  }
   await service.from("studio_threads_posts").update({ status: "publishing", updated_at: new Date().toISOString() }).eq("id", postId);
   try {
     const result = await publishThreadsText(String(row.data.body));
