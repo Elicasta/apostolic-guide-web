@@ -6,6 +6,10 @@ on:
       - 'scripts/render_video_producer_worker.py'
       - 'scripts/render_video_producer_broadcast_worker.py'
       - 'scripts/render_video_producer_finishing_worker.py'
+      - 'scripts/video_code_motion_overlay.py'
+      - 'scripts/video_code_render_frames.ts'
+      - 'scripts/check_video_code_motion.py'
+      - 'src/code-mode/video-v2.ts'
       - 'scripts/video_producer_broadcast_graphics.py'
       - 'scripts/video_producer_broadcast_graphics_v2.py'
       - 'scripts/video_producer_thumbnail_worker.py'
@@ -93,6 +97,14 @@ jobs:
             echo "::error title=Finishing FFmpeg diagnostics::$diagnostic"
             exit "$status"
           fi
+
+      - name: Install Node and Chromium for scene motion proof
+        run: |
+          npm ci --no-audit --no-fund
+          npx playwright install --with-deps chromium
+
+      - name: Render 2-second Chromium-to-FFmpeg motion proof
+        run: python3 scripts/check_video_code_motion.py
 
       - name: Render synchronized multicam and External Audio smoke file
         shell: bash
