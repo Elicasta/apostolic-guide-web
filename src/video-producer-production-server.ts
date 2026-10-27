@@ -102,7 +102,7 @@ export async function resolveVideoProducerProductionState(service: ServiceClient
     cameraPlan,
     audioPlan,
     cameraRanges,
-    fingerprint: videoProducerPlanFingerprint(project.scene_program?{...fingerprintInput,sceneProgram:project.scene_program}:fingerprintInput),
+    fingerprint: videoProducerPlanFingerprint(project.scene_program?{version:2,production:fingerprintInput,sceneProgram:project.scene_program}:fingerprintInput),
     usesMulticam
   };
 }
