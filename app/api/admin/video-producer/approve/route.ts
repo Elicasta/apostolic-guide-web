@@ -1,3 +1,6 @@
+import {videoScenesSchema,resolveVideoSceneAnchors,videoScenesVisibleCopy} from "@/video-scenes";
+import {normalizeVideoProducerTranscript,sliceVideoProducerTranscript} from "@/video-producer-ai";
+import {evaluateDoctrine,type DoctrineSource} from "@/doctrine-gate";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getStudioPermission } from "@/auth";
@@ -18,10 +21,11 @@ export async function POST(request: Request) {
   const service = createServiceClient();
   if (!service) return NextResponse.json({ error: "Supabase service access is not configured." }, { status: 503 });
   const project = await service.from("video_producer_projects")
-    .select("id,parent_project_id,mode,status,source_duration,source_range_start,source_range_end,edit_plan,camera_plan,audio_plan")
+    .select("id,parent_project_id,mode,status,source_duration,source_range_start,source_range_end,edit_plan,camera_plan,audio_plan,director_metadata,transcript")
     .eq("id", parsed.data.projectId).is("deleted_at", null).maybeSingle();
   if (project.error) return NextResponse.json({ error: project.error.message }, { status: 500 });
   if (!project.data?.edit_plan || (project.data.mode !== "podcast" && project.data.mode !== "reels")) return NextResponse.json({ error: "Generate an edit plan before approval." }, { status: 409 });
+  if(["rendering","review","completed","ready","scheduled"].includes(project.data.status))return NextResponse.json({error:"Ready or rendering projects cannot be re-approved without a new draft."},{status:409});
   let plan: VideoProducerEditPlan;
   try {
     plan = project.data.edit_plan as VideoProducerEditPlan;
@@ -32,6 +36,22 @@ export async function POST(request: Request) {
   }
 
   try {
+    const rawScenes=(project.data.director_metadata as Record<string,unknown>|null)?.sceneProgram;
+    const sceneProgram=rawScenes?videoScenesSchema.parse(rawScenes):null;
+    const localWords=normalizeVideoProducerTranscript(project.data.transcript);
+    const transcript=project.data.source_range_start!=null&&project.data.source_range_end!=null?
+      sliceVideoProducerTranscript(localWords,Number(project.data.source_range_start),Number(project.data.source_range_end)):localWords;
+    if(sceneProgram&&sceneProgram.kind!=="producer")throw new Error("Wrong scene program subtype.");
+    if(sceneProgram){
+      const compiled=compileVideoProducerRenderPlan(plan);
+      resolveVideoSceneAnchors(sceneProgram,transcript.words,compiled.keepSegments);
+      const source:DoctrineSource={sourceType:"video_render",sourceId:project.data.id,
+        lines:[...videoScenesVisibleCopy(sceneProgram),...plan.overlays.map(o=>({location:"Existing overlay "+o.id,text:[o.title,o.body,o.reference].filter(Boolean).join(" ")})),
+          {location:"Heard transcript",text:transcript.text}],
+        caption:""};
+      const verdict=await evaluateDoctrine(source);
+      if(verdict.review.status!=="pass")throw new Error("Motion doctrine check "+verdict.review.status+": "+verdict.review.summary);
+    }
     const production = await resolveVideoProducerProductionState(service, {
       id: project.data.id,
       parent_project_id: project.data.parent_project_id,
@@ -40,6 +60,7 @@ export async function POST(request: Request) {
       source_range_start: project.data.source_range_start,
       source_range_end: project.data.source_range_end,
       edit_plan: plan,
+      scene_program:sceneProgram,
       camera_plan: project.data.camera_plan as VideoProducerCameraPlan | null,
       audio_plan: project.data.audio_plan as VideoProducerAudioPlan | null
     });
