@@ -423,6 +423,8 @@ def main():
         # V2 scenes replace static overlay cards, but retain the underlying captions, grading and audio.
         if (manifest.get("videoCodeV2") or {}).get("scenes"):
             manifest["renderPlan"]["overlays"] = []
+            if (manifest["videoCodeV2"].get("style") or {}).get("kineticCaptions"):
+                manifest["renderPlan"]["captions"]["enabled"] = False
         build_broadcast_ass_v2(manifest, ass_path)
 
         bw.safe_progress_callback(payload, 18, "Encoding mastered video · estimating")
