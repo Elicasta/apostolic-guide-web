@@ -45,7 +45,7 @@ export async function renderSceneVideo(args:string[]){
  const start=safeNumber(args[3],0);
  const total=Math.max(...doc.scenes.map(s=>s.end));
  const duration=safeNumber(args[4],total-start);
- if(duration<=0||start+duration>total+.001)throw new Error("Requested proof window exceeds the scene timeline");
+ if(duration<=0||duration>3600)throw new Error("Proof duration must be between 0 and 3600 seconds");
  const fps=doc.format.fps,count=Math.ceil(duration*fps);
  if(count>36000)throw new Error("Render exceeds 10 minutes at 60 FPS or equivalent frame budget");
  const dir=await mkdtemp(join(tmpdir(),"ag-motion-"));
