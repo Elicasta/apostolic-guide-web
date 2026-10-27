@@ -134,6 +134,15 @@ export function videoFrameHtml(doc: VideoCodeV2, seconds: number, guides=false, 
     return `<style>${s.css.replace(/<\/style/gi,"")}\n.${className}{${styleFor(at(s,"root",seconds))};${transition}}\n${animated}\n${staggerCss}</style><section class="ag-scene ${className} ${s.layer}">${sanitizeHtml(s.html,sceneMarkupOptions)}</section>`;
   }).join("\n");
   const bg=doc.style.background === "paper" ? "#F5F7F4" : doc.style.background === "ink" ? "#10202A" : "transparent";
+  const captionWords=doc.style.kineticCaptions===true ? words.filter(w=>Number.isFinite(w.start)&&Number.isFinite(w.end)) : [];
+  const wordIndex=captionWords.findIndex(w=>seconds>=Number(w.start)&&seconds<Number(w.end));
+  const chunk=wordIndex>=0?Math.floor(wordIndex/5)*5:-1;
+  const caption=chunk>=0?'<div class="ag-captions">'+captionWords.slice(chunk,chunk+5).map((w,i)=>{
+   const offset=seconds-Number(w.start),active=chunk+i===wordIndex;
+   const p=active?ease(offset/.14,"spring"):1;
+   return '<span style="color:'+(active?"#F5F7F4":"#A2B2BD")+';background:'+(active?"#A12D3D":"transparent")+
+    ';transform:scale('+(active?(.85+.15*p):1)+');opacity:'+(active?(0.4+0.6*p):.8)+'">'+esc(w.word||w.text||"")+"</span>";
+  }).join(" ")+"</div>":"";
   const guide=guides?`<div class="ag-guides" aria-hidden="true"><div></div></div>`:"";
   return `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data:; font-src data: 'self'; style-src 'unsafe-inline'"><style>
   *{box-sizing:border-box}html,body{width:100%;height:100%;margin:0;overflow:hidden}body{background:${bg};color:#F5F7F4;font-family:'Montserrat',Arial,sans-serif}
@@ -144,12 +153,12 @@ export function videoFrameHtml(doc: VideoCodeV2, seconds: number, guides=false, 
   .ag-scene h1{font:800 clamp(34px,7vw,150px)/.95 'Montserrat',Arial,sans-serif;letter-spacing:-.04em;text-wrap:balance;margin:0}
   .ag-scene p{font-size:clamp(22px,3vw,52px);margin:1rem 0}
   .ag-scene mark{background:var(--ag-crimson);color:var(--ag-paper);padding:0 .15em}
-  .ag-guides{position:absolute;inset:5%;border:2px dashed #f5f7f480;pointer-events:none}.ag-guides div{position:absolute;inset:7%;border:1px dashed #f5f7f480}
+  .ag-captions{position:absolute;bottom:10%;left:6%;right:6%;z-index:90;display:flex;justify-content:center;gap:.3em;flex-wrap:wrap;font:800 clamp(24px,5.2vw,98px)/1.1 Montserrat,sans-serif;text-align:center;text-shadow:0 3px 12px #10202A}\n  .ag-captions span{display:inline-block;padding:.07em .18em;border-radius:.08em}\n  .ag-guides{position:absolute;inset:5%;border:2px dashed #f5f7f480;pointer-events:none}.ag-guides div{position:absolute;inset:7%;border:1px dashed #f5f7f480}
   @font-face{font-family:Montserrat;src:url('/fonts/montserrat-400.woff') format('woff');font-weight:400}
   @font-face{font-family:Montserrat;src:url('/fonts/montserrat-800.woff') format('woff');font-weight:800}
   @font-face{font-family:Bebas;src:url('/fonts/bebas-400.woff') format('woff')}
   @font-face{font-family:Playfair;src:url('/fonts/cormorant-700.woff') format('woff');font-weight:700}
-  </style></head><body><main class="ag-frame" aria-label="Scene preview">${markup}${guide}</main></body></html>`;
+  </style></head><body><main class="ag-frame" aria-label="Scene preview">${markup}${caption}${guide}</main></body></html>`;
 }
 export function initialVideoV2(kind: "studio"|"producer"="studio",id=""): VideoCodeV2 {
   return { tool:"video", version:2, kind, id, format:{w:1080,h:1920,fps:30}, assets:[],style:{preset:"apostolic-guide"},scenes:[] };
