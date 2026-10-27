@@ -33,6 +33,8 @@ test("upload callback creates durable queue and starter atomically guards status
  const uploadPreparation=upload.slice(begin,done);
  assert.match(uploadPreparation,/transcript_text:\s*null/,"reuploads clear prior transcript");
  assert.match(uploadPreparation,/transcript:\s*\{\s*words:\s*\[\],\s*segments:\s*\[\]\s*\}/);
+ assert.match(uploadPreparation,/transcriptionBridge:\s*null/,"replacement must revoke the previous callback token");
+ assert.match(uploadPreparation,/autoTranscribe:\s*\{\s*enabled:\s*false/,"replacement should not auto-dispatch until the new upload completes");
  assert.ok(starter.indexOf('const claimed=')<starter.indexOf('await videoProducerRendererCredentials(service)'),
   "claims must precede external credential access, so failures receive backoff");
  assert.match(upload,/autoTranscribe:\s*\{\s*enabled:\s*true/);
