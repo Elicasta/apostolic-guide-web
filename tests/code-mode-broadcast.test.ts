@@ -45,9 +45,9 @@ test("empty resources omit wrappers, nonempty resources have valid paragraphs",(
 test("summary maps to body and blank lines become distinct escaped paragraphs",()=>{
  const d=initialEmailCodeDocument({...campaign,summary:"First paragraph has ten words with clear biblical teaching.\n\nSecond paragraph explains the Scripture in more detail."});
  const html=emailCodeRender(d).html;
- assert.match(html,/<p>First paragraph has ten words/);
- assert.match(html,/<p>Second paragraph explains/);
- const paragraphs=html.match(/<p>[^<]*paragraph[^<]*<\/p>/g)||[];
+ assert.match(html,/<p[^>]*>First paragraph has ten words/);
+ assert.match(html,/<p[^>]*>Second paragraph explains/);
+ const paragraphs=html.match(/<p[^>]*>[^<]*paragraph[^<]*<\/p>/g)||[];
  assert.equal(paragraphs.length,2);
 });
 test("dark CTA has solid contrast with explicit white linked text",()=>{
