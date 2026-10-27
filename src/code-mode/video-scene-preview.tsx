@@ -18,7 +18,7 @@ export function KineticScenePreview({raw}:{raw:string}){
   let markup=scene.html;
   const targets=[...new Set(scene.keyframes.map(k=>k.target))];
   for(const target of targets){
-   const p=propsAt(scene,target,current);
+   const p=propsAt(scene,target,current) as Record<string,number>;
    const transform="translate("+Number(p.x||0)+"px,"+Number(p.y||0)+"px) rotate("+Number(p.rotate||0)+"deg) scale("+Number(p.scale??1)+")";
    const style="opacity:"+Number(p.opacity??1)+";transform:"+transform+";clip-path:inset(0 "+(100-Number(p.clip??100))+"% 0 0)";
    // Limited data-motion selector; only the validated target string can be interpolated.
