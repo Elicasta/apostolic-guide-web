@@ -300,7 +300,7 @@ def build_ffmpeg_multicam(manifest, source, ass_file, output_file):
     else:
         graph.append(f"[vcat]{color_filter_v2(plan)},ass='{ass_file}'[{final_layer}]")
     if scene_index is not None:
-        graph.append(f"[{final_layer}][{scene_index}:v]overlay=0:0:format=auto:shortest=1:repeatlast=0,format=yuv420p[vout]")
+        graph.append(f"[{final_layer}][{scene_index}:v]overlay=0:0:format=auto:eof_action=pass:repeatlast=0,format=yuv420p[vout]")
     graph.append(f"[acat]{audio_filter_v2(plan)}[voice]")
     audio_output = apply_music(graph, plan, selected_music, music_index, "voice")
 
@@ -366,7 +366,7 @@ def build_ffmpeg_v2(manifest, source, ass_file, output_file):
         video_chain = "fps=30,scale=1920:1080:force_original_aspect_ratio=decrease:flags=fast_bilinear,pad=1920:1080:(ow-iw)/2:(oh-ih)/2:black"
         graph.append(f"[vcat]{video_chain},{color_filter_v2(plan)},ass='{ass_file}'[{final_layer}]")
     if scene_index is not None:
-        graph.append(f"[{final_layer}][{scene_index}:v]overlay=0:0:format=auto:shortest=1:repeatlast=0,format=yuv420p[vout]")
+        graph.append(f"[{final_layer}][{scene_index}:v]overlay=0:0:format=auto:eof_action=pass:repeatlast=0,format=yuv420p[vout]")
 
     graph.append(f"[acat]{audio_filter_v2(plan)}[voice]")
     audio_output = apply_music(graph, plan, selected_music, music_index, "voice")
