@@ -69,7 +69,7 @@ export function VideoProducerMasterDownload() {
 
   const project = detail?.project;
   const completed = detail?.renders?.find((render) => render.status === "completed" && render.output_storage_path);
-  if (!projectId || !project || !completed || !["review", "completed"].includes(project.status)) return null;
+  if (!projectId || !project || !completed ) return null;
 
   return (
     <section style={{ width: "min(calc(100% - 32px), 1480px)", margin: "0 auto 24px" }} aria-label="Download reviewed master">
@@ -90,7 +90,7 @@ export function VideoProducerMasterDownload() {
             {loading ? <Loader2 size={19} /> : <Film size={19} />}
           </div>
           <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: 10, fontWeight: 900, letterSpacing: ".16em", textTransform: "uppercase", color: "#75dfb0" }}>Review master ready</div>
+            <div style={{ fontSize: 10, fontWeight: 900, letterSpacing: ".16em", textTransform: "uppercase", color: "#75dfb0" }}>Previous rendered master available</div>
             <div style={{ marginTop: 3, fontSize: 17, fontWeight: 850, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{project.title}</div>
             <div style={{ marginTop: 4, fontSize: 11, lineHeight: 1.45, color: "#8296a3" }}>Private MP4 · the download link is generated only when you tap it.</div>
           </div>
