@@ -1,3 +1,4 @@
+import {compileVideoProducerRenderPlan,type VideoProducerEditPlan} from "@/video-producer";
 import {resolveVideoSceneAssetRegistry} from "@/video-scenes-server";
 import {freshVideoScenes,videoScenesSchema,stripVideoSceneResolvedUrls} from "@/video-scenes";
 import {normalizeVideoProducerTranscript,sliceVideoProducerTranscript} from "@/video-producer-ai";
@@ -81,8 +82,13 @@ export async function GET(request:Request){
    const transcript=isProducer?normalizeVideoProducerTranscript(r.data.transcript):null;
    const words=transcript?(r.data.source_range_start!=null&&r.data.source_range_end!=null?
       sliceVideoProducerTranscript(transcript,Number(r.data.source_range_start),Number(r.data.source_range_end)).words:transcript.words):[];
+   let keepSegments:Array<{start:number;end:number}>|undefined;
+   if(isProducer&&r.data.edit_plan){
+     try{keepSegments=compileVideoProducerRenderPlan(r.data.edit_plan as VideoProducerEditPlan).keepSegments;}
+     catch{/* The legacy plan can still be inspected and repaired. */}
+   }
    const status=String(r.data.status||"draft");
-   return NextResponse.json({document:{...signedDocument,expectedUpdatedAt:r.data.updated_at},words,status,
+   return NextResponse.json({document:{...signedDocument,expectedUpdatedAt:r.data.updated_at},words,keepSegments,status,
     readOnly:isProducer&&["rendering","review","completed","ready","scheduled"].includes(status)});
   }
   return NextResponse.json({document:isProducer?{tool,version:1,kind:"producer",id,title:r.data.title,directorMetadata:r.data.director_metadata,expectedUpdatedAt:r.data.updated_at}:{tool,version:1,kind:"studio",id,timeline:r.data.timeline,style:r.data.style,expectedUpdatedAt:r.data.updated_at}});
