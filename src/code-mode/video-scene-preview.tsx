@@ -33,7 +33,7 @@ export function KineticScenePreview({raw}:{raw:string}){
  const current=Math.min(frame,endFrame)/fps;
  let source:string;
  try{source=doc?renderVideoSceneFrame(doc,current,fonts):""}catch{source=""}
- if(!doc)return <p role="alert">Fix Video V2 JSON to preview: {parsed.error.issues[0]?.path.join(".")}: {parsed.error.issues[0]?.message}</p>;
+ if(!doc)return <p role="alert">Fix Video V2 JSON to preview: {parsed.success?"Unknown validation error":parsed.error.issues[0]?.path.join(".")+": "+parsed.error.issues[0]?.message}</p>;
  return <section aria-label="Kinetic scene frame preview" style={{display:"grid",gap:12}}>
   <div style={{display:"flex",gap:10,alignItems:"center",flexWrap:"wrap"}}>
    <button type="button" onClick={()=>setPlaying(v=>!v)}>{playing?"Pause":"Play"}</button>
