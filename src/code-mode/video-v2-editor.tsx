@@ -34,6 +34,25 @@ export function VideoCodeEditor({value,onApply,disabled=false,readOnly=false,wor
  const editorRef=useRef<HTMLTextAreaElement>(null);
  const codeRef=useRef<HTMLPreElement>(null);
  const parsed=useMemo(()=>{try{return parseCodeDocument(raw,(v)=>videoCodeV2Schema.parse(v));}catch{return null;}},[raw]);
+ const diagnostics=useMemo(()=>{
+   try{
+     const data=JSON.parse(raw);
+     const result=videoCodeV2Schema.safeParse(data);
+     if(result.success)return [] as Array<{line:number;field:string;message:string}>;
+     const lines=raw.split("\n");
+     return result.error.issues.slice(0,25).map(issue=>{
+       const field=issue.path.map(String).join(".")||"document";
+       const key=String(issue.path.at(-1)||"");
+       const line=lines.findIndex(line=>line.trim().startsWith(JSON.stringify(key)+":"))+1;
+       return {line,field,message:issue.message};
+     });
+   }catch(error){
+     const message=error instanceof Error?error.message:"Invalid JSON";
+     const position=Number(message.match(/position (\d+)/)?.[1]);
+     const line=Number.isFinite(position)?raw.slice(0,position).split("\n").length:0;
+     return [{line,field:"JSON",message}];
+   }
+ },[raw]);
  const document=parsed||value;
  const duration=Math.max(5,...document.scenes.map(s=>s.end));
  const active=useMemo(()=>document.scenes.find(s=>s.id===sceneId),[document,sceneId]);
@@ -50,7 +69,7 @@ export function VideoCodeEditor({value,onApply,disabled=false,readOnly=false,wor
    setSceneId(next.scenes[next.scenes.length-1].id);update(next);
  }
  async function apply(){
-   if(!ready)return;
+   if(!ready || !window.confirm("Apply this entire video scene document to the saved project? A checkpoint will be created, and Producer approval will be reset."))return;
    setBusy(true);setError("");
    try {const parsed=parseCodeDocument(raw,(v)=>videoCodeV2Schema.parse(v));await onApply(parsed);}
    catch(e){setError(e instanceof Error?e.message:String(e));}
@@ -144,7 +163,11 @@ export function VideoCodeEditor({value,onApply,disabled=false,readOnly=false,wor
      <button type="button" onClick={()=>{if(!ready||window.confirm("Discard unsaved edits and reload the saved version?")){setRaw(JSON.stringify(value,null,2));setUndo([]);setError("");}}} style={btnStyle}>Reload</button>
     </div>
    </div>
-   {!valid?<p role="alert" style={{color:"#f7bd9b"}}>JSON or schema is invalid. The preview shows the last valid document. Open Code to fix it.</p>:null}
+   {!valid?<section role="alert" style={{color:"#f7bd9b",fontSize:12}}>
+      <strong>Validation errors ({diagnostics.length})</strong>
+      {diagnostics.map((issue,i)=><p key={i} style={{margin:"4px 0"}}>{issue.line?("Line "+issue.line+" · "):""}{issue.field}: {issue.message}</p>)}
+      <button type="button" style={btnStyle} onClick={()=>setTab("code")}>Open Code to correct</button>
+    </section>:null}
    {error?<p role="alert" style={{color:"#f7bd9b"}}>{error}</p>:null}
    {readOnly?<p role="status">Read-only project. You may preview but cannot overwrite a Ready, Scheduled, or rendering project.</p>:null}
   </div>
