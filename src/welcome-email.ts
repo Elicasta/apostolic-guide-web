@@ -9,7 +9,6 @@ type WelcomeEmailInput = {
 };
 
 const siteUrl = "https://apostolicguide.com";
-const pathwaysUrl = `${siteUrl}/pathways`;
 const appUrl = `${siteUrl}/install-app?destination=${encodeURIComponent("https://app.apostolicguide.com/?source=welcome-email")}`;
 
 function interestsText(input: WelcomeEmailInput) {
