@@ -6,6 +6,8 @@ import {createServiceClient} from "@/supabase";
 import {recordStudioAudit} from "@/studio-audit";
 import {wholeItemSchema,initialWholeItem,type WholeItemCode} from "@/code-mode/whole-item";
 import {normalizeEditorState} from "@/creative-project";
+import {initialVideoV2,videoCodeV2Schema} from "@/code-mode/video-v2";
+import {escapeCodeText} from "@/code-mode/core";
 import {pathwayBySlug} from "@/pathway-catalog";
 export const runtime="nodejs";
 type Service=NonNullable<ReturnType<typeof createServiceClient>>;
@@ -69,8 +71,20 @@ export async function GET(request:Request){
   const isProducer=kind==="producer",table=isProducer?"video_producer_projects":"pathway_video_projects";
   const r=await s.from(table).select("*").eq(isProducer?"id":"pathway_slug",id).maybeSingle();
   if(r.error||!r.data)throw new Error("Video project not found.");
-  if(isProducer&&r.data.status!=="draft")throw new Error("Video Producer project is not a draft.");
-  return NextResponse.json({document:isProducer?{tool,version:1,kind:"producer",id,title:r.data.title,directorMetadata:r.data.director_metadata,expectedUpdatedAt:r.data.updated_at}:{tool,version:1,kind:"studio",id,timeline:r.data.timeline,style:r.data.style,expectedUpdatedAt:r.data.updated_at}});
+  const stored=isProducer?r.data.director_metadata?.videoCodeV2:r.data.style?.videoCodeV2;
+  const readOnly=isProducer && !["draft","planned","approved"].includes(r.data.status);
+  const base=stored && videoCodeV2Schema.safeParse(stored).success
+    ? stored
+    : {...initialVideoV2(isProducer?"producer":"studio",id),
+       format:isProducer&&r.data.mode==="podcast"?{w:1920,h:1080,fps:30}:{w:1080,h:1920,fps:30},
+       scenes:isProducer?[]:(Array.isArray(r.data.timeline)?r.data.timeline:[]).slice(0,80).map((cue:{id?:string;start?:number;end?:number;title?:string},i:number)=>({
+        id:"cue-"+i,start:Math.max(0,Number(cue.start)||0),end:Math.max((Number(cue.start)||0)+.1,Number(cue.end)||(Number(cue.start)||0)+3),
+        layer:"overlay",html:"<h1 class='headline'>"+escapeCodeText(cue.title||"")+"</h1>",css:"",
+        keyframes:[{t:0,target:".headline",props:{opacity:0,y:50},ease:"ease-out"},{t:.4,target:".headline",props:{opacity:1,y:0},ease:"ease-out"}]
+       }))};
+  return NextResponse.json({document:{...base,expectedUpdatedAt:r.data.updated_at},readOnly,
+    words:isProducer?(r.data.transcript?.words||[]):[]});
+
  }catch(error){return fail(error);}
 }
 export async function POST(request:Request){
