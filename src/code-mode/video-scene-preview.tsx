@@ -17,7 +17,7 @@ export function KineticScenePreview({raw}:{raw:string}){
  const duration=doc?Math.max(...doc.scenes.map(s=>s.end)):0;
  useEffect(()=>{const element=previewRef.current;if(!element)return;
   const observer=new ResizeObserver(()=>setPreviewWidth(element.clientWidth));observer.observe(element);
-  setPreviewWidth(element.clientWidth);return ()=>observer.disconnect();
+  return ()=>observer.disconnect();
  },[doc?.format.w,doc?.format.h]);
  const endFrame=Math.max(0,Math.ceil(duration*fps)-1);
  useEffect(()=>{
