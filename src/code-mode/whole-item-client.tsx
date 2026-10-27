@@ -6,7 +6,7 @@ import {initialWholeItem,wholeItemSchema,type WholeItemCode} from "./whole-item"
 type Tool=WholeItemCode["tool"];
 const OPTIONS:Tool[]=["website","content_engine","episode","audio","teleprompter","video"];
 function initial(tool:Tool){return initialWholeItem(tool) as WholeItemCode;}
-export function WholeItemCodeMode({initialTool="website",initialId="",initialKind="script"}:{initialTool?:string;initialId?:string;initialKind?:string}){
+export function WholeItemCodeMode({initialTool="website",initialId="",initialKind="script",initialScene=""}:{initialTool?:string;initialId?:string;initialKind?:string;initialScene?:string}){
  const [tool,setTool]=useState<Tool>(OPTIONS.includes(initialTool as Tool)?initialTool as Tool:"website");
  const [id,setId]=useState(initialId);
  const [kind,setKind]=useState(initialKind);
@@ -51,7 +51,7 @@ export function WholeItemCodeMode({initialTool="website",initialId="",initialKin
   </div>
   <button type="button" disabled={busy} onClick={()=>void load()}>{busy?"Loading…":"Load existing draft / New document"}</button>
   {document.tool==="video" && document.version===2
-    ? <VideoCodeEditor key={tool+":"+id+":"+kind} value={document} onApply={apply} disabled={busy} readOnly={readOnly} words={words}/>
+    ? <VideoCodeEditor key={tool+":"+id+":"+kind+":"+document.expectedUpdatedAt} initialScene={initialScene} value={document} onApply={apply} disabled={busy} readOnly={readOnly} words={words}/>
     : <CodeModeJsonPanel key={tool+":"+id+":"+kind} label={tool+" whole-item JSON"} data={document} parse={raw=>wholeItemSchema.parse(raw)} onApply={apply} disabled={busy}/> }
   {tool==="teleprompter"?<p>Saved scripts stay in a private drafting library. They do not update a live Teleprompter session or remote display.</p>:null}
   {tool==="video"?<p>Video Code Mode v2 uses scene JSON with preview, motion keyframes and word anchors. Apply saves only and resets Producer approval; rendering stays a separate deliberate step.</p>:null}
