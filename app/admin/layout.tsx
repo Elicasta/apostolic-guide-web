@@ -15,6 +15,7 @@ import "./social-messaging.css";
 import "./comment-guide.css";
 import "./growth.css";
 import "./people.css";
+import "./email-automations.css";
 import "./journeys.css";
 import "./relationship.css";
 import "./relationship-intelligence.css";
