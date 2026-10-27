@@ -3,7 +3,7 @@ import {mkdtemp,readFile,writeFile,mkdir,rm} from "node:fs/promises";
 import {tmpdir} from "node:os";
 import {resolve,join} from "node:path";
 import {pathToFileURL} from "node:url";
-import puppeteer from "puppeteer-core";
+import {chromium} from "playwright";
 import {videoScenesSchema,videoSceneHtml,resolveVideoSceneAnchors,type VideoScenesDocument} from "../src/video-scenes";
 
 export async function renderSceneFrames(input:{
@@ -22,16 +22,15 @@ export async function renderSceneFrames(input:{
  const file=join(temp,"frame.html");
  const base=pathToFileURL(resolve("public/fonts")+ "/").href;
  await writeFile(file,videoSceneHtml(doc,{fontBase:base}),"utf8");
- const browser=await puppeteer.launch({executablePath:process.env.CHROMIUM_PATH||"/usr/bin/chromium",headless:true,args:["--no-sandbox","--disable-dev-shm-usage","--disable-background-networking","--allow-file-access-from-files"]});
+ const browser=await chromium.launch({headless:true,args:["--no-sandbox","--disable-dev-shm-usage","--disable-background-networking","--allow-file-access-from-files"]});
  try{
-  const page=await browser.newPage();
-  await page.setViewport({width:w,height:h,deviceScaleFactor:1});
+  const page=await browser.newPage({viewport:{width:w,height:h},deviceScaleFactor:1});
   await page.goto(pathToFileURL(file).href,{waitUntil:"load"});
   await page.evaluate(()=>document.fonts.ready);
   for(let i=0;i<Math.ceil(duration*fps);i++){
    const t=start+i/fps;
    await page.evaluate((value:number)=>(window as unknown as {__AGSeekFrame:(t:number)=>void}).__AGSeekFrame(value),t);
-   await page.screenshot({path:join(input.destination,`frame-${String(i).padStart(6,"0")}.png`),type:"png",omitBackground:true,captureBeyondViewport:false});
+   await page.screenshot({path:join(input.destination,`frame-${String(i).padStart(6,"0")}.png`),type:"png",omitBackground:true});
    if(i%150===0)process.stdout.write(`motion frames ${i+1}/${Math.ceil(duration*fps)}\n`);
   }
  }finally{await browser.close();await rm(temp,{recursive:true,force:true})}
