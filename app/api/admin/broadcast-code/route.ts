@@ -11,8 +11,14 @@ const restoreSchema=z.object({id:z.string().uuid(),expectedVersion:z.number().in
 function denied(){return NextResponse.json({error:"Forbidden"},{status:403});}
 export async function GET(request:Request){
  const {access,allowed}=await getStudioPermission("manage_distribution");if(!allowed||access.state!=="allowed"||!access.user)return denied();
- const id=new URL(request.url).searchParams.get("id");if(!id||!z.string().uuid().safeParse(id).success)return NextResponse.json({error:"Draft ID required."},{status:400});
+ const id=new URL(request.url).searchParams.get("id");
+ if(id&&!z.string().uuid().safeParse(id).success)return NextResponse.json({error:"Invalid draft ID."},{status:400});
  const service=createServiceClient();if(!service)return NextResponse.json({error:"Draft storage unavailable."},{status:503});
+ if(!id){
+  const result=await service.from("studio_broadcast_code_drafts").select("id,version,updated_at,document").eq("owner_id",access.user.id).eq("status","draft").order("updated_at",{ascending:false}).limit(30);
+  if(result.error)return NextResponse.json({error:result.error.message},{status:503});
+  return NextResponse.json({drafts:(result.data||[]).map(d=>({id:d.id,version:d.version,updated_at:d.updated_at,title:emailCodeSchema.safeParse(d.document).data?.campaign.title||"Untitled draft"}))});
+ }
  try{
   const draft=await getBroadcastCodeDraft(service,id,access.user.id);
   const revisions=await service.from("studio_broadcast_code_revisions").select("version,created_at").eq("draft_id",id).order("version",{ascending:false}).limit(30);

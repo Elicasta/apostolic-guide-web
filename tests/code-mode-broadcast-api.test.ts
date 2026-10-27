@@ -13,3 +13,20 @@ test("Broadcast Code Mode retains the source-only human send click",()=>{
  const ui=readFileSync("src/broadcast-editor.tsx","utf8");
  assert.match(ui,/window\.confirm/);assert.match(ui,/DoctrineCheckPanel/);assert.match(ui,/!authorized/);
 });
+
+test("Saved draft listing, restore and presets are private and never call Resend",()=>{
+ const route=readFileSync("app/api/admin/broadcast-code/route.ts","utf8");
+ const presets=readFileSync("app/api/admin/broadcast-code/presets/route.ts","utf8");
+ const ui=readFileSync("src/broadcast-editor.tsx","utf8");
+ assert.ok(route.includes('.eq("owner_id",access.user.id)'));
+ assert.ok(route.includes('studio_broadcast_code_revisions'));
+ assert.ok(presets.includes('getStudioPermission("manage_distribution")'));
+ assert.ok(presets.includes('.eq("created_by",user.id)'));
+ assert.ok(presets.includes('.eq("tool","broadcast")'));
+ assert.ok(presets.includes('.upsert('));
+ assert.ok(ui.includes("Undo to previous saved version"));
+ assert.ok(ui.includes("Saved design presets"));
+ assert.ok(ui.includes("Saved drafts"));
+ assert.ok(ui.includes("loadCode(d.id)"));
+ for(const source of [route,presets])assert.doesNotMatch(source,/api\.resend\.com|sendBroadcastDraft|sendBroadcastTest|resend\.broadcasts\.create/);
+});
