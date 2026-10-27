@@ -29,9 +29,6 @@ export async function startVideoProducerTranscription(args:{
  if(autoOnly && !autoTranscribeDue(metadata))return {state:"not_due",projectId};
  const auto=readAutoTranscribe(metadata);
  const attempt=auto.attempts+1;
- const {token,repository}=await videoProducerRendererCredentials(service);
- if(!token)throw new Error("Video worker is not connected");
- const sourceUrl=await createPrivateBlobDownloadUrl(project.source_locator,4*60*60*1000);
  const callback=createWorkerCallbackToken();
  const timestamp=new Date().toISOString();
  const workerRef=videoProducerWorkerRef();
@@ -59,6 +56,11 @@ export async function startVideoProducerTranscription(args:{
  if(claimed.error)throw new Error(claimed.error.message);
  if(!claimed.data)return {state:"already_running",projectId};
  try{
+  // Lookup credentials and signed media only after claiming the queue record.
+  // Every failure then consumes a bounded retry and records backoff.
+  const {token,repository}=await videoProducerRendererCredentials(service);
+  if(!token)throw new Error("Video worker is not connected");
+  const sourceUrl=await createPrivateBlobDownloadUrl(project.source_locator,4*60*60*1000);
   await dispatchVideoProducerWorker({
    token,repository,eventType:"video-producer-transcribe",
    payload:{project_id:projectId,worker_ref:workerRef,source_url:sourceUrl,
