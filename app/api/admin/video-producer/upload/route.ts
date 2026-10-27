@@ -52,10 +52,12 @@ export async function POST(request: Request) {
         if (pathname !== expectedPath) throw new Error("Upload path does not match the project.");
         const service = createServiceClient();
         if (!service) throw new Error("Supabase service access is not configured.");
-        const project = await service.from("video_producer_projects").select("id,parent_project_id").eq("id", payload.projectId).maybeSingle();
+        const project = await service.from("video_producer_projects").select("id,parent_project_id,director_metadata").eq("id", payload.projectId).maybeSingle();
         if (project.error) throw new Error(project.error.message);
         if (!project.data) throw new Error("Video Producer project was not found.");
         if (project.data.parent_project_id) throw new Error("A reel inherited from a podcast cannot replace the parent source.");
+        const oldMetadata = project.data.director_metadata && typeof project.data.director_metadata === "object"
+          ? project.data.director_metadata as Record<string, unknown> : {};
         const update = await service.from("video_producer_projects").update({
           status: "uploading",
           source_provider: "vercel_blob",
@@ -67,6 +69,13 @@ export async function POST(request: Request) {
           transcript_text: null,
           transcript: { words: [], segments: [] },
           source_duration: null,
+          // Replacing a source revokes the previous worker callback immediately.
+          // An older job must never write words for a newer upload.
+          director_metadata: {
+            ...oldMetadata,
+            transcriptionBridge: null,
+            autoTranscribe: { enabled: false, attempts: 0, nextAttemptAt: null }
+          },
           edit_plan: null,
           approval_fingerprint: null,
           approved_at: null,
