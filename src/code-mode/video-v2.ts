@@ -161,7 +161,7 @@ export function videoFrameHtml(doc: VideoCodeV2, seconds: number, guides=false, 
   </style></head><body><main class="ag-frame" aria-label="Scene preview">${markup}${caption}${guide}</main></body></html>`;
 }
 export function initialVideoV2(kind: "studio"|"producer"="studio",id=""): VideoCodeV2 {
-  return { tool:"video", version:2, kind, id, format:{w:1080,h:1920,fps:30}, assets:[],style:{preset:"apostolic-guide"},scenes:[] };
+  return { tool:"video", version:2, kind, id, format:{w:1080,h:1920,fps:30}, assets:[],style:{preset:"apostolic-guide",kineticCaptions:kind==="producer"},scenes:[] };
 }
 export const VIDEO_SCENE_TEMPLATES = [
   { id:"scripture", label:"Scripture reveal", layer:"overlay", html:'<div><small>SCRIPTURE</small><h1 class="headline">GOD IS ONE</h1><p class="support">Deuteronomy 6:4</p></div>' },
