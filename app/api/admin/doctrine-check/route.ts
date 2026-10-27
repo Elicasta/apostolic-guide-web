@@ -5,23 +5,30 @@ import { createServiceClient } from "@/supabase";
 import { loadCreativeProject } from "@/creative-project-server";
 import { textDoctrineSource, creativeDoctrineSource, currentDoctrineVerdict, recordDoctrineCheck, type DoctrineSource, type DoctrineSourceType } from "@/doctrine-gate";
 import { recordStudioAudit } from "@/studio-audit";
+import {broadcastDoctrineSource} from "@/code-mode/broadcast-server";
+import {emailCodeSchema} from "@/code-mode/broadcast";
 
 export const runtime="nodejs";
 export const maxDuration=120;
-const sourceTypes=z.enum(["creative_project","threads","custom_asset","video_render","video_clip"]);
+const sourceTypes=z.enum(["creative_project","threads","custom_asset","video_render","video_clip","broadcast"]);
 const schema=z.object({
  sourceType:sourceTypes, sourceId:z.string().uuid(), caption:z.string().max(10000).default(""),
  fields:z.record(z.string(),z.unknown()).optional().default({}), note:z.string().trim().max(2000).optional()
 });
 type Service=NonNullable<ReturnType<typeof createServiceClient>>;
 const sourceTables:Record<Exclude<DoctrineSourceType,"creative_project">,string>={
- threads:"studio_threads_posts",custom_asset:"studio_pathway_assets",video_render:"pathway_video_renders",video_clip:"pathway_social_clips"
+ threads:"studio_threads_posts",custom_asset:"studio_pathway_assets",video_render:"pathway_video_renders",video_clip:"pathway_social_clips",broadcast:"studio_broadcast_code_drafts"
 };
 async function resolveSource(service:Service,data:z.infer<typeof schema>):Promise<DoctrineSource> {
  if(data.sourceType==="creative_project") {
   const project=await loadCreativeProject(service,data.sourceId);
   if(!project) throw new Error("Creative Project not found.");
   return creativeDoctrineSource(project,data.caption);
+ }
+ if(data.sourceType==="broadcast") {
+  const row=await service.from("studio_broadcast_code_drafts").select("document").eq("id",data.sourceId).eq("status","draft").maybeSingle();
+  if(row.error||!row.data)throw new Error("Broadcast draft not found.");
+  return broadcastDoctrineSource(data.sourceId,emailCodeSchema.parse(row.data.document));
  }
  const table=sourceTables[data.sourceType];
  const found=await service.from(table).select("*").eq("id",data.sourceId).maybeSingle();

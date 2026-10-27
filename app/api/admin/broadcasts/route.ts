@@ -3,6 +3,8 @@ import { z } from "zod";
 import { getStudioPermission } from "@/auth";
 import { createBroadcastDraft, sendBroadcastDraft, sendBroadcastTest } from "@/resend-broadcasts";
 import { recordStudioAudit } from "@/studio-audit";
+import {createServiceClient} from "@/supabase";
+import {approvedBroadcastCode} from "@/code-mode/broadcast-server";
 
 const campaignSchema = z.object({
   type: z.enum(["article", "topic", "answer", "pathway", "youtube", "podcast", "announcement"]),
@@ -17,9 +19,9 @@ const campaignSchema = z.object({
 });
 
 const requestSchema = z.discriminatedUnion("action", [
-  z.object({ action: z.literal("create"), audience: z.enum(["general", "content", "media"]), campaign: campaignSchema }),
-  z.object({ action: z.literal("send"), broadcastId: z.string().uuid() }),
-  z.object({ action: z.literal("test"), campaign: campaignSchema })
+  z.object({ action: z.literal("create"), audience: z.enum(["general", "content", "media"]), campaign: campaignSchema, draftId: z.string().uuid() }),
+  z.object({ action: z.literal("send"), broadcastId: z.string().uuid(), draftId:z.string().uuid() }),
+  z.object({ action: z.literal("test"), campaign: campaignSchema, draftId:z.string().uuid() })
 ]);
 
 export async function POST(request: Request) {
@@ -29,18 +31,28 @@ export async function POST(request: Request) {
   const parsed = requestSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Invalid campaign request." }, { status: 400 });
 
+  const service=createServiceClient();
+  if(!service)return NextResponse.json({error:"Broadcast doctrine storage unavailable."},{status:503});
+  let approved;
+  try{approved=await approvedBroadcastCode(service,parsed.data.draftId,access.user.id);}
+  catch(error){return NextResponse.json({error:error instanceof Error?error.message:"Doctrine check is required."},{status:409});}
+  if(parsed.data.action!=="send"&&JSON.stringify(parsed.data.campaign)!==JSON.stringify(approved.document.campaign))
+   return NextResponse.json({error:"Broadcast fields changed after approval. Save and review the exact email again."},{status:409});
   try {
     if (parsed.data.action === "create") {
-      const result = await createBroadcastDraft({ campaign: parsed.data.campaign, audience: parsed.data.audience, createdBy: access.user.email });
+      const result = await createBroadcastDraft({ campaign: parsed.data.campaign, audience: parsed.data.audience, createdBy: access.user.email, code:approved.document });
+      const attached=await service.from("studio_broadcast_code_drafts").update({resend_broadcast_id:result.id,last_created_hash:approved.contentHash}).eq("id",parsed.data.draftId).eq("owner_id",access.user.id);
+      if(attached.error)throw new Error(attached.error.message);
       await recordStudioAudit({ actorUserId: access.user.id, action: "broadcast.created", resourceType: "broadcast", resourceId: result.id, metadata: { title: parsed.data.campaign.title, kind: parsed.data.campaign.type, audience: parsed.data.audience, status: "draft" } });
       return NextResponse.json({ ok: true, broadcastId: result.id, campaignId: result.campaignId, status: "draft" });
     }
     if (parsed.data.action === "send") {
+      if(approved.resend_broadcast_id!==parsed.data.broadcastId||approved.last_created_hash!==approved.contentHash)return NextResponse.json({error:"Approved content changed since the Resend draft was created. Create a fresh draft."},{status:409});
       const result = await sendBroadcastDraft(parsed.data.broadcastId);
       await recordStudioAudit({ actorUserId: access.user.id, action: "broadcast.sent", resourceType: "broadcast", resourceId: parsed.data.broadcastId, metadata: { status: "sending" } });
       return NextResponse.json({ ok: true, broadcastId: result.id, status: "sending" });
     }
-    const result = await sendBroadcastTest({ campaign: parsed.data.campaign, to: access.user.email });
+    const result = await sendBroadcastTest({ campaign: parsed.data.campaign, to: access.user.email, code:approved.document });
     await recordStudioAudit({ actorUserId: access.user.id, action: "broadcast.test_sent", resourceType: "broadcast", metadata: { title: parsed.data.campaign.title, kind: parsed.data.campaign.type, sent_to: access.user.email } });
     return NextResponse.json({ ok: true, emailId: result.id ?? null, sentTo: access.user.email });
   } catch (error) {

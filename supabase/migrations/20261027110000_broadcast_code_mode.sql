@@ -5,6 +5,8 @@ create table if not exists public.studio_broadcast_code_drafts (
  id uuid primary key default gen_random_uuid(),owner_id uuid not null references auth.users(id),
  document jsonb not null check(jsonb_typeof(document)='object'),version integer not null default 1 check(version>0),
  status text not null default 'draft' check(status in ('draft','archived')),
+ resend_broadcast_id uuid,
+ last_created_hash text,
  created_at timestamptz not null default now(),updated_at timestamptz not null default now()
 );
 create table if not exists public.studio_broadcast_code_revisions (
