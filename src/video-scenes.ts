@@ -97,7 +97,7 @@ export function videoSceneHtml(doc:VideoScenesDocument,options:{fontBase?:string
  const parsed=videoScenesSchema.parse(doc);
  const fontBase=options.fontBase??"/fonts/";
  const face=(family:string,file:string,weight:number)=>`@font-face{font-family:'${family}';src:url('${fontBase}${file}') format('woff');font-weight:${weight};font-display:block}`;
- const fonts=[face("Montserrat","montserrat-400.woff",400),face("Montserrat","montserrat-800.woff",800),face("Bebas Neue","bebas-400.woff",400),face("Cormorant","cormorant-700.woff",700),face("Inter","inter-latin-800-normal.woff2",800)].join("");
+ const fonts=[face("Montserrat","montserrat-400.woff",400),face("Montserrat","montserrat-800.woff",800),face("Bebas Neue","bebas-400.woff",400),face("Cormorant","cormorant-700.woff",700),"@font-face{font-family:'Playfair Display';src:url('"+fontBase+"playfair-variable.ttf') format('truetype');font-weight:400 900;font-display:block}",face("Inter","inter-latin-800-normal.woff2",800)].join("");
  const layers=parsed.scenes.map(s=>`<section id="scene-${s.id}" data-scene="${s.id}" data-layer="${s.layer}" data-motion="${s.motion}" class="ag-scene">${cleanHtml(s.html)}</section>`).join("");
  const styles=parsed.scenes.map(s=>`#scene-${s.id}{${scrub(s.css)}}`).join("\n");
  const guides=options.guides?'<div id="ag-guides" aria-hidden="true"></div>':"";
