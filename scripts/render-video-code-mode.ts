@@ -4,7 +4,7 @@
  * Browser and Code Mode call the same renderVideoSceneFrame(doc, t, fonts).
  * Usage: node --import tsx scripts/render-video-code-mode.ts SCENE.json BASE.mp4 OUT.mp4 [startSeconds] [durationSeconds]
  */
-import {readFile,rm} from "node:fs/promises";
+import {readFile,rm,readdir} from "node:fs/promises";
 import {spawnSync} from "node:child_process";
 import {join,resolve} from "node:path";
 import {tmpdir} from "node:os";
@@ -92,6 +92,8 @@ export async function renderSceneVideo(args:string[]){
    if(frame%30===0)process.stdout.write("Rendered "+frame+"/"+count+" frames\n");
   }
   await page.close();
+  const pngCount=(await readdir(dir)).filter(file=>/^\\d{6}\\.png$/.test(file)).length;
+  if(pngCount!==count)throw new Error("Frame generator was incomplete: expected "+count+", got "+pngCount);
   // Overlay is a transparent RGBA PNG stream. Preserve the existing finished
   // master's audio without a second audio mastering pass.
   const input=resolve(source);
@@ -104,10 +106,21 @@ export async function renderSceneVideo(args:string[]){
    "-filter_complex",
    "[0:v]"+footageFilter(doc)+"[base];[base][1:v]overlay=shortest=1:format=auto,format=yuv420p[composite]",
    "-map","[composite]","-map","0:a?",
-   "-frames:v",String(count),"-shortest",
+   "-frames:v",String(count),"-t",String(duration),
    "-c:v","libx264","-preset","superfast","-crf","18","-pix_fmt","yuv420p",
    "-c:a","copy","-movflags","+faststart",result
   ]);
+  // Do not trust a zero exit code: FFmpeg's -shortest used to silently truncate
+  // 30-second reels to ~18 seconds. Inspect the encoded media before success.
+  const inspection=spawnSync("ffprobe",["-v","error","-show_streams","-show_format","-of","json",result],{encoding:"utf8",timeout:30000});
+  if(inspection.error||inspection.status!==0)throw new Error("Could not probe composited MP4");
+  const probed=JSON.parse(inspection.stdout) as {streams?:Array<{codec_type?:string;duration?:string;nb_frames?:string}>,format?:{duration?:string}};
+  const video=probed.streams?.find(s=>s.codec_type==="video");
+  const audio=probed.streams?.find(s=>s.codec_type==="audio");
+  const tolerance=Math.max(.45,duration*.01);
+  const vd=Number(video?.duration??probed.format?.duration),ad=Number(audio?.duration);
+  if(!video||!audio||!Number.isFinite(vd)||!Number.isFinite(ad)||vd<duration-tolerance||ad<duration-tolerance)
+   throw new Error("Composited MP4 is truncated: expected "+duration+"s, video "+vd+"s, audio "+ad+"s");
   return {frames:count,fps,start,duration,output:result};
  }finally{
   await browser.close();
