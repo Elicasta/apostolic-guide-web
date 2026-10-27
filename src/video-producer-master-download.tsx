@@ -26,7 +26,7 @@ export function VideoProducerMasterDownload() {
   const syncProject = useCallback(() => setProjectId(currentProjectId()), []);
 
   useEffect(() => {
-    syncProject();
+    void Promise.resolve().then(syncProject);
     const onPopState = () => syncProject();
     const onChange = (event: Event) => {
       const target = event.target;
@@ -45,7 +45,7 @@ export function VideoProducerMasterDownload() {
 
   useEffect(() => {
     if (!projectId) {
-      setDetail(null);
+      void Promise.resolve().then(() => setDetail(null));
       return;
     }
     let cancelled = false;
