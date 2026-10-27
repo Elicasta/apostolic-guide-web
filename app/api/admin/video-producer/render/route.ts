@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import {videoSceneDocument} from "@/code-mode/video-scenes";
 import {alignVideoSceneWords} from "@/code-mode/video-word-sync";
+import {resolveVideoGraphicAssets} from "@/code-mode/video-assets-server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getStudioPermission } from "@/auth";
@@ -133,7 +134,7 @@ export async function POST(request: Request) {
     if(codeScenes.success && (codeScenes.data.kind!=="producer"||codeScenes.data.id!==project.id))return NextResponse.json({error:"Scene document identity does not match project."},{status:409});
     if(codeScenes.success && (codeScenes.data.format.w!==renderPlan.output.width||codeScenes.data.format.h!==renderPlan.output.height||codeScenes.data.format.fps!==30))return NextResponse.json({error:"Scene format must match the selected output size and 30 FPS. Adjust in Code Mode and reapprove."},{status:409});
     let alignedScenes=codeScenes.success?codeScenes.data:null;
-    if(alignedScenes){try{alignedScenes=alignVideoSceneWords(alignedScenes,localTranscript.words,renderPlan.keepSegments)}catch(error){return NextResponse.json({error:error instanceof Error?error.message:"Could not align scenes with the approved cut."},{status:409})}}
+    if(alignedScenes){try{alignedScenes=alignVideoSceneWords(alignedScenes,localTranscript.words,renderPlan.keepSegments);alignedScenes=await resolveVideoGraphicAssets(service,alignedScenes)}catch(error){return NextResponse.json({error:error instanceof Error?error.message:"Could not resolve scene graphics or word anchors."},{status:409})}}
     const manifest = {
       ...(alignedScenes?{kineticSceneV2:alignedScenes}:{}),
       version: production.usesMulticam ? 2 : 1,
