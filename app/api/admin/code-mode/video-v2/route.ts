@@ -9,7 +9,6 @@ export const runtime="nodejs";
 const idSchema=z.string().uuid();
 const slugSchema=z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/);
 const writableProducer=new Set(["draft","uploaded","planned"]);
-const readOnlyProducer=new Set(["approved","rendering","review","completed","ready","scheduled","transcribing","directing"]);
 function responseError(message:string,status=409){return NextResponse.json({error:message},{status})}
 function record(v:unknown):Record<string,unknown>{return v&&typeof v==="object"&&!Array.isArray(v)?v as Record<string,unknown>:{}}
 function starter(kind:"producer"|"studio",id:string,duration=30):VideoSceneDocument{
