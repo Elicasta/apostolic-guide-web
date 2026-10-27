@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Video Producer finishing worker: Graphics V2, mastering, AG music, and optional synchronized multicam."""
 import importlib.util
+import copy
 import json
 import os
 import subprocess
@@ -451,7 +452,15 @@ def main():
                 heartbeat_thread.join(timeout=2)
             manifest["sceneFrames"] = os.path.join(frames_dir, "frame-%06d.png")
         bw.base.callback(payload, "rendering", 12, "Building Graphics V2 and mastering chain")
-        build_broadcast_ass_v2(manifest, ass_path)
+        if manifest.get("sceneProgram"):
+            # A single scene document owns the frame. Never render old fixed Scripture
+            # cards or ASS captions underneath its frame-aligned kinetic captions.
+            graphics_manifest = copy.deepcopy(manifest)
+            graphics_manifest["renderPlan"]["overlays"] = []
+            graphics_manifest["renderPlan"]["captions"]["enabled"] = False
+        else:
+            graphics_manifest = manifest
+        build_broadcast_ass_v2(graphics_manifest, ass_path)
 
         bw.safe_progress_callback(payload, 18, "Encoding mastered video · estimating")
         bw.run_main_render_with_progress(payload, manifest, source_path, ass_path, main_path)
