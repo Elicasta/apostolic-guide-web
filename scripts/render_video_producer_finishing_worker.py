@@ -15,6 +15,7 @@ assert SPEC and SPEC.loader
 SPEC.loader.exec_module(bw)
 
 from video_producer_broadcast_graphics_v2 import build_broadcast_ass_v2  # noqa: E402
+from video_code_motion_overlay import composite_video_code_scenes  # noqa: E402
 
 bw.build_broadcast_ass = build_broadcast_ass_v2
 bw.base.build_ass = build_broadcast_ass_v2
@@ -419,6 +420,9 @@ def main():
             track["localPath"] = local_path
 
         bw.base.callback(payload, "rendering", 12, "Building Graphics V2 and mastering chain")
+        # V2 scenes replace static overlay cards, but retain the underlying captions, grading and audio.
+        if (manifest.get("videoCodeV2") or {}).get("scenes"):
+            manifest["renderPlan"]["overlays"] = []
         build_broadcast_ass_v2(manifest, ass_path)
 
         bw.safe_progress_callback(payload, 18, "Encoding mastered video · estimating")
@@ -426,6 +430,8 @@ def main():
         if not os.path.exists(main_path) or os.path.getsize(main_path) < 1024:
             raise RuntimeError("FFmpeg completed without a usable main render")
 
+        if (manifest.get("videoCodeV2") or {}).get("scenes"):
+            main_path = composite_video_code_scenes(manifest, main_path, directory, payload, bw.base.callback)
         bw.base.callback(payload, "rendering", 89, "Building timestamp-safe package")
         bw.package_with_bumpers(manifest, main_path, sys.argv[2], directory)
         if not os.path.exists(sys.argv[2]) or os.path.getsize(sys.argv[2]) < 1024:
