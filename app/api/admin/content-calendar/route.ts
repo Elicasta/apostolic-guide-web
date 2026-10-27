@@ -34,7 +34,27 @@ export async function GET(request: NextRequest) {
   if (to) query = query.lte("published_at", to);
   const result = await query;
   if (result.error) return NextResponse.json({ error: result.error.message }, { status: 500 });
-  return NextResponse.json({ items: result.data ?? [] });
+  const items=result.data??[];
+  const candidates=items.flatMap(item=>[item.source_ref,item.publication_id]).filter((id):id is string=>typeof id==="string" && /^[0-9a-f-]{36}$/i.test(id));
+  const ids=[...new Set(candidates)];
+  const [projects,posts,publications]=await Promise.all([
+    ids.length?service.from("studio_creative_projects").select("id,doctrine_status").in("id",ids):Promise.resolve({data:[],error:null}),
+    ids.length?service.from("studio_threads_posts").select("id,body").in("id",ids):Promise.resolve({data:[],error:null}),
+    ids.length?service.from("pathway_publications").select("id,creative_project_id,metadata").in("id",ids):Promise.resolve({data:[],error:null})
+  ]);
+  if(projects.error||posts.error||publications.error)return NextResponse.json({error:"Doctrine calendar lookup unavailable."},{status:503});
+  const projectIds=[...new Set((publications.data??[]).map(v=>v.creative_project_id).filter((v):v is string=>Boolean(v)))];
+  const linked=projectIds.length?await service.from("studio_creative_projects").select("id,doctrine_status").in("id",projectIds):{data:[],error:null};
+  if(linked.error)return NextResponse.json({error:"Doctrine project status unavailable."},{status:503});
+  const projectStates=new Map([...(projects.data??[]),...(linked.data??[])].map(row=>[row.id,row.doctrine_status||"not_checked"]));
+  const postIds=new Set((posts.data??[]).map(row=>row.id));
+  const byPublication=new Map((publications.data??[]).map(row=>[row.id,row]));
+  return NextResponse.json({items:items.map(item=>{
+    const publication=item.publication_id?byPublication.get(item.publication_id):item.source_ref?byPublication.get(item.source_ref):null;
+    const projectId=publication?.creative_project_id|| (item.source_ref&&projectStates.has(item.source_ref)?item.source_ref:null);
+    const status=projectId?projectStates.get(projectId)||"not_checked":postIds.has(item.source_ref||"")?"not_checked":"not_checked";
+    return {...item,doctrine_status:status,doctrine_project_id:projectId};
+  })});
 }
 
 export async function POST(request: NextRequest) {
@@ -107,6 +127,8 @@ export async function PATCH(request: NextRequest) {
   if (Object.prototype.hasOwnProperty.call(body, "platform")) values.platform = body.platform ? String(body.platform).trim() : null;
   if (typeof body.title === "string" && body.title.trim()) values.title = body.title.trim().slice(0, 240);
 
+  // The calendar is a view of a publication; it must never replace the doctrine-gated Publishing workflow.
+  if(values.status==="scheduled"||values.status==="published") return NextResponse.json({error:"Schedule and publish from Publishing after the required Doctrine check. Calendar-only scheduling is disabled."},{status:409});
   const updated = await service.from("studio_content_calendar_items").update(values).eq("id", id).select("*").single();
   if (updated.error) return NextResponse.json({ error: updated.error.message }, { status: 500 });
   return NextResponse.json({ item: updated.data });

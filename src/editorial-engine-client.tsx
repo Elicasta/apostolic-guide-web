@@ -5,7 +5,7 @@ import type { EditorialPack } from "./editorial-engine";
 import styles from "./editorial-engine.module.css";
 import { EditorialDraftControls } from "./editorial-draft-controls";
 
-type PackRow = { production_date: string; project_id: string; payload: EditorialPack; sourceChanged: boolean; projectStatus: string };
+type PackRow = { production_date: string; project_id: string; payload: EditorialPack; sourceChanged: boolean; projectStatus: string; doctrineStatus: string };
 type Snapshot = { enabled: boolean; timezone: string; packs: PackRow[] };
 export function EditorialEngineClient({ canManage }: { canManage: boolean }) {
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
@@ -45,11 +45,11 @@ export function EditorialEngineClient({ canManage }: { canManage: boolean }) {
     <div className={styles.workspace}>
       <section className={`admin-card ${styles.queue}`}><h2>Daily production queue</h2><p>Eastern time · {snapshot?.packs.length ?? 0} drafted days</p>
         {!snapshot?.packs.length && <p>Prepare the queue to create editable projects, captions, artwork previews, and newsletter drafts.</p>}
-        {snapshot?.packs.map(item => <button type="button" key={item.project_id} className={row?.project_id === item.project_id ? styles.selected : ""} onClick={() => { setSelected(item.project_id); setIndex(0); }}><small>{item.production_date} · {item.payload.lane}</small><strong>{item.payload.title}</strong><span>{item.sourceChanged ? "Source changed: review again" : item.payload.blockers.length ? "Production blocked" : `Project: ${item.projectStatus}`}</span></button>)}
+        {snapshot?.packs.map(item => <button type="button" key={item.project_id} className={row?.project_id === item.project_id ? styles.selected : ""} onClick={() => { setSelected(item.project_id); setIndex(0); }}><small>{item.production_date} · {item.payload.lane}</small><strong>{item.payload.title}</strong><span>{item.sourceChanged ? "Source changed: review again" : item.payload.blockers.length ? "Production blocked" : `Project: ${item.projectStatus}`} · Doctrine: {item.doctrineStatus.replaceAll("_"," ")}</span></button>)}
       </section>
       {row && pack && <section className={`admin-card ${styles.detail}`}><span className="eyebrow">{pack.series}</span><h2>{pack.title}</h2>
         <p>{pack.artDirection}</p>
-        <div className={styles.gates}><strong>Review required</strong><p>Canonical source copied into the draft. Doctrine and visual approval are still required. PNG previews are review artwork, not proof of publishing readiness.</p>{row.sourceChanged && <p>Canonical source changed since generation. Reconcile this project before publishing.</p>}{pack.blockers.map(blocker => <p key={blocker}>{blocker}</p>)}</div>
+        <div className={styles.gates}><strong>Doctrine: {row.doctrineStatus.replaceAll("_"," ")}</strong><p>{["pass","flagged_approved"].includes(row.doctrineStatus) ? "Doctrine is approved for the current saved project. Visual review remains required." : "Doctrine review is required. The Publish step enforces the actual doctrine verdict before scheduling or sending anything. PNG previews are not proof of approval."}</p>{row.sourceChanged && <p>Canonical source changed since generation. Reconcile this project before publishing.</p>}{pack.blockers.map(blocker => <p key={blocker}>{blocker}</p>)}</div>
         {canManage ? <EditorialDraftControls key={row.project_id} projectId={row.project_id} frameIndex={index} canManage={canManage} onSaved={() => setArtworkVersion(v => v + 1)}/> : null}
         {frame && <><img className={styles.preview} src={`/api/admin/editorial/preview?project=${row.project_id}&frame=${index}&v=${artworkVersion}`} alt={frame.altText}/><div className={styles.actions}><button type="button" className="button" disabled={index === 0} onClick={() => setIndex(i => i - 1)}>Previous</button><span>{index + 1} / {pack.frames.length}</span><button type="button" className="button" disabled={index >= pack.frames.length - 1} onClick={() => setIndex(i => i + 1)}>Next</button><a className="button" href={`/api/admin/editorial/preview?project=${row.project_id}&frame=${index}&download=1&v=${artworkVersion}`}>Download PNG</a></div></>}
         <div className={styles.actions}><Link className="button primary" href={`/admin/carousel-studio?project=${row.project_id}`}>Edit full project in Carousel Studio</Link><Link className="button" href="/admin/publishing">Open Publishing</Link><Link className="button" href={`/pathways/${pack.pathwaySlug}`}>Read source</Link></div>

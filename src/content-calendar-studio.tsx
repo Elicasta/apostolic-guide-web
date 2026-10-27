@@ -15,6 +15,8 @@ type CalendarItem = {
   source: string | null;
   source_ref: string | null;
   metadata: Record<string, unknown> | null;
+  doctrine_status?: string;
+  doctrine_project_id?: string|null;
   updated_at: string;
 };
 
@@ -154,7 +156,7 @@ export function ContentCalendarStudio() {
       <div className="calendar-section-head"><div><span className="section-kicker">Production queue</span><h2>Ready to Schedule</h2><p>Assets handed off from Carousel Studio, Video Studio, Threads Studio, Episodes, and other publishing lanes wait here until you give them a real date.</p></div><Clock3 size={25}/></div>
       {unscheduled.length ? <div className="calendar-ready-list">{unscheduled.slice(0, 30).map((item) => {
         const value = scheduleDrafts[item.id] ?? localInputValue(item.scheduled_for) ?? defaultScheduleValue();
-        return <article key={item.id}><div className="calendar-ready-type"><i>{item.platform === "instagram" ? "IG" : item.platform === "threads" ? "TH" : item.platform === "youtube" ? "YT" : item.content_type.slice(0,2).toUpperCase()}</i><div><span>{item.content_type} · {item.status}</span><strong>{item.title}</strong><small>{item.pathway_slug ? `Pathway: ${item.pathway_slug.replaceAll("-", " ")}` : item.source || "Studio"}</small></div></div><div className="calendar-ready-scheduler"><input type="datetime-local" value={value} onChange={(event) => setScheduleDrafts((current) => ({ ...current, [item.id]: event.target.value }))}/><button type="button" className="button primary" disabled={Boolean(busy)} onClick={() => void scheduleItem(item)}>{busy === `item:${item.id}` ? <Loader2 className="spin" size={14}/> : <Send size={14}/>} Schedule</button></div></article>;
+        return <article key={item.id}><div className="calendar-ready-type"><i>{item.platform === "instagram" ? "IG" : item.platform === "threads" ? "TH" : item.platform === "youtube" ? "YT" : item.content_type.slice(0,2).toUpperCase()}</i><div><span>{item.content_type} · {item.status} · Doctrine: {(item.doctrine_status||"not_checked").replaceAll("_"," ")}</span><strong>{item.title}</strong><small>{item.pathway_slug ? `Pathway: ${item.pathway_slug.replaceAll("-", " ")}` : item.source || "Studio"}</small></div></div><div className="calendar-ready-scheduler"><input type="datetime-local" value={value} onChange={(event) => setScheduleDrafts((current) => ({ ...current, [item.id]: event.target.value }))}/><a className="button primary" href={item.doctrine_project_id?`/admin/publishing?projectId=${encodeURIComponent(item.doctrine_project_id)}`:"/admin/publishing"}><Send size={14}/> Review &amp; Schedule</a></div></article>;
       })}</div> : <div className="calendar-empty compact"><CalendarDays size={24}/><strong>Queue is clear.</strong><span>New Studio assets appear here when you add them to the calendar.</span></div>}
     </section>
 
@@ -165,7 +167,7 @@ export function ContentCalendarStudio() {
         if (!day) return <div className="calendar-day is-empty" key={`empty-${index}`}/>;
         const key = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
         const dayItems = byDay.get(key) ?? [];
-        return <div className="calendar-day" key={key}><strong>{day}</strong><div>{dayItems.slice(0, 4).map((item) => <span className={`calendar-chip is-${item.status}`} key={item.id}><i>{item.platform === "instagram" ? "IG" : item.platform === "threads" ? "TH" : item.platform === "youtube" ? "YT" : item.content_type.slice(0, 2).toUpperCase()}</i>{item.title}</span>)}{dayItems.length > 4 ? <small>+{dayItems.length - 4} more</small> : null}</div></div>;
+        return <div className="calendar-day" key={key}><strong>{day}</strong><div>{dayItems.slice(0, 4).map((item) => <span className={`calendar-chip is-${item.status}`} key={item.id}><i>{item.platform === "instagram" ? "IG" : item.platform === "threads" ? "TH" : item.platform === "youtube" ? "YT" : item.content_type.slice(0, 2).toUpperCase()}</i>{item.title} · {(item.doctrine_status||"not_checked").replaceAll("_"," ")}</span>)}{dayItems.length > 4 ? <small>+{dayItems.length - 4} more</small> : null}</div></div>;
       })}</div>
     </section>
 
@@ -176,7 +178,7 @@ export function ContentCalendarStudio() {
         const permalink = metadataString(item, "permalink");
         const media = preview ? <img src={preview} alt={item.title || "Instagram post"} loading="lazy"/> : <div className="instagram-feed-placeholder"><Instagram size={22}/></div>;
         const engagement = <span className="instagram-feed-engagement"><i><Heart size={13}/>{metadataNumber(item, "like_count")}</i><i><MessageCircle size={13}/>{metadataNumber(item, "comments_count")}</i></span>;
-        return <article key={item.id}>
+        return <article key={item.id}><small>Doctrine: {(item.doctrine_status||"not_checked").replaceAll("_"," ")}</small>{item.doctrine_project_id?<a href={`/admin/carousel-studio?project=${encodeURIComponent(item.doctrine_project_id)}`}>Check project</a>:null}
           {permalink ? <a className="instagram-feed-media" href={permalink} target="_blank" rel="noreferrer" aria-label={`Open ${item.title} on Instagram`}>{media}{engagement}</a> : <div className="instagram-feed-media">{media}{engagement}</div>}
         </article>;
       })}</div> : <div className="calendar-empty"><CalendarDays size={28}/><strong>No Instagram feed items synced yet.</strong><span>Use Sync Instagram to pull the current feed into Studio.</span></div>}

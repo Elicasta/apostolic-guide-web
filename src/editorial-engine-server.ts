@@ -43,12 +43,12 @@ export async function editorialSnapshot() {
   if (settings.error) throw new Error(settings.error.message);
   if (packs.error) throw new Error(packs.error.message);
   const ids = (packs.data ?? []).map(p => p.project_id);
-  const projects = ids.length ? await service.from("studio_creative_projects").select("id,status,state_version").in("id", ids) : { data: [], error: null };
+  const projects = ids.length ? await service.from("studio_creative_projects").select("id,status,state_version,doctrine_status").in("id", ids) : { data: [], error: null };
   if (projects.error) throw new Error(projects.error.message);
   return { enabled: settings.data.enabled, timezone: "America/New_York", packs: (packs.data ?? []).map(row => {
     const pathway = pathwayBySlug(row.pathway_slug);
     const project = projects.data?.find(p => p.id === row.project_id);
-    return { ...row, payload: row.payload as EditorialPack, sourceChanged: !pathway || editorialSourceHash(pathway) !== row.source_hash, projectStatus: project?.status ?? "missing" };
+    return { ...row, payload: row.payload as EditorialPack, sourceChanged: !pathway || editorialSourceHash(pathway) !== row.source_hash, projectStatus: project?.status ?? "missing", doctrineStatus:project?.doctrine_status??"not_checked" };
   }) };
 }
 export async function setEditorialEnabled(enabled: boolean) {
