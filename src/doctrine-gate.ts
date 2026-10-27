@@ -61,8 +61,8 @@ export function creativeDoctrineSource(project: CreativeProjectRecord, caption: 
  ],caption};
 }
 export function textDoctrineSource(sourceType: Exclude<DoctrineSourceType,"creative_project">, sourceId: string, fields: Record<string,unknown>): DoctrineSource {
- const lines: DoctrineLine[] = Object.entries(fields).filter(([key,value]) => key!=="caption" && typeof value==="string" && Boolean(value.trim()))
-  .map(([key,value]) => ({location:key,text:String(value)}));
+ const sortedFields=Object.entries(fields).filter(([key,value]) => key!=="caption" && typeof value==="string" && Boolean(value.trim())).sort(([a],[b])=>a.localeCompare(b));
+ const lines: DoctrineLine[] = sortedFields.map(([key,value]) => ({location:key,text:String(value)}));
  return {sourceType,sourceId,lines,caption:String(fields.caption || "")};
 }
 export function doctrineContentHash(source: DoctrineSource) {
