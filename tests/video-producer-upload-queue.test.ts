@@ -27,6 +27,14 @@ test("upload callback creates durable queue and starter atomically guards status
  const starter=readFileSync("src/video-producer-transcription-start.ts","utf8");
  const cron=readFileSync("app/api/cron/video-producer-transcription/route.ts","utf8");
  assert.match(upload,/onUploadCompleted/);
+ const begin=upload.indexOf("onBeforeGenerateToken:");
+ const done=upload.indexOf("onUploadCompleted:");
+ assert.ok(begin>=0 && done>begin,"has an authenticated upload start and completion");
+ const uploadPreparation=upload.slice(begin,done);
+ assert.match(uploadPreparation,/transcript_text:\s*null/,"reuploads clear prior transcript");
+ assert.match(uploadPreparation,/transcript:\s*\{\s*words:\s*\[\],\s*segments:\s*\[\]\s*\}/);
+ assert.ok(starter.indexOf('const claimed=')<starter.indexOf('await videoProducerRendererCredentials(service)'),
+  "claims must precede external credential access, so failures receive backoff");
  assert.match(upload,/autoTranscribe:\s*\{\s*enabled:\s*true/);
  assert.match(upload,/startVideoProducerTranscription/);
  assert.match(starter,/\.eq\("source_locator",project\.source_locator\)/);
