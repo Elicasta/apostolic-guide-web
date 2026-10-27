@@ -2,6 +2,7 @@ import {mkdtemp,readdir,readFile,rm} from "node:fs/promises";
 import {tmpdir} from "node:os";
 import {join} from "node:path";
 import {createHash} from "node:crypto";
+import {execFileSync} from "node:child_process";
 import sharp from "sharp";
 import {freshVideoScenes,videoScenesSchema} from "../src/video-scenes";
 import {renderSceneFrames} from "./render_video_scene_frames";
@@ -22,5 +23,20 @@ try{
  }));
  if(samples[0].visible!==0||samples[1].visible<300||samples[0].sha===samples[1].sha)
   throw new Error("Kinetic scene failed deterministic alpha/difference checks "+JSON.stringify(samples));
- process.stdout.write("Kinetic screenshot proof PASS: 23 frames, transparent idle, animated visible scene.\n");
+ const movie=join(folder,"proof.mp4");
+ execFileSync("ffmpeg",["-hide_banner","-loglevel","error","-y","-f","lavfi",
+ "-i","color=c=0x10202A:s=480x854:r=15:d=1.5",
+ "-framerate","15","-i",join(folder,"frame-%06d.png"),
+ "-filter_complex","[0:v][1:v]overlay=0:0:eof_action=pass:repeatlast=0,format=yuv420p[v]",
+ "-map","[v]","-an","-t","1.5","-c:v","libx264","-preset","ultrafast","-crf","21",movie],
+ {stdio:"pipe",timeout:120000});
+ const probe=JSON.parse(execFileSync("ffprobe",["-v","error","-select_streams","v:0",
+ "-show_entries","stream=width,height,r_frame_rate","-of","json",movie],{encoding:"utf8"}));
+ if(probe.streams?.[0]?.width!==480||probe.streams?.[0]?.height!==854||probe.streams?.[0]?.r_frame_rate!=="15/1")
+  throw new Error("Final MP4 stream differs from preview geometry.");
+ const still=join(folder,"composited-09.png");
+ execFileSync("ffmpeg",["-hide_banner","-loglevel","error","-y","-ss","0.6","-i",movie,"-frames:v","1",still]);
+ const pixels=await sharp(still).stats();
+ if(pixels.channels.slice(0,3).every(ch=>ch.stdev<2))throw new Error("Encoded MP4 lost kinetic text.");
+ process.stdout.write("Kinetic screenshot + MP4 proof PASS: 23 frames, 480x854@15fps.\\n");
 }finally{await rm(folder,{recursive:true,force:true})}
