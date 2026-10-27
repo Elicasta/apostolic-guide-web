@@ -149,7 +149,7 @@ export async function POST(request: Request) {
         } : null
       },
       source: { filename: project.source_filename, duration: project.source_duration, range: sourceRange },
-      renderPlan,
+      renderPlan: alignedScenes?{...renderPlan,overlays:[]}:renderPlan,
       transcript: localTranscript,
       musicTracks,
       ...(production.usesMulticam ? {
