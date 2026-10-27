@@ -13,6 +13,7 @@ type Status = {
   accountLabel: string | null;
   fields: Record<string, boolean>;
   updatedAt: string | null;
+  tokenHealth?: {state:string;expiresAt:string|null;expiringSoon:boolean;detail:string};
 };
 
 function messageFor(code: string | null) {
@@ -67,9 +68,10 @@ export function ThreadsPublishingCredentials() {
     {message?<div className="admin-notice credential-notice">{message}</div>:null}
     <div className="credential-status-row">
       <span className={status?.appConfigured?"credential-status is-ready":"credential-status"}>{status?.appConfigured?<CheckCircle2 size={14}/>:<CircleAlert size={14}/>} App credentials {status?.appConfigured?"stored":"missing"}</span>
-      <span className={status?.accountAuthorized?"credential-status is-ready":"credential-status"}>{status?.accountAuthorized?<CheckCircle2 size={14}/>:<CircleAlert size={14}/>} Account {status?.accountAuthorized?"authorized":"not authorized"}</span>
+      <span className={status?.accountAuthorized?"credential-status is-ready":"credential-status"}>{status?.accountAuthorized?<CheckCircle2 size={14}/>:<CircleAlert size={14}/>} Account {status?.tokenHealth?.state==="expired"?"Expired":status?.accountAuthorized?"authorized":status?.tokenHealth?.state==="unavailable"?"Unverified":"not authorized"}</span>
     </div>
     {status?.accountLabel?<div className="credential-account-label">Account: <strong>{status.accountLabel}</strong></div>:null}
+    {status?.tokenHealth?<small>Token {status.tokenHealth.state} · {status.tokenHealth.expiresAt?`Expires ${new Date(status.tokenHealth.expiresAt).toLocaleString()}`:"Expiry unknown"}{status.tokenHealth.expiringSoon?" · Expires within 7 days":""}</small>:null}
     <div className="credential-oauth-note">
       <div><Link2 size={14}/><strong>Meta Threads callback URLs</strong></div>
       <code>{CALLBACK}</code><code>{UNINSTALL}</code><code>{DELETE}</code>
