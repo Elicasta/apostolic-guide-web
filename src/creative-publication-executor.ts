@@ -6,6 +6,8 @@ import { instagramGraphBase } from "./instagram-api";
 import { privateBlobReadUrl } from "./private-blob";
 import { getSocialPublishingCredentialValues } from "./social-publishing-integrations";
 import { createServiceClient } from "./supabase";
+import { loadCreativeProject } from "./creative-project-server";
+import { assertDoctrineApproved, creativeDoctrineSource } from "./doctrine-gate";
 
 type GraphResponse = { id?: string; status_code?: string; permalink?: string; error?: { message?: string } };
 type CreativeMedia = {
@@ -167,6 +169,9 @@ async function executeCreativePublication(publicationId: string) {
       throw new Error("The Creative Project changed after it was scheduled. Review the current version and schedule it again.");
     }
     assertEditorialSourceCurrent({ pathwaySlug: project.data.pathway_slug, editorState: record(project.data.editor_state) });
+    const latestProject=await loadCreativeProject(service,project.data.id);
+    if(!latestProject)throw new Error("Creative project is unavailable.");
+    await assertDoctrineApproved(service,creativeDoctrineSource(latestProject,String(metadata.caption||"")));
     if (claimed.data.platform !== "instagram") throw new Error(`Creative Project auto publishing is not implemented for ${claimed.data.platform}. Use Finish Manually instead.`);
     const result = await publishCreativeInstagram(metadata);
     const now = new Date().toISOString();

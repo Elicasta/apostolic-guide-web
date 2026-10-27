@@ -4,6 +4,8 @@ import { executeCustomMediaPublication, type CustomMediaPublicationMetadata } fr
 import { normalizePathwayVideoPublishingMetadata } from "./pathway-video-publishing";
 import { getSocialPublishingCredentialValues } from "./social-publishing-integrations";
 import { createServiceClient } from "./supabase";
+import { assertDoctrineApproved } from "./doctrine-gate";
+import { publicationDoctrineSource } from "./publication-doctrine";
 
 type PublicationMetadata = {
   source_kind?: "render" | "clip" | "custom_asset";
@@ -185,6 +187,7 @@ export async function executeScheduledPublication(publicationId: string) {
 
   const metadata = record(claimed.data.metadata) as PublicationMetadata;
   try {
+    await assertDoctrineApproved(service,publicationDoctrineSource(metadata));
     if (metadata.source_kind === "custom_asset") {
       if (!metadata.custom_asset_id || !metadata.media_format) throw new Error("Custom media publication is missing its uploaded asset reference.");
       return await executeCustomMediaPublication({

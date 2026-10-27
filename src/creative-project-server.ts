@@ -24,6 +24,7 @@ export type CreativeProjectRecord = {
   destination: string;
   frameCount: number;
   status: CreativeStatus;
+  doctrineStatus: string;
   editorState: ReturnType<typeof normalizeEditorState>;
   unifiedCaption: string;
   cta: string;
@@ -58,6 +59,7 @@ export function creativeProjectFromRow(row: Record<string, unknown>): CreativePr
     destination: String(row.destination || "instagram"),
     frameCount: editorState.frames.length,
     status: String(row.status) as CreativeStatus,
+    doctrineStatus: String(row.doctrine_status || "not_checked"),
     editorState,
     unifiedCaption: String(row.unified_caption || ""),
     cta: String(row.cta || ""),

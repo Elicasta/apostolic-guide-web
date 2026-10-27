@@ -38,6 +38,7 @@ type CreativeProject = {
   destination: string;
   frameCount: number;
   status: CreativeStatus;
+  doctrineStatus?: string;
   editorState: CreativeEditorState;
   unifiedCaption: string;
   cta: string;
@@ -511,7 +512,7 @@ export function CreativeStudioClient({ pathways, initialProjectId, aiReady }: { 
       <div>
         <span className="cs3-kicker">Carousel Studio / 3.0</span>
         <input className="cs3-project-title" disabled={Boolean(working)||project.status!=='draft'} maxLength={180} value={project.title} onChange={(event) => mutateProject((current) => ({ ...current, title: event.target.value }))}/>
-        <div className="cs3-project-meta"><strong>{project.pathwayTitle}</strong><span>{CREATIVE_INTENT_LABELS[project.intent]}</span><span>{CREATIVE_FORMAT_LABELS[project.format]}</span><span>{formatMeta(project)}</span><span className={`cs3-status is-${project.status}`}>{statusLabel(project.status)}</span><SaveIndicator state={saveState} error={saveError}/></div>
+        <div className="cs3-project-meta"><strong>{project.pathwayTitle}</strong><span>{CREATIVE_INTENT_LABELS[project.intent]}</span><span>{CREATIVE_FORMAT_LABELS[project.format]}</span><span>{formatMeta(project)}</span><span className={`cs3-status is-${project.status}`}>{statusLabel(project.status)}</span><span className={`cs3-status is-${project.doctrineStatus||"not_checked"}`}>Doctrine: {(project.doctrineStatus||"not_checked").replaceAll("_"," ")}</span><SaveIndicator state={saveState} error={saveError}/></div>
       </div>
       <div className="cs3-head-actions">
         <button type="button" className="cs3-secondary" onClick={() => router.push("/admin/creative-library")}><Layers3 size={16}/> Library</button>

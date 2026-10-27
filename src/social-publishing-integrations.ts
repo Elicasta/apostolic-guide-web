@@ -1,4 +1,5 @@
 import { createServiceClient } from "./supabase";
+import type { MetaTokenHealth } from "./meta-token-health";
 
 export type SocialPublishingPlatform = "youtube" | "instagram" | "threads" | "tiktok";
 
@@ -9,6 +10,7 @@ export type SocialPublishingCredentialStatus = {
   accountLabel: string | null;
   fields: Record<string, boolean>;
   updatedAt: string | null;
+  tokenHealth?: MetaTokenHealth;
 };
 
 export const SOCIAL_PUBLISHING_SECRET_NAMES = {
@@ -131,11 +133,14 @@ export async function getSocialPublishingCredentialStatus(): Promise<SocialPubli
 
   if (secretsResult.error) throw new Error(secretsResult.error.message);
   const statuses = new Map((statusResult.error ? [] : statusResult.data ?? []).map((row) => [String(row.platform), row]));
-  return summarizeSocialPublishingCredentials(
-    (secretsResult.data ?? []) as SecretRow[],
-    statuses.get("instagram") as ConnectionStatus,
-    statuses.get("threads") as ConnectionStatus
-  );
+  const summaries=summarizeSocialPublishingCredentials((secretsResult.data??[]) as SecretRow[],
+    statuses.get("instagram") as ConnectionStatus,statuses.get("threads") as ConnectionStatus);
+  const { getMetaTokenHealth }=await import("./meta-token-health");
+  const checks=await Promise.all(["instagram","threads"].map(channel=>getMetaTokenHealth(channel as "instagram"|"threads")));
+  return summaries.map(item=>{
+    const token=checks.find(check=>check.platform===item.platform);
+    return token?{...item,accountAuthorized:item.accountAuthorized && token.state==="valid",tokenHealth:token}:item;
+  });
 }
 
 export async function getSocialPublishingCredentialValues(platform: SocialPublishingPlatform) {

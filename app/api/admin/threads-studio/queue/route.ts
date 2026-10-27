@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getStudioPermission } from "@/auth";
 import { createServiceClient } from "@/supabase";
+import { assertDoctrineApproved, textDoctrineSource } from "@/doctrine-gate";
 
 const requestSchema = z.object({
   batchId: z.string().uuid().optional(),
@@ -29,6 +30,14 @@ export async function POST(request: Request) {
   const service = createServiceClient();
   if (!service) return NextResponse.json({ error: "Supabase service access is not configured." }, { status: 503 });
 
+  // Only already-reviewed, unchanged stored posts can be queued.
+  for(const item of parsed.data.items){
+    if(!item.id)return NextResponse.json({error:"Send the Thread to Publishing after a doctrine check first."},{status:409});
+    const stored=await service.from("studio_threads_posts").select("body").eq("id",item.id).maybeSingle();
+    if(stored.error||!stored.data||stored.data.body!==item.body)return NextResponse.json({error:"Thread changed since review. Re-check."},{status:409});
+    try{await assertDoctrineApproved(service,textDoctrineSource("threads",item.id,{body:item.body}));}
+    catch(error){return NextResponse.json({error:error instanceof Error?error.message:"Doctrine check unavailable."},{status:409});}
+  }
   let batchId = parsed.data.batchId;
   if (!batchId) {
     const first = new Date(parsed.data.items[0].scheduledFor);

@@ -2,9 +2,10 @@
 
 import { ArrowLeft, ArrowRight, CalendarDays, Check, CheckCircle2, Clock3, Eye, ExternalLink, Heart, Instagram, Layers3, Loader2, MessageCircle, Play, RefreshCw, Send, ShieldCheck, TriangleAlert } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { DoctrineCheckPanel } from "./doctrine-check-panel";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-type ProjectSummary = { id: string; title: string; pathway_slug: string; intent: string; format: "single" | "carousel" | "story"; frame_count: number; status: string; updated_at?: string };
+type ProjectSummary = { doctrine_status?: string; id: string; title: string; pathway_slug: string; intent: string; format: "single" | "carousel" | "story"; frame_count: number; status: string; updated_at?: string };
 type Publication = {
   id: string;
   pathway_slug: string;
@@ -40,7 +41,7 @@ type ProjectBundle = {
 };
 type Dashboard = { projects: ProjectSummary[]; readyProjects: ProjectSummary[]; publications: Publication[]; counts: Record<string, number> };
 type Mode = "publish_now" | "schedule" | "next_available" | "finish_manually";
-type Step = "select" | "preview" | "publish";
+type Step = "select" | "preview" | "doctrine" | "publish";
 type ActivityView = "queue" | "history";
 type VoiceCheck = { score: number; label: "Natural" | "Good" | "Watch" | "Rewrite"; issues: string[]; empty: boolean };
 
@@ -183,6 +184,7 @@ export function CreativePublishingClient({ initialProjectId }: { initialProjectI
   const [manualReason, setManualReason] = useState("Finish in Instagram for native-only controls or final interactive elements.");
   const [caption, setCaption] = useState("");
   const [voiceAcknowledged, setVoiceAcknowledged] = useState(false);
+  const [doctrineReady,setDoctrineReady]=useState(false);
   const [loading, setLoading] = useState(true);
   const [working, setWorking] = useState("");
   const [error, setError] = useState("");
@@ -211,6 +213,7 @@ export function CreativePublishingClient({ initialProjectId }: { initialProjectI
         setBundle(data);
         setCaption(data.project.unifiedCaption || "");
         setVoiceAcknowledged(false);
+        setDoctrineReady(false);
       })
       .catch((reason) => { if (!cancelled) setError(reason instanceof Error ? reason.message : "Creative Project could not be loaded."); });
     return () => { cancelled = true; };
@@ -249,6 +252,7 @@ export function CreativePublishingClient({ initialProjectId }: { initialProjectI
       setStep("preview");
       return;
     }
+    if(!doctrineReady){setError("Required Doctrine check has not passed for this exact caption and project.");setStep("doctrine");return;}
     setWorking("publish");
     setError("");
     setNotice("");
@@ -297,12 +301,14 @@ export function CreativePublishingClient({ initialProjectId }: { initialProjectI
     setSelectedProjectId(value);
     setNotice("");
     setVoiceAcknowledged(false);
+    setDoctrineReady(false);
     setStep(value ? "preview" : "select");
   }
 
   function updateCaption(value: string) {
     setCaption(value);
     setVoiceAcknowledged(false);
+    setDoctrineReady(false);
   }
 
   const firstAsset = assetUrl(renderAssets[0]);
@@ -320,7 +326,8 @@ export function CreativePublishingClient({ initialProjectId }: { initialProjectI
     <nav className="creative-publish-flow" aria-label="Creative publishing steps">
       <button type="button" className={step === "select" ? "is-active" : ""} onClick={() => setStep("select")}><span>1</span><div><strong>Ready</strong><small>Saved for publishing</small></div></button>
       <button type="button" disabled={!bundle} className={step === "preview" ? "is-active" : ""} onClick={() => setStep("preview")}><span>2</span><div><strong>Preview</strong><small>See what goes out</small></div></button>
-      <button type="button" disabled={!bundle || !renderAssets.length || voiceNeedsReview} className={step === "publish" ? "is-active" : ""} onClick={() => setStep("publish")}><span>3</span><div><strong>Publish</strong><small>Choose when</small></div></button>
+      <button type="button" disabled={!bundle || !renderAssets.length || voiceNeedsReview} className={step === "doctrine" ? "is-active" : ""} onClick={() => setStep("doctrine")}><span>3</span><div><strong>Doctrine</strong><small>Required approval</small></div></button>
+      <button type="button" disabled={!bundle || !renderAssets.length || voiceNeedsReview || !doctrineReady} className={step === "publish" ? "is-active" : ""} onClick={() => setStep("publish")}><span>4</span><div><strong>Publish</strong><small>Choose when</small></div></button>
     </nav>
 
     <section className="creative-card creative-guided-card" data-step={step}>
@@ -362,11 +369,12 @@ export function CreativePublishingClient({ initialProjectId }: { initialProjectI
               {voiceCheck.empty ? <p className="creative-voice-note">Publishing without a caption is allowed.</p> : voiceCheck.score >= 70 ? <p className="creative-voice-note">Clear. Keep your wording.</p> : <div className="creative-voice-review"><p>Edit the caption above, or approve this wording intentionally.</p><button type="button" className={voiceAcknowledged ? "creative-secondary is-approved" : "creative-secondary"} onClick={() => setVoiceAcknowledged((value) => !value)}>{voiceAcknowledged ? <Check size={14}/> : <Eye size={14}/>} {voiceAcknowledged ? "Reviewed" : "Use as written"}</button></div>}
             </div>
 
-            <button type="button" className="creative-primary creative-preview-continue" disabled={!renderAssets.length || voiceNeedsReview} onClick={() => setStep("publish")}><Send size={16}/> {voiceNeedsReview ? "Review Voice Check" : "Continue to Publish"} <ArrowRight size={15}/></button>
+            <button type="button" className="creative-primary creative-preview-continue" disabled={!renderAssets.length || voiceNeedsReview} onClick={() => setStep("doctrine")}><Send size={16}/> {voiceNeedsReview ? "Review Voice Check" : "Continue to Doctrine Check"} <ArrowRight size={15}/></button>
           </div>
         </div>
       </div> : null}
 
+      {step === "doctrine" && bundle ? <div className="creative-guided-publish"><div className="creative-guided-heading"><div><span className="creative-kicker">Step 3 · Doctrine</span><h2>Review before publishing.</h2><p>Every slide, Code Mode template and caption are checked together. Changes invalidate approval.</p></div><ShieldCheck size={22}/></div><DoctrineCheckPanel sourceType="creative_project" sourceId={bundle.project.id} caption={caption} onChange={(approved)=>setDoctrineReady(approved)}/><div className="creative-final-actions"><button type="button" className="creative-secondary" onClick={()=>setStep("preview")}>Back to Preview</button><button type="button" className="creative-primary" disabled={!doctrineReady} onClick={()=>setStep("publish")}>Continue to Publish <ArrowRight size={15}/></button></div></div> : null}
       {step === "publish" && bundle ? <div className="creative-guided-publish">
         <div className="creative-guided-heading"><div><span className="creative-kicker">Step 3 · Publish</span><h2>Send this post.</h2><p>The post and destination are locked in. Only choose when it goes out.</p></div><Send size={22}/></div>
 
@@ -387,7 +395,7 @@ export function CreativePublishingClient({ initialProjectId }: { initialProjectI
 
         <div className="creative-final-actions">
           <button type="button" className="creative-secondary" onClick={() => setStep("preview")}><ArrowLeft size={15}/> Back to Preview</button>
-          <button type="button" className="creative-primary creative-publish-button" disabled={Boolean(working) || !renderAssets.length || voiceNeedsReview} onClick={() => void schedulePublication()}>{working === "publish" ? <Loader2 size={16} className="spin"/> : <Send size={16}/>} {mode === "publish_now" ? "Publish to Instagram" : mode === "schedule" ? "Schedule on Instagram" : mode === "next_available" ? "Add to Next Publishing Slot" : "Send to Instagram Finish Queue"}</button>
+          <button type="button" className="creative-primary creative-publish-button" disabled={Boolean(working) || !renderAssets.length || voiceNeedsReview || !doctrineReady} onClick={() => void schedulePublication()}>{working === "publish" ? <Loader2 size={16} className="spin"/> : <Send size={16}/>} {mode === "publish_now" ? "Publish to Instagram" : mode === "schedule" ? "Schedule on Instagram" : mode === "next_available" ? "Add to Next Publishing Slot" : "Send to Instagram Finish Queue"}</button>
         </div>
       </div> : null}
     </section>
@@ -398,9 +406,9 @@ export function CreativePublishingClient({ initialProjectId }: { initialProjectI
         <div className="creative-tabs"><button type="button" className={activityView === "queue" ? "is-active" : ""} onClick={() => setActivityView("queue")}>Queue</button><button type="button" className={activityView === "history" ? "is-active" : ""} onClick={() => setActivityView("history")}>History</button></div>
         {activityView === "queue" ? <div className="creative-queue-list">{activePublications.length ? activePublications.map((publication, index) => {
           const source = projectForPublication(publication);
-          return <div className="creative-publication-row" key={publication.id}><span className="creative-queue-number">{index + 1}</span><div><strong>{source?.title || publication.pathway_slug}</strong><small>{source ? formatLabel(source.format) : publication.platform}</small></div><div className="creative-pub-time">{publication.scheduled_for ? new Date(publication.scheduled_for).toLocaleString() : statusLabel(publication.status)}</div><i className={`creative-status is-${publication.status}`}>{statusLabel(publication.status)}</i>{publication.status === "needs_manual_finish" ? <button type="button" className="creative-secondary" disabled={working === `manual-${publication.id}`} onClick={() => void finishManual(publication.id)}><Check size={13}/> Mark finished</button> : null}</div>;
+          return <div className="creative-publication-row" key={publication.id}><span className="creative-queue-number">{index + 1}</span><div><strong>{source?.title || publication.pathway_slug}</strong><small>{source ? formatLabel(source.format) : publication.platform} · Doctrine: {source?.doctrine_status || "Not checked"}</small></div><div className="creative-pub-time">{publication.scheduled_for ? new Date(publication.scheduled_for).toLocaleString() : statusLabel(publication.status)}</div><i className={`creative-status is-${publication.status}`}>{statusLabel(publication.status)}</i>{publication.status === "needs_manual_finish" ? <button type="button" className="creative-secondary" disabled={working === `manual-${publication.id}`} onClick={() => void finishManual(publication.id)}><Check size={13}/> Mark finished</button> : null}</div>;
         }) : <p className="creative-muted">Nothing is waiting in the queue.</p>}</div> : null}
-        {activityView === "history" ? <div className="creative-history-list">{history.length ? history.map((publication) => { const source = projectForPublication(publication); return <div className="creative-history-row" key={publication.id}><div className={`creative-history-icon is-${publication.status}`}>{publication.status === "failed" ? <TriangleAlert size={17}/> : <Check size={17}/>}</div><div><strong>{source?.title || publication.pathway_slug}</strong><small>{formatLabel(source?.format || "single")} · {publication.platform} · {publication.published_at ? new Date(publication.published_at).toLocaleString() : new Date(publication.updated_at).toLocaleString()}</small>{publication.error_message ? <p>{publication.error_message}</p> : null}</div><i className={`creative-status is-${publication.status}`}>{statusLabel(publication.status)}</i><div className="creative-inline-actions">{publication.status === "failed" ? <button type="button" disabled={Boolean(working)} onClick={() => void retry(publication.id)}><RefreshCw size={13}/> Retry</button> : null}{publication.published_url ? <a href={publication.published_url} target="_blank" rel="noreferrer"><ExternalLink size={13}/> Open</a> : null}</div></div>; }) : <div className="creative-empty compact">No publication history yet.</div>}</div> : null}
+        {activityView === "history" ? <div className="creative-history-list">{history.length ? history.map((publication) => { const source = projectForPublication(publication); return <div className="creative-history-row" key={publication.id}><div className={`creative-history-icon is-${publication.status}`}>{publication.status === "failed" ? <TriangleAlert size={17}/> : <Check size={17}/>}</div><div><strong>{source?.title || publication.pathway_slug}</strong><small>{formatLabel(source?.format || "single")} · Doctrine: {source?.doctrine_status || "Not checked"} · {publication.platform} · {publication.published_at ? new Date(publication.published_at).toLocaleString() : new Date(publication.updated_at).toLocaleString()}</small>{publication.error_message ? <p>{publication.error_message}</p> : null}</div><i className={`creative-status is-${publication.status}`}>{statusLabel(publication.status)}</i><div className="creative-inline-actions">{publication.status === "failed" ? <button type="button" disabled={Boolean(working)} onClick={() => void retry(publication.id)}><RefreshCw size={13}/> Retry</button> : null}{publication.published_url ? <a href={publication.published_url} target="_blank" rel="noreferrer"><ExternalLink size={13}/> Open</a> : null}</div></div>; }) : <div className="creative-empty compact">No publication history yet.</div>}</div> : null}
       </div>
     </details>
   </section>;

@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { createServiceClient } from "./supabase";
+import { getMetaTokenHealth } from "./meta-token-health";
 
 export const THREADS_REDIRECT_URI = "https://apostolicguide.com/api/admin/meta/threads/callback";
 export const THREADS_SCOPES = ["threads_basic", "threads_content_publish", "threads_manage_insights"] as const;
@@ -36,6 +37,7 @@ export async function getThreadsCredentialValues() {
 }
 
 export async function getThreadsCredentialStatus() {
+  const tokenHealth=await getMetaTokenHealth("threads");
   const service = createServiceClient();
   const values = await getThreadsCredentialValues();
   let lastVerifiedAt: string | null = null;
@@ -51,7 +53,8 @@ export async function getThreadsCredentialStatus() {
   }
   return {
     appConfigured: Boolean(values.appId && values.appSecret),
-    accountAuthorized: Boolean(values.accessToken && values.userId),
+    accountAuthorized: Boolean(values.accessToken && values.userId && tokenHealth.state==="valid"),
+    tokenHealth,
     accountLabel: values.username ? `@${values.username.replace(/^@/, "")}` : values.userId || null,
     fields: Object.fromEntries(Object.keys(THREADS_SECRET_NAMES).map((key) => [key, Boolean(values[key as keyof typeof values])])),
     updatedAt: lastVerifiedAt,

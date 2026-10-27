@@ -5,6 +5,9 @@ import { executeScheduledPublication } from "@/scheduled-publishing";
 import { allPathways, pathwayBySlug } from "@/pathway-catalog";
 import { privateBlobReadUrl } from "@/private-blob";
 import { createServiceClient } from "@/supabase";
+import { assertDoctrineApproved } from "@/doctrine-gate";
+import { publicationDoctrineSource } from "@/publication-doctrine";
+
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -280,6 +283,7 @@ export async function POST(request: Request) {
       internal_tags: cleanList(parsed.data.internalTags, 30),
       requested_privacy: parsed.data.privacyStatus
     };
+    await assertDoctrineApproved(service,publicationDoctrineSource(metadata));
     const publication = await service.from("pathway_publications").insert({
       pathway_slug: parsed.data.pathwaySlug,
       asset_id: null,

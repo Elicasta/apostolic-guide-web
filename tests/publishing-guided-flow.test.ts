@@ -9,11 +9,14 @@ const renderedAssetsRoute = readFileSync("app/api/admin/creative-projects/[proje
 const projectRoute = readFileSync("app/api/admin/creative-projects/[projectId]/route.ts", "utf8");
 
 test("Creative publishing requires a visible preview before the final publish controls", () => {
-  assert.match(publisher, /type Step = "select" \| "preview" \| "publish"/);
+  assert.match(publisher, /type Step = "select" \| "preview" \| "doctrine" \| "publish"/);
   assert.match(publisher, /This is what is going out\./);
   assert.match(publisher, /Destination/);
   assert.match(publisher, /@apostolicguide/);
+  assert.match(publisher, /Continue to Doctrine Check/);
   assert.match(publisher, /Continue to Publish/);
+  assert.match(publisher, /<DoctrineCheckPanel/);
+  assert.match(publisher, /!doctrineReady/);
   assert.match(publisher, /Publish to Instagram/);
   assert.match(publisher, /Back to Preview/);
 });

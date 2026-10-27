@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getStudioPermission } from "@/auth";
 import { createServiceClient } from "@/supabase";
 import { publishThreadsText } from "@/threads-publisher";
+import { assertDoctrineApproved, textDoctrineSource } from "@/doctrine-gate";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -20,6 +21,12 @@ export async function POST(request: Request) {
   const parsed = schema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Invalid Threads publish request." }, { status: 400 });
   if (parsed.data.doctrineStatus === "blocked") return NextResponse.json({ error: "Blocked posts cannot be published." }, { status: 409 });
+  const storage=createServiceClient();
+  if(!storage||!parsed.data.id)return NextResponse.json({error:"Save and review the Thread before publishing."},{status:409});
+  const sourceRow=await storage.from("studio_threads_posts").select("body").eq("id",parsed.data.id).maybeSingle();
+  if(sourceRow.error||!sourceRow.data||sourceRow.data.body!==parsed.data.body)return NextResponse.json({error:"Thread changed. Run Doctrine check again."},{status:409});
+  try {await assertDoctrineApproved(storage,textDoctrineSource("threads",parsed.data.id,{body:parsed.data.body}));}
+  catch(error){return NextResponse.json({error:error instanceof Error?error.message:"Doctrine check required."},{status:409});}
   try {
     const published = await publishThreadsText(parsed.data.body);
     const service = createServiceClient();

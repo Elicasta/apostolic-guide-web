@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { CalendarDays, Check, ExternalLink, Loader2, MessageCircle, Send, Settings, ShieldCheck } from "lucide-react";
+import { DoctrineCheckPanel } from "./doctrine-check-panel";
 
 type ThreadStatus = "ready" | "scheduled" | "published" | "failed" | string;
 type DoctrineStatus = "pass" | "warning" | "blocked" | null;
@@ -41,6 +42,7 @@ export function ThreadsPublishingClient({ connected, canPublish, initialSelected
   const [selectedId, setSelectedId] = useState(initialSelectedId ?? "");
   const [scheduleLocal, setScheduleLocal] = useState(() => localInputValue(new Date(Date.now() + 60 * 60_000)));
   const [busy, setBusy] = useState<string>();
+  const [doctrineReady,setDoctrineReady]=useState(false);
   const [message, setMessage] = useState("Loading ready Threads…");
 
   const load = useCallback(async () => {
@@ -72,6 +74,7 @@ export function ThreadsPublishingClient({ connected, canPublish, initialSelected
 
   async function publishNow() {
     if (!selected) return;
+    if(!doctrineReady)return setMessage("Required Doctrine check must pass before publishing.");
     if (!connected) return setMessage("Connect Threads in Publishing Connections before posting directly.");
     setBusy("publish");
     try {
@@ -82,7 +85,7 @@ export function ThreadsPublishingClient({ connected, canPublish, initialSelected
           id: selected.id,
           body: selected.body,
           category: selected.category,
-          doctrineStatus: selected.doctrine_status || "pass"
+          doctrineStatus: selected.doctrine_status || "blocked"
         })
       });
       const data = await response.json().catch(() => ({}));
@@ -98,6 +101,7 @@ export function ThreadsPublishingClient({ connected, canPublish, initialSelected
 
   async function schedule() {
     if (!selected) return;
+    if(!doctrineReady)return setMessage("Required Doctrine check must pass before scheduling.");
     const when = new Date(scheduleLocal);
     if (!Number.isFinite(when.getTime())) return setMessage("Choose a valid schedule time.");
     setBusy("schedule");
@@ -147,16 +151,17 @@ export function ThreadsPublishingClient({ connected, canPublish, initialSelected
         <div className="master-threads-card-head"><div><span>Ready Thread</span><strong>Final copy</strong></div><MessageCircle size={19}/></div>
         <label><span>Select approved Thread</span><select value={selected.id} onChange={(event) => setSelectedId(event.target.value)}>{readyPosts.map((post, index) => <option key={post.id} value={post.id}>#{index + 1} · {categoryLabel(post.category)} · {post.body.slice(0, 54)}{post.body.length > 54 ? "…" : ""}</option>)}</select></label>
         <div className="master-thread-copy"><p>{selected.body}</p><small>{selected.body.length} / 500</small></div>
-        <div className="master-thread-meta"><span>{categoryLabel(selected.category)}</span><span className={`is-${selected.doctrine_status || "pass"}`}><ShieldCheck size={12}/> {selected.doctrine_status || "pass"}</span></div>
+        <div className="master-thread-meta"><span>{categoryLabel(selected.category)}</span><span className={`is-${selected.doctrine_status || "not_checked"}`}><ShieldCheck size={12}/> {selected.doctrine_status || "Not checked"}</span></div>
         {selected.doctrine_notes ? <p className="master-thread-review-note">{selected.doctrine_notes}</p> : null}
         {selected.source_url ? <div className="master-thread-source"><strong>{selected.source_title || "Reviewed source"}</strong>{selected.source_summary ? <p>{selected.source_summary}</p> : null}<a href={selected.source_url} target="_blank" rel="noreferrer">Open source <ExternalLink size={13}/></a></div> : null}
         <p className="master-thread-lock-note"><Check size={13}/> Copy is locked here so theology-reviewed text cannot be changed after approval. Edit it in Threads Studio and review again if needed.</p>
       </section>
 
       <section className="master-threads-card master-threads-action-card">
+        <DoctrineCheckPanel key={selected.id} sourceType="threads" sourceId={selected.id} fields={{body:selected.body}} onChange={approved=>setDoctrineReady(approved)}/>
         <div className="master-threads-card-head"><div><span>Destination</span><strong>Threads</strong></div><MessageCircle size={19}/></div>
-        <div className="master-thread-action-block"><div><strong>Publish now</strong><span>Post this approved Thread immediately.</span></div><button className="button button-primary" type="button" disabled={!canPublish || !connected || Boolean(busy)} onClick={() => void publishNow()}>{busy === "publish" ? <Loader2 className="spin" size={15}/> : <Send size={15}/>} Publish to Threads</button></div>
-        <div className="master-thread-action-block"><div><strong>Schedule</strong><span>Place it on the shared publishing calendar.</span></div><input type="datetime-local" value={scheduleLocal} onChange={(event) => setScheduleLocal(event.target.value)}/><button className="button" type="button" disabled={!canPublish || Boolean(busy)} onClick={() => void schedule()}>{busy === "schedule" ? <Loader2 className="spin" size={15}/> : <CalendarDays size={15}/>} Add to calendar</button></div>
+        <div className="master-thread-action-block"><div><strong>Publish now</strong><span>Post this approved Thread immediately.</span></div><button className="button button-primary" type="button" disabled={!canPublish || !connected || !doctrineReady || Boolean(busy)} onClick={() => void publishNow()}>{busy === "publish" ? <Loader2 className="spin" size={15}/> : <Send size={15}/>} Publish to Threads</button></div>
+        <div className="master-thread-action-block"><div><strong>Schedule</strong><span>Place it on the shared publishing calendar.</span></div><input type="datetime-local" value={scheduleLocal} onChange={(event) => setScheduleLocal(event.target.value)}/><button className="button" type="button" disabled={!canPublish || !doctrineReady || Boolean(busy)} onClick={() => void schedule()}>{busy === "schedule" ? <Loader2 className="spin" size={15}/> : <CalendarDays size={15}/>} Add to calendar</button></div>
         <p className="master-thread-status">{message}</p>
       </section>
     </div> : <div className="master-threads-empty"><MessageCircle size={25}/><strong>No Threads waiting for Publishing.</strong><span>Create a single post or approve a weekly batch in Threads Studio. Ready copy will appear here automatically.</span><Link className="button button-primary" href="/admin/threads-studio">Open Threads Studio</Link><p>{message}</p></div>}
