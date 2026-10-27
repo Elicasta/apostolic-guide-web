@@ -174,7 +174,7 @@ export function videoFrameHtml(doc: VideoCodeV2, seconds: number, guides=false, 
     ';transform:scale('+(active?(.85+.15*p):1)+');opacity:'+(active?(0.4+0.6*p):.8)+'">'+esc(w.word||w.text||"")+"</span>";
   }).join(" ")+"</div>":"";
   const guide=guides?`<div class="ag-guides" aria-hidden="true"><div></div></div>`:"";
-  return `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data: https:; font-src data: 'self'; style-src 'unsafe-inline'"><style>
+  return `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data: https:; font-src data: https:; style-src 'unsafe-inline'"><style>
   *{box-sizing:border-box}html,body{width:100%;height:100%;margin:0;overflow:hidden}body{background:${bg};color:#F5F7F4;font-family:'Montserrat',Arial,sans-serif}
   :root{--ag-paper:#F5F7F4;--ag-ink:#10202A;--ag-crimson:#A12D3D;--ag-muted:#66777D}
   .ag-frame{position:relative;width:${w}px;height:${h}px;overflow:hidden}
