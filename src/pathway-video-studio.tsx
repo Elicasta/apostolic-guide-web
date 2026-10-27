@@ -384,7 +384,7 @@ export function PathwayVideoStudio({
 
       <section className="admin-card video-timeline-card">
         <div className="video-card-heading"><div><span className="section-kicker">Timeline</span><h2>Visual beats</h2></div><button type="button" className="button small" onClick={rebuildEstimatedTimeline}><TimerReset size={15}/> Rich estimate</button></div>
-        <p className="video-timeline-help">GPT-5.6 Sol directs the talking points from the approved narration, then the finished audio is word-aligned to place them. <strong>Set here is correction-only.</strong></p>
+        <p className="video-timeline-help">Video Studio derives talking points from the approved narration and uses word-level audio timing to position them. <strong>Set here is correction-only.</strong></p>
         <div className="video-cue-list">{timeline.map((cue, index) => <article key={cue.id} className={selectedCue?.id === cue.id ? "video-cue is-selected" : "video-cue"} onClick={() => setSelectedCueId(cue.id)}>
           <div className="video-cue-index"><span>{String(index + 1).padStart(2, "0")} · {cue.kind.toUpperCase()}</span><strong>{formatVideoTimestamp(cue.start)}</strong></div>
           <div className="video-cue-fields">
