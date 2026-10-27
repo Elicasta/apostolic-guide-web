@@ -4,6 +4,7 @@ import { upload } from "@vercel/blob/client";
 import { CalendarDays, CheckCircle2, Film, Image as ImageIcon, Instagram, Loader2, Save, Send, ShieldCheck, Sparkles, UploadCloud, Youtube } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { allPathways } from "@/pathway-catalog";
+import { DoctrineCheckPanel } from "./doctrine-check-panel";
 import { isSupportedPathwayAssetMime, PATHWAY_ASSET_MAX_UPLOAD_BYTES, pathwayAssetClientFingerprint, pathwayAssetMediaKind, sanitizePathwayAssetFilename } from "@/pathway-asset-ingest";
 
 type Platform = "instagram" | "youtube";
@@ -92,6 +93,7 @@ export function CustomMediaPublishingClient() {
   const [mode, setMode] = useState<PublishMode>("publish_now");
   const [scheduledFor, setScheduledFor] = useState(localInputValue());
   const [theologyReview, setTheologyReview] = useState<TheologyReview | null>(null);
+  const [doctrineReady,setDoctrineReady]=useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   const selectedPathway = useMemo(() => pathways.find((pathway) => pathway.slug === form.pathwaySlug) ?? pathways[0], [form.pathwaySlug]);
@@ -116,6 +118,7 @@ export function CustomMediaPublishingClient() {
 
   function patch(values: Partial<FormState>) {
     if ((Object.keys(values) as (keyof FormState)[]).some((key) => theologySensitiveFields.has(key))) setTheologyReview(null);
+    setDoctrineReady(false);
     setForm((current) => ({ ...current, ...values }));
   }
 
@@ -124,6 +127,7 @@ export function CustomMediaPublishingClient() {
     setFile(nextFile);
     setMimeType(nextFile.type);
     setTheologyReview(null);
+    setDoctrineReady(false);
     setPreviewUrl((current) => {
       if (current.startsWith("blob:")) URL.revokeObjectURL(current);
       return URL.createObjectURL(nextFile);
@@ -259,7 +263,7 @@ export function CustomMediaPublishingClient() {
   }
 
   async function publish() {
-    if (!canPublish || working) return;
+    if (!canPublish || working || !doctrineReady) {setError("Required Doctrine check must pass for this exact copy before publishing.");return;}
     setWorking("publish");
     setError("");
     try {
@@ -282,6 +286,7 @@ export function CustomMediaPublishingClient() {
     setFile(null);
     setMimeType(mime);
     setTheologyReview(null);
+    setDoctrineReady(false);
     setPreviewUrl(asset.public_url || `/api/admin/pathway-assets/file?id=${encodeURIComponent(asset.id)}`);
     setForm({
       assetId: asset.id,
@@ -353,6 +358,7 @@ export function CustomMediaPublishingClient() {
       <div className="creative-publish-actions custom-save-actions"><button type="button" className="button" onClick={() => void saveDraft()} disabled={Boolean(working)}>{working === "save" ? <Loader2 className="spin" size={15}/> : <Save size={15}/>} Save draft + calendar</button></div>
     </section> : null}
 
+    {form.assetId ? <DoctrineCheckPanel sourceType="custom_asset" sourceId={form.assetId} caption={form.caption} fields={{title:form.title||"",description:form.description,alt_text:form.altText,hashtags:list(form.hashtags).join(" ")}} onChange={approved=>setDoctrineReady(approved)}/> : null}
     {form.assetId ? <section className="admin-card custom-publish-card custom-final-card">
       <div className="calendar-section-head"><div><span className="section-kicker">3 · Publish</span><h2>{form.platform === "instagram" ? "Instagram" : "YouTube"} publish step</h2><p>Choose now or schedule it. Duplicate active publications for the same asset and channel are blocked server-side.</p></div>{form.platform === "instagram" ? <Instagram size={25}/> : <Youtube size={25}/>}</div>
       <div className="admin-form-grid custom-publish-grid">
@@ -360,7 +366,7 @@ export function CustomMediaPublishingClient() {
         {mode === "schedule" ? <label><span>Date + time</span><input type="datetime-local" value={scheduledFor} onChange={(event) => setScheduledFor(event.target.value)}/></label> : null}
         {form.platform === "youtube" ? <label><span>YouTube privacy</span><select value={form.privacyStatus} onChange={(event) => patch({ privacyStatus: event.target.value as FormState["privacyStatus"] })}><option value="private">Private</option><option value="unlisted">Unlisted</option><option value="public">Public</option></select></label> : null}
       </div>
-      <div className="creative-publish-actions custom-final-actions"><button type="button" className="button primary" onClick={() => void publish()} disabled={!canPublish || Boolean(working)}>{working === "publish" ? <Loader2 className="spin" size={15}/> : mode === "schedule" ? <CalendarDays size={15}/> : <Send size={15}/>} {mode === "schedule" ? "Add to publishing calendar" : `Publish to ${form.platform === "instagram" ? "Instagram" : "YouTube"}`}</button></div>
+      <div className="creative-publish-actions custom-final-actions"><button type="button" className="button primary" onClick={() => void publish()} disabled={!canPublish || !doctrineReady || Boolean(working)}>{working === "publish" ? <Loader2 className="spin" size={15}/> : mode === "schedule" ? <CalendarDays size={15}/> : <Send size={15}/>} {mode === "schedule" ? "Add to publishing calendar" : `Publish to ${form.platform === "instagram" ? "Instagram" : "YouTube"}`}</button></div>
     </section> : null}
 
     {error ? <p className="admin-error">{error}</p> : null}<p className="content-calendar-status custom-publish-status">{message}</p>

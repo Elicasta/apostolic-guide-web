@@ -25,6 +25,7 @@ import {
 import type { PathwayVideoPublishingMetadata } from "@/pathway-video-publishing";
 import { normalizeSocialClipPackage, socialClipCaption } from "@/social-clip-package";
 import type { SocialPublishingCredentialStatus } from "@/social-publishing-integrations";
+import { DoctrineCheckPanel } from "./doctrine-check-panel";
 
 type Render = {
   id: string;
@@ -163,6 +164,7 @@ export function ChannelPublishing({ packages, credentials, canPublish }: {
   canPublish: boolean;
 }) {
   const [busy, setBusy] = useState<string | null>(null);
+  const [doctrineReady,setDoctrineReady] = useState(false);
   const [messages, setMessages] = useState<Record<string, string>>({});
   const [privacy, setPrivacy] = useState<Record<string, YouTubePrivacy>>({});
   const [selectedSlug, setSelectedSlug] = useState(packages[0]?.slug ?? "");
@@ -236,6 +238,7 @@ export function ChannelPublishing({ packages, credentials, canPublish }: {
     const render = target === "youtube" ? item.youtubeRender : item.verticalRender;
     const actionKey = key(item.slug, `publish:${target}`);
     if (!sourceClip && !render) return;
+    if(!doctrineReady){setMessage(actionKey,"Required Doctrine check has not passed.");return;}
     setBusy(actionKey);
     setMessage(actionKey, target === "youtube" ? "Uploading to YouTube…" : "Sending Reel to Instagram…");
     try {
@@ -279,6 +282,7 @@ export function ChannelPublishing({ packages, credentials, canPublish }: {
       setMessage(scheduleKey, "Render the required video first.");
       return;
     }
+    if(!doctrineReady){setMessage(scheduleKey,"Required Doctrine check has not passed.");return;}
     setBusy(scheduleKey);
     setMessage(scheduleKey, "Adding to publishing calendar…");
     try {
@@ -423,8 +427,9 @@ export function ChannelPublishing({ packages, credentials, canPublish }: {
             <div className="channel-platform-head"><div><PlatformIcon platform={platform} size={20}/><strong>{platform === "youtube" ? "YouTube" : platform === "instagram" ? "Instagram Reel" : "TikTok"}</strong></div><StatusPill publication={publication}/></div>
             {platform === "youtube" ? <label><span>Title</span><textarea rows={2} readOnly value={metadata?.youtubeTitle || "Generate the publishing kit in Video Studio."}/></label> : <><label><span>Caption</span><textarea rows={5} readOnly value={selectedSocialCaption || (platform === "instagram" ? metadata?.reelCaption : metadata?.tiktokCaption) || "Generate the publishing kit in Video Studio."}/></label>{selectedClipPackage?.hashtags.length ? <label><span>AI clip tags</span><textarea rows={2} readOnly value={selectedClipPackage.hashtags.join(" ")}/></label> : null}</>}
             {platform === "youtube" ? <div className="youtube-visibility-card"><div className="youtube-visibility-copy"><strong>YouTube visibility</strong><span>Choose this before publishing or scheduling. The selected setting is sent directly with the YouTube upload.</span></div><div className="youtube-visibility-options" role="radiogroup" aria-label="YouTube visibility">{(["private", "unlisted", "public"] as YouTubePrivacy[]).map((value) => <button key={value} type="button" role="radio" aria-checked={selectedPrivacy === value} className={selectedPrivacy === value ? "active" : ""} onClick={() => setPrivacy((current) => ({ ...current, [selected.slug]: value }))}>{value === "private" ? "Private" : value === "unlisted" ? "Unlisted" : "Public"}</button>)}</div></div> : null}
-            <div className="publishing-action-card"><div><strong>Publish now</strong><span>{platform === "tiktok" ? "Direct Post activates after TikTok approves the connection." : selectedClip ? "Publish the selected AI cut with its AI caption and tags." : "Send the finished video now."}</span></div>{publication?.published_url ? <a className="button" href={publication.published_url} target="_blank" rel="noreferrer">Open published post <ExternalLink size={14}/></a> : <button className="button button-primary" type="button" disabled={!canPublish || !channelAuthorized || platform === "tiktok" || (!selectedClip && !platformRender) || busy === publishKey} onClick={() => platform !== "tiktok" && void publishNow(selected, platform)}>{busy === publishKey ? <Loader2 className="spin" size={15}/> : <Send size={15}/>} {platform === "tiktok" ? "TikTok setup required" : `Publish to ${platform === "youtube" ? "YouTube" : "Instagram"}`}</button>}{messages[publishKey] ? <p className="channel-action-message">{messages[publishKey]}</p> : null}</div>
-            <div className="publishing-action-card schedule-card"><div><strong>Schedule</strong><span>{platform === "tiktok" ? "Add it to the calendar now. Posting remains manual until Direct Post is enabled." : "It will publish automatically from the queue."}</span></div><input type="datetime-local" value={scheduleTimes[scheduleKey] ?? ""} onChange={(event) => setScheduleTimes((current) => ({ ...current, [scheduleKey]: event.target.value }))}/><button className="button" type="button" disabled={!canPublish || (!selectedClip && !platformRender) || busy === scheduleKey} onClick={() => void schedule(selected, platform)}>{busy === scheduleKey ? <Loader2 className="spin" size={15}/> : <CalendarDays size={15}/>} Add to calendar</button>{messages[scheduleKey] ? <p className="channel-action-message">{messages[scheduleKey]}</p> : null}</div>
+            {platform !== "tiktok" && (selectedClip?.id || platformRender?.id) ? <DoctrineCheckPanel key={selected.slug+":"+platform+":"+(selectedClip?.id||platformRender?.id||"")} sourceType={selectedClip?"video_clip":"video_render"} sourceId={(selectedClip?.id||platformRender?.id) as string} caption={platform==="youtube"?"":selectedClip?(selectedSocialCaption||selectedClip.caption):(metadata?.reelCaption||"")} fields={platform==="youtube"?{title:metadata?.youtubeTitle||""}:selectedClip?{title:selectedClip.title,hashtags:selectedClipPackage?.hashtags.join(" ")||""}:{}} onChange={approved=>setDoctrineReady(approved)}/> : null}
+            <div className="publishing-action-card"><div><strong>Publish now</strong><span>{platform === "tiktok" ? "Direct Post activates after TikTok approves the connection." : selectedClip ? "Publish the selected AI cut with its AI caption and tags." : "Send the finished video now."}</span></div>{publication?.published_url ? <a className="button" href={publication.published_url} target="_blank" rel="noreferrer">Open published post <ExternalLink size={14}/></a> : <button className="button button-primary" type="button" disabled={!canPublish || !doctrineReady || !channelAuthorized || platform === "tiktok" || (!selectedClip && !platformRender) || busy === publishKey} onClick={() => platform !== "tiktok" && void publishNow(selected, platform)}>{busy === publishKey ? <Loader2 className="spin" size={15}/> : <Send size={15}/>} {platform === "tiktok" ? "TikTok setup required" : `Publish to ${platform === "youtube" ? "YouTube" : "Instagram"}`}</button>}{messages[publishKey] ? <p className="channel-action-message">{messages[publishKey]}</p> : null}</div>
+            <div className="publishing-action-card schedule-card"><div><strong>Schedule</strong><span>{platform === "tiktok" ? "Add it to the calendar now. Posting remains manual until Direct Post is enabled." : "It will publish automatically from the queue."}</span></div><input type="datetime-local" value={scheduleTimes[scheduleKey] ?? ""} onChange={(event) => setScheduleTimes((current) => ({ ...current, [scheduleKey]: event.target.value }))}/><button className="button" type="button" disabled={!canPublish || !doctrineReady || (!selectedClip && !platformRender) || busy === scheduleKey} onClick={() => void schedule(selected, platform)}>{busy === scheduleKey ? <Loader2 className="spin" size={15}/> : <CalendarDays size={15}/>} Add to calendar</button>{messages[scheduleKey] ? <p className="channel-action-message">{messages[scheduleKey]}</p> : null}</div>
           </div>
         </div>
       </div> : null}
