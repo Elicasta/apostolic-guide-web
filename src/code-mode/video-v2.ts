@@ -60,8 +60,8 @@ export const videoCodeV2Schema = z.object({
 export type VideoCodeV2 = z.infer<typeof videoCodeV2Schema>;
 
 const sceneMarkupOptions: sanitizeHtml.IOptions = {
-  allowedTags: ["div", "span", "p", "h1", "h2", "h3", "small", "strong", "em", "b", "i", "mark", "br", "ul", "ol", "li"],
-  allowedAttributes: { "*": ["class", "id", "data-motion", "aria-label"] },
+  allowedTags: ["div", "span", "p", "h1", "h2", "h3", "small", "strong", "em", "b", "i", "mark", "br", "ul", "ol", "li", "ag-asset"],
+  allowedAttributes: { "*": ["class", "id", "data-motion", "aria-label"], "ag-asset": ["data-id"] },
   allowedSchemes: [],
   disallowedTagsMode: "discard"
 };
@@ -115,7 +115,16 @@ function transitionStyle(type: string, fraction: number) {
   return `opacity:${p}`;
 }
 export type VideoWord = { word?: string; text?: string; start?: number; end?: number };
-export function videoFrameHtml(doc: VideoCodeV2, seconds: number, guides=false, words: VideoWord[]=[]): string {
+/** Only server-selected/registry-selected image URLs are ever inserted into HTML. Raw <img> is stripped. */
+export function videoSceneMarkup(html:string,assetSources:Record<string,string>={}):string {
+ const cleaned=sanitizeHtml(html,sceneMarkupOptions);
+ return cleaned.replace(/<ag-asset\s+data-id="([a-z][a-z0-9_-]{1,70})"\s*><\/ag-asset>/g,(_tag:string,id:string)=>{
+   const src=assetSources[id];
+   if(!src || !(/^(data:image\/(?:png|jpeg|webp);base64,|https:\/\/)/.test(src)))return "";
+   return '<img class="ag-registered-asset" src="'+esc(src)+'" alt="" draggable="false">';
+ });
+}
+export function videoFrameHtml(doc: VideoCodeV2, seconds: number, guides=false, words: VideoWord[]=[],assetSources:Record<string,string>={}): string {
   const {w,h}=doc.format;
   const scenes=doc.scenes.filter(s=>seconds>=s.start && seconds<s.end);
   const markup=scenes.map(s=>{
@@ -131,7 +140,7 @@ export function videoFrameHtml(doc: VideoCodeV2, seconds: number, guides=false, 
       const active=ease((seconds-s.start-i*s.stagger!.interval)/0.26,"ease-out");
       return `.${className} .${s.stagger!.mode}:nth-child(${i+1}){opacity:${active};transform:translateY(${(1-active)*24}px);display:inline-block}`;
     }).join("\n"):"";
-    return `<style>${s.css.replace(/[<>]/g,"")}\n.${className}{${styleFor(at(s,"root",seconds))};${transition}}\n${animated}\n${staggerCss}</style><section class="ag-scene ${className} ${s.layer}">${sanitizeHtml(s.html,sceneMarkupOptions)}</section>`;
+    return `<style>${s.css.replace(/[<>]/g,"")}\n.${className}{${styleFor(at(s,"root",seconds))};${transition}}\n${animated}\n${staggerCss}</style><section class="ag-scene ${className} ${s.layer}">${videoSceneMarkup(s.html,assetSources)}</section>`;
   }).join("\n");
   const bg=doc.style.background === "paper" ? "#F5F7F4" : doc.style.background === "ink" ? "#10202A" : "transparent";
   const captionWords=doc.style.kineticCaptions===true ? words.filter(w=>Number.isFinite(w.start)&&Number.isFinite(w.end)) : [];
@@ -144,13 +153,13 @@ export function videoFrameHtml(doc: VideoCodeV2, seconds: number, guides=false, 
     ';transform:scale('+(active?(.85+.15*p):1)+');opacity:'+(active?(0.4+0.6*p):.8)+'">'+esc(w.word||w.text||"")+"</span>";
   }).join(" ")+"</div>":"";
   const guide=guides?`<div class="ag-guides" aria-hidden="true"><div></div></div>`:"";
-  return `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data:; font-src data: 'self'; style-src 'unsafe-inline'"><style>
+  return `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data: https:; font-src data: 'self'; style-src 'unsafe-inline'"><style>
   *{box-sizing:border-box}html,body{width:100%;height:100%;margin:0;overflow:hidden}body{background:${bg};color:#F5F7F4;font-family:'Montserrat',Arial,sans-serif}
   :root{--ag-paper:#F5F7F4;--ag-ink:#10202A;--ag-crimson:#A12D3D;--ag-muted:#66777D}
   .ag-frame{position:relative;width:${w}px;height:${h}px;overflow:hidden}
   .ag-scene{position:absolute;inset:0;overflow:hidden;display:grid;align-content:center;justify-items:center;padding:8%;text-align:center}
   .ag-scene.lowerthird{top:auto;height:33%;align-content:end;padding-bottom:8%}
-  .ag-scene h1{font:800 clamp(34px,7vw,150px)/.95 'Montserrat',Arial,sans-serif;letter-spacing:-.04em;text-wrap:balance;margin:0}
+  .ag-registered-asset{display:block;max-width:100%;max-height:100%;object-fit:contain}\n  .ag-scene h1{font:800 clamp(34px,7vw,150px)/.95 'Montserrat',Arial,sans-serif;letter-spacing:-.04em;text-wrap:balance;margin:0}
   .ag-scene p{font-size:clamp(22px,3vw,52px);margin:1rem 0}
   .ag-scene mark{background:var(--ag-crimson);color:var(--ag-paper);padding:0 .15em}
   .ag-captions{position:absolute;bottom:10%;left:6%;right:6%;z-index:90;display:flex;justify-content:center;gap:.3em;flex-wrap:wrap;font:800 clamp(24px,5.2vw,98px)/1.1 Montserrat,sans-serif;text-align:center;text-shadow:0 3px 12px #10202A}\n  .ag-captions span{display:inline-block;padding:.07em .18em;border-radius:.08em}\n  .ag-guides{position:absolute;inset:5%;border:2px dashed #f5f7f480;pointer-events:none}.ag-guides div{position:absolute;inset:7%;border:1px dashed #f5f7f480}
