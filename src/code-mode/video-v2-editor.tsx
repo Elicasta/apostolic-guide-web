@@ -10,7 +10,7 @@ const inputStyle={width:"100%",padding:10,background:"#0e1820",color:"#f5f7f4",b
 const btnStyle={padding:"8px 12px",border:"1px solid #617080",borderRadius:8,color:"inherit",background:"#1c303b"} as const;
 function highlight(raw:string){
  const esc=(t:string)=>t.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
- return esc(raw).replace(/("(?:\\.|[^"\\])*")(?=\s*:)|("(?:\\.|[^"\\])*")|\b(true|false|null)\b|(-?\d+(?:\.\d+)?)/g,(_m,key,value,keyword,number)=>`<span style="color:${key?"#8acee6":value?"#f4bb93":keyword?"#c6a0dc":"#a5d6a7"}">${_m}</span>`);
+ return esc(raw).replace(/("(?:\\.|[^"\\])*")(?=\s*:)|("(?:\\.|[^"\\])*")|\b(true|false|null)\b|(-?\d+(?:\.\d+)?)/g,(_m,key,value,keyword)=>`<span style="color:${key?"#8acee6":value?"#f4bb93":keyword?"#c6a0dc":"#a5d6a7"}">${_m}</span>`);
 }
 function fmt(n:number){const m=Math.floor(n/60),s=(n%60).toFixed(1).padStart(4,"0");return `${m}:${s}`;}
 export function VideoCodeEditor({value,onApply,disabled=false,readOnly=false,words=[]}:Props){
@@ -50,7 +50,6 @@ export function VideoCodeEditor({value,onApply,disabled=false,readOnly=false,wor
    catch(e){setError(e instanceof Error?e.message:String(e));}
    finally{setBusy(false);}
  }
- useEffect(()=>{setRaw(JSON.stringify(value,null,2));setUndo([]);setSceneId(value.scenes[0]?.id||"");},[value]);
  useEffect(()=>{if(!playing)return;let frame=0,last=performance.now();const tick=(now:number)=>{
     const delta=(now-last)/1000;last=now;
     setTime(t=>{const next=t+delta;if(next>=duration){if(loop)return 0;setPlaying(false);return duration-.001;}return next;});
