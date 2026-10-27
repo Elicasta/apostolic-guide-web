@@ -38,7 +38,7 @@ def composite_video_code_scenes(manifest, source_path, tempdir, payload, callbac
     frame_dir = os.path.join(tempdir, "scene-frames")
     os.mkdir(frame_dir)
     with open(scene_path, "w", encoding="utf-8") as handle:
-        json.dump(doc, handle, ensure_ascii=False)
+        json.dump({"document": doc, "words": manifest.get("videoCodeWords") or []}, handle, ensure_ascii=False)
     _run_with_heartbeat(
         ["node", "--import", "tsx", "scripts/video_code_render_frames.ts", scene_path, frame_dir, str(duration)],
         payload, callback, "Rendering browser scene plates", tempdir
