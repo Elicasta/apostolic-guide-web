@@ -5,6 +5,9 @@ import { pathwayBySlug } from "@/pathway-catalog";
 import { normalizePathwayVideoPublishingMetadata } from "@/pathway-video-publishing";
 import { normalizeSocialClipPackage } from "@/social-clip-package";
 import { createServiceClient } from "@/supabase";
+import { assertDoctrineApproved } from "@/doctrine-gate";
+import { publicationDoctrineSource } from "@/publication-doctrine";
+
 
 export const runtime = "nodejs";
 
@@ -73,6 +76,9 @@ export async function POST(request: Request) {
   if (parsed.data.platform === "youtube") metadata = { ...metadata, requested_privacy: parsed.data.privacyStatus ?? "private", title: kit.youtubeTitle };
   if (parsed.data.platform === "instagram" && !metadata.caption) metadata = { ...metadata, caption: kit.reelCaption };
   if (parsed.data.platform === "tiktok" && !metadata.caption) metadata = { ...metadata, caption: kit.tiktokCaption };
+
+  try {await assertDoctrineApproved(service,publicationDoctrineSource(metadata));}
+  catch(error){return NextResponse.json({error:error instanceof Error?error.message:"Doctrine check required."},{status:409});}
 
   if (assetId) {
     const duplicate = await service.from("pathway_publications")

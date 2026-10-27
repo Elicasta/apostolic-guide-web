@@ -6,6 +6,9 @@ import { normalizePathwayVideoPublishingMetadata } from "@/pathway-video-publish
 import { normalizeSocialClipPackage } from "@/social-clip-package";
 import { executeScheduledPublication } from "@/scheduled-publishing";
 import { createServiceClient } from "@/supabase";
+import { assertDoctrineApproved } from "@/doctrine-gate";
+import { publicationDoctrineSource } from "@/publication-doctrine";
+
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -71,6 +74,9 @@ export async function POST(request: Request) {
   const kit = normalizePathwayVideoPublishingMetadata(kitResult.data?.metadata);
   if (parsed.data.platform === "youtube") metadata = { ...metadata, requested_privacy: parsed.data.privacyStatus ?? "private", title: kit.youtubeTitle };
   if (parsed.data.platform === "instagram" && !metadata.caption) metadata = { ...metadata, caption: kit.reelCaption };
+
+  try {await assertDoctrineApproved(service,publicationDoctrineSource(metadata));}
+  catch(error){return NextResponse.json({error:error instanceof Error?error.message:"Doctrine check required."},{status:409});}
 
   if (assetId) {
     const existing = await service.from("pathway_publications")
