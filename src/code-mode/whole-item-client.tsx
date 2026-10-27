@@ -12,9 +12,12 @@ export function WholeItemCodeMode({initialTool="website",initialId="",initialKin
  const [kind,setKind]=useState(initialKind);
  const [readOnly,setReadOnly]=useState(false);
  const [words,setWords]=useState<Array<{word?:string;text?:string;start?:number;end?:number}>>([]);
+ const [sourcePreviewUrl,setSourcePreviewUrl]=useState<string|null>(null);
+ const [sourceOffset,setSourceOffset]=useState(0);
+ const [keepSegments,setKeepSegments]=useState<Array<{start:number;end:number}>>([]);
  const [document,setDocument]=useState<WholeItemCode>(initial(OPTIONS.includes(initialTool as Tool)?initialTool as Tool:"website"));
  const [busy,setBusy]=useState(false),[error,setError]=useState(""),[message,setMessage]=useState("");
- function select(next:Tool){setTool(next);setId("");setDocument(initial(next));setMessage("");setError("");setReadOnly(false);setWords([]);}
+ function select(next:Tool){setTool(next);setId("");setDocument(initial(next));setMessage("");setError("");setReadOnly(false);setWords([]);setSourcePreviewUrl(null);setKeepSegments([]);setSourceOffset(0);}
  async function load(nextTool=tool,nextId=id,nextKind=kind){
   setBusy(true);setError("");
   try{
@@ -22,6 +25,8 @@ export function WholeItemCodeMode({initialTool="website",initialId="",initialKin
    const response=await fetch("/api/admin/code-mode?"+params.toString(),{cache:"no-store"});
    const data=await response.json();if(!response.ok)throw new Error(data.error||"Could not open draft.");
    setDocument(data.document as WholeItemCode);setReadOnly(Boolean(data.readOnly));setWords(Array.isArray(data.words)?data.words:[]);
+   setSourcePreviewUrl(typeof data.sourcePreviewUrl==="string"?data.sourcePreviewUrl:null);
+   setSourceOffset(Number(data.sourceOffset)||0);setKeepSegments(Array.isArray(data.keepSegments)?data.keepSegments:[]);
    setMessage(nextId?"Loaded an existing draft.":"Empty Code Mode document. Fill required fields before Apply.");
   }catch(e){setError(e instanceof Error?e.message:"Load failed.");}finally{setBusy(false);}
  }
@@ -51,7 +56,7 @@ export function WholeItemCodeMode({initialTool="website",initialId="",initialKin
   </div>
   <button type="button" disabled={busy} onClick={()=>void load()}>{busy?"Loading…":"Load existing draft / New document"}</button>
   {document.tool==="video" && document.version===2
-    ? <VideoCodeEditor key={tool+":"+id+":"+kind+":"+document.expectedUpdatedAt} initialScene={initialScene} value={document} onApply={apply} disabled={busy} readOnly={readOnly} words={words}/>
+    ? <VideoCodeEditor key={tool+":"+id+":"+kind+":"+document.expectedUpdatedAt} initialScene={initialScene} value={document} onApply={apply} disabled={busy} readOnly={readOnly} words={words} sourcePreviewUrl={sourcePreviewUrl} sourceOffset={sourceOffset} keepSegments={keepSegments}/>
     : <CodeModeJsonPanel key={tool+":"+id+":"+kind} label={tool+" whole-item JSON"} data={document} parse={raw=>wholeItemSchema.parse(raw)} onApply={apply} disabled={busy}/> }
   {tool==="teleprompter"?<p>Saved scripts stay in a private drafting library. They do not update a live Teleprompter session or remote display.</p>:null}
   {tool==="video"?<p>Video Code Mode v2 uses scene JSON with preview, motion keyframes and word anchors. Apply saves only and resets Producer approval; rendering stays a separate deliberate step.</p>:null}
