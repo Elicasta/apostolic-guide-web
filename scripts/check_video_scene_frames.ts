@@ -7,6 +7,7 @@ import sharp from "sharp";
 import {freshVideoScenes,videoScenesSchema} from "../src/video-scenes";
 import {renderSceneFrames} from "./render_video_scene_frames";
 
+async function main(){
 const folder=await mkdtemp(join(tmpdir(),"ag-motion-smoke-"));
 try{
  const program=videoScenesSchema.parse({...freshVideoScenes("producer","11111111-1111-4111-8111-111111111111"),
@@ -40,3 +41,5 @@ try{
  if(pixels.channels.slice(0,3).every(ch=>ch.stdev<2))throw new Error("Encoded MP4 lost kinetic text.");
  process.stdout.write("Kinetic screenshot + MP4 proof PASS: 23 frames, 480x854@15fps.\\n");
 }finally{await rm(folder,{recursive:true,force:true})}
+}
+\nvoid main().catch(error=>{console.error(error);process.exitCode=1});\n
