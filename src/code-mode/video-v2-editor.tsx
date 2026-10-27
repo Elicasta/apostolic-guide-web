@@ -28,6 +28,9 @@ export function VideoCodeEditor({value,onApply,disabled=false,readOnly=false,wor
  const [busy,setBusy]=useState(false);
  const [graphics,setGraphics]=useState<GraphicAsset[]>([]);
  const [graphicId,setGraphicId]=useState("");
+ const [versions,setVersions]=useState<Array<{id:string;createdAt:string;sceneCount:number}>>([]);
+ const [versionId,setVersionId]=useState("");
+
  const editorRef=useRef<HTMLTextAreaElement>(null);
  const codeRef=useRef<HTMLPreElement>(null);
  const parsed=useMemo(()=>{try{return parseCodeDocument(raw,(v)=>videoCodeV2Schema.parse(v));}catch{return null;}},[raw]);
@@ -66,6 +69,29 @@ export function VideoCodeEditor({value,onApply,disabled=false,readOnly=false,wor
     .catch(()=>{if(mounted)setGraphics([]);});
    return ()=>{mounted=false;};
  },[]);
+ useEffect(()=>{if(!value.id)return;let alive=true;
+   const q=new URLSearchParams({kind:value.kind,id:value.id});
+   fetch("/api/admin/code-mode/history?"+q.toString(),{cache:"no-store"})
+    .then(async response=>response.ok?response.json():{history:[]})
+    .then(data=>{if(alive)setVersions(data.history||[]);})
+    .catch(()=>{if(alive)setVersions([]);});
+   return ()=>{alive=false;};
+ },[value.id,value.kind,value.expectedUpdatedAt]);
+ async function restoreVersion(){
+   if(!ready||!versionId||!window.confirm("Load this prior checkpoint into the editor? Current unsaved edits will be replaced. Nothing is saved until you Apply."))return;
+   setBusy(true);
+   try{
+     const q=new URLSearchParams({kind:value.kind,id:value.id,checkpoint:versionId});
+     const response=await fetch("/api/admin/code-mode/history?"+q.toString(),{cache:"no-store"});
+     const data=await response.json();
+     if(!response.ok||!data.document)throw new Error(data.error||"Version is unavailable");
+     const parsed=videoCodeV2Schema.parse({...data.document,expectedUpdatedAt:value.expectedUpdatedAt});
+     update(parsed);
+     setSceneId(parsed.scenes[0]?.id||"");
+     setTab("code");
+   }catch(e){setError(e instanceof Error?e.message:"Could not load checkpoint");}
+   finally{setBusy(false);}
+ }
  const assetSources=Object.fromEntries(graphics.map(a=>["graphic-"+a.id,a.previewUrl]));
  function insertGraphic(){
    if(!ready||!active||!graphicId)return;
@@ -99,6 +125,11 @@ export function VideoCodeEditor({value,onApply,disabled=false,readOnly=false,wor
       <textarea ref={editorRef} aria-label="Editable video JSON" disabled={!ready} spellCheck={false} value={raw} onChange={e=>{setRaw(e.target.value);setError("");}} onScroll={e=>{if(codeRef.current){codeRef.current.scrollTop=e.currentTarget.scrollTop;codeRef.current.scrollLeft=e.currentTarget.scrollLeft;}}} style={{width:"100%",height:440,position:"relative",display:"block",resize:"vertical",padding:14,margin:0,background:"transparent",color:"transparent",WebkitTextFillColor:"transparent",caretColor:"#fff",border:0,outline:"none",font:"13px/1.5 ui-monospace,monospace",whiteSpace:"pre-wrap",overflowWrap:"anywhere"}}/>
     </div>}
    <div style={{display:"grid",gap:8}}>
+    <label>Version history<select style={inputStyle} disabled={!ready||versions.length===0} value={versionId} onChange={e=>setVersionId(e.target.value)}>
+       <option value="">Select an earlier Apply checkpoint</option>
+       {versions.map(v=><option key={v.id} value={v.id}>{new Date(v.createdAt).toLocaleString()} · {v.sceneCount} scenes</option>)}
+    </select></label>
+    <button type="button" style={btnStyle} disabled={!ready||!versionId||busy} onClick={()=>void restoreVersion()}>Load selected version into editor</button>
     <label>Graphics library<select style={inputStyle} value={graphicId} onChange={e=>setGraphicId(e.target.value)} disabled={!ready||!active||graphics.length===0}>
        <option value="">Select uploaded graphic</option>
        {graphics.map(a=><option key={a.id} value={a.id}>{a.title}</option>)}
