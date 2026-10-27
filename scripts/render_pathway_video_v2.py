@@ -156,7 +156,7 @@ def render(payload: dict, output: Path, progress_callback: ProgressCallback | No
             if (fmt.get("w"),fmt.get("h"),fmt.get("fps")) != (width,height,30):
                 raise RuntimeError("Video Studio scene canvas must match export format")
             _report(progress_callback,94,"Compositing scene motion")
-            manifest={"videoCodeV2":scene_document,"renderPlan":{"output":{"width":width,"height":height,"fps":30},"outputDuration":duration}}
+            manifest={"videoCodeV2":scene_document,"videoCodeAssetUrls":payload.get("video_code_asset_urls") or {},"renderPlan":{"output":{"width":width,"height":height,"fps":30},"outputDuration":duration}}
             def heartbeat(_payload,_status,progress,stage):
                 _report(progress_callback,int(progress or 94),stage or "Motion")
             motion=composite_video_code_scenes(manifest,str(output),directory,payload,heartbeat)
