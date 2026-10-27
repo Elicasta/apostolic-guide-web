@@ -3,6 +3,10 @@ import {getStudioPermission} from "@/auth";
 import {createServiceClient} from "@/supabase";
 import {recordStudioAudit} from "@/studio-audit";
 import {videoSceneDocument,videoSceneStarter,type VideoSceneDocument} from "@/code-mode/video-scenes";
+import {normalizeVideoProducerTranscript,sliceVideoProducerTranscript} from "@/video-producer-ai";
+import {compileVideoProducerRenderPlan} from "@/video-producer";
+import {wordsOnOutput} from "@/code-mode/video-word-sync";
+import {createPrivateBlobDownloadUrl} from "@/video-producer-server";
 import {z} from "zod";
 
 export const runtime="nodejs";
@@ -50,7 +54,24 @@ export async function GET(request:Request){
   const restored=extract(record(snapshot.data.document),kind,id);
   document={...restored,expectedUpdatedAt:String(row.updated_at)};
  }
+ let previewSourceUrl:string|null=null;
+ let transcriptLane:Array<{word:string;start:number;end:number}>=[];
+ let keptRanges:Array<{start:number;end:number}>=[];
+ if(kind==="producer"){
+  const sourceTranscript=normalizeVideoProducerTranscript(row.transcript);
+  const rangeStart=Number(row.source_range_start??0),rangeEnd=Number(row.source_range_end??row.source_duration??0);
+  const local=(rangeEnd>rangeStart && row.source_range_start!=null)?sliceVideoProducerTranscript(sourceTranscript,rangeStart,rangeEnd):sourceTranscript;
+  try{
+   const plan=row.edit_plan?compileVideoProducerRenderPlan(row.edit_plan as Parameters<typeof compileVideoProducerRenderPlan>[0]):null;
+   keptRanges=plan?.keepSegments||[];
+   transcriptLane=keptRanges.length?wordsOnOutput(local.words,keptRanges):local.words;
+  }catch{transcriptLane=local.words;}
+  if(row.source_provider==="vercel_blob"&&row.source_locator){
+   try{previewSourceUrl=await createPrivateBlobDownloadUrl(String(row.source_locator),30*60*1000)}catch{previewSourceUrl=null}
+  }
+ }
  return NextResponse.json({document,readOnly:kind==="producer"&&!writableProducer.has(status),projectStatus:status,
+  previewSourceUrl,transcriptLane,keptRanges,
   history:(previous.data||[]).map(h=>({id:h.id,createdAt:h.created_at}))});
 }
 export async function POST(request:Request){
