@@ -8,6 +8,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import threading
 
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -86,6 +87,24 @@ def run_main_render_with_progress(payload, manifest, source, ass_file, output_fi
     last_callback_at = 0.0
     last_percent = 18
     processed_seconds = 0.0
+    last_progress_at = time.monotonic()
+    stop_heartbeat = threading.Event()
+    stalled = threading.Event()
+
+    def heartbeat():
+        """Report liveness even when FFmpeg emits no progress lines."""
+        while not stop_heartbeat.wait(20):
+            if process.poll() is not None:
+                return
+            idle = time.monotonic() - last_progress_at
+            if idle >= 15 * 60:
+                stalled.set()
+                process.terminate()
+                return
+            safe_progress_callback(payload, last_percent, f"FFmpeg active · last encoded frame {idle:.0f}s ago")
+
+    watcher = threading.Thread(target=heartbeat, name="ag-render-heartbeat", daemon=True)
+    watcher.start()
 
     def report(force=False):
         nonlocal last_callback_at, last_percent
@@ -107,22 +126,33 @@ def run_main_render_with_progress(payload, manifest, source, ass_file, output_fi
             last_percent = percent
 
     report(force=True)
-    for raw_line in process.stdout:
-        line = raw_line.strip()
-        if not line or "=" not in line:
-            continue
-        key, value = line.split("=", 1)
-        if key == "out_time_us":
-            try:
-                processed_seconds = max(processed_seconds, float(value) / 1_000_000.0)
-            except ValueError:
-                pass
-            report()
-        elif key == "progress" and value == "end":
-            processed_seconds = output_duration
-            report(force=True)
-
+    try:
+        for raw_line in process.stdout:
+            line = raw_line.strip()
+            if not line or "=" not in line:
+                continue
+            key, value = line.split("=", 1)
+            if key in ("out_time_us", "out_time_ms"):
+                try:
+                    seconds = float(value) / 1_000_000.0
+                    if seconds > processed_seconds:
+                        processed_seconds = seconds
+                        last_progress_at = time.monotonic()
+                except ValueError:
+                    pass
+                report()
+            elif key == "progress" and value == "end":
+                processed_seconds = output_duration
+                last_progress_at = time.monotonic()
+                report(force=True)
+    finally:
+        stop_heartbeat.set()
+        watcher.join(timeout=3)
+        if process.poll() is None:
+            process.terminate()
     return_code = process.wait()
+    if stalled.is_set():
+        raise RuntimeError("FFmpeg produced no new video progress for 15 minutes and was stopped.")
     if return_code != 0:
         raise subprocess.CalledProcessError(return_code, command)
 
