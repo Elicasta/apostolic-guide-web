@@ -5,8 +5,11 @@ import { createServiceClient } from "@/supabase";
 import { compileVideoProducerRenderPlan, type VideoProducerEditPlan } from "@/video-producer";
 import type { VideoProducerAudioPlan, VideoProducerCameraPlan } from "@/video-producer-multicam";
 import { resolveVideoProducerProductionState } from "@/video-producer-production-server";
+import {videoCodeDoctrineSource} from "@/code-mode/video-doctrine";
+import {recordDoctrineCheck} from "@/doctrine-gate";
 
 export const runtime = "nodejs";
+export const maxDuration = 120;
 
 const schema = z.object({ projectId: z.string().uuid() });
 
@@ -18,7 +21,7 @@ export async function POST(request: Request) {
   const service = createServiceClient();
   if (!service) return NextResponse.json({ error: "Supabase service access is not configured." }, { status: 503 });
   const project = await service.from("video_producer_projects")
-    .select("id,parent_project_id,mode,status,source_duration,source_range_start,source_range_end,edit_plan,camera_plan,audio_plan")
+    .select("id,parent_project_id,mode,status,source_duration,source_range_start,source_range_end,edit_plan,camera_plan,audio_plan,director_metadata,transcript,updated_at")
     .eq("id", parsed.data.projectId).is("deleted_at", null).maybeSingle();
   if (project.error) return NextResponse.json({ error: project.error.message }, { status: 500 });
   if (!project.data?.edit_plan || (project.data.mode !== "podcast" && project.data.mode !== "reels")) return NextResponse.json({ error: "Generate an edit plan before approval." }, { status: 409 });
@@ -32,6 +35,13 @@ export async function POST(request: Request) {
   }
 
   try {
+    const sceneDocument=project.data.director_metadata?.videoCodeV2;
+    if(sceneDocument){
+      if(!["draft","planned","approved"].includes(project.data.status)) throw new Error("This project is read-only and cannot be re-approved.");
+      const source=videoCodeDoctrineSource(project.data.id,sceneDocument,project.data.transcript);
+      const verdict=await recordDoctrineCheck(service,source,access.user.id);
+      if(verdict.review.status!=="pass") throw new Error("Video doctrine check "+verdict.review.status+". Correct the visible scenes, captions or spoken transcript before approval: "+verdict.review.summary);
+    }
     const production = await resolveVideoProducerProductionState(service, {
       id: project.data.id,
       parent_project_id: project.data.parent_project_id,
@@ -49,8 +59,8 @@ export async function POST(request: Request) {
       approval_fingerprint: production.fingerprint,
       approved_at: now,
       updated_by: access.user.id
-    }).eq("id", project.data.id).select("*").single();
-    if (update.error) return NextResponse.json({ error: update.error.message }, { status: 500 });
+    }).eq("id", project.data.id).eq("updated_at",project.data.updated_at).select("*").maybeSingle();
+    if (update.error || !update.data) return NextResponse.json({ error: update.error?.message || "Project changed during doctrine check. Reload and approve again." }, { status: 409 });
     return NextResponse.json({ project: update.data, fingerprint: production.fingerprint, multicam: production.usesMulticam });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Production state is not approvable." }, { status: 409 });
