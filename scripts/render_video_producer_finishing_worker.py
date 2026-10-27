@@ -139,7 +139,7 @@ def motion_crop(scale, fx, fy):
     return crop_w, crop_h, x, y
 
 
-def append_reel_motion_graph(graph, plan):
+def append_reel_motion_graph(graph, plan, eased=False):
     graph.append(
         "[vcat]fps=30,crop=w='min(iw,ih*9/16)':h=ih:"
         "x='(iw-min(iw,ih*9/16))*0.5':y=0,"
@@ -152,9 +152,13 @@ def append_reel_motion_graph(graph, plan):
         _start, _end, scale, fx, fy = intervals[0]
         if scale <= 1.001:
             return "vbase"
-        frame_count = max(2, int(round((_end - _start) * 30)))
-        zoom = f"1+{(scale - 1):.5f}*sin(PI*min(1,on/{frame_count}))"
-        graph.append(f"[vbase]zoompan=z='{zoom}':x='(iw-iw/zoom)*{fx:.4f}':y='(ih-ih/zoom)*{fy:.4f}':d=1:s=1080x1920:fps=30,setsar=1[vmotion]")
+        if eased:
+            frame_count = max(2, int(round((_end - _start) * 30)))
+            zoom = f"1+{(scale - 1):.5f}*sin(PI*min(1,on/{frame_count}))"
+            graph.append(f"[vbase]zoompan=z='{zoom}':x='(iw-iw/zoom)*{fx:.4f}':y='(ih-ih/zoom)*{fy:.4f}':d=1:s=1080x1920:fps=30,setsar=1[vmotion]")
+        else:
+            crop_w, crop_h, x, y = motion_crop(scale, fx, fy)
+            graph.append(f"[vbase]crop={crop_w}:{crop_h}:{x}:{y},scale=1080:1920:flags=fast_bilinear,setsar=1[vmotion]")
         return "vmotion"
 
     split_labels = "".join(f"[vm{i}]" for i in range(len(intervals)))
@@ -163,9 +167,13 @@ def append_reel_motion_graph(graph, plan):
     for index, (start, end, scale, fx, fy) in enumerate(intervals):
         chain = f"trim=start={start:.4f}:end={end:.4f},setpts=PTS-STARTPTS"
         if scale > 1.001:
-            frame_count = max(2, int(round((end - start) * 30)))
-            zoom = f"1+{(scale - 1):.5f}*sin(PI*min(1,on/{frame_count}))"
-            chain += f",zoompan=z='{zoom}':x='(iw-iw/zoom)*{fx:.4f}':y='(ih-ih/zoom)*{fy:.4f}':d=1:s=1080x1920:fps=30"
+            if eased:
+                frame_count = max(2, int(round((end - start) * 30)))
+                zoom = f"1+{(scale - 1):.5f}*sin(PI*min(1,on/{frame_count}))"
+                chain += f",zoompan=z='{zoom}':x='(iw-iw/zoom)*{fx:.4f}':y='(ih-ih/zoom)*{fy:.4f}':d=1:s=1080x1920:fps=30"
+            else:
+                crop_w, crop_h, x, y = motion_crop(scale, fx, fy)
+                chain += f",crop={crop_w}:{crop_h}:{x}:{y},scale=1080:1920:flags=fast_bilinear"
         chain += ",setsar=1"
         label = f"vms{index}"
         graph.append(f"[vm{index}]{chain}[{label}]")
@@ -299,7 +307,7 @@ def build_ffmpeg_multicam(manifest, source, ass_file, output_file):
 
     final_layer = "vscenebase" if scene_index is not None else "vout"
     if mode == "reels":
-        video_input = append_reel_motion_graph(graph, plan)
+        video_input = append_reel_motion_graph(graph, plan, eased=bool(manifest.get("sceneProgram")))
         graph.append(f"[{video_input}]{color_filter_v2(plan)},ass='{ass_file}'[{final_layer}]")
     else:
         graph.append(f"[vcat]{color_filter_v2(plan)},ass='{ass_file}'[{final_layer}]")
