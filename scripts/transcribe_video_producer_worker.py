@@ -8,9 +8,10 @@ import sys
 import tempfile
 import urllib.request
 import uuid
+from video_producer_source_probe import source_probe
 
 
-def callback(payload, status, progress=None, stage=None, error=None, transcript=None):
+def callback(payload, status, progress=None, stage=None, error=None, transcript=None, source_probe_data=None):
     url = payload["callback_url"]
     body = {
         "project_id": payload["project_id"],
@@ -25,6 +26,8 @@ def callback(payload, status, progress=None, stage=None, error=None, transcript=
         body["error"] = str(error)[:3000]
     if transcript is not None:
         body["transcript"] = transcript
+    if source_probe_data is not None:
+        body["source_probe"] = source_probe_data
     request = urllib.request.Request(
         url,
         data=json.dumps(body).encode("utf-8"),
@@ -134,7 +137,8 @@ def main():
     with tempfile.TemporaryDirectory(prefix="ag-video-producer-transcribe-") as directory:
         source = os.path.join(directory, "source")
         download(payload["source_url"], source)
-        duration = probe_duration(source)
+        source_probe_data = source_probe(source)
+        duration = source_probe_data.get("durationSec") or probe_duration(source)
         callback(payload, "transcribing", 8, "Extracting dialogue audio")
         chunks = extract_chunks(source, directory)
 
@@ -172,7 +176,7 @@ def main():
             "words": words,
             "segments": segments,
         }
-        callback(payload, "completed", 100, "Transcript ready", transcript=transcript)
+        callback(payload, "completed", 100, "Transcript ready", transcript=transcript, source_probe_data=source_probe_data)
 
 
 if __name__ == "__main__":
