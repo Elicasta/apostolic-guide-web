@@ -1,4 +1,7 @@
 import { NextResponse } from "next/server";
+import {videoSceneDocument} from "@/code-mode/video-scenes";
+import {evaluateDoctrine,textDoctrineSource} from "@/doctrine-gate";
+import {normalizeVideoProducerTranscript} from "@/video-producer-ai";
 import { z } from "zod";
 import { getStudioPermission } from "@/auth";
 import { createServiceClient } from "@/supabase";
@@ -18,7 +21,7 @@ export async function POST(request: Request) {
   const service = createServiceClient();
   if (!service) return NextResponse.json({ error: "Supabase service access is not configured." }, { status: 503 });
   const project = await service.from("video_producer_projects")
-    .select("id,parent_project_id,mode,status,source_duration,source_range_start,source_range_end,edit_plan,camera_plan,audio_plan")
+    .select("id,parent_project_id,mode,status,source_duration,source_range_start,source_range_end,edit_plan,camera_plan,audio_plan,director_metadata,transcript")
     .eq("id", parsed.data.projectId).is("deleted_at", null).maybeSingle();
   if (project.error) return NextResponse.json({ error: project.error.message }, { status: 500 });
   if (!project.data?.edit_plan || (project.data.mode !== "podcast" && project.data.mode !== "reels")) return NextResponse.json({ error: "Generate an edit plan before approval." }, { status: 409 });
@@ -29,6 +32,23 @@ export async function POST(request: Request) {
     if (plan.version !== 2 || plan.mode !== project.data.mode || compiled.outputDuration <= 0 || !compiled.keepSegments.length) throw new Error("Edit plan is not renderable.");
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Edit plan is invalid." }, { status: 422 });
+  }
+
+  const meta=project.data.director_metadata&&typeof project.data.director_metadata==="object"?project.data.director_metadata as Record<string,unknown>:{};
+  const rawScenes=meta.kineticSceneV2;
+  if(rawScenes){
+    if(project.data.status!=="planned"&&project.data.status!=="draft")return NextResponse.json({error:"Only editable Producer drafts can be approved."},{status:409});
+    const parsedScenes=videoSceneDocument.safeParse(rawScenes);
+    if(!parsedScenes.success||parsedScenes.data.kind!=="producer"||parsedScenes.data.id!==project.data.id)return NextResponse.json({error:"Video scene document is invalid or belongs to another project."},{status:422});
+    const spoken=normalizeVideoProducerTranscript(project.data.transcript);
+    const visible=parsedScenes.data.scenes.map((scene,index)=>"Scene "+(index+1)+": "+scene.html.replace(/<[^>]+>/g," ").replace(/\\s+/g," ").trim()).join("\n");
+    try {
+      const check=await evaluateDoctrine(textDoctrineSource("video_clip",project.data.id,{
+        spoken_transcript:spoken.text, on_screen_graphics:visible,
+        captions:spoken.words.map(word=>word.word).join(" ")
+      }));
+      if(check.review.status!=="pass")return NextResponse.json({error:"Video doctrine check did not pass. Review visible graphics, captions and spoken words.",issues:check.review.issues},{status:409});
+    }catch(error){return NextResponse.json({error:error instanceof Error?error.message:"Doctrine check unavailable. Approval blocked."},{status:503});}
   }
 
   try {
