@@ -67,6 +67,18 @@ export async function renderSceneVideo(args:string[]){
  if(duration<=0||duration>3600)throw new Error("Proof duration must be between 0 and 3600 seconds");
  const fps=doc.format.fps,count=Math.ceil(duration*fps);
  if(count>36000)throw new Error("Render exceeds 10 minutes at 60 FPS or equivalent frame budget");
+ const sourceInspection=spawnSync("ffprobe",["-v","error","-show_streams","-show_format","-of","json",source],
+  {encoding:"utf8",timeout:30000});
+ if(sourceInspection.error||sourceInspection.status!==0)throw new Error("Could not inspect input footage");
+ const baseInfo=JSON.parse(sourceInspection.stdout) as {format?:{duration?:string},streams?:Array<{codec_type?:string;duration?:string;nb_frames?:string}>};
+ const inputVideo=baseInfo.streams?.find(s=>s.codec_type==="video");
+ const inputAudio=baseInfo.streams?.find(s=>s.codec_type==="audio");
+ const baseVideoLength=Number(inputVideo?.duration??baseInfo.format?.duration);
+ const baseAudioLength=Number(inputAudio?.duration??baseInfo.format?.duration);
+ console.log("Kinetic input media",JSON.stringify({requested:duration,start,videoSeconds:baseVideoLength,audioSeconds:baseAudioLength,sourceFrames:inputVideo?.nb_frames}));
+ if(!inputVideo||!inputAudio||!Number.isFinite(baseVideoLength)||!Number.isFinite(baseAudioLength)||
+    baseVideoLength<start+duration-.5||baseAudioLength<start+duration-.5)
+  throw new Error("Source master is shorter than the requested kinetic segment");
  const dir=await mkdtemp(join(tmpdir(),"ag-motion-"));
  const browser=await chromium.launch({headless:true});
  try{
