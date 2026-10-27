@@ -224,6 +224,11 @@ def build_ffmpeg_multicam(manifest, source, ass_file, output_file):
         music_index = next_index
         command += ["-stream_loop", "-1", "-i", selected_music["localPath"]]
         next_index += 1
+    scene_index = None
+    if manifest.get("sceneFrames"):
+        scene_index = next_index
+        command += ["-framerate", str(plan["output"]["fps"]), "-i", manifest["sceneFrames"]]
+        next_index += 1
 
     source_range_start = float(multicam.get("sourceRangeStart") or 0)
     graph = []
@@ -288,11 +293,14 @@ def build_ffmpeg_multicam(manifest, source, ass_file, output_file):
         raise RuntimeError("multicam render has no usable audio segments")
     graph.append("".join(audio_labels) + f"concat=n={len(audio_labels)}:v=0:a=1[acat]")
 
+    final_layer = "vscenebase" if scene_index is not None else "vout"
     if mode == "reels":
         video_input = append_reel_motion_graph(graph, plan)
-        graph.append(f"[{video_input}]{color_filter_v2(plan)},ass='{ass_file}'[vout]")
+        graph.append(f"[{video_input}]{color_filter_v2(plan)},ass='{ass_file}'[{final_layer}]")
     else:
-        graph.append(f"[vcat]{color_filter_v2(plan)},ass='{ass_file}'[vout]")
+        graph.append(f"[vcat]{color_filter_v2(plan)},ass='{ass_file}'[{final_layer}]")
+    if scene_index is not None:
+        graph.append(f"[{final_layer}][{scene_index}:v]overlay=0:0:format=auto:shortest=1:repeatlast=0,format=yuv420p[vout]")
     graph.append(f"[acat]{audio_filter_v2(plan)}[voice]")
     audio_output = apply_music(graph, plan, selected_music, music_index, "voice")
 
@@ -331,6 +339,10 @@ def build_ffmpeg_v2(manifest, source, ass_file, output_file):
     if selected_music and selected_music.get("localPath"):
         music_index = 1
         command += ["-stream_loop", "-1", "-i", selected_music["localPath"]]
+    scene_index = None
+    if manifest.get("sceneFrames"):
+        scene_index = 2 if music_index is not None else 1
+        command += ["-framerate", str(plan["output"]["fps"]), "-i", manifest["sceneFrames"]]
 
     graph = []
     concat_inputs = []
@@ -346,12 +358,15 @@ def build_ffmpeg_v2(manifest, source, ass_file, output_file):
         raise RuntimeError("no valid keep segments remained")
     graph.append("".join(concat_inputs) + f"concat=n={len(concat_inputs)}:v=1:a=1[vcat][acat]")
 
+    final_layer = "vscenebase" if scene_index is not None else "vout"
     if mode == "reels":
         video_input = append_reel_motion_graph(graph, plan)
-        graph.append(f"[{video_input}]{color_filter_v2(plan)},ass='{ass_file}'[vout]")
+        graph.append(f"[{video_input}]{color_filter_v2(plan)},ass='{ass_file}'[{final_layer}]")
     else:
         video_chain = "fps=30,scale=1920:1080:force_original_aspect_ratio=decrease:flags=fast_bilinear,pad=1920:1080:(ow-iw)/2:(oh-ih)/2:black"
-        graph.append(f"[vcat]{video_chain},{color_filter_v2(plan)},ass='{ass_file}'[vout]")
+        graph.append(f"[vcat]{video_chain},{color_filter_v2(plan)},ass='{ass_file}'[{final_layer}]")
+    if scene_index is not None:
+        graph.append(f"[{final_layer}][{scene_index}:v]overlay=0:0:format=auto:shortest=1:repeatlast=0,format=yuv420p[vout]")
 
     graph.append(f"[acat]{audio_filter_v2(plan)}[voice]")
     audio_output = apply_music(graph, plan, selected_music, music_index, "voice")
@@ -418,6 +433,12 @@ def main():
             bw.base.download(url, local_path)
             track["localPath"] = local_path
 
+        if manifest.get("sceneProgram"):
+            frames_dir = os.path.join(directory, "motion-frames")
+            bw.base.callback(payload, "rendering", 11, "Rendering deterministic Chromium scene frames")
+            subprocess.run(["node", "--import", "tsx", "scripts/render_video_scene_frames.ts",
+                            manifest_path, frames_dir], check=True)
+            manifest["sceneFrames"] = os.path.join(frames_dir, "frame-%06d.png")
         bw.base.callback(payload, "rendering", 12, "Building Graphics V2 and mastering chain")
         build_broadcast_ass_v2(manifest, ass_path)
 
