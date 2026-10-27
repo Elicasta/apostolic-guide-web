@@ -38,7 +38,20 @@ export async function GET(request:Request){
  if(!r.data)return responseError("Video project not found.",404);
  const row=r.data as Record<string,unknown>;
  const status=String(row.status||"draft");
- return NextResponse.json({document:extract(row,kind,id),readOnly:kind==="producer"&&!writableProducer.has(status),projectStatus:status});
+ const previous=await s.from("studio_code_mode_checkpoints").select("id,created_at").eq("tool","video").eq("source_id",id).order("created_at",{ascending:false}).limit(25);
+ if(previous.error)return responseError(previous.error.message,500);
+ const versionId=url.searchParams.get("checkpoint")||"";
+ let document=extract(row,kind,id);
+ if(versionId){
+  if(!idSchema.safeParse(versionId).success)return responseError("Invalid checkpoint.",400);
+  const snapshot=await s.from("studio_code_mode_checkpoints").select("document").eq("tool","video").eq("source_id",id).eq("id",versionId).maybeSingle();
+  if(snapshot.error)return responseError(snapshot.error.message,500);
+  if(!snapshot.data)return responseError("Checkpoint not found.",404);
+  const restored=extract(record(snapshot.data.document),kind,id);
+  document={...restored,expectedUpdatedAt:String(row.updated_at)};
+ }
+ return NextResponse.json({document,readOnly:kind==="producer"&&!writableProducer.has(status),projectStatus:status,
+  history:(previous.data||[]).map(h=>({id:h.id,createdAt:h.created_at}))});
 }
 export async function POST(request:Request){
  const {access,allowed}=await getStudioPermission("manage_content");
