@@ -6,6 +6,7 @@ import os
 import subprocess
 import sys
 import tempfile
+import time
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BROADCAST_PATH = os.path.join(ROOT, "scripts", "render_video_producer_broadcast_worker.py")
@@ -435,12 +436,24 @@ def main():
             with open(kinetic_path, "w", encoding="utf-8") as handle:
                 json.dump(kinetic_document, handle)
             bw.safe_progress_callback(payload, 85, "Compositing Code Mode motion")
-            subprocess.run(
-                ["node", "--import", "tsx", "scripts/render-video-code-mode.ts",
-                 kinetic_path, main_path, kinetic_output, "0",
-                 str(float(manifest["renderPlan"]["outputDuration"]))],
-                cwd=ROOT, check=True, timeout=60 * 60,
-            )
+            command = ["node", "--import", "tsx", "scripts/render-video-code-mode.ts",
+                       kinetic_path, main_path, kinetic_output, "0",
+                       str(float(manifest["renderPlan"]["outputDuration"]))]
+            process = subprocess.Popen(command, cwd=ROOT)
+            try:
+                while True:
+                    try:
+                        code = process.wait(timeout=25)
+                        break
+                    except subprocess.TimeoutExpired:
+                        bw.safe_progress_callback(payload, 87, "Compositing Code Mode motion")
+                if code != 0:
+                    raise subprocess.CalledProcessError(code, command)
+            except BaseException:
+                if process.poll() is None:
+                    process.kill()
+                    process.wait()
+                raise
             if not os.path.exists(kinetic_output) or os.path.getsize(kinetic_output) < 1024:
                 raise RuntimeError("Kinetic renderer produced no usable MP4")
             os.replace(kinetic_output, main_path)
