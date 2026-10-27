@@ -114,7 +114,8 @@ function transitionStyle(type: string, fraction: number) {
   if(type==="zoom")return `transform:scale(${1.14-0.14*p});opacity:${p}`;
   return `opacity:${p}`;
 }
-export function videoFrameHtml(doc: VideoCodeV2, seconds: number, guides=false): string {
+export type VideoWord = { word?: string; text?: string; start?: number; end?: number };
+export function videoFrameHtml(doc: VideoCodeV2, seconds: number, guides=false, words: VideoWord[]=[]): string {
   const {w,h}=doc.format;
   const scenes=doc.scenes.filter(s=>seconds>=s.start && seconds<s.end);
   const markup=scenes.map(s=>{
@@ -134,7 +135,7 @@ export function videoFrameHtml(doc: VideoCodeV2, seconds: number, guides=false):
   }).join("\n");
   const bg=doc.style.background === "paper" ? "#F5F7F4" : doc.style.background === "ink" ? "#10202A" : "transparent";
   const guide=guides?`<div class="ag-guides" aria-hidden="true"><div></div></div>`:"";
-  return `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data:; font-src data:; style-src 'unsafe-inline'"><style>
+  return `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data:; font-src data: 'self'; style-src 'unsafe-inline'"><style>
   *{box-sizing:border-box}html,body{width:100%;height:100%;margin:0;overflow:hidden}body{background:${bg};color:#F5F7F4;font-family:'Montserrat',Arial,sans-serif}
   :root{--ag-paper:#F5F7F4;--ag-ink:#10202A;--ag-crimson:#A12D3D;--ag-muted:#66777D}
   .ag-frame{position:relative;width:${w}px;height:${h}px;overflow:hidden}
@@ -164,6 +165,26 @@ export const VIDEO_SCENE_TEMPLATES = [
   { id:"cta", label:"Call to action", layer:"fullframe", html:'<div><h1 class="headline">STUDY THE SCRIPTURES</h1><p class="support">apostolicguide.com</p></div>' }
 ] as const;
 export function insertVideoTemplate(doc: VideoCodeV2, template: (typeof VIDEO_SCENE_TEMPLATES)[number], start=0): VideoCodeV2 {
-  const used=new Set(doc.scenes.map(s=>s.id));let id=template.id,index=2;while(used.has(id))id=template.id+"-"+index++;
-  return {...doc,scenes:[...doc.scenes,{id,start,end:start+3,layer:template.layer,html:template.html,css:".headline{color:#F5F7F4}.support{color:#A12D3D}",keyframes:[{t:0,target:".headline",props:{opacity:0,y:64,scale:1.08},ease:"ease-out"},{t:.5,target:".headline",props:{opacity:1,y:0,scale:1},ease:"ease-out"}],transitionIn:{type:"crossfade",duration:.25,ease:"ease-out"},transitionOut:{type:"crossfade",duration:.3,ease:"ease-in"}}]}.scenes ? {...doc,scenes:[...doc.scenes,{id,start,end:start+3,layer:template.layer,html:template.html,css:".headline{color:#F5F7F4}.support{color:#A12D3D}",keyframes:[{t:0,target:".headline",props:{opacity:0,y:64,scale:1.08},ease:"ease-out"},{t:.5,target:".headline",props:{opacity:1,y:0,scale:1},ease:"ease-out"}],transitionIn:{type:"crossfade",duration:.25,ease:"ease-out"},transitionOut:{type:"crossfade",duration:.3,ease:"ease-in"}}]} : doc;
+ const used=new Set(doc.scenes.map(s=>s.id));let id:string=template.id,index=2;while(used.has(id))id=template.id+"-"+index++;
+ const scene=videoSceneV2.parse({ id,start,end:start+3,layer:template.layer,html:template.html,
+ css:".headline{color:#F5F7F4}.support{color:#A12D3D}",
+ keyframes:[{t:0,target:".headline",props:{opacity:0,y:64,scale:1.08},ease:"ease-out"},{t:.5,target:".headline",props:{opacity:1,y:0,scale:1},ease:"ease-out"}],
+ transitionIn:{type:"crossfade",duration:.25,ease:"ease-out"},transitionOut:{type:"crossfade",duration:.3,ease:"ease-in"} });
+ return {...doc,scenes:[...doc.scenes,scene]};
+}
+
+/** Translate anchors from source-aligned words through any cut map; suppress removed speech. */
+export function resolveVideoSceneAnchors(doc:VideoCodeV2,words:VideoWord[],mapTime:(t:number)=>number|null=t=>t):VideoCodeV2 {
+ const normalize=(v:string)=>v.toLowerCase().replace(/[^a-z0-9]+/g," ").trim();
+ const scenes=doc.scenes.flatMap(scene=>{
+  if(!scene.anchor)return [scene];
+  const anchor=scene.anchor;
+  let index=anchor.wordIndex??-1;
+  if(anchor.phrase){const phrase=normalize(anchor.phrase).split(" ");index=words.findIndex((_w,i)=>phrase.every((token,j)=>normalize(words[i+j]?.word||words[i+j]?.text||"")===token));}
+  if(index<0||index>=words.length)return [];
+  const t=Number(words[index].start);if(!Number.isFinite(t))return [];
+  const mapped=mapTime(t);if(mapped==null||!Number.isFinite(mapped))return [];
+  return [{...scene,start:mapped,end:mapped+scene.end-scene.start}];
+ });
+ return {...doc,scenes};
 }
