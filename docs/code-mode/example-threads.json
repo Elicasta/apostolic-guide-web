@@ -1,0 +1,21 @@
+{
+  "tool": "threads",
+  "version": 1,
+  "mode": "weekly",
+  "weekStart": "2026-11-02",
+  "topic": "Jesus Christ and the Scriptures",
+  "posts": [
+    {
+      "category": "scripture",
+      "body": "What does John 1:1 say about the Word?",
+      "position": 1,
+      "mirrorToX": false
+    },
+    {
+      "category": "oneness",
+      "body": "Hear, O Israel: The LORD our God is one LORD. Deuteronomy 6:4",
+      "position": 2,
+      "mirrorToX": false
+    }
+  ]
+}
