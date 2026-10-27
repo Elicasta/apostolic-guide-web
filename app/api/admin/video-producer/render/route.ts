@@ -6,6 +6,8 @@ import { pathwayBySlug } from "@/pathway-catalog";
 import { createServiceClient } from "@/supabase";
 import { compileVideoProducerRenderPlan,sourceTimeToOutputTime, type VideoProducerEditPlan } from "@/video-producer";
 import { videoCodeV2Schema,resolveVideoSceneAnchors } from "@/code-mode/video-v2";
+import {videoCodeDoctrineSource} from "@/code-mode/video-doctrine";
+import {assertDoctrineApproved} from "@/doctrine-gate";
 import { normalizeVideoProducerTranscript, sliceVideoProducerTranscript } from "@/video-producer-ai";
 import type { VideoProducerAudioPlan, VideoProducerCameraPlan } from "@/video-producer-multicam";
 import { resolveVideoProducerProductionState } from "@/video-producer-production-server";
@@ -58,6 +60,10 @@ export async function POST(request: Request) {
   if (!project?.source_locator || !project.edit_plan) return NextResponse.json({ error: "Source and edit plan are required before rendering." }, { status: 409 });
   if (project.status !== "approved" || !project.approval_fingerprint) return NextResponse.json({ error: "Approve the current edit before rendering." }, { status: 409 });
   if (project.source_provider !== "vercel_blob") return NextResponse.json({ error: "This source provider is not renderable yet." }, { status: 409 });
+  if (project.director_metadata?.videoCodeV2) {
+    try { await assertDoctrineApproved(service,videoCodeDoctrineSource(project.id,project.director_metadata.videoCodeV2,project.transcript)); }
+    catch(error) {return NextResponse.json({error:error instanceof Error?error.message:"Video doctrine review required."},{status:409});}
+  }
 
   const plan = project.edit_plan as VideoProducerEditPlan;
   let renderPlan;
