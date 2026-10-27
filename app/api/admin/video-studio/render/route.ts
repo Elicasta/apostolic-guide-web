@@ -123,7 +123,9 @@ export async function POST(request: Request) {
       audioUrl: audioResult.data.audio_url,
       audioContentHash: audioResult.data.content_hash,
       timeline: projectResult.data.timeline,
-      style: projectResult.data.style,
+      // Snapshot the same resolved assets dispatched to the worker; never store
+      // short-lived URLs in the saved Video Studio project itself.
+      style: renderStyle,
       assetId: publishingAsset.data.id,
       replaceExisting: parsed.data.replaceExisting
     };
