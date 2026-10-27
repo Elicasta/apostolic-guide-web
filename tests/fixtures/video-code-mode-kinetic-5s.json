@@ -1,0 +1,129 @@
+{
+  "tool": "video",
+  "version": 2,
+  "kind": "producer",
+  "id": "00000000-0000-4000-8000-000000000001",
+  "format": {
+    "w": 360,
+    "h": 640,
+    "fps": 30
+  },
+  "assets": [],
+  "style": {
+    "preset": "AG Editorial",
+    "ink": "#10202A",
+    "paper": "#F5F7F4",
+    "crimson": "#A12D3D"
+  },
+  "scenes": [
+    {
+      "id": "scripture",
+      "start": 0,
+      "end": 2,
+      "layer": "overlay",
+      "html": "<div data-motion=\"title\" data-stagger=\"words\" class=\"scripture\">Before me there was no God formed.</div>",
+      "css": ".scripture{font:800 34px Montserrat,sans-serif;color:#F5F7F4;text-align:center;padding:0 20px}",
+      "keyframes": [
+        {
+          "t": 0,
+          "target": "title",
+          "props": {
+            "opacity": 0,
+            "y": 30
+          },
+          "ease": "ease-out"
+        },
+        {
+          "t": 0.35,
+          "target": "title",
+          "props": {
+            "opacity": 1,
+            "y": 0
+          },
+          "ease": "ease-out"
+        }
+      ],
+      "transitionIn": {
+        "type": "wipe",
+        "duration": 0.5,
+        "ease": "ease-out"
+      },
+      "transitionOut": {
+        "type": "crossfade",
+        "duration": 0.4,
+        "ease": "ease"
+      }
+    },
+    {
+      "id": "statement",
+      "start": 2,
+      "end": 3.7,
+      "layer": "fullframe",
+      "html": "<div data-motion=\"title\" data-stagger=\"letters\" class=\"statement\">ONE GOD</div>",
+      "css": ".statement{font:800 52px Montserrat,sans-serif;color:#F5F7F4;text-align:center;background:#A12D3D;padding:22px}",
+      "keyframes": [
+        {
+          "t": 0,
+          "target": "title",
+          "props": {
+            "opacity": 0,
+            "scale": 0.7
+          },
+          "ease": "spring"
+        },
+        {
+          "t": 0.4,
+          "target": "title",
+          "props": {
+            "opacity": 1,
+            "scale": 1
+          },
+          "ease": "spring"
+        }
+      ],
+      "transitionIn": {
+        "type": "zoom",
+        "duration": 0.5,
+        "ease": "ease-out"
+      },
+      "transitionOut": {
+        "type": "push",
+        "duration": 0.35,
+        "ease": "ease-in"
+      }
+    },
+    {
+      "id": "lowerthird",
+      "start": 3.7,
+      "end": 5,
+      "layer": "lowerthird",
+      "html": "<div data-motion=\"title\" class=\"lower\">APOSTOLIC GUIDE</div>",
+      "css": ".lower{font:800 25px Montserrat,sans-serif;text-align:center;background:#10202A;color:#F5F7F4;padding:14px;border-left:6px solid #A12D3D}",
+      "keyframes": [
+        {
+          "t": 0,
+          "target": "title",
+          "props": {
+            "opacity": 0,
+            "x": -120
+          },
+          "ease": "ease-out"
+        },
+        {
+          "t": 0.4,
+          "target": "title",
+          "props": {
+            "opacity": 1,
+            "x": 0
+          },
+          "ease": "ease-out"
+        }
+      ],
+      "transitionIn": {
+        "type": "push",
+        "duration": 0.3,
+        "ease": "ease-out"
+      }
+    }
+  ]
+}
