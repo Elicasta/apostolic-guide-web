@@ -21,7 +21,7 @@ export const emailCodeAdapter=defineCodeAdapter({tool:"broadcast",version:1,sche
 export const EMAIL_TEMPLATE='<div style="padding:34px 32px"><p class="eyebrow">{{eyebrow}}</p><h1>{{headline}}</h1>{{body}}{{button}}{{resources}}</div>';
 export const EMAIL_CSS='.eyebrow{font-size:11px;letter-spacing:2px;font-weight:700;color:#a12d3d}h1{font-family:Georgia,serif;color:#10202a;font-size:34px;line-height:1.2}p{font-family:Arial,sans-serif;color:#536269;line-height:1.6}';
 export function initialEmailCodeDocument(campaign:z.infer<typeof emailCampaignSchema>):EmailCodeDocument{
- return {tool:"broadcast",version:1,campaign,theme:{html:EMAIL_TEMPLATE,css:EMAIL_CSS,containerWidth:600},overrides:{}};
+ return {tool:"broadcast",version:1,campaign:{...campaign,resources:campaign.resources?.map(resource=>({...resource}))},theme:{html:EMAIL_TEMPLATE,css:EMAIL_CSS,containerWidth:600},overrides:{}};
 }
 function safeUrl(value:string){try{const url=new URL(value);return ["https:","http:"].includes(url.protocol)?url.toString():"https://www.apostolicguide.com";}catch{return "https://www.apostolicguide.com";}}
 function safeCss(raw:string){
