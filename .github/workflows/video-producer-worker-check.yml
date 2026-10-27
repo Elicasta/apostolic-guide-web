@@ -11,6 +11,8 @@ on:
       - 'scripts/video_producer_thumbnail_worker.py'
       - 'scripts/video_producer_publisher_handoff_worker.py'
       - 'scripts/transcribe_video_producer_worker.py'
+      - 'scripts/video_producer_source_probe.py'
+      - 'scripts/check_video_producer_source_probe.py'
       - 'scripts/sync_video_producer_worker.py'
       - 'scripts/check_video_producer_worker.py'
       - 'scripts/check_video_producer_finishing.py'
@@ -69,11 +71,16 @@ jobs:
             scripts/video_producer_thumbnail_worker.py \
             scripts/video_producer_publisher_handoff_worker.py \
             scripts/transcribe_video_producer_worker.py \
+            scripts/video_producer_source_probe.py \
+            scripts/check_video_producer_source_probe.py \
             scripts/sync_video_producer_worker.py \
             scripts/check_video_producer_worker.py \
             scripts/check_video_producer_finishing.py \
             scripts/check_video_producer_sync.py \
             scripts/check_video_producer_multicam.py
+
+      - name: Confirm SDR, HLG and PQ source classification
+        run: python3 scripts/check_video_producer_source_probe.py
 
       - name: Verify waveform synchronization math
         run: python3 scripts/check_video_producer_sync.py
