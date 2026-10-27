@@ -9,7 +9,7 @@ import type { CreativeProjectRecord } from "./creative-project-server";
 import { createServiceClient } from "./supabase";
 import { recordStudioAudit } from "./studio-audit";
 
-export type DoctrineSourceType = "creative_project" | "threads" | "custom_asset" | "video_render" | "video_clip";
+export type DoctrineSourceType = "creative_project" | "threads" | "custom_asset" | "video_render" | "video_clip" | "broadcast";
 export type DoctrineLine = { location: string; text: string };
 export type DoctrineSource = { sourceType: DoctrineSourceType; sourceId: string; lines: DoctrineLine[]; caption: string };
 export type DoctrineIssue = { severity: "flag" | "fail"; location: string; line: string; reason: string; reference: string };

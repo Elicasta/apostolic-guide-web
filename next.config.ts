@@ -12,6 +12,8 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     "/api/admin/creative-projects/*/code-render": [
       "./node_modules/@sparticuz/chromium/bin/**",
+      "./public/fonts/**",
+      "./public/brand/**",
     ],
     "/api/admin/editorial/preview": [
       "./node_modules/@sparticuz/chromium/bin/**",

@@ -16,6 +16,7 @@ export default async function EditContentPage({ params }: { params: Promise<{ id
     <>
       <Link className="back-link" href="/admin/content"><ArrowLeft size={16} /> Website content</Link>
       <span className="eyebrow">Edit {content.kind}</span>
+      {content.websiteStatus !== "published" ? <Link className="button" href={`/admin/code-mode?tool=website&id=${content.id}`}>Open Code Mode</Link> : null}
       <h1>{content.title}</h1>
       <p className="admin-lede">Update the canonical website copy and control whether this item is public. App publication remains a separate action.</p>
       <section className="admin-card">

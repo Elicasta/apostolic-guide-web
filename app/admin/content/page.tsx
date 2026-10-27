@@ -17,6 +17,7 @@ export default async function AdminContentPage() {
     <>
       <span className="eyebrow">Publishing desk</span>
       <div className="admin-page-heading"><div><h1>Website content</h1><p className="admin-lede">Write, edit, review, and publish the articles and teaching content that live on Apostolic Guide.</p></div></div>
+      <div><Link className="button" href="/admin/code-mode?tool=website">Open Code Mode · Website JSON</Link></div>
       <div className="publishing-metrics">
         <div><FileText size={18} /><strong>{content.length}</strong><span>Total pieces</span></div>
         <div><Globe2 size={18} /><strong>{published}</strong><span>Published</span></div>

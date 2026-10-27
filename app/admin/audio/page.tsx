@@ -161,7 +161,8 @@ export default async function AdminPathwayAudioPage() {
 
   return <>
     <PathwayAudioMetricsRefresh />
-    <PathwayAudioManager key={metricsVersion} pathways={pathways}/>
+    <p><Link className="button" href="/admin/code-mode?tool=audio">Open Code Mode · Audio Scripts</Link></p>
+      <PathwayAudioManager key={metricsVersion} pathways={pathways}/>
 
     <section className="admin-card publishing-card" style={{ marginTop: 24 }}>
       <div className="card-heading">
