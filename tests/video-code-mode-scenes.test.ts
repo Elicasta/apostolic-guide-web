@@ -23,7 +23,7 @@ test("samples keyframes in scene-relative seconds with the same deterministic ea
  assert.equal(propsAt(scene,"title",0).opacity,0);
  assert.equal(propsAt(scene,"title",.5).opacity,1);
  assert.equal(propsAt(scene,"title",100).opacity,1);
- assert.equal(propsAt(scene,"not-a-target",.2).opacity,undefined);
+ assert.equal(Object.keys(propsAt(scene,"not-a-target",.2)).length,0);
  assert.equal(easingAt("linear",.5),.5);
  assert.equal(easingAt("ease-in-out",.5),.5);
  assert.ok(Number.isFinite(easingAt("spring",.25)));
