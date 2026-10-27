@@ -21,12 +21,13 @@ function template(name:string,id:string,start:number){
  const scene=videoSceneStarter(id,info.layer);
  return {...scene,start,end:start+3,html:'<div data-motion="title" class="motion-title">'+info.text.replace(/&/g,"&amp;").replace(/</g,"&lt;")+'</div>'};
 }
-/** Isolated V2 editor: no persistence or publishing until worker parity is verified. */
+/** Video V2 editor: all source mutations are guarded by project draft Apply. */
 export function VideoKineticCodeEditor({initialId="",initialKind="producer",initialScene=""}:{initialId?:string;initialKind?:"producer"|"studio";initialScene?:string}){
  const [projectId,setProjectId]=useState(initialId),[kind,setKind]=useState<"producer"|"studio">(initialKind),[readOnly,setReadOnly]=useState(false),[busy,setBusy]=useState(false);
  const [raw,setRaw]=useState(JSON.stringify(initial,null,2)),[selected,setSelected]=useState(initialScene||"scene-1");
  const [mode,setMode]=useState<"code"|"fields">("code"),[templateName,setTemplateName]=useState(library[0].name);
  const [history,setHistory]=useState<string[]>([]),[error,setError]=useState(""),[notice,setNotice]=useState("");
+ const [libraryAssets,setLibraryAssets]=useState<Array<{id:string;title:string}>>([]),[graphicId,setGraphicId]=useState("");
  const parsed=useMemo(()=>{try{return videoSceneDocument.safeParse(JSON.parse(raw))}catch{return null}},[raw]);
  const document=parsed?.success?parsed.data:null;
  const scene=document?.scenes.find(s=>s.id===selected)||document?.scenes[0];
@@ -35,6 +36,10 @@ export function VideoKineticCodeEditor({initialId="",initialKind="producer",init
   setBusy(true);setError("");setNotice("");
   try{const query=new URLSearchParams({kind,id:projectId});const res=await fetch("/api/admin/code-mode/video-v2?"+query.toString(),{cache:"no-store"});const value=await res.json();if(!res.ok)throw new Error(value.error||"Load failed");setRaw(JSON.stringify(value.document,null,2));setReadOnly(Boolean(value.readOnly));setSelected(initialScene||value.document.scenes?.[0]?.id||"scene-1");setHistory([]);setNotice("Loaded "+value.projectStatus+" project.");}catch(e){setError(e instanceof Error?e.message:"Load failed");}finally{setBusy(false)}
  }
+ useEffect(()=>{void fetch("/api/admin/video-producer/graphics",{cache:"no-store"}).then(r=>r.ok?r.json():{assets:[]}).then(value=>{
+  const rows=Array.isArray(value.assets)?value.assets:[];
+  setLibraryAssets(rows.map((a:{id:string;title:string})=>({id:a.id,title:a.title})));
+ }).catch(()=>{/* Empty library is fine. */});},[]);
  useEffect(()=>{if(initialId)void Promise.resolve().then(()=>loadProject());/* Initial link owns first load. */
  // eslint-disable-next-line react-hooks/exhaustive-deps
  },[]);
@@ -56,6 +61,15 @@ export function VideoKineticCodeEditor({initialId="",initialKind="producer",init
   const start=Math.max(...document.scenes.map(s=>s.end));
   update({...document,scenes:[...document.scenes,template(templateName,id,start)]});
   setSelected(id);
+ }
+ function attachGraphic(){
+  if(!document||!scene||!graphicId||readOnly||busy)return;
+  const asset=libraryAssets.find(a=>a.id===graphicId);
+  if(!asset)return;
+  const unique=document.assets.some(a=>a.id===graphicId)?document.assets:[...document.assets,{id:graphicId,kind:"graphic" as const}];
+  const image='<img data-asset-id="'+graphicId+'" alt="" class="ag-scene-graphic">';
+  const css=scene.css+"\n.ag-scene-graphic{position:absolute;max-width:28%;height:auto;right:5%;bottom:7%;object-fit:contain;}";
+  update({...document,assets:unique,scenes:document.scenes.map(s=>s.id===scene.id?{...s,html:s.html+image,css}:s)});
  }
  function patchScene(patch:Partial<NonNullable<typeof scene>>){
   if(readOnly||busy||!document||!scene)return;
@@ -80,6 +94,7 @@ export function VideoKineticCodeEditor({initialId="",initialKind="producer",init
   <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"end"}}>
    <label>Scene template<select value={templateName} onChange={e=>setTemplateName(e.target.value)}>{library.map(x=><option key={x.name}>{x.name}</option>)}</select></label>
    <button type="button" disabled={readOnly||busy} onClick={insert}>Insert template</button>
+   {libraryAssets.length?<><label>Graphics library<select value={graphicId} onChange={e=>setGraphicId(e.target.value)}><option value="">Select graphic</option>{libraryAssets.map(a=><option key={a.id} value={a.id}>{a.title}</option>)}</select></label><button type="button" disabled={readOnly||busy||!graphicId} onClick={attachGraphic}>Attach graphic</button></>:null}
    {document?<label>Scene<select value={scene?.id||""} onChange={e=>setSelected(e.target.value)}>{document.scenes.map(s=><option key={s.id}>{s.id}</option>)}</select></label>:null}
   </div>
   {mode==="code"?<label>Whole-scene JSON<textarea value={raw} disabled={readOnly||busy} onChange={e=>{setRaw(e.target.value);setError("");setNotice("")}} spellCheck={false} rows={22} style={{width:"100%",font:"13px/1.5 monospace",display:"block",tabSize:2}}/></label>:
