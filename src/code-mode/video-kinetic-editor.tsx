@@ -28,13 +28,14 @@ export function VideoKineticCodeEditor({initialId="",initialKind="producer",init
  const [mode,setMode]=useState<"code"|"fields">("code"),[templateName,setTemplateName]=useState(library[0].name);
  const [history,setHistory]=useState<string[]>([]),[error,setError]=useState(""),[notice,setNotice]=useState("");
  const [libraryAssets,setLibraryAssets]=useState<Array<{id:string;title:string}>>([]),[graphicId,setGraphicId]=useState("");
+ const [checkpoints,setCheckpoints]=useState<Array<{id:string;createdAt:string}>>([]),[checkpointId,setCheckpointId]=useState("");
  const parsed=useMemo(()=>{try{return videoSceneDocument.safeParse(JSON.parse(raw))}catch{return null}},[raw]);
  const document=parsed?.success?parsed.data:null;
  const scene=document?.scenes.find(s=>s.id===selected)||document?.scenes[0];
- async function loadProject(){
+ async function loadProject(checkpoint=""){
   if(!projectId){setError("Enter a project ID or Pathway slug.");return}
   setBusy(true);setError("");setNotice("");
-  try{const query=new URLSearchParams({kind,id:projectId});const res=await fetch("/api/admin/code-mode/video-v2?"+query.toString(),{cache:"no-store"});const value=await res.json();if(!res.ok)throw new Error(value.error||"Load failed");setRaw(JSON.stringify(value.document,null,2));setReadOnly(Boolean(value.readOnly));setSelected(initialScene||value.document.scenes?.[0]?.id||"scene-1");setHistory([]);setNotice("Loaded "+value.projectStatus+" project.");}catch(e){setError(e instanceof Error?e.message:"Load failed");}finally{setBusy(false)}
+  try{const query=new URLSearchParams({kind,id:projectId});if(checkpoint)query.set("checkpoint",checkpoint);const res=await fetch("/api/admin/code-mode/video-v2?"+query.toString(),{cache:"no-store"});const value=await res.json();if(!res.ok)throw new Error(value.error||"Load failed");setRaw(JSON.stringify(value.document,null,2));setReadOnly(Boolean(value.readOnly));setSelected(initialScene||value.document.scenes?.[0]?.id||"scene-1");setHistory([]);setCheckpoints(Array.isArray(value.history)?value.history:[]);setNotice(checkpoint?"Loaded checkpoint for review. Apply JSON to restore this version.":"Loaded "+value.projectStatus+" project.");}catch(e){setError(e instanceof Error?e.message:"Load failed");}finally{setBusy(false)}
  }
  useEffect(()=>{void fetch("/api/admin/video-producer/graphics",{cache:"no-store"}).then(r=>r.ok?r.json():{assets:[]}).then(value=>{
   const rows=Array.isArray(value.assets)?value.assets:[];
@@ -83,6 +84,7 @@ export function VideoKineticCodeEditor({initialId="",initialKind="producer",init
   <h2>Video Code Mode V2</h2>
   <p>Edit saved scenes without changing source media. Apply creates a checkpoint and invalidates approval. Export still requires separate render approval.</p>
   <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"end"}}><label>Project type<select value={kind} disabled={busy} onChange={e=>{setKind(e.target.value as "producer"|"studio");setReadOnly(false)}}><option value="producer">Video Producer</option><option value="studio">Video Studio</option></select></label><label>{kind==="producer"?"Project UUID":"Pathway slug"}<input value={projectId} onChange={e=>setProjectId(e.target.value)} placeholder={kind==="producer"?"Project UUID":"god-is-one"}/></label><button type="button" disabled={busy} onClick={()=>void loadProject()}>{busy?"Loading…":"Load project"}</button></div>
+  {checkpoints.length?<div style={{display:"flex",flexWrap:"wrap",gap:8,alignItems:"end"}}><label>Version history<select value={checkpointId} onChange={e=>setCheckpointId(e.target.value)}><option value="">Select checkpoint</option>{checkpoints.map(entry=><option key={entry.id} value={entry.id}>{new Date(entry.createdAt).toLocaleString()}</option>)}</select></label><button type="button" disabled={!checkpointId||busy} onClick={()=>void loadProject(checkpointId)}>Preview checkpoint</button></div>:null}
   {readOnly?<p role="status">This project is Ready, Scheduled, approved, or rendering. You can preview scenes, but cannot Apply edits.</p>:null}
   <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
    <button type="button" aria-pressed={mode==="code"} onClick={()=>setMode("code")}>Code</button>
