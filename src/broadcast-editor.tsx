@@ -2,6 +2,10 @@
 
 import { useMemo, useState } from "react";
 import type { BroadcastCampaign } from "./broadcast-email";
+import {CodeModeJsonPanel} from "./code-mode/json-panel";
+import {CodeModeSandboxPreview} from "./code-mode/preview";
+import {emailCodeSchema,initialEmailCodeDocument,emailCodeRender,type EmailCodeDocument} from "./code-mode/broadcast";
+import {DoctrineCheckPanel} from "./doctrine-check-panel";
 import { ExternalLink, FileText, Headphones, MailCheck, MessageSquareText, Play, Send, TestTube2, Waypoints } from "lucide-react";
 
 export type BroadcastSourceOption = {
@@ -81,6 +85,36 @@ export function BroadcastEditor({ sources, audienceCounts, initialCampaign }: { 
   const [state, setState] = useState<"idle" | "working" | "draft" | "sent" | "error">("idle");
   const [message, setMessage] = useState("");
   const [broadcastId, setBroadcastId] = useState<string | null>(null);
+  const [codeOpen,setCodeOpen]=useState(false);
+  const [codeDoc,setCodeDoc]=useState<EmailCodeDocument|null>(null);
+  const [draftId,setDraftId]=useState<string|null>(null);
+  const [version,setVersion]=useState(0);
+  const [revisions,setRevisions]=useState<Array<{version:number;created_at:string}>>([]);
+  const [doctrineReady,setDoctrineReady]=useState(false);
+  const [codeError,setCodeError]=useState("");
+  const editableDoc:EmailCodeDocument={...(codeDoc||initialEmailCodeDocument(campaign)),campaign};
+  const documentMatches=Boolean(codeDoc&&JSON.stringify(codeDoc.campaign)===JSON.stringify(campaign));
+  const authorized=Boolean(draftId&&doctrineReady&&documentMatches);
+  async function saveCode(next:EmailCodeDocument){
+   setCodeError("");
+   const checked=emailCodeSchema.parse(next);
+   const response=await fetch("/api/admin/broadcast-code",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({id:draftId||undefined,expectedVersion:version||undefined,document:checked})});
+   const result=await response.json();if(!response.ok)throw new Error(result.error||"Draft save failed.");
+   setDraftId(result.draft.id);setVersion(result.draft.version);
+   setCodeDoc(result.draft.document);setCampaign(result.draft.document.campaign);
+   setDoctrineReady(false);setBroadcastId(null);
+   const history=await fetch("/api/admin/broadcast-code?id="+encodeURIComponent(result.draft.id)).then(r=>r.json());
+   setRevisions(history.revisions||[]);setMessage("Code Mode draft saved. Run the required doctrine check before any email action.");
+  }
+  async function restoreCode(revisionVersion:number){
+   if(!draftId)return;
+   setCodeError("");
+   const response=await fetch("/api/admin/broadcast-code",{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify({id:draftId,expectedVersion:version,revisionVersion})});
+   const result=await response.json();if(!response.ok)throw new Error(result.error||"Restore failed.");
+   setCodeDoc(result.draft.document);setCampaign(result.draft.document.campaign);setVersion(result.draft.version);
+   setDoctrineReady(false);setBroadcastId(null);
+   const history=await fetch("/api/admin/broadcast-code?id="+encodeURIComponent(draftId)).then(r=>r.json());setRevisions(history.revisions||[]);
+  }
 
   const matchingSources = sources.filter((source) => source.kind === campaign.type);
   const audienceLabel = audience === "content" ? "New content" : audience === "media" ? "Teachings & media" : "All subscribers";
@@ -91,7 +125,7 @@ export function BroadcastEditor({ sources, audienceCounts, initialCampaign }: { 
     setCampaign(next);
     setSourceUrl(source?.url ?? "");
     setAudience(defaultAudience(type));
-    setBroadcastId(null);
+    setBroadcastId(null);setDraftId(null);setVersion(0);setCodeDoc(null);setDoctrineReady(false);
     setState("idle");
     setMessage("");
   }
@@ -100,6 +134,7 @@ export function BroadcastEditor({ sources, audienceCounts, initialCampaign }: { 
     setSourceUrl(url);
     const source = matchingSources.find((item) => item.url === url);
     if (source) setCampaign(campaignFrom(campaign.type, source));
+    setDraftId(null);setCodeDoc(null);setDoctrineReady(false);setBroadcastId(null);
   }
 
   async function callApi(payload: unknown) {
@@ -110,27 +145,29 @@ export function BroadcastEditor({ sources, audienceCounts, initialCampaign }: { 
   }
 
   async function sendTest() {
+    if(!authorized)return setMessage("Save the current Code Mode draft and pass its required Doctrine check first.");
     setState("working"); setMessage("");
     try {
-      const result = await callApi({ action: "test", campaign });
+      const result = await callApi({ action: "test", campaign, draftId });
       setState("idle"); setMessage(`Test sent to ${result.sentTo}.`);
     } catch (error) { setState("error"); setMessage(error instanceof Error ? error.message : "Test failed."); }
   }
 
   async function createDraft() {
+    if(!authorized)return setMessage("Save and approve the current email before creating a Resend draft.");
     setState("working"); setMessage("");
     try {
-      const result = await callApi({ action: "create", audience, campaign });
+      const result = await callApi({ action: "create", audience, campaign, draftId });
       setBroadcastId(result.broadcastId); setState("draft"); setMessage("Campaign draft created. Review it, send yourself a test, then send when ready.");
     } catch (error) { setState("error"); setMessage(error instanceof Error ? error.message : "Draft creation failed."); }
   }
 
   async function sendCampaign() {
-    if (!broadcastId) return;
+    if (!broadcastId || !authorized) return;
     if (!window.confirm(`Send “${campaign.subject}” to ${audienceCounts[audience]} ${audienceLabel.toLowerCase()} subscriber${audienceCounts[audience] === 1 ? "" : "s"}? This cannot be unsent.`)) return;
     setState("working"); setMessage("");
     try {
-      await callApi({ action: "send", broadcastId });
+      await callApi({ action: "send", broadcastId, draftId });
       setState("sent"); setMessage("Campaign has been handed to Resend for delivery.");
     } catch (error) { setState("error"); setMessage(error instanceof Error ? error.message : "Send failed."); }
   }
@@ -144,6 +181,25 @@ export function BroadcastEditor({ sources, audienceCounts, initialCampaign }: { 
         {templates.map(({ type, label, icon: Icon }) => <button key={type} type="button" className={campaign.type === type ? "broadcast-template active" : "broadcast-template"} onClick={() => chooseType(type)}><Icon size={18} /><span>{label}</span></button>)}
       </div>
 
+      <div className="broadcast-actions">
+        <button type="button" className="button button-outline" onClick={()=>setCodeOpen(v=>!v)} aria-expanded={codeOpen}>{codeOpen?"Close Code Mode":"Open Code Mode"}</button>
+        {!draftId?<button type="button" className="button" onClick={()=>void saveCode(editableDoc).catch(e=>setCodeError(e.message))}>Save draft for Doctrine check</button>:null}
+      </div>
+      {codeOpen?<section className="admin-card" style={{padding:18,display:"grid",gap:16}}>
+        <h3>Shared Code Mode · Broadcasts</h3>
+        <p>Edit the full campaign in JSON. HTML and CSS are in theme; footer, unsubscribe and site link cannot be removed.</p>
+        <CodeModeJsonPanel label="Whole-campaign JSON" data={editableDoc} parse={v=>emailCodeSchema.parse(v)} onApply={saveCode}/>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(240px,1fr))",gap:12}}>
+          <label>HTML template<textarea rows={10} value={editableDoc.theme.html} onChange={e=>setCodeDoc({...editableDoc,theme:{...editableDoc.theme,html:e.target.value}})} /></label>
+          <label>CSS<textarea rows={10} value={editableDoc.theme.css} onChange={e=>setCodeDoc({...editableDoc,theme:{...editableDoc.theme,css:e.target.value}})} /></label>
+        </div>
+        <label>Container width <input type="number" min={320} max={720} value={editableDoc.theme.containerWidth} onChange={e=>setCodeDoc({...editableDoc,theme:{...editableDoc.theme,containerWidth:Number(e.target.value)}})}/></label>
+        <button type="button" className="button" onClick={()=>void saveCode(editableDoc).catch(e=>setCodeError(e.message))}>Apply HTML / CSS to saved draft</button>
+        {(()=>{try{return <CodeModeSandboxPreview title="Email code preview" document={emailCodeRender(editableDoc).html}/>;}catch(error){return <p role="alert">{error instanceof Error?error.message:"Invalid email design"}</p>;}})()}
+        {revisions.length?<details><summary>Revisions · Undo / Restore</summary>{revisions.map(rev=><button type="button" key={rev.version} onClick={()=>void restoreCode(rev.version).catch(e=>setCodeError(e.message))}>Restore version {rev.version} ({new Date(rev.created_at).toLocaleString()})</button>)}</details>:null}
+      </section>:null}
+      {codeError?<p role="alert">{codeError}</p>:null}
+      {draftId?<DoctrineCheckPanel key={draftId+":"+version} sourceType="broadcast" sourceId={draftId} onChange={approved=>setDoctrineReady(approved)}/>:<p className="broadcast-draft-note">Save a local draft to unlock the required Doctrine checker. No email is sent by saving.</p>}
       <div className="broadcast-compose-grid">
         <div className="broadcast-fields">
           {!isExternal && matchingSources.length > 0 ? <label>Published content<select value={sourceUrl} onChange={(e) => chooseSource(e.target.value)}>{matchingSources.map((source) => <option key={source.url} value={source.url}>{source.title}</option>)}</select></label> : null}
@@ -165,8 +221,8 @@ export function BroadcastEditor({ sources, audienceCounts, initialCampaign }: { 
       </div>
 
       <div className="broadcast-actions">
-        <button className="button button-outline" type="button" onClick={sendTest} disabled={!valid || state === "working"}><TestTube2 size={16} /> Send test to me</button>
-        {!broadcastId ? <button className="button button-crimson" type="button" onClick={createDraft} disabled={!valid || state === "working"}>{state === "working" ? "Creating…" : "Create campaign draft"}</button> : state !== "sent" ? <button className="button button-crimson" type="button" onClick={sendCampaign} disabled={state === "working"}><Send size={16} /> Send to {audienceCounts[audience]}</button> : <span className="status-pill">Sent</span>}
+        <button className="button button-outline" type="button" onClick={sendTest} disabled={!valid || !authorized || state === "working"}><TestTube2 size={16} /> Send test to me</button>
+        {!broadcastId ? <button className="button button-crimson" type="button" onClick={createDraft} disabled={!valid || !authorized || state === "working"}>{state === "working" ? "Creating…" : "Create campaign draft"}</button> : state !== "sent" ? <button className="button button-crimson" type="button" onClick={sendCampaign} disabled={!authorized || state === "working"}><Send size={16} /> Send to {audienceCounts[audience]}</button> : <span className="status-pill">Sent</span>}
       </div>
       {message ? <p className={state === "error" ? "form-error" : "form-success"}>{message}</p> : null}
       {broadcastId && state !== "sent" ? <p className="broadcast-draft-note">Draft ID {broadcastId}. You can also review this campaign in Resend before sending.</p> : null}
