@@ -135,3 +135,8 @@ const units=el.querySelectorAll('.ag-unit');units.forEach((u,i)=>{const amount=e
 for(const f of s.keyframes){const found=el.querySelectorAll(f.target);const local=ease(Math.max(0,Math.min(1,(p-f.t)/.22)),f.ease,f.bezier);found.forEach(node=>{for(const [key,value] of Object.entries(f.props)){if(!/^(opacity|transform|color|backgroundColor|filter|clipPath|letterSpacing)$/.test(key))continue;if(typeof value==='number'&&key==='opacity')node.style[key]=String(value*local);else if(local>=.999)node.style[key]=String(value)}})}
 }}window.__AGSeekFrame=render;window.addEventListener('message',ev=>{if(ev.data?.type==='ag-seek'&&Number.isFinite(ev.data.time))render(ev.data.time)});render(0);</script></body></html>`;
 }
+
+/** All words potentially seen or heard in the final export; HTML is reduced to actual visible text. */
+export function videoScenesVisibleCopy(doc:VideoScenesDocument){
+ return doc.scenes.map(scene=>({location:"Video scene "+scene.id,text:sanitizeHtml(scene.html,{allowedTags:[],allowedAttributes:{}}).replace(/&amp;/g,"&").trim()})).filter(line=>Boolean(line.text));
+}
