@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { CheckCircle2, ShieldCheck, TriangleAlert } from "lucide-react";
 export type DoctrineUiState="not_checked"|"pass"|"flag"|"flagged_approved"|"fail";
 type Issue={severity:"flag"|"fail";location:string;line:string;reason:string;reference:string};
-type Props={sourceType:"creative_project"|"threads"|"custom_asset"|"video_render"|"video_clip";sourceId:string;caption?:string;fields?:Record<string,unknown>;onChange?:(approved:boolean,state:DoctrineUiState)=>void};
+type Props={sourceType:"creative_project"|"threads"|"custom_asset"|"video_render"|"video_clip|"broadcast";sourceId:string;caption?:string;fields?:Record<string,unknown>;onChange?:(approved:boolean,state:DoctrineUiState)=>void};
 const labels:Record<DoctrineUiState,string>={not_checked:"Not checked",pass:"Pass",flag:"Flag",flagged_approved:"Flagged-approved",fail:"Fail"};
 export function DoctrineCheckPanel({sourceType,sourceId,caption="",fields={},onChange}:Props) {
  const [state,setState]=useState<DoctrineUiState>("not_checked");
