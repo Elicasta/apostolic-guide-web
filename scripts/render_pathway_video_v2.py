@@ -144,7 +144,8 @@ def render(payload: dict, output: Path, progress_callback: ProgressCallback | No
             f"[b3][hero]overlay=(W-w)/2:{spec['hero_y']}:enable='{hero_enable}'[b4];"
             f"[b4][specviz]overlay=(W-w)/2:{spec['spectrum_y']}[b5];"
             f"[b5]ass='{timeline_ass}'[b6];"
-            f"[b6]drawbox=x=0:y={progress_y}:w={width}:h=4:color=0x537BA4@0.42:t=fill,"
+            f"{motion_layer}"
+            f"[bmotion]drawbox=x=0:y={progress_y}:w={width}:h=4:color=0x537BA4@0.42:t=fill,"
             f"drawbox=x=0:y={progress_y}:w='{width}*t/{duration}':h=4:color=0x8B2431@0.96:t=fill,"
             f"fps=30[v]"
         )
