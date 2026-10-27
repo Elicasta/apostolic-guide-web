@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { CheckCircle2, ShieldCheck, TriangleAlert } from "lucide-react";
 export type DoctrineUiState="not_checked"|"pass"|"flag"|"flagged_approved"|"fail";
 type Issue={severity:"flag"|"fail";location:string;line:string;reason:string;reference:string};
-type Props={sourceType:"creative_project"|"threads"|"custom_asset"|"video_render"|"video_clip";sourceId:string;caption?:string;fields?:Record<string,unknown>;onChange?:(approved:boolean,state:DoctrineUiState)=>void};
+type Props={sourceType:"creative_project"|"threads"|"custom_asset"|"video_render"|"video_clip"|"broadcast";sourceId:string;caption?:string;fields?:Record<string,unknown>;onChange?:(approved:boolean,state:DoctrineUiState)=>void};
 const labels:Record<DoctrineUiState,string>={not_checked:"Not checked",pass:"Pass",flag:"Flag",flagged_approved:"Flagged-approved",fail:"Fail"};
 export function DoctrineCheckPanel({sourceType,sourceId,caption="",fields={},onChange}:Props) {
  const [state,setState]=useState<DoctrineUiState>("not_checked");
@@ -16,7 +16,7 @@ export function DoctrineCheckPanel({sourceType,sourceId,caption="",fields={},onC
  const key=JSON.stringify({sourceType,sourceId,caption,fields});
  useEffect(()=>{
   let live=true;
-  setState("not_checked");setIssues([]);setError("");setSummary("");onChange?.(false,"not_checked");
+  queueMicrotask(()=>{if(live){setState("not_checked");setIssues([]);setError("");setSummary("");onChange?.(false,"not_checked");}});
   const params=new URLSearchParams({sourceType,sourceId,caption,fields:JSON.stringify(fields)});
   fetch("/api/admin/doctrine-check?"+params.toString(),{cache:"no-store"}).then(async r=>{
    const data=await r.json();if(!r.ok)throw new Error(data.error||"Cannot read doctrine status.");
