@@ -11,7 +11,7 @@ export function WholeItemCodeMode({initialTool="website",initialId="",initialKin
  const [tool,setTool]=useState<Tool>(OPTIONS.includes(initialTool as Tool)?initialTool as Tool:"website");
  const [id,setId]=useState(initialId);
  const [kind,setKind]=useState(initialTool==="video"&&!["producer","studio"].includes(initialKind)?"studio":initialKind);
- const [document,setDocument]=useState<WholeItemCode>(initial(OPTIONS.includes(initialTool as Tool)?initialTool as Tool:"website"));
+ const [document,setDocument]=useState<WholeItemCode>(initialTool==="video"?freshVideoScenes(initialKind==="producer"?"producer":"studio",initialId):initial(OPTIONS.includes(initialTool as Tool)?initialTool as Tool:"website"));
  const [busy,setBusy]=useState(false),[error,setError]=useState(""),[message,setMessage]=useState("");
  const [words,setWords]=useState<VideoWord[]>([]),[keepSegments,setKeepSegments]=useState<Array<{start:number;end:number}>>([]),[readOnly,setReadOnly]=useState(false);
  function select(next:Tool){setTool(next);setId("");setKind(next==="video"?"studio":"script");setDocument(next==="video"?freshVideoScenes("studio",""):initial(next));setWords([]);setReadOnly(false);setMessage("");setError("");}
@@ -26,7 +26,7 @@ export function WholeItemCodeMode({initialTool="website",initialId="",initialKin
    setMessage(data.readOnly?"This project is read-only. Preview remains available.":nextId?"Loaded the scene document.":"Empty Code Mode document. Choose a project to save.");
   }catch(e){setError(e instanceof Error?e.message:"Load failed.");}finally{setBusy(false);}
  }
- useEffect(()=>{if(initialId)void Promise.resolve().then(()=>load(tool,initialId,kind));else if(tool==="video")setDocument(freshVideoScenes("studio",""));
+ useEffect(()=>{if(initialId)void Promise.resolve().then(()=>load(tool,initialId,kind));
  // Initial page route uniquely scopes the first load.
  // eslint-disable-next-line react-hooks/exhaustive-deps
  },[]);
