@@ -9,6 +9,8 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from pathlib import Path
+import shutil
+from video_code_motion_overlay import composite_video_code_scenes
 import subprocess
 import tempfile
 import urllib.request
@@ -100,7 +102,13 @@ def render(payload: dict, output: Path, progress_callback: ProgressCallback | No
         urllib.request.urlretrieve(str(payload["audio_url"]), audio)
         duration = ffprobe_duration(audio)
         timeline_ass = temp / "timeline.ass"
-        make_ass(timeline_ass, payload, duration, spec)
+        scene_document=(payload.get("style") or {}).get("videoCodeV2")
+        if scene_document and scene_document.get("scenes"):
+            old_payload=dict(payload)
+            old_payload["timeline"]=[]
+            make_ass(timeline_ass, old_payload, duration, spec)
+        else:
+            make_ass(timeline_ass, payload, duration, spec)
 
         _report(progress_callback, 4, "Building background")
         _build_background(background, spec)
@@ -143,3 +151,13 @@ def render(payload: dict, output: Path, progress_callback: ProgressCallback | No
             "-progress", "pipe:1", "-nostats", str(output),
         ]
         _run_with_progress(command, duration, progress_callback)
+        if scene_document and scene_document.get("scenes"):
+            fmt=scene_document.get("format") or {}
+            if (fmt.get("w"),fmt.get("h"),fmt.get("fps")) != (width,height,30):
+                raise RuntimeError("Video Studio scene canvas must match export format")
+            _report(progress_callback,94,"Compositing scene motion")
+            manifest={"videoCodeV2":scene_document,"videoCodeAssetUrls":payload.get("video_code_asset_urls") or {},"renderPlan":{"output":{"width":width,"height":height,"fps":30},"outputDuration":duration}}
+            def heartbeat(_payload,_status,progress,stage):
+                _report(progress_callback,int(progress or 94),stage or "Motion")
+            motion=composite_video_code_scenes(manifest,str(output),directory,payload,heartbeat)
+            shutil.copyfile(motion,output)

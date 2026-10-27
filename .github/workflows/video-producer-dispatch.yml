@@ -10,7 +10,7 @@ permissions:
 jobs:
   transcribe:
     if: github.event.action == 'video-producer-transcribe'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 90
     env:
       WORKER_REF: ${{ github.event.client_payload.worker_ref || github.event.repository.default_branch }}
@@ -50,7 +50,7 @@ jobs:
 
   sync:
     if: github.event.action == 'video-producer-sync'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     env:
       WORKER_REF: ${{ github.event.client_payload.worker_ref || github.event.repository.default_branch }}
@@ -81,7 +81,7 @@ jobs:
 
   render:
     if: github.event.action == 'video-producer-render'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 180
     env:
       WORKER_REF: ${{ github.event.client_payload.worker_ref || github.event.repository.default_branch }}
@@ -109,6 +109,11 @@ jobs:
             fi
           done
           fc-cache -f >/dev/null 2>&1 || true
+      - name: Prepare browser motion renderer
+        shell: bash
+        run: |
+          npm ci --no-audit --no-fund
+          npx playwright install --with-deps chromium
       - name: Write render payload
         env:
           RENDER_PAYLOAD: ${{ toJson(github.event.client_payload) }}
@@ -134,7 +139,7 @@ jobs:
 
   thumbnails:
     if: github.event.action == 'video-producer-thumbnail'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:
       WORKER_REF: ${{ github.event.client_payload.worker_ref || github.event.repository.default_branch }}
@@ -171,7 +176,7 @@ jobs:
 
   publisher_handoff:
     if: github.event.action == 'video-producer-publisher-handoff'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
     env:
       WORKER_REF: ${{ github.event.client_payload.worker_ref || github.event.repository.default_branch }}

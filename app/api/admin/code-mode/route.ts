@@ -6,6 +6,11 @@ import {createServiceClient} from "@/supabase";
 import {recordStudioAudit} from "@/studio-audit";
 import {wholeItemSchema,initialWholeItem,type WholeItemCode} from "@/code-mode/whole-item";
 import {normalizeEditorState} from "@/creative-project";
+import {initialVideoV2,videoCodeV2Schema} from "@/code-mode/video-v2";
+import {escapeCodeText} from "@/code-mode/core";
+import {createPrivateBlobDownloadUrl} from "@/video-producer-server";
+import {normalizeVideoProducerTranscript,sliceVideoProducerTranscript} from "@/video-producer-ai";
+import {buildKeepSegments,sourceTimeToOutputTime,type VideoProducerEditPlan} from "@/video-producer";
 import {pathwayBySlug} from "@/pathway-catalog";
 export const runtime="nodejs";
 type Service=NonNullable<ReturnType<typeof createServiceClient>>;
@@ -69,8 +74,42 @@ export async function GET(request:Request){
   const isProducer=kind==="producer",table=isProducer?"video_producer_projects":"pathway_video_projects";
   const r=await s.from(table).select("*").eq(isProducer?"id":"pathway_slug",id).maybeSingle();
   if(r.error||!r.data)throw new Error("Video project not found.");
-  if(isProducer&&r.data.status!=="draft")throw new Error("Video Producer project is not a draft.");
-  return NextResponse.json({document:isProducer?{tool,version:1,kind:"producer",id,title:r.data.title,directorMetadata:r.data.director_metadata,expectedUpdatedAt:r.data.updated_at}:{tool,version:1,kind:"studio",id,timeline:r.data.timeline,style:r.data.style,expectedUpdatedAt:r.data.updated_at}});
+  const stored=isProducer?r.data.director_metadata?.videoCodeV2:r.data.style?.videoCodeV2;
+  const readOnly=isProducer && !["draft","planned","approved"].includes(r.data.status);
+  const base=stored && videoCodeV2Schema.safeParse(stored).success
+    ? stored
+    : {...initialVideoV2(isProducer?"producer":"studio",id),
+       format:isProducer&&r.data.mode==="podcast"?{w:1920,h:1080,fps:30}:{w:1080,h:1920,fps:30},
+       scenes:isProducer?[]:(Array.isArray(r.data.timeline)?r.data.timeline:[]).slice(0,80).map((cue:{id?:string;start?:number;end?:number;title?:string},i:number)=>({
+        id:"cue-"+i,start:Math.max(0,Number(cue.start)||0),end:Math.max((Number(cue.start)||0)+.1,Number(cue.end)||(Number(cue.start)||0)+3),
+        layer:"overlay",html:"<h1 class='headline'>"+escapeCodeText(cue.title||"")+"</h1>",css:"",
+        keyframes:[{t:0,target:".headline",props:{opacity:0,y:50},ease:"ease-out"},{t:.4,target:".headline",props:{opacity:1,y:0},ease:"ease-out"}]
+       }))};
+  let words:Array<{word:string;start:number;end:number}>=[];
+  let sourcePreviewUrl:string|null=null;
+  let keepSegments:Array<{start:number;end:number}>=[];
+  let sourceOffset=0;
+  if(isProducer){
+    const plan=r.data.edit_plan as VideoProducerEditPlan|null;
+    const full=normalizeVideoProducerTranscript(r.data.transcript);
+    sourceOffset=Number(r.data.source_range_start||0);
+    const local=r.data.source_range_start!=null&&r.data.source_range_end!=null
+      ?sliceVideoProducerTranscript(full,Number(r.data.source_range_start),Number(r.data.source_range_end)):full;
+    if(plan){
+      keepSegments=buildKeepSegments(plan.cuts,plan.sourceDuration);
+      words=local.words.flatMap(w=>{
+        const start=sourceTimeToOutputTime(w.start,plan.cuts,plan.sourceDuration);
+        const end=sourceTimeToOutputTime(w.end,plan.cuts,plan.sourceDuration);
+        return start===null||end===null?[]:[{word:w.word,start,end}];
+      });
+    }else words=local.words;
+    if(r.data.source_provider==="vercel_blob"&&r.data.source_locator){
+      try{sourcePreviewUrl=await createPrivateBlobDownloadUrl(r.data.source_locator,45*60*1000);}catch{sourcePreviewUrl=null;}
+    }
+  }
+  return NextResponse.json({document:{...base,expectedUpdatedAt:r.data.updated_at},readOnly,
+    words,sourcePreviewUrl,sourceOffset,keepSegments},{headers:{"cache-control":"private, no-store"}});
+
  }catch(error){return fail(error);}
 }
 export async function POST(request:Request){
@@ -138,7 +177,25 @@ export async function POST(request:Request){
     const res=await s.from("studio_teleprompter_code_drafts").insert({owner_id:access.user.id,title:d.title,script_text:d.scriptText,notes:d.notes}).select("id").single();
     if(res.error)throw new Error(res.error.message);id=res.data.id;
    }
-  }else{
+  }else if(d.tool==="video" && d.version===2){
+   const producer=d.kind==="producer",table=producer?"video_producer_projects":"pathway_video_projects";
+   const prior=await s.from(table).select("*").eq(producer?"id":"pathway_slug",d.id).maybeSingle();
+   if(prior.error||!prior.data)throw new Error("Video project not found.");
+   if(producer && !["draft","planned","approved"].includes(prior.data.status))throw new Error("Ready, Scheduled and rendering projects are read-only.");
+   matchDate(prior.data.updated_at,d.expectedUpdatedAt);
+   const running=await s.from(producer?"video_producer_renders":"pathway_video_renders").select("id").eq(producer?"project_id":"pathway_slug",d.id).in("status",["queued","rendering"]).limit(1);
+   if(running.error||running.data?.length)throw new Error("A render is active. Wait for it to finish before applying changes.");
+   await checkpoint(s,access.user.id,"video",d.id,prior.data);
+   const {expectedUpdatedAt:ignoredExpected,...stored}=d;
+   void ignoredExpected;
+   const now=new Date().toISOString();
+   const payload=producer?
+    {director_metadata:{...(prior.data.director_metadata||{}),videoCodeV2:stored},status:"draft",approval_fingerprint:null,approved_at:null,updated_by:access.user.id,updated_at:now}:
+    {style:{...(prior.data.style||{}),videoCodeV2:stored},updated_by:access.user.id,updated_at:now};
+   const query=s.from(table).update(payload).eq(producer?"id":"pathway_slug",d.id).eq("updated_at",prior.data.updated_at);
+   const res=producer?await query.eq("status",prior.data.status).select("id").maybeSingle():await query.select("id").maybeSingle();
+   if(res.error||!res.data)throw new Error("Video project changed during Apply.");id=d.id;
+  }else if(d.tool==="video" && d.version===1){
    const producer=d.kind==="producer",table=producer?"video_producer_projects":"pathway_video_projects";
    const prior=await s.from(table).select("*").eq(producer?"id":"pathway_slug",d.id).maybeSingle();
    if(prior.error||!prior.data||(producer&&prior.data.status!=="draft"))throw new Error("Video project is not an editable draft.");

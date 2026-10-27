@@ -1,24 +1,32 @@
 "use client";
 import {useEffect,useState} from "react";
 import {CodeModeJsonPanel} from "./json-panel";
+import {VideoCodeEditor} from "./video-v2-editor";
 import {initialWholeItem,wholeItemSchema,type WholeItemCode} from "./whole-item";
 type Tool=WholeItemCode["tool"];
 const OPTIONS:Tool[]=["website","content_engine","episode","audio","teleprompter","video"];
 function initial(tool:Tool){return initialWholeItem(tool) as WholeItemCode;}
-export function WholeItemCodeMode({initialTool="website",initialId=""}:{initialTool?:string;initialId?:string}){
+export function WholeItemCodeMode({initialTool="website",initialId="",initialKind="script",initialScene=""}:{initialTool?:string;initialId?:string;initialKind?:string;initialScene?:string}){
  const [tool,setTool]=useState<Tool>(OPTIONS.includes(initialTool as Tool)?initialTool as Tool:"website");
  const [id,setId]=useState(initialId);
- const [kind,setKind]=useState("script");
+ const [kind,setKind]=useState(initialKind);
+ const [readOnly,setReadOnly]=useState(false);
+ const [words,setWords]=useState<Array<{word?:string;text?:string;start?:number;end?:number}>>([]);
+ const [sourcePreviewUrl,setSourcePreviewUrl]=useState<string|null>(null);
+ const [sourceOffset,setSourceOffset]=useState(0);
+ const [keepSegments,setKeepSegments]=useState<Array<{start:number;end:number}>>([]);
  const [document,setDocument]=useState<WholeItemCode>(initial(OPTIONS.includes(initialTool as Tool)?initialTool as Tool:"website"));
  const [busy,setBusy]=useState(false),[error,setError]=useState(""),[message,setMessage]=useState("");
- function select(next:Tool){setTool(next);setId("");setDocument(initial(next));setMessage("");setError("");}
+ function select(next:Tool){setTool(next);setId("");setDocument(initial(next));setMessage("");setError("");setReadOnly(false);setWords([]);setSourcePreviewUrl(null);setKeepSegments([]);setSourceOffset(0);}
  async function load(nextTool=tool,nextId=id,nextKind=kind){
   setBusy(true);setError("");
   try{
    const params=new URLSearchParams({tool:nextTool,kind:nextKind});if(nextId)params.set("id",nextId);
    const response=await fetch("/api/admin/code-mode?"+params.toString(),{cache:"no-store"});
    const data=await response.json();if(!response.ok)throw new Error(data.error||"Could not open draft.");
-   setDocument(data.document as WholeItemCode);
+   setDocument(data.document as WholeItemCode);setReadOnly(Boolean(data.readOnly));setWords(Array.isArray(data.words)?data.words:[]);
+   setSourcePreviewUrl(typeof data.sourcePreviewUrl==="string"?data.sourcePreviewUrl:null);
+   setSourceOffset(Number(data.sourceOffset)||0);setKeepSegments(Array.isArray(data.keepSegments)?data.keepSegments:[]);
    setMessage(nextId?"Loaded an existing draft.":"Empty Code Mode document. Fill required fields before Apply.");
   }catch(e){setError(e instanceof Error?e.message:"Load failed.");}finally{setBusy(false);}
  }
@@ -47,9 +55,11 @@ export function WholeItemCodeMode({initialTool="website",initialId=""}:{initialT
    {["episode","video"].includes(tool)?<label>Subtype<select value={kind} onChange={e=>setKind(e.target.value)}>{tool==="episode"?<><option value="script">Script</option><option value="article">Article</option></>:<><option value="studio">Video Studio</option><option value="producer">Video Producer</option></>}</select></label>:null}
   </div>
   <button type="button" disabled={busy} onClick={()=>void load()}>{busy?"Loading…":"Load existing draft / New document"}</button>
-  <CodeModeJsonPanel key={tool+":"+id+":"+kind} label={tool+" whole-item JSON"} data={document} parse={raw=>wholeItemSchema.parse(raw)} onApply={apply} disabled={busy}/>
+  {document.tool==="video" && document.version===2
+    ? <VideoCodeEditor key={tool+":"+id+":"+kind+":"+document.expectedUpdatedAt} initialScene={initialScene} value={document} onApply={apply} disabled={busy} readOnly={readOnly} words={words} sourcePreviewUrl={sourcePreviewUrl} sourceOffset={sourceOffset} keepSegments={keepSegments}/>
+    : <CodeModeJsonPanel key={tool+":"+id+":"+kind} label={tool+" whole-item JSON"} data={document} parse={raw=>wholeItemSchema.parse(raw)} onApply={apply} disabled={busy}/> }
   {tool==="teleprompter"?<p>Saved scripts stay in a private drafting library. They do not update a live Teleprompter session or remote display.</p>:null}
-  {tool==="video"?<p>Only draft project metadata, graphics cues and saved style settings are editable. Source footage and render jobs are untouched.</p>:null}
+  {tool==="video"?<p>Video Code Mode v2 uses scene JSON with preview, motion keyframes and word anchors. Apply saves only and resets Producer approval; rendering stays a separate deliberate step.</p>:null}
   {error?<p role="alert">{error}</p>:null}
   {message?<p role="status">{message}</p>:null}
  </section>;

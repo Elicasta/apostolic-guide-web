@@ -4,7 +4,10 @@ import { z } from "zod";
 import { getStudioPermission } from "@/auth";
 import { pathwayBySlug } from "@/pathway-catalog";
 import { createServiceClient } from "@/supabase";
-import { compileVideoProducerRenderPlan, type VideoProducerEditPlan } from "@/video-producer";
+import { compileVideoProducerRenderPlan,sourceTimeToOutputTime, type VideoProducerEditPlan } from "@/video-producer";
+import { videoCodeV2Schema,resolveVideoSceneAnchors } from "@/code-mode/video-v2";
+import {videoCodeDoctrineSource} from "@/code-mode/video-doctrine";
+import {assertDoctrineApproved} from "@/doctrine-gate";
 import { normalizeVideoProducerTranscript, sliceVideoProducerTranscript } from "@/video-producer-ai";
 import type { VideoProducerAudioPlan, VideoProducerCameraPlan } from "@/video-producer-multicam";
 import { resolveVideoProducerProductionState } from "@/video-producer-production-server";
@@ -50,13 +53,17 @@ export async function POST(request: Request) {
   if (!service) return NextResponse.json({ error: "Supabase service access is not configured." }, { status: 503 });
 
   const result = await service.from("video_producer_projects")
-    .select("id,title,mode,status,parent_project_id,pathway_slug,selected_music_track_id,source_provider,source_locator,source_filename,source_duration,source_range_start,source_range_end,transcript,edit_plan,camera_plan,audio_plan,approval_fingerprint,approved_at")
+    .select("id,title,mode,status,parent_project_id,pathway_slug,selected_music_track_id,source_provider,source_locator,source_filename,source_duration,source_range_start,source_range_end,transcript,edit_plan,director_metadata,camera_plan,audio_plan,approval_fingerprint,approved_at")
     .eq("id", parsed.data.projectId).is("deleted_at", null).maybeSingle();
   if (result.error) return NextResponse.json({ error: result.error.message }, { status: 500 });
   const project = result.data;
   if (!project?.source_locator || !project.edit_plan) return NextResponse.json({ error: "Source and edit plan are required before rendering." }, { status: 409 });
   if (project.status !== "approved" || !project.approval_fingerprint) return NextResponse.json({ error: "Approve the current edit before rendering." }, { status: 409 });
   if (project.source_provider !== "vercel_blob") return NextResponse.json({ error: "This source provider is not renderable yet." }, { status: 409 });
+  if (project.director_metadata?.videoCodeV2) {
+    try { await assertDoctrineApproved(service,videoCodeDoctrineSource(project.id,project.director_metadata.videoCodeV2,project.transcript)); }
+    catch(error) {return NextResponse.json({error:error instanceof Error?error.message:"Video doctrine review required."},{status:409});}
+  }
 
   const plan = project.edit_plan as VideoProducerEditPlan;
   let renderPlan;
@@ -125,6 +132,31 @@ export async function POST(request: Request) {
       production.cameraB ? createPrivateBlobDownloadUrl(production.cameraB.storage_locator, 8 * 60 * 60 * 1000) : Promise.resolve(null),
       production.externalAudio ? createPrivateBlobDownloadUrl(production.externalAudio.storage_locator, 8 * 60 * 60 * 1000) : Promise.resolve(null)
     ]);
+    const codeScenes=project.director_metadata?.videoCodeV2;
+    const rawCode=codeScenes?videoCodeV2Schema.parse(codeScenes):null;
+    const videoCodeV2=rawCode?resolveVideoSceneAnchors(rawCode,localTranscript.words,t=>sourceTimeToOutputTime(t,plan.cuts,plan.sourceDuration)):null;
+    const graphicKeys=videoCodeV2?.assets.filter(a=>a.kind==="graphic").map(a=>a.id)??[];
+    const videoCodeAssetUrls:Record<string,string>={};
+    if(graphicKeys.length){
+      const uuidIds=graphicKeys.map(k=>k.replace(/^graphic-/,""));
+      if(uuidIds.some((uuid)=>!z.string().uuid().safeParse(uuid).success))throw new Error("Invalid graphics library asset ID");
+      const registered=await service.from("video_producer_graphic_assets")
+        .select("id,active,storage_locator,content_type,storage_provider")
+        .in("id",uuidIds).eq("active",true);
+      if(registered.error||registered.data?.length!==uuidIds.length)throw new Error("A selected graphics asset is missing or inactive");
+      for(const graphic of registered.data){
+        if(!["image/png","image/jpeg","image/webp"].includes(graphic.content_type)||graphic.storage_provider!=="vercel_blob")
+          throw new Error("Selected graphics asset must be a supported private image");
+        videoCodeAssetUrls["graphic-"+graphic.id]=await createPrivateBlobDownloadUrl(graphic.storage_locator,8*60*60*1000);
+      }
+    }
+    const videoCodeWords=videoCodeV2?localTranscript.words.flatMap(word=>{
+      const start=sourceTimeToOutputTime(Number(word.start),plan.cuts,plan.sourceDuration);
+      const end=sourceTimeToOutputTime(Number(word.end),plan.cuts,plan.sourceDuration);
+      return start==null||end==null?[]:[{word:word.word,start,end}];
+    }):[];
+    if(videoCodeV2 && (videoCodeV2.format.w!==renderPlan.output.width || videoCodeV2.format.h!==renderPlan.output.height || videoCodeV2.format.fps!==renderPlan.output.fps))
+      return NextResponse.json({error:"Scene canvas must match the approved output dimensions and frame rate."},{status:422});
     const manifest = {
       version: production.usesMulticam ? 2 : 1,
       project: {
@@ -140,6 +172,7 @@ export async function POST(request: Request) {
       },
       source: { filename: project.source_filename, duration: project.source_duration, range: sourceRange },
       renderPlan,
+      ...(videoCodeV2 ? {videoCodeV2,videoCodeWords,videoCodeAssetUrls} : {}),
       transcript: localTranscript,
       musicTracks,
       ...(production.usesMulticam ? {

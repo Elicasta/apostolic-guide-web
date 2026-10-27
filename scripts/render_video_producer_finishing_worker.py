@@ -15,6 +15,7 @@ assert SPEC and SPEC.loader
 SPEC.loader.exec_module(bw)
 
 from video_producer_broadcast_graphics_v2 import build_broadcast_ass_v2  # noqa: E402
+from video_code_motion_overlay import composite_video_code_scenes  # noqa: E402
 
 bw.build_broadcast_ass = build_broadcast_ass_v2
 bw.base.build_ass = build_broadcast_ass_v2
@@ -137,7 +138,15 @@ def motion_crop(scale, fx, fy):
     return crop_w, crop_h, x, y
 
 
-def append_reel_motion_graph(graph, plan):
+def eased_punch_chain(scale, fx, fy, duration):
+    """Smoothly zoom and release, avoiding a hard footage crop."""
+    frames = max(2, int(round(duration * 30)))
+    strength = max(0.0, scale - 1.0)
+    zoom = f"1+{strength:.5f}*pow(sin(PI*on/{frames}),2)"
+    return (f",zoompan=z=\'{zoom}\':x=\'(iw-iw/zoom)*{fx:.5f}\':"
+            f"y=\'(ih-ih/zoom)*{fy:.5f}\':d=1:s=1080x1920:fps=30")
+
+def append_reel_motion_graph(graph, plan, eased=False):
     graph.append(
         "[vcat]fps=30,crop=w='min(iw,ih*9/16)':h=ih:"
         "x='(iw-min(iw,ih*9/16))*0.5':y=0,"
@@ -150,8 +159,11 @@ def append_reel_motion_graph(graph, plan):
         _start, _end, scale, fx, fy = intervals[0]
         if scale <= 1.001:
             return "vbase"
-        crop_w, crop_h, x, y = motion_crop(scale, fx, fy)
-        graph.append(f"[vbase]crop={crop_w}:{crop_h}:{x}:{y},scale=1080:1920:flags=fast_bilinear,setsar=1[vmotion]")
+        if eased:
+            graph.append(f"[vbase]{eased_punch_chain(scale,fx,fy,_end-_start).lstrip(\',\')},setsar=1[vmotion]")
+        else:
+            crop_w, crop_h, x, y = motion_crop(scale, fx, fy)
+            graph.append(f"[vbase]crop={crop_w}:{crop_h}:{x}:{y},scale=1080:1920:flags=fast_bilinear,setsar=1[vmotion]")
         return "vmotion"
 
     split_labels = "".join(f"[vm{i}]" for i in range(len(intervals)))
@@ -160,8 +172,11 @@ def append_reel_motion_graph(graph, plan):
     for index, (start, end, scale, fx, fy) in enumerate(intervals):
         chain = f"trim=start={start:.4f}:end={end:.4f},setpts=PTS-STARTPTS"
         if scale > 1.001:
-            crop_w, crop_h, x, y = motion_crop(scale, fx, fy)
-            chain += f",crop={crop_w}:{crop_h}:{x}:{y},scale=1080:1920:flags=fast_bilinear"
+            if eased:
+                chain += eased_punch_chain(scale,fx,fy,end-start)
+            else:
+                crop_w, crop_h, x, y = motion_crop(scale, fx, fy)
+                chain += f",crop={crop_w}:{crop_h}:{x}:{y},scale=1080:1920:flags=fast_bilinear"
         chain += ",setsar=1"
         label = f"vms{index}"
         graph.append(f"[vm{index}]{chain}[{label}]")
@@ -289,7 +304,7 @@ def build_ffmpeg_multicam(manifest, source, ass_file, output_file):
     graph.append("".join(audio_labels) + f"concat=n={len(audio_labels)}:v=0:a=1[acat]")
 
     if mode == "reels":
-        video_input = append_reel_motion_graph(graph, plan)
+        video_input = append_reel_motion_graph(graph, plan, eased=bool(manifest.get("videoCodeV2")))
         graph.append(f"[{video_input}]{color_filter_v2(plan)},ass='{ass_file}'[vout]")
     else:
         graph.append(f"[vcat]{color_filter_v2(plan)},ass='{ass_file}'[vout]")
@@ -347,7 +362,7 @@ def build_ffmpeg_v2(manifest, source, ass_file, output_file):
     graph.append("".join(concat_inputs) + f"concat=n={len(concat_inputs)}:v=1:a=1[vcat][acat]")
 
     if mode == "reels":
-        video_input = append_reel_motion_graph(graph, plan)
+        video_input = append_reel_motion_graph(graph, plan, eased=bool(manifest.get("videoCodeV2")))
         graph.append(f"[{video_input}]{color_filter_v2(plan)},ass='{ass_file}'[vout]")
     else:
         video_chain = "fps=30,scale=1920:1080:force_original_aspect_ratio=decrease:flags=fast_bilinear,pad=1920:1080:(ow-iw)/2:(oh-ih)/2:black"
@@ -419,6 +434,11 @@ def main():
             track["localPath"] = local_path
 
         bw.base.callback(payload, "rendering", 12, "Building Graphics V2 and mastering chain")
+        # V2 scenes replace static overlay cards, but retain the underlying captions, grading and audio.
+        if (manifest.get("videoCodeV2") or {}).get("scenes"):
+            manifest["renderPlan"]["overlays"] = []
+            if (manifest["videoCodeV2"].get("style") or {}).get("kineticCaptions"):
+                manifest["renderPlan"]["captions"]["enabled"] = False
         build_broadcast_ass_v2(manifest, ass_path)
 
         bw.safe_progress_callback(payload, 18, "Encoding mastered video · estimating")
@@ -426,6 +446,8 @@ def main():
         if not os.path.exists(main_path) or os.path.getsize(main_path) < 1024:
             raise RuntimeError("FFmpeg completed without a usable main render")
 
+        if (manifest.get("videoCodeV2") or {}).get("scenes"):
+            main_path = composite_video_code_scenes(manifest, main_path, directory, payload, bw.base.callback)
         bw.base.callback(payload, "rendering", 89, "Building timestamp-safe package")
         bw.package_with_bumpers(manifest, main_path, sys.argv[2], directory)
         if not os.path.exists(sys.argv[2]) or os.path.getsize(sys.argv[2]) < 1024:

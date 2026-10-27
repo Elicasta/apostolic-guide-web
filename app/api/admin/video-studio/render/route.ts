@@ -4,6 +4,8 @@ import { z } from "zod";
 import { getStudioPermission } from "@/auth";
 import { pathwayBySlug } from "@/pathway-catalog";
 import { createServiceClient } from "@/supabase";
+import {videoCodeV2Schema} from "@/code-mode/video-v2";
+import {createPrivateBlobDownloadUrl} from "@/video-producer-server";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -70,6 +72,24 @@ export async function POST(request: Request) {
   if (!audioResult.data?.audio_url) return NextResponse.json({ error: "Pathway audio is missing." }, { status: 409 });
   if (projectResult.data.audio_content_hash !== audioResult.data.content_hash) return NextResponse.json({ error: "The Pathway audio changed after this video timeline was saved. Review and save the timeline again before rendering." }, { status: 409 });
 
+  const sceneDoc=(projectResult.data.style as {videoCodeV2?:unknown}|null)?.videoCodeV2;
+  const videoCodeV2=sceneDoc?videoCodeV2Schema.parse(sceneDoc):null;
+  const videoCodeAssetUrls:Record<string,string>={};
+  if(videoCodeV2?.assets.length){
+    const keys=videoCodeV2.assets.filter(a=>a.kind==="graphic").map(a=>a.id);
+    const ids=keys.map(key=>key.replace(/^graphic-/,""));
+    if(ids.some(id=>!z.string().uuid().safeParse(id).success))return NextResponse.json({error:"Invalid graphics library asset ID"},{status:422});
+    if(ids.length){
+      const graphics=await service.from("video_producer_graphic_assets").select("id,active,storage_locator,storage_provider,content_type")
+        .in("id",ids).eq("active",true);
+      if(graphics.error||graphics.data?.length!==ids.length)return NextResponse.json({error:"A selected graphic is unavailable"},{status:409});
+      for(const graphic of graphics.data){
+        if(!["image/png","image/jpeg","image/webp"].includes(graphic.content_type)||graphic.storage_provider!=="vercel_blob")
+          return NextResponse.json({error:"Graphics must be supported images in private storage"},{status:422});
+        videoCodeAssetUrls["graphic-"+graphic.id]=await createPrivateBlobDownloadUrl(graphic.storage_locator,8*60*60*1000);
+      }
+    }
+  }
   const callbackUrl = `${new URL(request.url).origin}/api/admin/video-studio/render-callback`;
   const queued = [];
   for (const format of [...new Set(parsed.data.formats)]) {
@@ -169,6 +189,7 @@ export async function POST(request: Request) {
           audio_url: audioResult.data.audio_url,
           timeline: projectResult.data.timeline,
           style: projectResult.data.style,
+          video_code_asset_urls: videoCodeAssetUrls,
           upload_url: signedUpload.data.signedUrl,
           callback_url: callbackUrl,
           callback_token: callbackToken
