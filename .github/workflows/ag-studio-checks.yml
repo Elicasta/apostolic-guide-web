@@ -47,6 +47,8 @@ jobs:
           node --conditions=react-server --import tsx scripts/carousel-code-proof.ts
       - run: npx playwright install --with-deps chromium --only-shell
       - run: node scripts/carousel-browser-proof.mjs
+      - name: Verify deterministic kinetic video scene frames
+        run: node --import tsx scripts/check_video_scene_frames.ts
       - uses: actions/upload-artifact@v4
         if: always()
         with:
