@@ -73,11 +73,21 @@ export async function renderSceneVideo(args:string[]){
   const page=await browser.newPage({viewport:{width:doc.format.w,height:doc.format.h},deviceScaleFactor:1});
   const fonts=await fontMap();
   const images=await graphicData(doc);
+  // Embed registered fonts and global CSS once. Recreating a whole Chromium
+  // document for every 30 FPS frame reloads the same large font data hundreds
+  // of times, making a normal 30-second reel unnecessarily expensive.
+  await page.setContent(renderVideoSceneFrame(doc,start,fonts,images),{waitUntil:"load"});
+  await page.evaluate(()=>document.fonts.ready);
   for(let frame=0;frame<count;frame++){
    const clock=start+frame/fps;
-   const markup=renderVideoSceneFrame(doc,clock,fonts,images);
-   await page.setContent(markup,{waitUntil:"load"});
-   await page.evaluate(()=>document.fonts.ready);
+   const markup=renderVideoSceneFrame(doc,clock,{},images);
+   const open=markup.indexOf("<body>"),close=markup.lastIndexOf("</body>");
+   if(open<0||close<=open)throw new Error("Scene generator did not return an HTML body");
+   const body=markup.slice(open+6,close);
+   await page.evaluate(async html=>{
+    document.body.innerHTML=html;
+    await Promise.all(Array.from(document.images).map(img=>img.decode().catch(()=>{})));
+   },body);
    await page.screenshot({path:join(dir,String(frame).padStart(6,"0")+".png"),omitBackground:true,animations:"disabled"});
    if(frame%30===0)process.stdout.write("Rendered "+frame+"/"+count+" frames\n");
   }
