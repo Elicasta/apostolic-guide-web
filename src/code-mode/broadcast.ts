@@ -68,7 +68,7 @@ export function emailCodeRender(doc:EmailCodeDocument){
  const resources=(c.resources||[]).map(resource=>'<p><a href="'+escapeCodeText(safeUrl(resource.url))+'">'+escapeCodeText(resource.title)+'</a> '+escapeCodeText(resource.summary)+'</p>').join("");
  const paragraphs=c.summary.split(/\r?\n\s*\r?\n+/).map(block=>'<p>'+escapeCodeText(block.trim()).replace(/\r?\n/g,"<br>")+'</p>').join("");
  const fields:Record<string,string>={subject:c.subject,preview:c.previewText,eyebrow:c.eyebrow,headline:c.title,body:paragraphs,
-  button_text:c.ctaLabel,button_url:safeUrl(c.url),button,resources,unsubscribe_url:unsubscribe};
+  button_text:c.ctaLabel,button_url:safeUrl(c.url),button:"AG_CODEMODE_CTA_RENDER_TOKEN",resources,unsubscribe_url:unsubscribe};
  const css=safeCss(value.theme.css);
  // Existing pre-migration themes may wrap the old CTA and resources tokens in <p>.
  // Normalize only token-only wrappers; don't strip surrounding user-authored content.
@@ -79,7 +79,7 @@ export function emailCodeRender(doc:EmailCodeDocument){
  const expanded=expandCodePlaceholders(template,fields,["resources","body","button"]);
  const safe=sanitizeHtml(expanded,{allowedTags:["div","table","tbody","thead","tfoot","tr","td","th","p","h1","h2","h3","span","strong","em","b","i","br","a","ul","li","ol","img"],allowedAttributes:{"*":["class","id","style","align","width","height","role","bgcolor","cellpadding","cellspacing","border"],a:["href","title"],img:["src","width","height","alt"]},
   allowedSchemes:["https","http","data"],allowedSchemesByTag:{img:["https","data"]},allowProtocolRelative:false});
- const rendered=inlineCss(safe,css);
+ const rendered=inlineCss(safe,css).replaceAll("AG_CODEMODE_CTA_RENDER_TOKEN",button);
  const width=value.theme.containerWidth;
  // Required footer is immutable and outside the editable theme.
  const footer='<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td style="padding:24px 32px;font:13px Arial;color:#68777d"><a href="https://www.apostolicguide.com">Apostolic Guide</a> · <a href="'+unsubscribe+'">Unsubscribe</a></td></tr></table>';
