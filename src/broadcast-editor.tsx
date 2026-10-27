@@ -94,6 +94,7 @@ export function BroadcastEditor({ sources, audienceCounts, initialCampaign }: { 
   const [savedDrafts,setSavedDrafts]=useState<Array<{id:string;title:string;version:number;updated_at:string}>>([]);
   const [presets,setPresets]=useState<Array<{id:string;name:string;document:EmailCodeDocument;created_at:string}>>([]);
   const [presetName,setPresetName]=useState("");
+  const [editorKey,setEditorKey]=useState(0);
   const [doctrineReady,setDoctrineReady]=useState(false);
   const [codeError,setCodeError]=useState("");
   const editableDoc:EmailCodeDocument={...(codeDoc||initialEmailCodeDocument(campaign)),campaign};
@@ -120,7 +121,7 @@ export function BroadcastEditor({ sources, audienceCounts, initialCampaign }: { 
   async function loadCode(id:string){
    setCodeError("");
    const result=await getJson("/api/admin/broadcast-code?id="+encodeURIComponent(id));
-   setDraftId(result.draft.id);setVersion(result.draft.version);setSavedDoc(result.draft.document);
+   setDraftId(result.draft.id);setVersion(result.draft.version);setSavedDoc(result.draft.document);setEditorKey(v=>v+1);
    setCodeDoc(result.draft.document);setCampaign(result.draft.document.campaign);
    setSourceUrl(result.draft.document.campaign.url);setRevisions(result.revisions||[]);
    setDoctrineReady(false);setBroadcastId(null);
@@ -134,7 +135,7 @@ export function BroadcastEditor({ sources, audienceCounts, initialCampaign }: { 
   }
   function loadPreset(preset:EmailCodeDocument){
    setCodeDoc(preset);setCampaign(preset.campaign);setSourceUrl(preset.campaign.url);
-   setDraftId(null);setSavedDoc(null);setVersion(0);setRevisions([]);
+   setDraftId(null);setSavedDoc(null);setVersion(0);setRevisions([]);setEditorKey(v=>v+1);
    setDoctrineReady(false);setBroadcastId(null);
    setMessage("Preset loaded into an unsaved draft. Apply JSON or save HTML/CSS to continue.");
   }
@@ -174,7 +175,7 @@ export function BroadcastEditor({ sources, audienceCounts, initialCampaign }: { 
     setCampaign(next);
     setSourceUrl(source?.url ?? "");
     setAudience(defaultAudience(type));
-    setBroadcastId(null);setDraftId(null);setVersion(0);setCodeDoc(null);setSavedDoc(null);setRevisions([]);setDoctrineReady(false);
+    setBroadcastId(null);setDraftId(null);setVersion(0);setCodeDoc(null);setSavedDoc(null);setRevisions([]);setEditorKey(v=>v+1);setDoctrineReady(false);
     setState("idle");
     setMessage("");
   }
@@ -183,7 +184,7 @@ export function BroadcastEditor({ sources, audienceCounts, initialCampaign }: { 
     setSourceUrl(url);
     const source = matchingSources.find((item) => item.url === url);
     if (source) setCampaign(campaignFrom(campaign.type, source));
-    setDraftId(null);setCodeDoc(null);setSavedDoc(null);setVersion(0);setRevisions([]);setDoctrineReady(false);setBroadcastId(null);
+    setDraftId(null);setCodeDoc(null);setSavedDoc(null);setVersion(0);setRevisions([]);setEditorKey(v=>v+1);setDoctrineReady(false);setBroadcastId(null);
   }
 
   async function callApi(payload: unknown) {
@@ -237,7 +238,7 @@ export function BroadcastEditor({ sources, audienceCounts, initialCampaign }: { 
       {codeOpen?<section className="admin-card" style={{padding:18,display:"grid",gap:16}}>
         <h3>Shared Code Mode · Broadcasts</h3>
         <p>Edit the full campaign in JSON. HTML and CSS are in theme; footer, unsubscribe and site link cannot be removed.</p>
-        <CodeModeJsonPanel key={(draftId||"new")+":"+version} label="Whole-campaign JSON" data={editableDoc} parse={v=>emailCodeSchema.parse(v)} onApply={saveCode}/>
+        <CodeModeJsonPanel key={(draftId||"new")+":"+version+":"+editorKey} label="Whole-campaign JSON" data={editableDoc} parse={v=>emailCodeSchema.parse(v)} onApply={saveCode}/>
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(240px,1fr))",gap:12}}>
           <label>HTML template<textarea rows={10} value={editableDoc.theme.html} onChange={e=>setCodeDoc({...editableDoc,theme:{...editableDoc.theme,html:e.target.value}})} /></label>
           <label>CSS<textarea rows={10} value={editableDoc.theme.css} onChange={e=>setCodeDoc({...editableDoc,theme:{...editableDoc.theme,css:e.target.value}})} /></label>
