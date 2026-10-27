@@ -39,6 +39,7 @@ export const studioNavSections: Array<{ label: string; items: Array<{ href: stri
     { href: "/admin/content-engine", label: "Content Engine", icon: Sparkles, permission: "view_distribution" },
     { href: "/admin/publishing", label: "Publishing", icon: Send, permission: "view_distribution", exact: true },
     { href: "/admin/broadcasts", label: "Broadcasts", icon: Mail, permission: "view_distribution" },
+    { href: "/admin/email-automations", label: "Email Automations", icon: Mail, permission: "view_distribution" },
     { href: "/admin/social", label: "Social Automations", icon: Instagram, permission: "view_distribution" },
     { href: "/admin/comment-guide", label: "Comment Guide", icon: Bot, permission: "view_distribution" },
     { href: "/admin/analytics", label: "Analytics", icon: BarChart3, permission: "view_analytics" }
