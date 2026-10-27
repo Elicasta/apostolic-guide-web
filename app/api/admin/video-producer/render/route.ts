@@ -1,3 +1,4 @@
+import {resolveVideoSceneAssetRegistry} from "@/video-scenes-server";
 import {videoScenesSchema,resolveVideoSceneAnchors} from "@/video-scenes";
 import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
@@ -92,7 +93,7 @@ export async function POST(request: Request) {
   if (renderPlan.captions.enabled && !localTranscript.words.length) return NextResponse.json({ error: "Captioned renders require word-level transcript timing." }, { status: 409 });
   let resolvedSceneProgram=null;
   if(sceneProgram?.success){
-    try{resolvedSceneProgram=resolveVideoSceneAnchors(sceneProgram.data,localTranscript.words,renderPlan.keepSegments);}
+    try{resolvedSceneProgram=await resolveVideoSceneAssetRegistry(service,resolveVideoSceneAnchors(sceneProgram.data,localTranscript.words,renderPlan.keepSegments),8*60*60*1000);}
     catch(e){return NextResponse.json({error:e instanceof Error?e.message:"Scene timing is invalid."},{status:422});}
   }
 
