@@ -43,5 +43,5 @@ test("video review exposes doctrine results and disables approval unless passed 
   assert.match(editor, /<VideoProducerDoctrinePanel/);
   assert.match(editor, /raw===savedRaw/);
   assert.match(editor, /Save your scene changes/);
-  assert.match(approval, /\.eq\("updated_at", project\.data\.updated_at\)/);
+  assert.match(code("app/api/admin/video-producer/approve/route.ts"), /\.eq\("updated_at", project\.data\.updated_at\)/);
 });
