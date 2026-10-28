@@ -111,6 +111,22 @@ export async function renderSceneVideo(args:string[]){
   const input=resolve(source);
   const result=resolve(output);
   const pattern=join(dir,"%06d.png");
+  if(process.env.CI && duration<=5){
+   const colorTypes:Record<number,number>={};
+   const sizes:Record<string,number>={};
+   for(let i=0;i<count;i++){
+    const png=await readFile(join(dir,String(i).padStart(6,"0")+".png"));
+    const type=png[25];
+    colorTypes[type]=(colorTypes[type]??0)+1;
+    const shape=png.readUInt32BE(16)+"x"+png.readUInt32BE(20);
+    sizes[shape]=(sizes[shape]??0)+1;
+   }
+   console.log("Motion PNG diagnostics",JSON.stringify({frames:count,colorTypes,sizes}));
+   run("ffmpeg",["-hide_banner","-loglevel","info","-framerate",String(fps),"-i",pattern,
+     "-frames:v",String(count),"-f","null","-"]);
+   run("ffmpeg",["-hide_banner","-loglevel","info","-ss",String(start),"-i",input,
+     "-vf",footageFilter(doc),"-an","-frames:v",String(count),"-f","null","-"]);
+  }
   run("ffmpeg",[
    "-y","-hide_banner","-loglevel","error",
    "-ss",String(start),"-i",input,
