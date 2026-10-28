@@ -4,7 +4,8 @@
  * Browser and Code Mode call the same renderVideoSceneFrame(doc, t, fonts).
  * Usage: node --import tsx scripts/render-video-code-mode.ts SCENE.json BASE.mp4 OUT.mp4 [startSeconds] [durationSeconds]
  */
-import {readFile,rm,readdir} from "node:fs/promises";
+import {readFile,writeFile,rm,readdir} from "node:fs/promises";
+import sharp from "sharp";
 import {spawnSync} from "node:child_process";
 import {join,resolve} from "node:path";
 import {tmpdir} from "node:os";
@@ -100,7 +101,13 @@ export async function renderSceneVideo(args:string[]){
     document.body.innerHTML=html;
     await Promise.all(Array.from(document.images).map(img=>img.decode().catch(()=>{})));
    },body);
-   await page.screenshot({path:join(dir,String(frame).padStart(6,"0")+".png"),omitBackground:true,animations:"disabled"});
+   const png=await page.screenshot({omitBackground:true,animations:"disabled"});
+   const pngPath=join(dir,String(frame).padStart(6,"0")+".png");
+   // Chromium encodes fully opaque frames as PNG RGB but transparent scenes
+   // as RGBA. FFmpeg image2 cannot reliably keep a stable timeline when the
+   // PNG pixel format changes in one image sequence. Normalize *every* frame.
+   if(png[25]===6)await writeFile(pngPath,png);
+   else await sharp(png).ensureAlpha().png({palette:false}).toFile(pngPath);
    if(frame%30===0)process.stdout.write("Rendered "+frame+"/"+count+" frames\n");
   }
   await page.close();
