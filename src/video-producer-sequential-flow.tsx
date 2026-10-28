@@ -24,6 +24,7 @@ import { useRouter } from "next/navigation";
 import { compileVideoProducerRenderPlan, formatProducerTime, type VideoProducerEditPlan, type VideoProducerMode } from "@/video-producer";
 import styles from "./video-producer-sequential.module.css";
 import { VideoProducerDoctrinePanel } from "./video-producer-doctrine-panel";
+import { VideoProducerOverlayEditor } from "./video-producer-overlay-editor";
 
 export type VideoProducerStep = "source" | "produce" | "finish" | "review" | "deliver";
 
@@ -57,6 +58,7 @@ type ProducerProject = {
   source_duration?: number | null;
   transcript_local_text?: string | null;
   transcript_local_duration?: number | null;
+  updated_at?: string;
   edit_plan?: VideoProducerEditPlan | null;
   approval_fingerprint?: string | null;
   approved_at?: string | null;
@@ -66,6 +68,7 @@ type ProducerProject = {
 
 type ProjectDetail = {
   project: ProducerProject;
+  ownerCanEdit: boolean;
   renders: RenderRow[];
   sourcePreviewUrl: string | null;
   renderPreviewUrl: string | null;
@@ -286,6 +289,13 @@ export function VideoProducerSequentialFlow({ projectId: initialProjectId = "", 
     finally { setBusy(null); }
   }
 
+  async function overlaySaved() {
+    setDoctrineReady(false);
+    setMessage("Overlay changes saved. Run Doctrine Check again before approving production.");
+    await loadDetail();
+    if (step === "finish" || step === "review") await loadFinishing();
+  }
+
   async function uploadMusic() {
     if (!musicFile || !musicTitle.trim()) return;
     setBusy("music"); setError("");
@@ -433,7 +443,7 @@ export function VideoProducerSequentialFlow({ projectId: initialProjectId = "", 
                 </div>
                 <details className={styles.details} style={{ marginTop: 12 }}><summary>View transcript + edit decisions</summary><div className={styles.detailsBody}>
                   <div className={styles.transcript}>{project.transcript_local_text || "No transcript text."}</div>
-                  <div className={styles.decisionList}>{plan.overlays.slice(0, 14).map((overlay) => <div className={styles.decision} key={overlay.id}><small>{overlay.kind} · {formatProducerTime(overlay.start)}</small><strong>{overlay.title}</strong></div>)}</div>
+                  <VideoProducerOverlayEditor key={project.id + ":" + project.updated_at} projectId={project.id} plan={plan} updatedAt={project.updated_at || ""} canEdit={Boolean(detail?.ownerCanEdit && ["draft", "planned"].includes(project.status))} onSaved={overlaySaved}/>
                 </div></details>
               </div> : null}
               <div className={styles.stickyActions}><button className={styles.buttonSecondary} onClick={() => go("source")}><ArrowLeft size={15}/> Source</button><button className={styles.button} disabled={!plan} onClick={() => go("finish")}>Continue to Finish <ArrowRight size={15}/></button></div>
@@ -492,6 +502,10 @@ export function VideoProducerSequentialFlow({ projectId: initialProjectId = "", 
                 {finishing.thumbnails.length ? <div className={styles.thumbGrid}>{finishing.thumbnails.map((thumb) => <div className={styles.thumb} key={thumb.variant}><div className={styles.thumbVisual}>{thumb.previewUrl ? <img src={thumb.previewUrl} alt={`${thumb.variant} thumbnail`}/> : ["queued","rendering"].includes(thumb.status) ? <><Loader2 size={18} className={styles.spin}/> Rendering</> : "Not rendered"}</div><div className={styles.thumbCopy}><small>{thumb.variant.replace("-"," ")}</small><strong>{thumb.headline}</strong></div></div>)}</div> : null}
               </div> : null}
 
+              {plan ? <div className={styles.panel}>
+                <h3 className={styles.panelTitle}><Check size={17}/> Overlay text and Scripture</h3>
+                <VideoProducerOverlayEditor key={project.id + ":" + project.updated_at} projectId={project.id} plan={plan} updatedAt={project.updated_at || ""} canEdit={Boolean(detail?.ownerCanEdit && ["draft", "planned"].includes(project.status))} onSaved={overlaySaved}/>
+              </div> : null}
               <div className={styles.stickyActions}><button className={styles.buttonSecondary} onClick={() => go("produce")}><ArrowLeft size={15}/> Produce</button><button className={styles.button} disabled={!finishReady} onClick={() => go("review")}>Continue to Review <ArrowRight size={15}/></button></div>
             </div></div>
           </section>
@@ -513,9 +527,11 @@ export function VideoProducerSequentialFlow({ projectId: initialProjectId = "", 
                   <Summary label="Music" value={selectedMusic?.title || "None"}/>
                   {project.mode === "podcast" ? <Summary label="YouTube thumbnails" value={finishing.thumbnails.length ? `${finishing.thumbnails.filter((thumb)=>thumb.status === "completed").length}/3 rendered` : "Not generated · optional"}/> : null}
                 </div>
-                <details className={styles.details} style={{ marginTop: 12 }}><summary>Inspect edit decisions</summary><div className={styles.detailsBody}><div className={styles.decisionList}>{plan?.overlays.slice(0,18).map((overlay)=><div className={styles.decision} key={overlay.id}><small>{overlay.kind} · {formatProducerTime(overlay.start)}</small><strong>{overlay.title}</strong></div>)}</div></div></details>
+                {plan ? <details className={styles.details} style={{ marginTop: 12 }} open><summary>Inspect and correct edit decisions</summary><div className={styles.detailsBody}>
+                  <VideoProducerOverlayEditor key={project.id + ":" + project.updated_at} projectId={project.id} plan={plan} updatedAt={project.updated_at || ""} canEdit={Boolean(detail?.ownerCanEdit && ["draft", "planned"].includes(project.status))} onSaved={overlaySaved}/>
+                </div></details> : null}
               </div>
-              {!project.approval_fingerprint ? <VideoProducerDoctrinePanel key={project.id} projectId={project.id} onChange={setDoctrineReady}/> : null}
+              {!project.approval_fingerprint ? <VideoProducerDoctrinePanel key={project.id + ":" + project.updated_at} projectId={project.id} onChange={setDoctrineReady}/> : null}
               {project.mode === "podcast" && !finishing.project.pathway_slug ? <div className={`${styles.notice} ${styles.warning}`}>Choose the episode pathway in Finish before approval. That prevents generic branding from replacing the pathway-aware graphics system.</div> : null}
               {project.approval_fingerprint ? <div className={`${styles.notice} ${styles.success}`}>Approved. Any later change to pathway, music, voice or grade intentionally removes this approval and brings you back here.</div> : null}
               <div className={styles.stickyActions}><button className={styles.buttonSecondary} onClick={() => go("finish")}><ArrowLeft size={15}/> Finish</button>{project.approval_fingerprint ? <button className={styles.button} onClick={() => go("deliver")}>Continue to Deliver <ArrowRight size={15}/></button> : <button className={styles.button} disabled={Boolean(busy) || !doctrineReady || (project.mode === "podcast" && !finishing.project.pathway_slug)} onClick={() => void approve()}><Check size={15}/> Approve final production</button>}</div>
