@@ -14,7 +14,7 @@ type Service = NonNullable<ReturnType<typeof createServiceClient>>;
 
 async function storedSource(service: Service, projectId: string) {
   const result = await service.from("video_producer_projects")
-    .select("id,mode,edit_plan,director_metadata,transcript,transcript_local_text,pathway_slug")
+    .select("id,mode,edit_plan,director_metadata,transcript,transcript_text,pathway_slug")
     .eq("id", projectId).is("deleted_at", null).maybeSingle();
   if (result.error) throw new Error(result.error.message);
   if (!result.data) throw new Error("Video project not found.");
