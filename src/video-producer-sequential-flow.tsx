@@ -23,6 +23,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { compileVideoProducerRenderPlan, formatProducerTime, type VideoProducerEditPlan, type VideoProducerMode } from "@/video-producer";
 import styles from "./video-producer-sequential.module.css";
+import { VideoProducerDoctrinePanel } from "./video-producer-doctrine-panel";
 
 export type VideoProducerStep = "source" | "produce" | "finish" | "review" | "deliver";
 
@@ -125,6 +126,7 @@ export function VideoProducerSequentialFlow({ projectId: initialProjectId = "", 
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [doctrineReady, setDoctrineReady] = useState(false);
   const [uploadPercent, setUploadPercent] = useState(0);
   const [musicTitle, setMusicTitle] = useState("");
   const [musicMood, setMusicMood] = useState("");
@@ -513,9 +515,10 @@ export function VideoProducerSequentialFlow({ projectId: initialProjectId = "", 
                 </div>
                 <details className={styles.details} style={{ marginTop: 12 }}><summary>Inspect edit decisions</summary><div className={styles.detailsBody}><div className={styles.decisionList}>{plan?.overlays.slice(0,18).map((overlay)=><div className={styles.decision} key={overlay.id}><small>{overlay.kind} · {formatProducerTime(overlay.start)}</small><strong>{overlay.title}</strong></div>)}</div></div></details>
               </div>
+              {!project.approval_fingerprint ? <VideoProducerDoctrinePanel key={project.id} projectId={project.id} onChange={setDoctrineReady}/> : null}
               {project.mode === "podcast" && !finishing.project.pathway_slug ? <div className={`${styles.notice} ${styles.warning}`}>Choose the episode pathway in Finish before approval. That prevents generic branding from replacing the pathway-aware graphics system.</div> : null}
               {project.approval_fingerprint ? <div className={`${styles.notice} ${styles.success}`}>Approved. Any later change to pathway, music, voice or grade intentionally removes this approval and brings you back here.</div> : null}
-              <div className={styles.stickyActions}><button className={styles.buttonSecondary} onClick={() => go("finish")}><ArrowLeft size={15}/> Finish</button>{project.approval_fingerprint ? <button className={styles.button} onClick={() => go("deliver")}>Continue to Deliver <ArrowRight size={15}/></button> : <button className={styles.button} disabled={Boolean(busy) || (project.mode === "podcast" && !finishing.project.pathway_slug)} onClick={() => void approve()}><Check size={15}/> Approve final production</button>}</div>
+              <div className={styles.stickyActions}><button className={styles.buttonSecondary} onClick={() => go("finish")}><ArrowLeft size={15}/> Finish</button>{project.approval_fingerprint ? <button className={styles.button} onClick={() => go("deliver")}>Continue to Deliver <ArrowRight size={15}/></button> : <button className={styles.button} disabled={Boolean(busy) || !doctrineReady || (project.mode === "podcast" && !finishing.project.pathway_slug)} onClick={() => void approve()}><Check size={15}/> Approve final production</button>}</div>
             </div></div>
           </section>
         ) : null}

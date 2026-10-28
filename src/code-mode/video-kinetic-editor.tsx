@@ -3,6 +3,7 @@ import {useEffect,useMemo,useState} from "react";
 import {parseCodeDocument} from "./core";
 import {KineticScenePreview} from "./video-scene-preview";
 import {videoSceneDocument,videoSceneStarter,type VideoSceneDocument} from "./video-scenes";
+import {VideoProducerDoctrinePanel} from "../video-producer-doctrine-panel";
 
 const library=[
  {name:"Scripture reveal",layer:"overlay" as const,text:"Hear, O Israel: The LORD our God is one LORD."},
@@ -31,13 +32,14 @@ export function VideoKineticCodeEditor({initialId="",initialKind="producer",init
  const [checkpoints,setCheckpoints]=useState<Array<{id:string;createdAt:string}>>([]),[checkpointId,setCheckpointId]=useState("");
  const [sourceUrl,setSourceUrl]=useState(""),[transcriptLane,setTranscriptLane]=useState<Array<{word:string;start:number;end:number}>>([]);
  const [keptRanges,setKeptRanges]=useState<Array<{start:number;end:number}>>([]),[sourceOffset,setSourceOffset]=useState(0);
+ const [loadedProducerId,setLoadedProducerId]=useState(""),[savedRaw,setSavedRaw]=useState("");
  const parsed=useMemo(()=>{try{return videoSceneDocument.safeParse(JSON.parse(raw))}catch{return null}},[raw]);
  const document=parsed?.success?parsed.data:null;
  const scene=document?.scenes.find(s=>s.id===selected)||document?.scenes[0];
  async function loadProject(checkpoint=""){
   if(!projectId){setError("Enter a project ID or Pathway slug.");return}
   setBusy(true);setError("");setNotice("");
-  try{const query=new URLSearchParams({kind,id:projectId});if(checkpoint)query.set("checkpoint",checkpoint);const res=await fetch("/api/admin/code-mode/video-v2?"+query.toString(),{cache:"no-store"});const value=await res.json();if(!res.ok)throw new Error(value.error||"Load failed");setRaw(JSON.stringify(value.document,null,2));setReadOnly(Boolean(value.readOnly));setSelected(initialScene||value.document.scenes?.[0]?.id||"scene-1");setHistory([]);setCheckpoints(Array.isArray(value.history)?value.history:[]);setSourceUrl(String(value.previewSourceUrl||""));setTranscriptLane(Array.isArray(value.transcriptLane)?value.transcriptLane:[]);setKeptRanges(Array.isArray(value.keptRanges)?value.keptRanges:[]);setSourceOffset(Number(value.sourceOffset||0));setNotice(checkpoint?"Loaded checkpoint for review. Apply JSON to restore this version.":"Loaded "+value.projectStatus+" project.");}catch(e){setError(e instanceof Error?e.message:"Load failed");}finally{setBusy(false)}
+  try{const query=new URLSearchParams({kind,id:projectId});if(checkpoint)query.set("checkpoint",checkpoint);const res=await fetch("/api/admin/code-mode/video-v2?"+query.toString(),{cache:"no-store"});const value=await res.json();if(!res.ok)throw new Error(value.error||"Load failed");const loaded=JSON.stringify(value.document,null,2);setRaw(loaded);setSavedRaw(loaded);setLoadedProducerId(kind==="producer"?projectId:"");setReadOnly(Boolean(value.readOnly));setSelected(initialScene||value.document.scenes?.[0]?.id||"scene-1");setHistory([]);setCheckpoints(Array.isArray(value.history)?value.history:[]);setSourceUrl(String(value.previewSourceUrl||""));setTranscriptLane(Array.isArray(value.transcriptLane)?value.transcriptLane:[]);setKeptRanges(Array.isArray(value.keptRanges)?value.keptRanges:[]);setSourceOffset(Number(value.sourceOffset||0));setNotice(checkpoint?"Loaded checkpoint for review. Apply JSON to restore this version.":"Loaded "+value.projectStatus+" project.");}catch(e){setError(e instanceof Error?e.message:"Load failed");}finally{setBusy(false)}
  }
  useEffect(()=>{void fetch("/api/admin/video-producer/graphics",{cache:"no-store"}).then(r=>r.ok?r.json():{assets:[]}).then(value=>{
   const rows=Array.isArray(value.assets)?value.assets:[];
@@ -53,7 +55,7 @@ export function VideoKineticCodeEditor({initialId="",initialKind="producer",init
    if(doc.id!==projectId||doc.kind!==kind)throw new Error("Document ID and subtype must match the loaded project.");
    if(!window.confirm("Apply this Video V2 JSON to the project? This checkpoints the prior document and requires re-approval before rendering.")){return}
    const res=await fetch("/api/admin/code-mode/video-v2",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(doc)});
-   const value=await res.json();if(!res.ok)throw new Error(value.error||"Apply rejected");setRaw(JSON.stringify(value.document,null,2));setHistory([]);setNotice(value.notice||"Scene draft saved.");
+   const value=await res.json();if(!res.ok)throw new Error(value.error||"Apply rejected");const saved=JSON.stringify(value.document,null,2);setRaw(saved);setSavedRaw(saved);setHistory([]);setNotice(value.notice||"Scene draft saved.");
   }catch(e){setError(e instanceof Error?e.message:"Apply failed");}finally{setBusy(false)}
  }
  function update(next:VideoSceneDocument){setHistory(old=>[...old.slice(-39),raw]);setRaw(JSON.stringify(next,null,2));setError("");}
@@ -85,7 +87,7 @@ export function VideoKineticCodeEditor({initialId="",initialKind="producer",init
  return <section style={{display:"grid",gap:16}}>
   <h2>Video Code Mode V2</h2>
   <p>Edit saved scenes without changing source media. Apply creates a checkpoint and invalidates approval. Export still requires separate render approval.</p>
-  <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"end"}}><label>Project type<select value={kind} disabled={busy} onChange={e=>{setKind(e.target.value as "producer"|"studio");setReadOnly(false)}}><option value="producer">Video Producer</option><option value="studio">Video Studio</option></select></label><label>{kind==="producer"?"Project UUID":"Pathway slug"}<input value={projectId} onChange={e=>setProjectId(e.target.value)} placeholder={kind==="producer"?"Project UUID":"god-is-one"}/></label><button type="button" disabled={busy} onClick={()=>void loadProject()}>{busy?"Loading…":"Load project"}</button></div>
+  <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"end"}}><label>Project type<select value={kind} disabled={busy} onChange={e=>{setKind(e.target.value as "producer"|"studio");setReadOnly(false);setLoadedProducerId("")}}><option value="producer">Video Producer</option><option value="studio">Video Studio</option></select></label><label>{kind==="producer"?"Project UUID":"Pathway slug"}<input value={projectId} onChange={e=>{setProjectId(e.target.value);setLoadedProducerId("")}} placeholder={kind==="producer"?"Project UUID":"god-is-one"}/></label><button type="button" disabled={busy} onClick={()=>void loadProject()}>{busy?"Loading…":"Load project"}</button></div>
   {checkpoints.length?<div style={{display:"flex",flexWrap:"wrap",gap:8,alignItems:"end"}}><label>Version history<select value={checkpointId} onChange={e=>setCheckpointId(e.target.value)}><option value="">Select checkpoint</option>{checkpoints.map(entry=><option key={entry.id} value={entry.id}>{new Date(entry.createdAt).toLocaleString()}</option>)}</select></label><button type="button" disabled={!checkpointId||busy} onClick={()=>void loadProject(checkpointId)}>Preview checkpoint</button></div>:null}
   {readOnly?<p role="status">This project is Ready, Scheduled, approved, or rendering. You can preview scenes, but cannot Apply edits.</p>:null}
   <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
@@ -110,6 +112,8 @@ export function VideoKineticCodeEditor({initialId="",initialKind="producer",init
     <label style={{gridColumn:"1 / -1"}}>CSS<textarea rows={7} style={{width:"100%",fontFamily:"monospace"}} value={scene.css} onChange={e=>patchScene({css:e.target.value})}/></label>
    </div>:<p>JSON is invalid. Return to Code to repair it.</p>}
   {error?<p role="alert">{error}</p>:null}{notice?<p role="status">{notice}</p>:null}
+  {kind==="producer" && loadedProducerId===projectId && raw!==savedRaw ? <p role="status">Save your scene changes with Apply JSON before running the doctrine check. Only saved content can be approved.</p> : null}
+  {kind==="producer" && loadedProducerId===projectId && raw===savedRaw ? <VideoProducerDoctrinePanel key={projectId+":"+savedRaw} projectId={projectId}/> : null}
   <KineticScenePreview raw={raw} sourceUrl={sourceUrl} sourceOffset={sourceOffset} transcriptWords={transcriptLane} keepSegments={keptRanges}/>
  </section>;
 }
