@@ -155,7 +155,7 @@ async function executeCreativePublication(publicationId: string) {
   let progress: CreativeMetadata = { ...metadata };
   async function saveProgress(delta: Partial<CreativeMetadata>) {
     const next = { ...progress, ...delta };
-    const saved = await service.from("pathway_publications").update({
+    const saved = await service!.from("pathway_publications").update({
       metadata: next, updated_at: new Date().toISOString()
     }).eq("id", publicationId).eq("status", "publishing").select("id").maybeSingle();
     if (saved.error || !saved.data) throw new Error("Unable to checkpoint Instagram publishing safely; no further publishing will be attempted.");
