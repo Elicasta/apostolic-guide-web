@@ -130,6 +130,7 @@ export function VideoProducerSequentialFlow({ projectId: initialProjectId = "", 
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [doctrineReady, setDoctrineReady] = useState(false);
+  const [doctrineCheckRevision, setDoctrineCheckRevision] = useState(0);
   const [uploadPercent, setUploadPercent] = useState(0);
   const [musicTitle, setMusicTitle] = useState("");
   const [musicMood, setMusicMood] = useState("");
@@ -291,9 +292,28 @@ export function VideoProducerSequentialFlow({ projectId: initialProjectId = "", 
 
   async function overlaySaved() {
     setDoctrineReady(false);
-    setMessage("Overlay changes saved. Run Doctrine Check again before approving production.");
-    await loadDetail();
+    setMessage("Overlay changes saved. Rechecking doctrine for the new text...");
+    const updated = await loadDetail();
     if (step === "finish" || step === "review") await loadFinishing();
+    if (!updated) {
+      setError("Overlay saved, but the project could not refresh. Reopen Review to run Doctrine Check.");
+      return;
+    }
+    try {
+      const result = await json<{ state: string }>("/api/admin/video-producer/doctrine-check", {
+        method: "POST", body: JSON.stringify({ projectId })
+      });
+      setMessage(result.state === "flag"
+        ? "Doctrine rechecked: owner review is available in Step 4."
+        : result.state === "pass" ? "Doctrine rechecked: passed."
+        : "Doctrine rechecked: corrections are still required.");
+    } catch (checkError) {
+      setError("Overlay saved, but Doctrine Check could not complete: " +
+        (checkError instanceof Error ? checkError.message : "Review manually."));
+    } finally {
+      // Fetch the newly stored verdict after the check completes, not the old one.
+      setDoctrineCheckRevision((revision) => revision + 1);
+    }
   }
 
   async function uploadMusic() {
@@ -531,7 +551,7 @@ export function VideoProducerSequentialFlow({ projectId: initialProjectId = "", 
                   <VideoProducerOverlayEditor key={project.id + ":" + project.updated_at} projectId={project.id} plan={plan} updatedAt={project.updated_at || ""} canEdit={Boolean(detail?.ownerCanEdit && ["draft", "planned"].includes(project.status))} onSaved={overlaySaved}/>
                 </div></details> : null}
               </div>
-              {!project.approval_fingerprint ? <VideoProducerDoctrinePanel key={project.id + ":" + project.updated_at} projectId={project.id} onChange={setDoctrineReady}/> : null}
+              {!project.approval_fingerprint ? <VideoProducerDoctrinePanel key={project.id + ":" + project.updated_at + ":" + doctrineCheckRevision} projectId={project.id} onChange={setDoctrineReady}/> : null}
               {project.mode === "podcast" && !finishing.project.pathway_slug ? <div className={`${styles.notice} ${styles.warning}`}>Choose the episode pathway in Finish before approval. That prevents generic branding from replacing the pathway-aware graphics system.</div> : null}
               {project.approval_fingerprint ? <div className={`${styles.notice} ${styles.success}`}>Approved. Any later change to pathway, music, voice or grade intentionally removes this approval and brings you back here.</div> : null}
               <div className={styles.stickyActions}><button className={styles.buttonSecondary} onClick={() => go("finish")}><ArrowLeft size={15}/> Finish</button>{project.approval_fingerprint ? <button className={styles.button} onClick={() => go("deliver")}>Continue to Deliver <ArrowRight size={15}/></button> : <button className={styles.button} disabled={Boolean(busy) || !doctrineReady || (project.mode === "podcast" && !finishing.project.pathway_slug)} onClick={() => void approve()}><Check size={15}/> Approve final production</button>}</div>

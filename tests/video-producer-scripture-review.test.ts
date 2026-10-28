@@ -98,7 +98,9 @@ test("owner overlay edits reject stale or approved projects and require a new do
   assert.match(route, /doctrineState: "not_checked"/);
   assert.match(director, /correctScriptureOverlays\(directed\.plan\)/);
   assert.match(flow, /setDoctrineReady\(false\)/);
+  assert.match(flow, /method: "POST", body: JSON\.stringify\(\{ projectId \}\)/);
+  assert.match(flow, /setDoctrineCheckRevision/);
   assert.equal((flow.match(/<VideoProducerOverlayEditor /g) || []).length, 3);
-  assert.match(flow, /<VideoProducerDoctrinePanel key=\{project\.id \+ ":" \+ project\.updated_at\}/);
+  assert.match(flow, /<VideoProducerDoctrinePanel key=\{project\.id \+ ":" \+ project\.updated_at \+ ":" \+ doctrineCheckRevision\}/);
   assert.doesNotMatch(route, /send-to-publisher|publish|renderMaster/);
 });

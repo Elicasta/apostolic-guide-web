@@ -36,7 +36,7 @@ export function VideoProducerOverlayEditor({
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Could not save overlay changes.");
-      setNotice(action === "correct-scripture" ? "Scripture graphics corrected from KJV. Run doctrine check again." : "Overlay saved. Run doctrine check again.");
+      setNotice(action === "correct-scripture" ? "Scripture graphics corrected from KJV. Doctrine review refreshed." : "Overlay saved. Doctrine review refreshed.");
       setEditingId(null);
       await onSaved();
     } catch (cause) {
