@@ -131,6 +131,7 @@ export function PathwayVideoStudio({
   const timingCurrent = Boolean(selected?.audioContentHash && effectiveProject?.audioContentHash === selected.audioContentHash && alignment?.status === "aligned-rich");
 
   useEffect(() => {
+    void Promise.resolve().then(() => {
     setDuration(0);
     setCurrentTime(0);
     setMessage("");
@@ -143,13 +144,15 @@ export function PathwayVideoStudio({
     const saved = current ? project?.timeline : null;
     setTimeline(saved?.length ? saved : []);
     setSelectedCueId(saved?.[0]?.id ?? null);
+    });
   }, [selectedSlug]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!selected || !duration || timeline.length) return;
     const next = buildEstimatedPathwayVideoTimeline(selected, duration);
-    setTimeline(next);
-    setSelectedCueId(next[0]?.id ?? null);
+    let active = true;
+    void Promise.resolve().then(() => { if (active) { setTimeline(next); setSelectedCueId(next[0]?.id ?? null); } });
+    return () => { active = false; };
   }, [duration, selected, timeline.length]);
 
   useEffect(() => {
@@ -183,11 +186,7 @@ export function PathwayVideoStudio({
   const reviewRender = useMemo(() => readyRenders.find((render) => render.id === reviewRenderId) ?? readyRenders[0] ?? null, [readyRenders, reviewRenderId]);
 
   useEffect(() => {
-    if (!readyRenders.length) {
-      setReviewRenderId(null);
-      return;
-    }
-    setReviewRenderId((current) => current && readyRenders.some((render) => render.id === current) ? current : readyRenders[0].id);
+    void Promise.resolve().then(() => setReviewRenderId((current) => readyRenders.length ? (current && readyRenders.some((render) => render.id === current) ? current : readyRenders[0].id) : null));
   }, [readyRenders]);
 
   async function analyzeAudio(force = false) {
@@ -384,7 +383,7 @@ export function PathwayVideoStudio({
 
       <section className="admin-card video-timeline-card">
         <div className="video-card-heading"><div><span className="section-kicker">Timeline</span><h2>Visual beats</h2></div><button type="button" className="button small" onClick={rebuildEstimatedTimeline}><TimerReset size={15}/> Rich estimate</button></div>
-        <p className="video-timeline-help">GPT-5.6 Sol directs the talking points from the approved narration, then the finished audio is word-aligned to place them. <strong>Set here is correction-only.</strong></p>
+        <p className="video-timeline-help">The visual director builds talking points from approved narration, then aligns them to the finished audio. <strong>Set here is correction-only.</strong></p>
         <div className="video-cue-list">{timeline.map((cue, index) => <article key={cue.id} className={selectedCue?.id === cue.id ? "video-cue is-selected" : "video-cue"} onClick={() => setSelectedCueId(cue.id)}>
           <div className="video-cue-index"><span>{String(index + 1).padStart(2, "0")} · {cue.kind.toUpperCase()}</span><strong>{formatVideoTimestamp(cue.start)}</strong></div>
           <div className="video-cue-fields">

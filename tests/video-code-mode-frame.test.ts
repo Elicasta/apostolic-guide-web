@@ -1,0 +1,31 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import {readFileSync} from "node:fs";
+import {videoSceneDocument} from "../src/code-mode/video-scenes";
+import {renderVideoSceneFrame} from "../src/code-mode/video-scene-frame";
+const fixture=()=>videoSceneDocument.parse(JSON.parse(readFileSync("tests/fixtures/video-code-mode-kinetic-5s.json","utf8")));
+test("five second reel uses true wipe, push, zoom and staggered words",()=>{
+ const doc=fixture();
+ const atStart=renderVideoSceneFrame(doc,.1);
+ assert.match(atStart,/data-scene="scripture"/);
+ assert.match(atStart,/clip-path:inset\(0 /);
+ assert.match(atStart,/translateY\(/);
+ assert.doesNotMatch(atStart,/data-scene="statement"/);
+ const atMiddle=renderVideoSceneFrame(doc,2.25);
+ assert.match(atMiddle,/data-scene="statement"/);
+ assert.match(atMiddle,/scale\(/);
+ assert.match(atMiddle,/display:inline-block/);
+ const atEnd=renderVideoSceneFrame(doc,4.1);
+ assert.match(atEnd,/data-scene="lowerthird"/);
+ assert.doesNotMatch(atEnd,/data-scene="scripture"/);
+ assert.equal(renderVideoSceneFrame(doc,5).includes("data-scene="),false);
+});
+test("registered images use embedded data only, never raw signed URLs",()=>{
+ const doc=fixture();
+ doc.assets=[{id:"test-asset",kind:"graphic"}];
+ doc.scenes[0].html='<img class="texture" data-asset-id="test-asset">';
+ const image="data:image/png;base64,aGVsbG8=";
+ const output=renderVideoSceneFrame(doc,.5,{},{"test-asset":image});
+ assert.match(output,/src="data:image\/png;base64,aGVsbG8="/);
+ assert.throws(()=>renderVideoSceneFrame(doc,.5,{},{"test-asset":"https://example.com/x.png"}),/Invalid registered image/);
+});

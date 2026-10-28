@@ -1,4 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
+import {videoSceneDocument} from "@/code-mode/video-scenes";
+import {resolveVideoGraphicAssets} from "@/code-mode/video-assets-server";
+import {evaluateDoctrine,textDoctrineSource} from "@/doctrine-gate";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getStudioPermission } from "@/auth";
@@ -70,6 +73,29 @@ export async function POST(request: Request) {
   if (!audioResult.data?.audio_url) return NextResponse.json({ error: "Pathway audio is missing." }, { status: 409 });
   if (projectResult.data.audio_content_hash !== audioResult.data.content_hash) return NextResponse.json({ error: "The Pathway audio changed after this video timeline was saved. Review and save the timeline again before rendering." }, { status: 409 });
 
+  const style=projectResult.data.style&&typeof projectResult.data.style==="object"?projectResult.data.style as Record<string,unknown>:{};
+  const rawScenes=style.kineticSceneV2;
+  if(rawScenes){
+    const parsedScenes=videoSceneDocument.safeParse(rawScenes);
+    if(!parsedScenes.success||parsedScenes.data.kind!=="studio"||parsedScenes.data.id!==pathway.slug)return NextResponse.json({error:"Saved Video Studio scene JSON is invalid or belongs to another Pathway."},{status:409});
+    const sizes:Record<string,[number,number]>={youtube:[1920,1080],vertical:[1080,1920],square:[1080,1080]};
+    const mismatch=parsed.data.formats.find(format=>parsedScenes.data.format.w!==sizes[format][0]||parsedScenes.data.format.h!==sizes[format][1]||parsedScenes.data.format.fps!==30);
+    if(mismatch)return NextResponse.json({error:"Scene document format does not match "+mismatch+". Set the scene canvas size and 30 FPS in Code Mode before rendering."},{status:409});
+    const script=await service.from("pathway_audio_scripts").select("script_text").eq("pathway_slug",pathway.slug).maybeSingle();
+    if(script.error)return NextResponse.json({error:script.error.message},{status:500});
+    if(!script.data?.script_text)return NextResponse.json({error:"Spoken transcript is unavailable for required doctrine review."},{status:409});
+    const visible=parsedScenes.data.scenes.map((scene,index)=>"Scene "+(index+1)+": "+scene.html.replace(/<[^>]+>/g," ").replace(/\s+/g," ").trim()).join("\n");
+    try{
+      const verdict=await evaluateDoctrine(textDoctrineSource("video_render",projectResult.data.id,{
+        on_screen_graphics:visible,spoken_transcript:script.data.script_text,captions:script.data.script_text
+      }));
+      if(verdict.review.status!=="pass")return NextResponse.json({error:"Video Studio V2 scenes must pass doctrine review before rendering.",issues:verdict.review.issues},{status:409});
+    }catch(error){return NextResponse.json({error:error instanceof Error?error.message:"Doctrine validator unavailable. Render blocked."},{status:503});}
+  }
+
+  let renderStyle=style;
+  if(rawScenes){try{renderStyle={...style,kineticSceneV2:await resolveVideoGraphicAssets(service,videoSceneDocument.parse(rawScenes))}}catch(error){return NextResponse.json({error:error instanceof Error?error.message:"Could not resolve Graphics library assets."},{status:409})}}
+
   const callbackUrl = `${new URL(request.url).origin}/api/admin/video-studio/render-callback`;
   const queued = [];
   for (const format of [...new Set(parsed.data.formats)]) {
@@ -97,7 +123,9 @@ export async function POST(request: Request) {
       audioUrl: audioResult.data.audio_url,
       audioContentHash: audioResult.data.content_hash,
       timeline: projectResult.data.timeline,
-      style: projectResult.data.style,
+      // Snapshot the same resolved assets dispatched to the worker; never store
+      // short-lived URLs in the saved Video Studio project itself.
+      style: renderStyle,
       assetId: publishingAsset.data.id,
       replaceExisting: parsed.data.replaceExisting
     };
@@ -168,7 +196,7 @@ export async function POST(request: Request) {
           format,
           audio_url: audioResult.data.audio_url,
           timeline: projectResult.data.timeline,
-          style: projectResult.data.style,
+          style: renderStyle,
           upload_url: signedUpload.data.signedUrl,
           callback_url: callbackUrl,
           callback_token: callbackToken

@@ -9,6 +9,9 @@ from __future__ import annotations
 
 from pathlib import Path
 import json
+import os
+import subprocess
+import tempfile
 import sys
 import time
 import urllib.request
@@ -100,6 +103,29 @@ def main() -> None:
     try:
         report(1, "Starting renderer")
         render(payload, output, progress_callback=report)
+        scene_document = (payload.get("style") or {}).get("kineticSceneV2")
+        if scene_document is not None:
+            with tempfile.TemporaryDirectory(prefix="ag-pathway-kinetic-") as directory:
+                doc_path = Path(directory) / "scenes.json"
+                composed = Path(directory) / "composed.mp4"
+                doc_path.write_text(json.dumps(scene_document), encoding="utf-8")
+                duration = float(subprocess.check_output(
+                    ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+                     "-of", "default=noprint_wrappers=1:nokey=1", str(output)],
+                    text=True).strip())
+                report(88, "Compositing kinetic scenes")
+                command = ["node", "--import", "tsx", "scripts/render-video-code-mode.ts",
+                           str(doc_path), str(output), str(composed), "0", str(duration)]
+                process = subprocess.Popen(command)
+                while True:
+                    try:
+                        code = process.wait(timeout=25)
+                        break
+                    except subprocess.TimeoutExpired:
+                        report(90, "Compositing kinetic scenes")
+                if code != 0 or not composed.is_file() or composed.stat().st_size < 1024:
+                    raise RuntimeError("Chromium motion compositor did not produce a playable video")
+                os.replace(composed, output)
         report(95, "Uploading MP4")
         upload_render(payload, output)
         report(99, "Finalizing")

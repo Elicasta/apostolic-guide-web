@@ -113,6 +113,30 @@ jobs:
         env:
           RENDER_PAYLOAD: ${{ toJson(github.event.client_payload) }}
         run: printf '%s' "$RENDER_PAYLOAD" > /tmp/video-producer-render.json
+      - name: Detect V2 kinetic scenes
+        id: kinetic
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json, os, urllib.request
+          payload = json.load(open('/tmp/video-producer-render.json', encoding='utf-8'))
+          with urllib.request.urlopen(payload['manifest_url'], timeout=90) as response:
+              manifest = json.load(response)
+          enabled = 'true' if manifest.get('kineticSceneV2') is not None else 'false'
+          with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as output:
+              output.write('enabled=' + enabled + '\n')
+          print('Chromium motion required:', enabled)
+          PY
+      - name: Setup Node for kinetic video
+        if: steps.kinetic.outputs.enabled == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install kinetic renderer
+        if: steps.kinetic.outputs.enabled == 'true'
+        run: |
+          npm ci --no-audit --no-fund
+          npx playwright install --with-deps chromium --only-shell
       - name: Render, upload, and report status
         shell: bash
         run: |

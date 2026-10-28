@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Download, Film, Loader2, Plus, RefreshCw, Smartphone, Trash2 } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import styles from "./video-producer-library.module.css";
 import { VideoProducerSectionNav } from "./video-producer-section-nav";
 
@@ -86,7 +85,6 @@ async function loadLibrary() {
 }
 
 export function VideoProducerReelsLibrary({ parentProjectId = null, embedded = false }: { parentProjectId?: string | null; embedded?: boolean }) {
-  const router = useRouter();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState<string | null>(null);
@@ -100,7 +98,7 @@ export function VideoProducerReelsLibrary({ parentProjectId = null, embedded = f
     finally { setLoading(false); }
   }, []);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => { void Promise.resolve().then(load); }, [load]);
   useEffect(() => {
     if (!projects.some((project) => project.mode === "reels" && (["directing", "rendering"].includes(project.status) || ["queued", "rendering"].includes(project.latest_render?.status || "")))) return;
     const timer = window.setInterval(() => void load(), 7000);
@@ -148,7 +146,7 @@ export function VideoProducerReelsLibrary({ parentProjectId = null, embedded = f
         </span>
         <span className={styles.rowActions}>
           {render?.status === "completed" ? <a className={styles.rowAction} href={`/api/admin/video-producer/projects/${project.id}/download`} target="_blank" rel="noopener noreferrer" aria-label={`Download ${project.title}`}><Download size={13}/></a> : null}
-          <button type="button" className={styles.rowAction} onClick={() => router.push(`/admin/video-producer/${project.id}/${projectStep(project)}`)}>Open</button>
+          <a className={styles.rowAction} href={`/admin/video-producer/${project.id}/${projectStep(project)}`}>Open</a>
           <button type="button" className={`${styles.rowAction} ${styles.rowActionDanger}`} disabled={deleting === project.id} onClick={() => void trash(project)} aria-label={`Move ${project.title} to Recovery Bucket`} title="Move to Recovery Bucket">{deleting === project.id ? <Loader2 size={13} className={styles.spin}/> : <Trash2 size={13}/>}</button>
         </span>
       </div>

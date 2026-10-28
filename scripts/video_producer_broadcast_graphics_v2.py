@@ -204,6 +204,8 @@ def _subtract_ranges(start, end, blocked):
 
 
 def add_pathway_followers(lines, manifest, width, height):
+    if manifest.get("kineticSceneV2") is not None:
+        return  # V2 composition owns all persistent graphics.
     plan = manifest["renderPlan"]
     pathway = _pathway(manifest)
     if not pathway or plan.get("mode") != "podcast":

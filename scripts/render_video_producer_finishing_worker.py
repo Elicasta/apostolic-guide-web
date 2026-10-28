@@ -427,6 +427,37 @@ def main():
         if not os.path.exists(main_path) or os.path.getsize(main_path) < 1024:
             raise RuntimeError("FFmpeg completed without a usable main render")
 
+        # V2 Code Mode uses the same frame generator in the browser and worker.
+        # Composition happens after the proven FFmpeg cut/grade/audio mastering.
+        kinetic_document = manifest.get("kineticSceneV2")
+        if kinetic_document is not None:
+            kinetic_path = os.path.join(directory, "kinetic-scenes.json")
+            kinetic_output = os.path.join(directory, "kinetic-composited.mp4")
+            with open(kinetic_path, "w", encoding="utf-8") as handle:
+                json.dump(kinetic_document, handle)
+            bw.safe_progress_callback(payload, 85, "Compositing Code Mode motion")
+            command = ["node", "--import", "tsx", "scripts/render-video-code-mode.ts",
+                       kinetic_path, main_path, kinetic_output, "0",
+                       str(float(manifest["renderPlan"]["outputDuration"]))]
+            process = subprocess.Popen(command, cwd=ROOT)
+            try:
+                while True:
+                    try:
+                        code = process.wait(timeout=25)
+                        break
+                    except subprocess.TimeoutExpired:
+                        bw.safe_progress_callback(payload, 87, "Compositing Code Mode motion")
+                if code != 0:
+                    raise subprocess.CalledProcessError(code, command)
+            except BaseException:
+                if process.poll() is None:
+                    process.kill()
+                    process.wait()
+                raise
+            if not os.path.exists(kinetic_output) or os.path.getsize(kinetic_output) < 1024:
+                raise RuntimeError("Kinetic renderer produced no usable MP4")
+            os.replace(kinetic_output, main_path)
+
         bw.base.callback(payload, "rendering", 89, "Building timestamp-safe package")
         bw.package_with_bumpers(manifest, main_path, sys.argv[2], directory)
         if not os.path.exists(sys.argv[2]) or os.path.getsize(sys.argv[2]) < 1024:

@@ -1,0 +1,60 @@
+{
+  "tool": "video",
+  "version": 2,
+  "kind": "producer",
+  "id": "00000000-0000-4000-8000-000000000001",
+  "format": {
+    "w": 360,
+    "h": 640,
+    "fps": 30
+  },
+  "assets": [],
+  "style": {
+    "preset": "AG Editorial",
+    "ink": "#10202A",
+    "paper": "#F5F7F4",
+    "crimson": "#A12D3D"
+  },
+  "scenes": [
+    {
+      "id": "scripture",
+      "start": 0,
+      "end": 2,
+      "layer": "overlay",
+      "html": "<div data-motion=\"title\" class=\"motion-title\">Isaiah 43:10</div>",
+      "css": ".motion-title{font-family:\"Montserrat\";font-weight:800;font-size:36px;text-align:center;color:#F5F7F4;text-shadow:0 3px 12px #000}",
+      "keyframes": [
+        {
+          "t": 0,
+          "target": "title",
+          "props": {
+            "opacity": 0,
+            "y": 35,
+            "scale": 1.1
+          },
+          "ease": "linear"
+        },
+        {
+          "t": 0.35,
+          "target": "title",
+          "props": {
+            "opacity": 1,
+            "y": 0,
+            "scale": 1
+          },
+          "ease": "ease-out"
+        }
+      ],
+      "transitionIn": {
+        "type": "crossfade",
+        "duration": 0.2,
+        "ease": "ease-out"
+      },
+      "transitionOut": {
+        "type": "crossfade",
+        "duration": 0.25,
+        "ease": "ease-out"
+      }
+    }
+  ]
+}

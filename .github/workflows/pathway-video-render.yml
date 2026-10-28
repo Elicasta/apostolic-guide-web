@@ -34,6 +34,26 @@ jobs:
         run: |
           printf '%s' "$RENDER_PAYLOAD" > /tmp/pathway-video-payload.json
 
+      - name: Detect kinetic composition requirement
+        id: kinetic
+        run: |
+          python3 - <<'PY'
+          import json, os
+          payload=json.load(open('/tmp/pathway-video-payload.json', encoding='utf-8'))
+          active=isinstance(payload.get('style'),dict) and payload['style'].get('kineticSceneV2') is not None
+          with open(os.environ['GITHUB_OUTPUT'],'a',encoding='utf-8') as f:
+              f.write('enabled='+('true' if active else 'false')+'\n')
+          PY
+      - name: Prepare Node for Studio scenes
+        if: steps.kinetic.outputs.enabled == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install Chromium compositor for Studio scenes
+        if: steps.kinetic.outputs.enabled == 'true'
+        run: |
+          npm ci --no-audit --no-fund
+          npx playwright install --with-deps chromium --only-shell
       - name: Render, upload, and report status
         run: |
           python3 scripts/render_pathway_video_worker.py /tmp/pathway-video-payload.json /tmp/pathway-video.mp4

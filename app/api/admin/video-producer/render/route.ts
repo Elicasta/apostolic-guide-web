@@ -1,4 +1,7 @@
 import { randomUUID } from "node:crypto";
+import {videoSceneDocument} from "@/code-mode/video-scenes";
+import {alignVideoSceneWords} from "@/code-mode/video-word-sync";
+import {resolveVideoGraphicAssets} from "@/code-mode/video-assets-server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getStudioPermission } from "@/auth";
@@ -50,7 +53,7 @@ export async function POST(request: Request) {
   if (!service) return NextResponse.json({ error: "Supabase service access is not configured." }, { status: 503 });
 
   const result = await service.from("video_producer_projects")
-    .select("id,title,mode,status,parent_project_id,pathway_slug,selected_music_track_id,source_provider,source_locator,source_filename,source_duration,source_range_start,source_range_end,transcript,edit_plan,camera_plan,audio_plan,approval_fingerprint,approved_at")
+    .select("id,title,mode,status,parent_project_id,pathway_slug,selected_music_track_id,source_provider,source_locator,source_filename,source_duration,source_range_start,source_range_end,transcript,edit_plan,camera_plan,audio_plan,director_metadata,approval_fingerprint,approved_at")
     .eq("id", parsed.data.projectId).is("deleted_at", null).maybeSingle();
   if (result.error) return NextResponse.json({ error: result.error.message }, { status: 500 });
   const project = result.data;
@@ -125,7 +128,15 @@ export async function POST(request: Request) {
       production.cameraB ? createPrivateBlobDownloadUrl(production.cameraB.storage_locator, 8 * 60 * 60 * 1000) : Promise.resolve(null),
       production.externalAudio ? createPrivateBlobDownloadUrl(production.externalAudio.storage_locator, 8 * 60 * 60 * 1000) : Promise.resolve(null)
     ]);
+    const directorMetadata=project.director_metadata && typeof project.director_metadata==="object" ? project.director_metadata as Record<string,unknown> : {};
+    const codeScenes=videoSceneDocument.safeParse(directorMetadata.kineticSceneV2);
+    if(directorMetadata.kineticSceneV2 && !codeScenes.success)return NextResponse.json({error:"Saved scene document is invalid. Reopen Video Code Mode and repair the draft."},{status:409});
+    if(codeScenes.success && (codeScenes.data.kind!=="producer"||codeScenes.data.id!==project.id))return NextResponse.json({error:"Scene document identity does not match project."},{status:409});
+    if(codeScenes.success && (codeScenes.data.format.w!==renderPlan.output.width||codeScenes.data.format.h!==renderPlan.output.height||codeScenes.data.format.fps!==30))return NextResponse.json({error:"Scene format must match the selected output size and 30 FPS. Adjust in Code Mode and reapprove."},{status:409});
+    let alignedScenes=codeScenes.success?codeScenes.data:null;
+    if(alignedScenes){try{alignedScenes=alignVideoSceneWords(alignedScenes,localTranscript.words,renderPlan.keepSegments);alignedScenes=await resolveVideoGraphicAssets(service,alignedScenes)}catch(error){return NextResponse.json({error:error instanceof Error?error.message:"Could not resolve scene graphics or word anchors."},{status:409})}}
     const manifest = {
+      ...(alignedScenes?{kineticSceneV2:alignedScenes}:{}),
       version: production.usesMulticam ? 2 : 1,
       project: {
         id: project.id,
@@ -139,7 +150,7 @@ export async function POST(request: Request) {
         } : null
       },
       source: { filename: project.source_filename, duration: project.source_duration, range: sourceRange },
-      renderPlan,
+      renderPlan: alignedScenes?{...renderPlan,overlays:[]}:renderPlan,
       transcript: localTranscript,
       musicTracks,
       ...(production.usesMulticam ? {
