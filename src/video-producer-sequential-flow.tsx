@@ -174,8 +174,8 @@ export function VideoProducerSequentialFlow({ projectId: initialProjectId = "", 
 
   useEffect(() => {
     if (!projectId) return;
-    void loadDetail();
-    if (["finish", "review", "deliver"].includes(step)) void loadFinishing();
+    void Promise.resolve().then(() => loadDetail());
+    if (["finish", "review", "deliver"].includes(step)) void Promise.resolve().then(() => loadFinishing());
   }, [loadDetail, loadFinishing, projectId, step]);
 
   useEffect(() => {
