@@ -12,7 +12,7 @@ export type ProducerDoctrineProject = {
   edit_plan: unknown;
   director_metadata?: unknown;
   transcript?: unknown;
-  transcript_local_text?: string | null;
+  transcript_text?: string | null;
   pathway_slug?: string | null;
 };
 
@@ -39,13 +39,13 @@ export function videoProducerDoctrineSource(project: ProducerDoctrineProject) {
     .replace(/\s+/g, " ").trim();
   const revision = createHash("sha256").update(JSON.stringify({
     mode: project.mode, pathway: project.pathway_slug, plan: project.edit_plan,
-    scenes: rawScenes || null, transcript: project.transcript, text: project.transcript_local_text
+    scenes: rawScenes || null, transcript: project.transcript, text: project.transcript_text
   })).digest("hex");
   return textDoctrineSource("video_clip", project.id, {
     content_revision: revision,
     video_mode: project.mode,
     pathway: project.pathway_slug || "",
-    spoken_transcript: transcript.text || project.transcript_local_text || "",
+    spoken_transcript: transcript.text || project.transcript_text || "",
     edit_overlays: plan.overlays.map((overlay, index) =>
       "Overlay " + (index + 1) + " (" + overlay.kind + "): " +
       [overlay.title, overlay.body, overlay.reference].filter(Boolean).join(" | ")

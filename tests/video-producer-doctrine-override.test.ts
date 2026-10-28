@@ -45,3 +45,16 @@ test("video review exposes doctrine results and disables approval unless passed 
   assert.match(editor, /Save your scene changes/);
   assert.match(code("app/api/admin/video-producer/approve/route.ts"), /\.eq\("updated_at", project\.data\.updated_at\)/);
 });
+
+test("video doctrine queries use the production transcript_text column, not a nonexistent column", () => {
+  const source = code("src/video-producer-doctrine.ts");
+  const check = code("app/api/admin/video-producer/doctrine-check/route.ts");
+  const approve = code("app/api/admin/video-producer/approve/route.ts");
+  for (const file of [source, check, approve]) {
+    assert.doesNotMatch(file, /transcript_local_text/);
+    assert.match(file, /transcript_text/);
+  }
+  assert.match(source, /project\.transcript_text/);
+  assert.match(check, /select\("id,mode,edit_plan,director_metadata,transcript,transcript_text,pathway_slug"\)/);
+  assert.match(approve, /transcript,transcript_text,pathway_slug,updated_at/);
+});
