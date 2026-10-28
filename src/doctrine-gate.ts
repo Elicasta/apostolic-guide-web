@@ -8,6 +8,7 @@ import { codeTheme, frameMarkup } from "./carousel-code";
 import type { CreativeProjectRecord } from "./creative-project-server";
 import { createServiceClient } from "./supabase";
 import { recordStudioAudit } from "./studio-audit";
+import { classifyVideoProducerIssue } from "./video-producer-doctrine-severity";
 
 export type DoctrineSourceType = "creative_project" | "threads" | "custom_asset" | "video_render" | "video_clip" | "broadcast";
 export type DoctrineLine = { location: string; text: string };
@@ -122,6 +123,13 @@ export async function evaluateDoctrine(source: DoctrineSource): Promise<{review:
      "The final public words, not merely the intended meaning, must agree with the fixed position.",
      "Check every cited reference for verse identity and context. KJV corpus passages are supplied as exact reference evidence.",
      "For an explicit quotation attributed to KJV, confirm exact words against the KJV verses (allow punctuation/case only).",
+     ...(source.sourceType === "video_clip" ? [
+      "Video Producer SOURCE SEVERITY: The spoken_transcript is a recording/transcription of actual speech, NOT an authored Scripture graphic.",
+      "If the ONLY defect in spoken_transcript is a spoken paraphrase, word-order variant, nonverbatim KJV quote or transcription homophone such as Here/Hear, classify FLAG, never FAIL. Do not invent an objection for an obvious homophone.",
+      "For edit_overlays or on_screen_graphics, Scripture quotations attributed to KJV MUST match the supplied KJV exactly; inaccurate authored Scripture overlays remain FAIL.",
+      "Any actual theological contradiction, heretical claim, fabricated citation, reversal of meaning, or false biblical teaching still FAILS even when spoken in a transcript. Never downgrade those to FLAG.",
+      "Give a distinct issue severity per source and location; use spoken_transcript exactly for transcript wording issues."
+     ] : []),
      "For quotations claiming another translation, if authoritative wording for that translation is not supplied, FAIL as unverified rather than guessing.",
      "A reference existing does not prove a paraphrase is a direct quotation. If a quotation is materially inaccurate, FAIL.",
      "FAIL outright contradictions, fabricated quotations, wrong citations and invented historical/lexical claims. FLAG ambiguous or imprecise statements.",
@@ -138,7 +146,8 @@ export async function evaluateDoctrine(source: DoctrineSource): Promise<{review:
  candidate.issues.some(issue=>!["flag","fail"].includes(issue.severity)||typeof issue.location!=="string"||typeof issue.line!=="string"||typeof issue.reason!=="string"||typeof issue.reference!=="string")) {
   throw new Error("Doctrine validator returned an invalid verdict. Publishing is blocked.");
  }
- const issues=[...invalid,...deterministic,...candidate.issues];
+ const reviewedIssues = source.sourceType === "video_clip" ? candidate.issues.map(classifyVideoProducerIssue) : candidate.issues;
+ const issues=[...invalid,...deterministic,...reviewedIssues];
  const status=issues.some(i=>i.severity==="fail")?"fail":issues.some(i=>i.severity==="flag")?"flag":candidate.status;
  if(status==="pass" && issues.length) throw new Error("Doctrine validator output was inconsistent. Publishing is blocked.");
  return {review:{status,summary:candidate.summary || (status==="pass"?"Doctrine check passed.":"Review required."),issues},model:COMMENT_GUIDE_MODEL,hash};
