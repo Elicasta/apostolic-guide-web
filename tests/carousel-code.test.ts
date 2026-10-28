@@ -124,7 +124,9 @@ test("ten-slide JSON round trips every normal field and code override", () => {
 });
 test("JSON syntax and schema validation identify a line without replacing content", () => {
   assert.throws(() => parseCodeJson('{\n"version":1,\n bad\n}'), /Line 3:/);
-  const json = toCodeJson("Test", {
+  // The title includes 900 deliberately: the error line must point to the invalid field,
+  // not an unrelated occurrence of the same number in serialized JSON.
+  const json = toCodeJson("Test 900", {
     frames: [frame],
     sourceImages: [],
     visualSettings: {},
@@ -134,7 +136,9 @@ test("JSON syntax and schema validation identify a line without replacing conten
     null,
     2,
   );
-  const line = text.slice(0, text.indexOf("900")).split("\n").length;
+  const invalidFieldPosition = text.indexOf('"headline": 900');
+  assert.ok(invalidFieldPosition >= 0);
+  const line = text.slice(0, invalidFieldPosition).split("\n").length;
   assert.throws(() => parseCodeJson(text), new RegExp(`Line ${line}:`));
   assert.throws(
     () => fromCodeJson({ ...json, frames: [json.frames[0], json.frames[0]] }),
