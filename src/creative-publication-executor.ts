@@ -1,8 +1,8 @@
-import { setTimeout as wait } from "node:timers/promises";
 import "server-only";
 import { assertEditorialSourceCurrent } from "./editorial-engine";
 import { executeScheduledPublication } from "./scheduled-publishing";
 import { instagramGraphBase } from "./instagram-api";
+import { publishReadyInstagramContainer, waitForInstagramContainer } from "./instagram-container-publishing";
 import { privateBlobReadUrl } from "./private-blob";
 import { getSocialPublishingCredentialValues } from "./social-publishing-integrations";
 import { createServiceClient } from "./supabase";
@@ -27,6 +27,10 @@ type CreativeMetadata = {
   caption?: string;
   media_urls?: string[];
   media?: CreativeMedia[];
+  container_ids?: string[];
+  published_media_ids?: string[];
+  publish_attempted_at?: string;
+  publish_container_id?: string;
 };
 
 function record(value: unknown) {
@@ -38,25 +42,6 @@ async function graphJson(url: string, init?: RequestInit) {
   const data = await response.json().catch(() => ({})) as GraphResponse;
   if (!response.ok || data.error) throw new Error(data.error?.message || `Instagram API request failed (${response.status}).`);
   return data;
-}
-
-async function waitForContainer(base: string, containerId: string, accessToken: string) {
-  for (let attempt = 0; attempt < 12; attempt += 1) {
-    const params = new URLSearchParams({ fields: "status_code", access_token: accessToken });
-    const current = await graphJson(`${base}/${encodeURIComponent(containerId)}?${params.toString()}`);
-    const status = current.status_code || "FINISHED";
-    if (status === "FINISHED") return;
-    if (["ERROR", "EXPIRED"].includes(status)) throw new Error(`Instagram media processing ended with ${status}.`);
-    await wait(1000);
-  }
-  throw new Error("Instagram media is still processing. Retry the publication from History.");
-}
-
-async function publishContainer(base: string, userId: string, creationId: string, accessToken: string) {
-  const params = new URLSearchParams({ creation_id: creationId, access_token: accessToken });
-  const result = await graphJson(`${base}/${encodeURIComponent(userId)}/media_publish?${params.toString()}`, { method: "POST" });
-  if (!result.id) throw new Error("Instagram did not return a published media ID.");
-  return result.id;
 }
 
 async function permalinkFor(base: string, mediaId: string, accessToken: string) {
@@ -79,14 +64,21 @@ async function mediaUrlsForPublication(metadata: CreativeMetadata) {
       return typeof item.url === "string" && /^https:\/\//.test(item.url) ? item.url : null;
     }));
     const valid = resolved.filter((value): value is string => typeof value === "string" && /^https:\/\//.test(value));
-    if (valid.length) return valid;
+    if (valid.length !== media.length) throw new Error("One or more scheduled images could not be resolved; publication aborted.");
+    return valid;
   }
   return Array.isArray(metadata.media_urls)
     ? metadata.media_urls.filter((value): value is string => typeof value === "string" && /^https:\/\//.test(value))
     : [];
 }
 
-async function publishCreativeInstagram(metadata: CreativeMetadata) {
+type PublishHooks = {
+  onContainerCreated: (containerId: string) => Promise<void>;
+  beforePublish: (containerId: string) => Promise<void>;
+  afterPublish: (mediaId: string) => Promise<void>;
+};
+
+async function publishCreativeInstagram(metadata: CreativeMetadata, hooks: PublishHooks) {
   const credentials = await getSocialPublishingCredentialValues("instagram") as Record<string, string>;
   if (!credentials.accessToken || !credentials.instagramUserId) throw new Error("Instagram publishing credentials are missing. Open Setup and reconnect Instagram.");
   const mediaUrls = await mediaUrlsForPublication(metadata);
@@ -98,13 +90,14 @@ async function publishCreativeInstagram(metadata: CreativeMetadata) {
 
   const base = instagramGraphBase(credentials.graphVersion);
   const caption = String(metadata.caption || "").slice(0, 2200);
+  const common = { base, userId: credentials.instagramUserId, accessToken: credentials.accessToken, deadlineAt: Date.now() + 235_000, beforePublish: hooks.beforePublish, afterPublish: hooks.afterPublish };
 
   if (format === "single") {
     const createParams = new URLSearchParams({ image_url: mediaUrls[0], caption, access_token: credentials.accessToken });
     const container = await graphJson(`${base}/${encodeURIComponent(credentials.instagramUserId)}/media?${createParams.toString()}`, { method: "POST" });
     if (!container.id) throw new Error("Instagram did not return a Single Post container ID.");
-    await waitForContainer(base, container.id, credentials.accessToken);
-    const mediaId = await publishContainer(base, credentials.instagramUserId, container.id, credentials.accessToken);
+    await hooks.onContainerCreated(container.id);
+    const mediaId = await publishReadyInstagramContainer({ ...common, containerId: container.id });
     return { ids: [mediaId], publishedUrl: await permalinkFor(base, mediaId, credentials.accessToken), containerIds: [container.id] };
   }
 
@@ -114,14 +107,15 @@ async function publishCreativeInstagram(metadata: CreativeMetadata) {
       const params = new URLSearchParams({ image_url: imageUrl, is_carousel_item: "true", access_token: credentials.accessToken });
       const child = await graphJson(`${base}/${encodeURIComponent(credentials.instagramUserId)}/media?${params.toString()}`, { method: "POST" });
       if (!child.id) throw new Error("Instagram did not return a Carousel child container ID.");
-      await waitForContainer(base, child.id, credentials.accessToken);
+      await hooks.onContainerCreated(child.id);
+      await waitForInstagramContainer({ ...common, containerId: child.id });
       childIds.push(child.id);
     }
     const parentParams = new URLSearchParams({ media_type: "CAROUSEL", children: childIds.join(","), caption, access_token: credentials.accessToken });
     const parent = await graphJson(`${base}/${encodeURIComponent(credentials.instagramUserId)}/media?${parentParams.toString()}`, { method: "POST" });
     if (!parent.id) throw new Error("Instagram did not return a Carousel container ID.");
-    await waitForContainer(base, parent.id, credentials.accessToken);
-    const mediaId = await publishContainer(base, credentials.instagramUserId, parent.id, credentials.accessToken);
+    await hooks.onContainerCreated(parent.id);
+    const mediaId = await publishReadyInstagramContainer({ ...common, containerId: parent.id });
     return { ids: [mediaId], publishedUrl: await permalinkFor(base, mediaId, credentials.accessToken), containerIds: [...childIds, parent.id] };
   }
 
@@ -131,8 +125,8 @@ async function publishCreativeInstagram(metadata: CreativeMetadata) {
     const params = new URLSearchParams({ media_type: "STORIES", image_url: imageUrl, access_token: credentials.accessToken });
     const container = await graphJson(`${base}/${encodeURIComponent(credentials.instagramUserId)}/media?${params.toString()}`, { method: "POST" });
     if (!container.id) throw new Error("Instagram did not return a Story container ID.");
-    await waitForContainer(base, container.id, credentials.accessToken);
-    storyIds.push(await publishContainer(base, credentials.instagramUserId, container.id, credentials.accessToken));
+    await hooks.onContainerCreated(container.id);
+    storyIds.push(await publishReadyInstagramContainer({ ...common, containerId: container.id }));
     containerIds.push(container.id);
   }
   return { ids: storyIds, publishedUrl: null, containerIds };
@@ -158,6 +152,15 @@ async function executeCreativePublication(publicationId: string) {
   if (!claimed.data) return { skipped: true };
 
   const metadata = record(claimed.data.metadata) as CreativeMetadata;
+  let progress: CreativeMetadata = { ...metadata };
+  async function saveProgress(delta: Partial<CreativeMetadata>) {
+    const next = { ...progress, ...delta };
+    const saved = await service.from("pathway_publications").update({
+      metadata: next, updated_at: new Date().toISOString()
+    }).eq("id", publicationId).eq("status", "publishing").select("id").maybeSingle();
+    if (saved.error || !saved.data) throw new Error("Unable to checkpoint Instagram publishing safely; no further publishing will be attempted.");
+    progress = next;
+  }
   try {
     const project = await service.from("studio_creative_projects")
       .select("id,state_version,status,pathway_slug,editor_state")
@@ -173,7 +176,14 @@ async function executeCreativePublication(publicationId: string) {
     if(!latestProject)throw new Error("Creative project is unavailable.");
     await assertDoctrineApproved(service,creativeDoctrineSource(latestProject,String(metadata.caption||"")));
     if (claimed.data.platform !== "instagram") throw new Error(`Creative Project auto publishing is not implemented for ${claimed.data.platform}. Use Finish Manually instead.`);
-    const result = await publishCreativeInstagram(metadata);
+    if (metadata.publish_attempted_at || metadata.published_media_ids?.length) {
+      throw new Error("Instagram publishing has already been attempted for this item. Verify the Instagram feed before a new attempt to prevent duplicate posts.");
+    }
+    const result = await publishCreativeInstagram(metadata, {
+      onContainerCreated: (containerId) => saveProgress({ container_ids: [...(progress.container_ids || []), containerId] }),
+      beforePublish: (containerId) => saveProgress({ publish_attempted_at: new Date().toISOString(), publish_container_id: containerId }),
+      afterPublish: (mediaId) => saveProgress({ published_media_ids: [...(progress.published_media_ids || []), mediaId] })
+    });
     const now = new Date().toISOString();
     const [publicationUpdate, projectUpdate] = await Promise.all([
       service.from("pathway_publications").update({
@@ -182,7 +192,7 @@ async function executeCreativePublication(publicationId: string) {
         published_url: result.publishedUrl,
         published_at: now,
         error_message: null,
-        metadata: { ...metadata, published_media_ids: result.ids, container_ids: result.containerIds },
+        metadata: { ...progress, published_media_ids: result.ids, container_ids: result.containerIds },
         updated_at: now
       }).eq("id", publicationId),
       service.from("studio_creative_projects").update({ status: "published", published_at: now, updated_at: now }).eq("id", claimed.data.creative_project_id)
