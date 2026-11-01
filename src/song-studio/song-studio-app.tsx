@@ -6,7 +6,7 @@ import {
   CloudUpload, Disc3, FileAudio, FileClock, Film, Gauge, History, Loader2,
   Mic2, Music2, Plus, RefreshCw, Save, Sparkles, WandSparkles, X
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { SONG_METRIC_LABELS } from "./metrics";
 import { SONG_TYPES, type SongAsset, type SongDraft, type SongEvaluation, type SongProject, type SongScoreKey, type SongStyleProfile, type SongType } from "./types";
 
@@ -165,14 +165,16 @@ export function SongStudioApp({ initialProjects, initialStyles, userLabel, setup
   const [newStyle, setNewStyle] = useState({ name: "", family: "", vocal: "", instruments: "", prompt: "", avoid: "" });
   const fileRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    setEditor(editorStateFor(selectedProject));
+  function selectProject(project: SongProject, skipAssetLoad = false) {
+    setSelectedId(project.id);
+    setEditor(editorStateFor(project));
     setDirty(false);
     setHistoryOpen(false);
     setDrafts([]);
     setAssets([]);
     setNotice(null);
-  }, [selectedId]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (!skipAssetLoad && view === "release") void loadAssets(project.id);
+  }
 
   function updateEditor<K extends keyof EditorState>(key: K, value: EditorState[K]) {
     setEditor((current) => ({ ...current, [key]: value }));
@@ -208,9 +210,8 @@ export function SongStudioApp({ initialProjects, initialStyles, userLabel, setup
         body: JSON.stringify({ title: "Untitled Song", song_type: "declaration" })
       });
       setProjects((current) => [payload.project, ...current]);
-      setSelectedId(payload.project.id);
-      setEditor(editorStateFor(payload.project));
       setView("write");
+      selectProject(payload.project, true);
     } catch (error) {
       setNotice({ kind: "error", text: error instanceof Error ? error.message : "Could not create song." });
     } finally { setBusy(null); }
@@ -359,20 +360,16 @@ export function SongStudioApp({ initialProjects, initialStyles, userLabel, setup
     } finally { setBusy(null); }
   }
 
-  async function loadAssets() {
-    if (!selectedProject) return;
+  async function loadAssets(projectId = selectedProject?.id) {
+    if (!projectId) return;
     setBusy("assets");
     try {
-      const payload = await jsonRequest<{ assets: AssetView[] }>(`/api/media/song-studio/assets?projectId=${selectedProject.id}`);
+      const payload = await jsonRequest<{ assets: AssetView[] }>(`/api/media/song-studio/assets?projectId=${projectId}`);
       setAssets(payload.assets);
     } catch (error) {
       setNotice({ kind: "error", text: error instanceof Error ? error.message : "Could not load assets." });
     } finally { setBusy(null); }
   }
-
-  useEffect(() => {
-    if (view === "release" && selectedProject) void loadAssets();
-  }, [view, selectedId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function uploadFile(file: File) {
     if (!selectedProject) return;
@@ -452,7 +449,7 @@ export function SongStudioApp({ initialProjects, initialStyles, userLabel, setup
         <div className="library-label"><span>SONGS</span><small>{projects.length}</small></div>
         <nav className="song-list" aria-label="Song projects">
           {projects.map((project) => (
-            <button key={project.id} className={project.id === selectedId ? "active" : ""} onClick={() => setSelectedId(project.id)}>
+            <button key={project.id} className={project.id === selectedId ? "active" : ""} onClick={() => selectProject(project)}>
               <span className={`status-dot status-${project.status}`} />
               <div><strong>{project.working_title || project.title}</strong><small>{prettyType(project.song_type)} · {statusLabel(project.status)}</small></div>
               <ChevronRight size={14} />
@@ -479,7 +476,7 @@ export function SongStudioApp({ initialProjects, initialStyles, userLabel, setup
         <div className="studio-tabs" role="tablist">
           <button className={view === "write" ? "active" : ""} onClick={() => setView("write")}><BookOpen size={15} /> Write</button>
           <button className={view === "sound" ? "active" : ""} onClick={() => setView("sound")}><Disc3 size={15} /> Sound + Suno</button>
-          <button className={view === "release" ? "active" : ""} onClick={() => setView("release")}><Film size={15} /> Masters + release</button>
+          <button className={view === "release" ? "active" : ""} onClick={() => { setView("release"); void loadAssets(); }}><Film size={15} /> Masters + release</button>
         </div>
 
         {notice && <div className={`studio-notice ${notice.kind}`}><span>{notice.kind === "error" ? <AlertTriangle size={16} /> : <Check size={16} />}{notice.text}</span><button onClick={() => setNotice(null)} aria-label="Dismiss"><X size={15} /></button></div>}
