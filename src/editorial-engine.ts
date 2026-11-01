@@ -1,0 +1,177 @@
+import { createHash } from "node:crypto";
+import { allPathways, type WebsitePathway } from "./pathway-catalog";
+import { getPathwayKjvPassage } from "./pathway-kjv";
+import { createBlankFrame, type CreativeFrame } from "./creative-project";
+import { articles, answers } from "./data";
+import type { BroadcastCampaign } from "./broadcast-email";
+
+export const EDITORIAL_EPOCH = "2026-10-05";
+export const EDITORIAL_TIMEZONE = "America/New_York";
+export const EDITORIAL_ROTATION = ["teaching", "poster", "teaching", "app-guide", "teaching", "poster", "invitation"] as const;
+export type EditorialPack = {
+  date: string; lane: typeof EDITORIAL_ROTATION[number]; pathwaySlug: string; pathwayTitle: string;
+  title: string; series: string; episode: number | null; sourceHash: string; frames: CreativeFrame[];
+  caption: string; format: "single" | "carousel"; newsletter: BroadcastCampaign | null;
+  blockers: string[]; artDirection: string;
+};
+
+export function editorialDate(now = new Date()) {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: EDITORIAL_TIMEZONE, year: "numeric", month: "2-digit", day: "2-digit" }).format(now);
+}
+export function dateOrdinal(date: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error("Use a calendar date in YYYY-MM-DD format.");
+  const value = Date.parse(`${date}T00:00:00Z`);
+  if (!Number.isFinite(value) || new Date(value).toISOString().slice(0, 10) !== date) throw new Error("Invalid calendar date.");
+  return Math.floor(value / 86_400_000);
+}
+export function addEditorialDays(date: string, days: number) {
+  return new Date((dateOrdinal(date) + days) * 86_400_000).toISOString().slice(0, 10);
+}
+export function editorialSourceHash(pathway: WebsitePathway) {
+  return createHash("sha256").update(JSON.stringify({ pathway, passages: pathway.steps.map(step => getPathwayKjvPassage(step.reference)) })).digest("hex");
+}
+export function splitEditorialText(text: string, limit = 170) {
+  const chunks: string[] = [];
+  let chunk = "";
+  for (const word of text.split(/\s+/).filter(Boolean)) {
+    if (chunk && `${chunk} ${word}`.length > limit) { chunks.push(chunk); chunk = ""; }
+    chunk = chunk ? `${chunk} ${word}` : word;
+  }
+  if (chunk) chunks.push(chunk);
+  return chunks;
+}
+/**
+ * Compose readable, balanced cards without abandoning a word at the end of a
+ * verse. Single verses and complete explanations stay intact when they fit.
+ * Longer text breaks on a word boundary close to an even target, preferably
+ * after punctuation. Concatenating segments reproduces the original text.
+ */
+export function splitEditorialCards(text: string, maxChars = 340): string[] {
+  const words = text.trim().split(/\s+/).filter(Boolean);
+  const normalized = words.join(" ");
+  if (!normalized || normalized.length <= maxChars) return normalized ? [normalized] : [];
+  const desired = Math.ceil(normalized.length / maxChars);
+  const segments: string[] = [];
+  let remaining = words;
+  for (let part = 0; part < desired - 1; part++) {
+    const left = desired - part;
+    const target = remaining.join(" ").length / left;
+    const candidates: Array<{ index: number; score: number }> = [];
+    for (let i = 1; i < remaining.length - (left - 1); i++) {
+      const prefix = remaining.slice(0, i).join(" ");
+      if (prefix.length < Math.min(60, target * .58) || prefix.length > maxChars) continue;
+      const punctuated = /[.;:!?]$/.test(remaining[i - 1]);
+      // Never favor a pretty punctuation break if it strands an oversized
+      // remainder or forces an unreadable, near-empty final slide.
+      const remainderLength = remaining.slice(i).join(" ").length;
+      const maxRemaining = (left - 1) * maxChars;
+      if (remainderLength > maxRemaining) continue;
+      const score = Math.abs(prefix.length - target) - (punctuated ? 24 : 0);
+      candidates.push({index:i,score});
+    }
+    const best = candidates.sort((a,b)=>a.score-b.score)[0];
+    if (!best) {
+      // Defensive fallback: preserve every word rather than silently clipping.
+      const fit = Math.max(1, remaining.findIndex((_,i)=> remaining.slice(0,i+1).join(" ").length > maxChars));
+      segments.push(remaining.slice(0,fit).join(" "));
+      remaining = remaining.slice(fit);
+      continue;
+    }
+    segments.push(remaining.slice(0,best.index).join(" "));
+    remaining = remaining.slice(best.index);
+  }
+  if (remaining.length) segments.push(remaining.join(" "));
+  return segments;
+}
+function frame(role: CreativeFrame["role"], headline: string, body: string, href: string, scripture = "") {
+  return { ...createBlankFrame(0, role), headline, body, scripture, pathwayLink: href, altText: `${headline}. ${body}${scripture ? ` ${scripture}, KJV.` : ""}` };
+}
+export function buildEditorialPack(date: string, catalog = allPathways): EditorialPack {
+  if (!catalog.length) throw new Error("No canonical Pathways are available.");
+  const offset = dateOrdinal(date) - dateOrdinal(EDITORIAL_EPOCH);
+  const day = ((offset % 7) + 7) % 7;
+  const week = Math.floor(offset / 7);
+  const pathway = catalog[((week % catalog.length) + catalog.length) % catalog.length];
+  const lane = EDITORIAL_ROTATION[day];
+  const href = `/pathways/${pathway.slug}`;
+  const url = `https://www.apostolicguide.com${href}`;
+  const episode = lane === "teaching" ? [0, 2, 4].indexOf(day) + 1 : null;
+  // Three teaching installments cover every step once, in the canonical order.
+  const start = episode ? Math.floor((episode - 1) * pathway.steps.length / 3) : day === 5 ? pathway.steps.length - 1 : 0;
+  const end = episode ? Math.floor(episode * pathway.steps.length / 3) : start + 1;
+  const steps = pathway.steps.slice(start, end);
+  const blockers: string[] = [];
+  let title = pathway.title;
+  let frames: CreativeFrame[] = [];
+  if (lane === "teaching") {
+    // The episode number remains internal scheduling metadata. Public artwork
+    // must stand on its own without revealing the production sequence.
+    title = `${pathway.title}: ${steps[0]?.title || "Study the Scriptures"}`;
+    frames.push(frame("hook", title, pathway.summary, href));
+    for (const step of steps) {
+      const passage = getPathwayKjvPassage(step.reference);
+      if (!passage) blockers.push(`Missing full KJV text: ${step.reference}`);
+      for (const verse of passage?.verses ?? []) {
+        splitEditorialCards(verse.text).forEach(chunk => frames.push(frame("scripture", step.title, chunk, href, step.reference)));
+      }
+      splitEditorialCards(step.explanation).forEach(chunk => frames.push(frame("explanation", step.title, chunk, href)));
+      if (step.hook) splitEditorialCards(step.hook).forEach(chunk => frames.push(frame("support", "Consider the connection", chunk, href)));
+    }
+    frames.push(frame("cta", "Continue in Scripture", `Follow the complete biblical study at apostolicguide.com${href}`, href));
+  } else if (lane === "poster") {
+    const step = steps[0];
+    const passage = getPathwayKjvPassage(step.reference);
+    if (!passage) blockers.push(`Missing full KJV text: ${step.reference}`);
+    // Posters carry a complete verse. Long verses become a complete multi-frame post.
+    title = `${pathway.title} · ${step.reference}`;
+    const verse = passage?.verses[0];
+    frames = splitEditorialCards(verse?.text || "Full KJV text needs to be added before production.").map(chunk => frame("scripture", step.title, chunk, href, step.reference));
+  } else {
+    title = lane === "app-guide" ? `How to study ${pathway.title}` : `Start here: ${pathway.title}`;
+    frames = [
+      frame("hook", title, pathway.summary, href),
+      frame("explanation", "Open the pathway", `Visit apostolicguide.com${href}. Start at the first Scripture card.`, href),
+      frame("explanation", "Read the text first", "Read the full KJV passage. The bold red words help you notice the phrases discussed in the explanation.", href),
+      frame("explanation", "Follow the argument", "Read the explanation and why the next passage follows. Use Next to continue through the cards.", href),
+      frame("cta", "Put it into practice", "Open the surrounding chapter, compare the connected passages, and share the pathway with someone you study with.", href)
+    ];
+  }
+  for (const item of frames) {
+    if (/\b(?:HOOK|DRAFT|INTERNAL|Part\s+\d+\s+of\s+\d+|continued)\b/i.test(item.headline)) {
+      blockers.push("Internal production labels must not appear on reader-facing artwork.");
+    }
+    if (item.scripture && !pathway.steps.some(step => step.reference === item.scripture || item.scripture.startsWith(step.reference + " ·"))) {
+      blockers.push(`Unrecognized Scripture reference: ${item.scripture}`);
+    }
+    if (!item.headline.trim() || !item.body.trim()) blockers.push("A frame is missing a readable headline or paragraph.");
+  }
+  if (frames.length > 20) blockers.push(`This draft has ${frames.length} frames. Split it into smaller posts before export.`);
+  const caption = lane === "poster"
+    ? `${steps[0].reference} (KJV)\n\n${steps[0].explanation}\n\nRead the passage in context and follow the study: ${url}`
+    : `${title}\n\n${pathway.summary}\n\nRead the full KJV passages, explanations, and connected steps: ${url}`;
+  const newsletter: BroadcastCampaign | null = day === 6 ? {
+    type: "pathway", subject: `This week's study: ${pathway.title}`, previewText: pathway.summary,
+    eyebrow: "Apostolic Guide · Weekly study", title: pathway.title,
+    summary: `${pathway.summary}\n\nBegin with ${pathway.steps[0].reference}: ${pathway.steps[0].explanation}\n\nFollow the connected passages: ${pathway.steps.map(s => s.reference).join(" → ")}. Read the full KJV text and explanations on the website.`.slice(0, 1200),
+    ctaLabel: "Study this pathway", url,
+    resources: [
+      ...articles.filter(a => a.topicSlug === pathway.topicSlug).slice(0, 2).map(a => ({ title: a.title, summary: a.summary, url: `https://www.apostolicguide.com/articles/${a.slug}` })),
+      ...answers.filter(a => a.topicSlug === pathway.topicSlug).slice(0, 1).map(a => ({ title: a.question, summary: a.shortAnswer, url: `https://www.apostolicguide.com/answers/${a.slug}` }))
+    ]
+  } : null;
+  return { date, lane, pathwaySlug: pathway.slug, pathwayTitle: pathway.title, title, series: `Scripture first · ${pathway.title}`, episode, sourceHash: editorialSourceHash(pathway), frames: frames.map((f, i) => ({ ...f, order: i })), caption, format: frames.length === 1 ? "single" : "carousel", newsletter, blockers,
+    artDirection: "1080 × 1350 editorial artwork. Ivory paper, deep navy, restrained crimson, generous margins, large readable type. Scripture remains exact. Review every frame for clipping. Pinterest reference matching awaits the actual board." };
+}
+export function buildEditorialWindow(start: string, days = 14) {
+  if (!Number.isInteger(days) || days < 1 || days > 30) throw new Error("Plan between 1 and 30 days.");
+  return Array.from({ length: days }, (_, i) => buildEditorialPack(addEditorialDays(start, i)));
+}
+
+/** Publishing rechecks the canonical fingerprint even after a project was scheduled. */
+export function assertEditorialSourceCurrent(input: { pathwaySlug: string; editorState: { generatedText?: Record<string, unknown> } }) {
+  const generated = input.editorState.generatedText;
+  if (generated?.producer !== "Editorial Engine") return;
+  const pathway = allPathways.find(p => p.slug === input.pathwaySlug);
+  if (!pathway || generated.sourceHash !== editorialSourceHash(pathway)) throw new Error("The editorial source changed. Reconcile the draft with the current canonical Pathway before publishing.");
+  if (Array.isArray(generated.blockers) && generated.blockers.length) throw new Error("Resolve the editorial production blockers before publishing.");
+}

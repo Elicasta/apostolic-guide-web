@@ -15,6 +15,7 @@ const requestSchema = z.object({
 type WhisperWord = { word?: string; start?: number; end?: number };
 type WhisperVerboseResponse = { duration?: number; text?: string; words?: WhisperWord[] };
 type TimedToken = { value: string; start: number; end: number; wordIndex: number };
+type CaptionCue = { start: number; end: number; text: string };
 
 type Candidate = {
   platform: "instagram" | "tiktok" | "both";
@@ -24,7 +25,11 @@ type Candidate = {
   hook: string;
   title: string;
   rationale: string;
-  caption: string;
+  instagramCaption: string;
+  tiktokCaption: string;
+  hashtags: string[];
+  coverHeadline: string;
+  coverSubline: string;
 };
 
 const CLIP_SCHEMA = {
@@ -39,7 +44,10 @@ const CLIP_SCHEMA = {
       items: {
         type: "object",
         additionalProperties: false,
-        required: ["platform", "score", "startAnchor", "endAnchor", "hook", "title", "rationale", "caption"],
+        required: [
+          "platform", "score", "startAnchor", "endAnchor", "hook", "title", "rationale",
+          "instagramCaption", "tiktokCaption", "hashtags", "coverHeadline", "coverSubline"
+        ],
         properties: {
           platform: { type: "string", enum: ["instagram", "tiktok", "both"] },
           score: { type: "integer", minimum: 0, maximum: 100 },
@@ -48,7 +56,16 @@ const CLIP_SCHEMA = {
           hook: { type: "string" },
           title: { type: "string" },
           rationale: { type: "string" },
-          caption: { type: "string" }
+          instagramCaption: { type: "string" },
+          tiktokCaption: { type: "string" },
+          hashtags: {
+            type: "array",
+            minItems: 4,
+            maxItems: 8,
+            items: { type: "string" }
+          },
+          coverHeadline: { type: "string" },
+          coverSubline: { type: "string" }
         }
       }
     }
@@ -116,21 +133,66 @@ function findPhrase(tokens: TimedToken[], phrase: string, fromIndex = 0) {
   return null;
 }
 
-function resolveCandidate(candidate: Candidate, tokens: TimedToken[], duration: number) {
+function cleanCueText(parts: string[]) {
+  return parts.join(" ")
+    .replace(/\s+([,.;!?])/g, "$1")
+    .replace(/\s+(['’]s)\b/gi, "$1")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function buildCaptionCues(words: WhisperWord[], clipStart: number, clipEnd: number) {
+  const timed = words.flatMap((word) => {
+    if (typeof word.word !== "string" || typeof word.start !== "number" || typeof word.end !== "number") return [];
+    if (word.end < clipStart || word.start > clipEnd) return [];
+    return [{
+      text: word.word.trim(),
+      start: Math.max(0, word.start - clipStart),
+      end: Math.max(0.05, Math.min(clipEnd, word.end) - clipStart)
+    }];
+  }).filter((word) => word.text);
+
+  const cues: CaptionCue[] = [];
+  let bucket: typeof timed = [];
+  const flush = () => {
+    if (!bucket.length) return;
+    const text = cleanCueText(bucket.map((word) => word.text));
+    if (text) cues.push({
+      start: Number(Math.max(0, bucket[0].start - 0.04).toFixed(2)),
+      end: Number((bucket.at(-1)?.end ?? bucket[0].end + 0.4).toFixed(2)),
+      text
+    });
+    bucket = [];
+  };
+
+  for (const word of timed) {
+    bucket.push(word);
+    const duration = bucket.at(-1)!.end - bucket[0].start;
+    const sentenceEnd = /[.!?][\"'’”)]?$/.test(word.text);
+    const commaBreak = /[,;:][\"'’”)]?$/.test(word.text) && bucket.length >= 3;
+    if (sentenceEnd || commaBreak || bucket.length >= 5 || duration >= 1.65) flush();
+  }
+  flush();
+  return cues.slice(0, 48);
+}
+
+function resolveCandidate(candidate: Candidate, tokens: TimedToken[], words: WhisperWord[], duration: number) {
   const startMatch = findPhrase(tokens, candidate.startAnchor);
   if (!startMatch) return null;
   const endMatch = findPhrase(tokens, candidate.endAnchor, startMatch.index + 1);
   if (!endMatch) return null;
 
-  const start = Math.max(0, tokens[startMatch.index].start - 0.18);
-  const end = Math.min(duration, tokens[endMatch.endIndex].end + 0.38);
+  // Give the first spoken word room to breathe so clips never begin on a clipped consonant.
+  const start = Math.max(0, tokens[startMatch.index].start - 0.45);
+  const end = Math.min(duration, tokens[endMatch.endIndex].end + 0.65);
   const clipDuration = end - start;
   if (clipDuration < 14 || clipDuration > 70) return null;
   return {
     ...candidate,
     startSeconds: Number(start.toFixed(2)),
     endSeconds: Number(end.toFixed(2)),
-    durationSeconds: Number(clipDuration.toFixed(2))
+    durationSeconds: Number(clipDuration.toFixed(2)),
+    captionCues: buildCaptionCues(words, start, end)
   };
 }
 
@@ -153,7 +215,7 @@ async function chooseCandidates(input: {
         verbosity: "low",
         format: {
           type: "json_schema",
-          name: "apostolic_guide_social_clip_selector",
+          name: "apostolic_guide_social_clip_selector_v2",
           strict: true,
           schema: CLIP_SCHEMA
         }
@@ -162,17 +224,19 @@ async function chooseCandidates(input: {
         {
           role: "developer",
           content: [{ type: "input_text", text: [
-            "You select short-form moments from an approved Apostolic Guide narration for Instagram Reels and TikTok.",
-            "The approved narration is the doctrinal source of truth. Never invent, intensify, or distort a theological claim to make it more sensational.",
-            "Return exactly four ranked candidates. Optimize for strong retention and shareability while preserving the speaker's intended meaning.",
-            "Prefer self-contained segments roughly 20 to 55 seconds long. A segment can be slightly shorter or longer only if that is necessary to complete the thought.",
-            "The opening should have immediate tension: a direct claim, question, surprising Scriptural contrast, common objection, or memorable sentence. Avoid greetings and setup language.",
-            "Favor moments a viewer can understand without watching the full Pathway. Do not begin or end mid-sentence. Do not cut away the qualification that makes a claim accurate.",
-            "Score each candidate from 0 to 100 using hook strength, clarity, completeness, emotional/intellectual tension, shareability, and faithfulness to context.",
-            "Use platform 'both' when the same cut is strong on both networks. Use a single platform only when the pacing or framing is clearly better there.",
-            "startAnchor and endAnchor MUST each be an exact contiguous phrase copied verbatim from the approved narration. Use 4 to 12 words when possible. The endAnchor must occur after the startAnchor.",
-            "hook is the exact core idea a viewer hears first, not invented clickbait. title is a short internal label. rationale should explain in one sentence why the moment is likely to hold attention.",
-            "caption should be concise and invite the viewer to continue the full Pathway on Apostolic Guide without overclaiming."
+            "You are the short-form editor for Apostolic Guide. Select social clips from an approved Apostolic Guide narration for Instagram Reels and TikTok.",
+            "The approved narration is the doctrinal source of truth. Never invent, intensify, flatten, or distort a theological claim for engagement.",
+            "Return exactly four ranked candidates. Optimize for retention, rewatchability, saves, shares, and a clean handoff into the full Pathway.",
+            "Prefer self-contained segments roughly 20 to 55 seconds long. Slightly outside that range is allowed only to finish the thought accurately.",
+            "The first spoken sentence must work immediately. Prefer a direct claim, question, Scriptural contrast, objection, or memorable line. Reject greetings and throat-clearing.",
+            "IMPORTANT: startAnchor must begin at the natural beginning of the spoken sentence or complete clause. Never choose an anchor that starts halfway through a thought. endAnchor must finish a complete thought.",
+            "startAnchor and endAnchor MUST each be exact contiguous phrases copied verbatim from the approved narration, normally 4 to 12 words. The endAnchor must occur after the startAnchor.",
+            "Score 0 to 100 using hook strength, retention, clarity, completeness, emotional/intellectual tension, shareability, and faithfulness to context.",
+            "Use platform 'both' unless a cut is materially better suited to only Instagram or only TikTok.",
+            "hook is the exact core idea the viewer hears, not invented clickbait. title is a short internal label. rationale is one sentence explaining why the cut can hold attention.",
+            "Write a distinct Instagram caption and TikTok caption for each cut. Instagram can be slightly more reflective. TikTok should be shorter and faster. Both should point naturally toward the full Pathway without sounding promotional.",
+            "Return 4 to 8 useful hashtags. Mix broad discovery tags with Apostolic/doctrine-specific tags. Do not spam unrelated trending tags.",
+            "coverHeadline should be 2 to 6 words and readable on a vertical cover. coverSubline should be a short clarifier, usually 3 to 9 words. Neither may misrepresent the clip."
           ].join("\n") }]
         },
         {
@@ -228,7 +292,7 @@ export async function POST(request: Request) {
       .limit(1)
       .maybeSingle(),
     service.from("pathway_social_clips")
-      .select("id,pathway_slug,source_render_id,platform,rank,score,start_seconds,end_seconds,hook,title,rationale,caption,status,output_url,error,model,created_at,completed_at")
+      .select("id,pathway_slug,source_render_id,platform,rank,score,start_seconds,end_seconds,hook,title,rationale,caption,status,output_url,error,model,analysis_metadata,created_at,completed_at")
       .eq("pathway_slug", pathway.slug)
       .neq("status", "archived")
       .order("rank", { ascending: true })
@@ -300,7 +364,7 @@ export async function POST(request: Request) {
   }
 
   const resolved = candidates
-    .map((candidate) => resolveCandidate(candidate, tokens, duration))
+    .map((candidate) => resolveCandidate(candidate, tokens, words, duration))
     .filter((candidate): candidate is NonNullable<typeof candidate> => Boolean(candidate))
     .sort((a, b) => b.score - a.score)
     .slice(0, 4);
@@ -326,22 +390,31 @@ export async function POST(request: Request) {
     hook: candidate.hook,
     title: candidate.title,
     rationale: candidate.rationale,
-    caption: candidate.caption,
+    caption: candidate.instagramCaption,
     status: "candidate",
     model,
     analysis_metadata: {
-      version: 1,
+      version: 2,
       transcriptionModel,
       scriptHash: script.script_hash,
       audioContentHash: audio.content_hash,
       analyzedAt: now,
       startAnchor: candidate.startAnchor,
       endAnchor: candidate.endAnchor,
-      durationSeconds: candidate.durationSeconds
+      durationSeconds: candidate.durationSeconds,
+      captionCues: candidate.captionCues,
+      socialPackage: {
+        instagramCaption: candidate.instagramCaption,
+        tiktokCaption: candidate.tiktokCaption,
+        hashtags: candidate.hashtags,
+        coverHeadline: candidate.coverHeadline,
+        coverSubline: candidate.coverSubline,
+        coverUrl: null
+      }
     },
     created_by: access.user.id,
     updated_at: now
-  }))).select("id,pathway_slug,source_render_id,platform,rank,score,start_seconds,end_seconds,hook,title,rationale,caption,status,output_url,error,model,created_at,completed_at");
+  }))).select("id,pathway_slug,source_render_id,platform,rank,score,start_seconds,end_seconds,hook,title,rationale,caption,status,output_url,error,model,analysis_metadata,created_at,completed_at");
   if (inserted.error) return NextResponse.json({ error: inserted.error.message }, { status: 500 });
 
   return NextResponse.json({ clips: inserted.data ?? [], analyzed: true });

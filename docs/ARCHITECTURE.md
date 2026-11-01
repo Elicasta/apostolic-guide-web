@@ -137,7 +137,7 @@ GitHub: Elicasta/apostolic-guide-web
 Vercel project: apostolic-guide-web
 Production: apostolicguide.com
 App: app.apostolicguide.com
-Node: 22.x
+Node: 22.x (`package.json` engines; overrides the Vercel 24.x project default)
 Package manager: npm
 ```
 

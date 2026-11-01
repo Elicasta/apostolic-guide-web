@@ -131,6 +131,7 @@ export function PathwayVideoStudio({
   const timingCurrent = Boolean(selected?.audioContentHash && effectiveProject?.audioContentHash === selected.audioContentHash && alignment?.status === "aligned-rich");
 
   useEffect(() => {
+    void Promise.resolve().then(() => {
     setDuration(0);
     setCurrentTime(0);
     setMessage("");
@@ -143,13 +144,15 @@ export function PathwayVideoStudio({
     const saved = current ? project?.timeline : null;
     setTimeline(saved?.length ? saved : []);
     setSelectedCueId(saved?.[0]?.id ?? null);
+    });
   }, [selectedSlug]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!selected || !duration || timeline.length) return;
     const next = buildEstimatedPathwayVideoTimeline(selected, duration);
-    setTimeline(next);
-    setSelectedCueId(next[0]?.id ?? null);
+    let active = true;
+    void Promise.resolve().then(() => { if (active) { setTimeline(next); setSelectedCueId(next[0]?.id ?? null); } });
+    return () => { active = false; };
   }, [duration, selected, timeline.length]);
 
   useEffect(() => {
@@ -183,11 +186,7 @@ export function PathwayVideoStudio({
   const reviewRender = useMemo(() => readyRenders.find((render) => render.id === reviewRenderId) ?? readyRenders[0] ?? null, [readyRenders, reviewRenderId]);
 
   useEffect(() => {
-    if (!readyRenders.length) {
-      setReviewRenderId(null);
-      return;
-    }
-    setReviewRenderId((current) => current && readyRenders.some((render) => render.id === current) ? current : readyRenders[0].id);
+    void Promise.resolve().then(() => setReviewRenderId((current) => readyRenders.length ? (current && readyRenders.some((render) => render.id === current) ? current : readyRenders[0].id) : null));
   }, [readyRenders]);
 
   async function analyzeAudio(force = false) {
@@ -286,7 +285,7 @@ export function PathwayVideoStudio({
     }
   }
 
-  async function requestRender(targetFormat: PathwayVideoFormat) {
+  async function requestRender(targetFormat: PathwayVideoFormat, replaceExisting = false) {
     if (!selected?.audioUrl) return;
     setMessage("");
     setRenderErrors((current) => ({ ...current, [targetFormat]: "" }));
@@ -303,12 +302,14 @@ export function PathwayVideoStudio({
       const response = await fetch("/api/admin/video-studio/render", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ slug: selected.slug, formats: [targetFormat] })
+        body: JSON.stringify({ slug: selected.slug, formats: [targetFormat], replaceExisting })
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || "Render could not be queued.");
       if (Array.isArray(data.renders)) setRenders((current) => data.renders.map((render: RenderRow) => ({ ...render, progress_percent: 1, progress_stage: "Queued" })).concat(current));
-      setMessage(`${formatLabel(targetFormat)} render queued. Live progress will update here automatically, and the finished MP4 will appear in Final render review.`);
+      setMessage(replaceExisting
+        ? `${formatLabel(targetFormat)} regeneration queued. The current MP4 stays available until the replacement is ready, then the old local video is deleted automatically.`
+        : `${formatLabel(targetFormat)} render queued. Live progress will update here automatically, and the finished MP4 will appear in Final render review.`);
     } catch (error) {
       const detail = error instanceof Error ? error.message : "Render could not be queued.";
       setRenderErrors((current) => ({ ...current, [targetFormat]: detail }));
@@ -382,7 +383,7 @@ export function PathwayVideoStudio({
 
       <section className="admin-card video-timeline-card">
         <div className="video-card-heading"><div><span className="section-kicker">Timeline</span><h2>Visual beats</h2></div><button type="button" className="button small" onClick={rebuildEstimatedTimeline}><TimerReset size={15}/> Rich estimate</button></div>
-        <p className="video-timeline-help">GPT-5.6 Sol directs the talking points from the approved narration, then the finished audio is word-aligned to place them. <strong>Set here is correction-only.</strong></p>
+        <p className="video-timeline-help">The visual director builds talking points from approved narration, then aligns them to the finished audio. <strong>Set here is correction-only.</strong></p>
         <div className="video-cue-list">{timeline.map((cue, index) => <article key={cue.id} className={selectedCue?.id === cue.id ? "video-cue is-selected" : "video-cue"} onClick={() => setSelectedCueId(cue.id)}>
           <div className="video-cue-index"><span>{String(index + 1).padStart(2, "0")} · {cue.kind.toUpperCase()}</span><strong>{formatVideoTimestamp(cue.start)}</strong></div>
           <div className="video-cue-fields">
@@ -409,7 +410,14 @@ export function PathwayVideoStudio({
           <div><strong>{formatLabel(key)}</strong><p>{VIDEO_FORMATS[key].purpose}</p>{latest ? <small className={`render-status is-${latest.status}`}>{renderStatusLabel(latest)}{latest.error ? ` · ${latest.error}` : ""}</small> : <small>No render yet</small>}
             {rendering ? <div className="video-render-progress" aria-label={`${renderStage} ${renderPercent}%`}><div className="video-render-progress-copy"><span>{renderStage}</span><strong>{renderPercent}%</strong></div><div className="video-render-progress-track"><i style={{ width: `${renderPercent}%` }}/></div></div> : null}
           </div>
-          {latest?.status === "completed" && latest.output_url ? <div className="video-render-actions"><button type="button" className="button primary" onClick={() => setReviewRenderId(latest.id)}><Play size={15}/> Watch</button><a className="button" href={latest.output_url} target="_blank" rel="noreferrer"><Download size={15}/> Download</a></div> : <button type="button" className="button" disabled={!databaseReady || !rendererReady || !selected.audioUrl || rendering || busy === "analyze"} onClick={() => void requestRender(key)}>{rendering ? <Loader2 className="spin" size={15}/> : <RefreshCw size={15}/>} {latest ? "Render again" : "Render"}</button>}
+          {latest?.status === "completed" && latest.output_url ? <div className="video-render-actions">
+            <button type="button" className="button primary" onClick={() => setReviewRenderId(latest.id)}><Play size={15}/> Watch</button>
+            <a className="button" href={latest.output_url} target="_blank" rel="noreferrer"><Download size={15}/> Download</a>
+            <button type="button" className="button" disabled={!databaseReady || !rendererReady || !selected.audioUrl || rendering || busy === "analyze"} onClick={() => {
+              const confirmed = window.confirm(`Regenerate ${formatLabel(key)}? The current MP4 will stay available until the new render finishes successfully, then the old local video will be deleted.`);
+              if (confirmed) void requestRender(key, true);
+            }}>{busy === `render:${key}` ? <Loader2 className="spin" size={15}/> : <RefreshCw size={15}/>} Regenerate</button>
+          </div> : <button type="button" className="button" disabled={!databaseReady || !rendererReady || !selected.audioUrl || rendering || busy === "analyze"} onClick={() => void requestRender(key)}>{rendering ? <Loader2 className="spin" size={15}/> : <RefreshCw size={15}/>} {latest ? "Render again" : "Render"}</button>}
           {localError ? <div className="video-render-inline-error">{localError}{!rendererReady ? <> <a href="/admin/setup#video-renderer">Fix in Setup</a></> : null}</div> : null}
         </div>;
       })}</div>

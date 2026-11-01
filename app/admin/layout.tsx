@@ -1,20 +1,26 @@
+import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Bell, ExternalLink, Home, LogOut, Plus } from "lucide-react";
 import { getAdminAccess } from "@/auth";
 import { StudioMobileNav, StudioNav } from "@/studio-nav";
 import { StudioCommandPalette } from "@/studio-command-palette";
+import { StudioStandaloneBottomNav } from "@/studio-standalone-nav";
 import { STUDIO_ROLE_LABELS, type StudioRole } from "@/studio-permissions";
 import { getNotificationUnreadCount } from "@/studio-notifications";
+import "./admin-surface-isolation.css";
 import "./publishing.css";
 import "./campaign-intelligence.css";
 import "./social-messaging.css";
+import "./comment-guide.css";
 import "./growth.css";
 import "./people.css";
+import "./email-automations.css";
 import "./journeys.css";
 import "./relationship.css";
 import "./relationship-intelligence.css";
 import "./inbox.css";
+import "./ekegusii-reviews.css";
 import "./segments.css";
 import "./notifications.css";
 import "./studio-system.css";
@@ -23,6 +29,7 @@ import "./system-polish.css";
 import "./audit.css";
 import "./study-intelligence.css";
 import "./intelligence.css";
+import "./analytics-v3.css";
 import "./pathway-projects.css";
 import "./pathway-audio.css";
 import "./video-studio.css";
@@ -31,8 +38,57 @@ import "./video-publishing-kit.css";
 import "./social-publishing-credentials.css";
 import "./video-studio-review.css";
 import "./channel-publishing.css";
+import "./ai-clips-v2.css";
+import "./video-producer.css";
+import "./video-producer-flow.css";
+import "./video-producer-episode-studio.css";
+import "./episode-studio-lane.css";
+import "./pathway-asset-ingest.css";
+import "./pathway-source-asset.css";
+import "./sol-operator.css";
+import "./sol-jarvis.css";
+import "./sol-control.css";
+import "./sol-v4-forge.css";
+import "./sol-manager-v4.css";
+import "./sol-manager-v4-fixes.css";
+import "./carousel-studio.css";
+import "./creative-studio.css";
+import "./creative-studio-controls.css";
+import "./creative-template-system.css";
+import "./carousel-persistent-artwork.css";
+import "./threads-studio-polish.css";
+import "./content-calendar-polish.css";
+import "./master-publishing.css";
+import "./master-publishing-guided.css";
+import "./natural-voice-check.css";
+import "./carousel-library-final-polish.css";
+import "./carousel-mobile-workflow-cleanup.css";
+import "./production-mobile-regression-fix.css";
+import "./publishing-mobile-app.css";
+import "./studio-mobile-spacing-audit.css";
+import "./studio-mobile-social-people.css";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "Apostolic Guide Studio",
+  applicationName: "Apostolic Guide Studio",
+  manifest: "/studio-manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    title: "AG Studio",
+    statusBarStyle: "black-translucent"
+  },
+  formatDetection: { telephone: false },
+  icons: { apple: "/icons/icon-192.png" }
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#f6f7f7"
+};
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const access = await getAdminAccess();
@@ -70,6 +126,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           {children}
         </div>
       </div>
+      <StudioStandaloneBottomNav role={role}/>
     </div>
   );
 }

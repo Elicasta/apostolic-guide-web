@@ -1,5 +1,5 @@
 import type { MetadataRoute } from "next";
-import { websiteUrl } from "@/urls";
+import { canonicalWebsiteUrl } from "@/urls";
 
 export default function robots(): MetadataRoute.Robots {
   return {
@@ -8,7 +8,7 @@ export default function robots(): MetadataRoute.Robots {
       allow: "/",
       disallow: ["/admin/", "/api/", "/auth/", "/login/"]
     },
-    sitemap: `${websiteUrl}/sitemap.xml`,
-    host: websiteUrl
+    sitemap: `${canonicalWebsiteUrl}/sitemap.xml`,
+    host: canonicalWebsiteUrl
   };
 }

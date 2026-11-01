@@ -1,0 +1,1053 @@
+.sol-mgr-root {
+  position: relative;
+  z-index: 80;
+}
+
+.sol-mgr-panel {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  width: min(430px, calc(100vw - 36px));
+  height: min(760px, calc(100dvh - 36px));
+  display: grid;
+  grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+  overflow: hidden;
+  border: 1px solid rgba(17, 32, 56, 0.14);
+  border-radius: 24px;
+  background: #f8f6f1;
+  box-shadow: 0 24px 70px rgba(17, 32, 56, 0.18);
+  color: #12213b;
+}
+
+.sol-mgr-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 15px 16px 13px;
+  border-bottom: 1px solid rgba(17, 32, 56, 0.1);
+  background: rgba(255, 255, 255, 0.88);
+}
+
+.sol-mgr-identity {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sol-mgr-identity > div:last-child {
+  min-width: 0;
+}
+
+.sol-mgr-identity > div:last-child > span {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.sol-mgr-identity strong {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.sol-mgr-identity b {
+  padding: 4px 7px;
+  border-radius: 999px;
+  background: #f3e7ea;
+  color: #a83245;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.sol-mgr-identity small {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 5px;
+  color: #738092;
+  font-size: 11px;
+}
+
+.sol-mgr-identity small i,
+.sol-mgr-launcher small i {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 7px;
+  border-radius: 50%;
+  background: #3a9a72;
+  box-shadow: 0 0 0 3px rgba(58, 154, 114, 0.1);
+}
+
+.sol-mgr-header-actions {
+  display: flex;
+  gap: 7px;
+}
+
+.sol-mgr-header-actions button,
+.sol-mgr-view-head button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 35px;
+  border: 1px solid rgba(17, 32, 56, 0.14);
+  border-radius: 11px;
+  background: #fff;
+  color: #596678;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.sol-mgr-header-actions button {
+  width: 35px;
+  padding: 0;
+}
+
+.sol-mgr-modebar {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 13px;
+  border-bottom: 1px solid rgba(17, 32, 56, 0.09);
+  background: #fdfcf9;
+}
+
+.sol-mgr-intelligence {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #586679;
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.sol-mgr-modebar > div {
+  display: flex;
+  gap: 3px;
+  padding: 3px;
+  border-radius: 10px;
+  background: #efede8;
+}
+
+.sol-mgr-modebar button {
+  border: 0;
+  border-radius: 7px;
+  padding: 5px 7px;
+  background: transparent;
+  color: #7b8490;
+  font: inherit;
+  font-size: 9px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.sol-mgr-modebar button.is-active {
+  background: #fff;
+  color: #12213b;
+  box-shadow: 0 1px 3px rgba(17, 32, 56, 0.08);
+}
+
+.sol-mgr-tabs {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  padding: 7px 8px;
+  border-bottom: 1px solid rgba(17, 32, 56, 0.09);
+  background: #fff;
+}
+
+.sol-mgr-tabs button {
+  position: relative;
+  min-width: 0;
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border: 0;
+  border-radius: 11px;
+  background: transparent;
+  color: #737e8c;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.sol-mgr-tabs button.is-active {
+  background: #f2eee6;
+  color: #12213b;
+}
+
+.sol-mgr-tabs button b {
+  display: inline-flex;
+  min-width: 18px;
+  height: 18px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: #f4dfe3;
+  color: #a83245;
+  font-size: 9px;
+}
+
+.sol-mgr-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: #fff0ef;
+  color: #9f2e36;
+  font-size: 11px;
+}
+
+.sol-mgr-error span {
+  flex: 1;
+}
+
+.sol-mgr-error button {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+}
+
+.sol-mgr-body {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+
+.sol-mgr-brief,
+.sol-mgr-stack {
+  display: grid;
+  gap: 11px;
+  padding: 12px;
+}
+
+.sol-mgr-command {
+  padding: 15px;
+  border: 1px solid rgba(17, 32, 56, 0.12);
+  border-radius: 18px;
+  background: #112038;
+  color: #fff;
+}
+
+.sol-mgr-command > div > span,
+.sol-mgr-view-head > div > span {
+  display: block;
+  margin-bottom: 5px;
+  color: #c74857;
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: 0.13em;
+}
+
+.sol-mgr-command h2,
+.sol-mgr-view-head h2 {
+  margin: 0;
+  font-size: 19px;
+  line-height: 1.12;
+}
+
+.sol-mgr-command p {
+  margin: 7px 0 12px;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.sol-mgr-command button,
+.sol-mgr-paused button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 34px;
+  border: 0;
+  border-radius: 10px;
+  padding: 0 11px;
+  background: #fff;
+  color: #112038;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.sol-mgr-command button:disabled,
+.sol-mgr-paused button:disabled {
+  opacity: 0.55;
+}
+
+.sol-mgr-paused {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+  padding: 11px 12px;
+  border: 1px solid #e5d29d;
+  border-radius: 15px;
+  background: #fff9e9;
+  color: #785b18;
+}
+
+.sol-mgr-paused strong,
+.sol-mgr-paused span {
+  display: block;
+}
+
+.sol-mgr-paused strong {
+  font-size: 11px;
+}
+
+.sol-mgr-paused span {
+  margin-top: 3px;
+  color: #8a7444;
+  font-size: 9px;
+  line-height: 1.35;
+}
+
+.sol-mgr-paused button {
+  background: #7b5b13;
+  color: #fff;
+  white-space: nowrap;
+}
+
+.sol-mgr-priorities,
+.sol-mgr-approvals,
+.sol-mgr-chat {
+  border: 1px solid rgba(17, 32, 56, 0.11);
+  border-radius: 17px;
+  background: rgba(255, 255, 255, 0.9);
+  overflow: hidden;
+}
+
+.sol-mgr-section-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(17, 32, 56, 0.08);
+}
+
+.sol-mgr-section-title strong {
+  font-size: 11px;
+}
+
+.sol-mgr-section-title small {
+  margin-left: auto;
+  color: #8a929e;
+  font-size: 9px;
+}
+
+.sol-mgr-priority {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(17, 32, 56, 0.06);
+}
+
+.sol-mgr-priority:last-child {
+  border-bottom: 0;
+}
+
+.sol-mgr-priority > b {
+  display: inline-flex;
+  width: 22px;
+  height: 22px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 7px;
+  background: #edf0f2;
+  color: #5c6877;
+  font-size: 9px;
+}
+
+.sol-mgr-priority.is-urgent > b {
+  background: #fae7e8;
+  color: #a83245;
+}
+
+.sol-mgr-priority.is-high > b {
+  background: #fff1d3;
+  color: #8a6413;
+}
+
+.sol-mgr-priority strong,
+.sol-mgr-priority span {
+  display: block;
+}
+
+.sol-mgr-priority strong {
+  font-size: 11px;
+}
+
+.sol-mgr-priority span {
+  margin-top: 2px;
+  color: #738092;
+  font-size: 9px;
+  line-height: 1.35;
+}
+
+.sol-mgr-approval {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(17, 32, 56, 0.07);
+}
+
+.sol-mgr-approval > div:nth-child(2) span,
+.sol-mgr-approval > div:nth-child(2) strong {
+  display: block;
+}
+
+.sol-mgr-approval > div:nth-child(2) span {
+  color: #a36d18;
+  font-size: 8px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.sol-mgr-approval > div:nth-child(2) strong {
+  margin-top: 2px;
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+.sol-mgr-approval > div:last-child {
+  display: flex;
+  gap: 5px;
+}
+
+.sol-mgr-approval button {
+  min-height: 29px;
+  border: 1px solid rgba(17, 32, 56, 0.13);
+  border-radius: 9px;
+  padding: 0 8px;
+  background: #fff;
+  color: #687482;
+  font: inherit;
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.sol-mgr-approval button.is-approve {
+  background: #112038;
+  color: #fff;
+}
+
+.sol-mgr-context {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 11px;
+  border-bottom: 1px solid rgba(17, 32, 56, 0.07);
+}
+
+.sol-mgr-context span {
+  color: #b33a4a;
+  font-size: 8px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.sol-mgr-context strong {
+  font-size: 10px;
+}
+
+.sol-mgr-messages {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+}
+
+.sol-mgr-welcome,
+.sol-mgr-working {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+}
+
+.sol-mgr-welcome strong,
+.sol-mgr-working strong {
+  font-size: 11px;
+}
+
+.sol-mgr-welcome p,
+.sol-mgr-working span {
+  display: block;
+  margin: 3px 0 0;
+  color: #748091;
+  font-size: 9px;
+  line-height: 1.4;
+}
+
+.sol-mgr-message {
+  display: flex;
+  gap: 7px;
+  align-items: flex-start;
+}
+
+.sol-mgr-message.is-user {
+  justify-content: flex-end;
+}
+
+.sol-mgr-message > div {
+  max-width: 82%;
+  padding: 9px 10px;
+  border: 1px solid rgba(17, 32, 56, 0.09);
+  border-radius: 12px;
+  background: #fff;
+}
+
+.sol-mgr-message.is-user > div {
+  border-color: #112038;
+  background: #112038;
+  color: #fff;
+}
+
+.sol-mgr-message p {
+  margin: 0;
+  white-space: pre-wrap;
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.sol-mgr-message small {
+  display: block;
+  margin-top: 5px;
+  color: #8b94a0;
+  font-size: 8px;
+}
+
+.sol-mgr-message.is-user small {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.sol-mgr-tool {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 6px;
+  align-items: center;
+  padding: 6px 8px;
+  border-left: 2px solid #d6dce2;
+  color: #7a8491;
+}
+
+.sol-mgr-tool b,
+.sol-mgr-tool small {
+  font-size: 8px;
+  font-weight: 650;
+}
+
+.sol-mgr-view-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 2px 2px 4px;
+}
+
+.sol-mgr-view-head small {
+  color: #9299a2;
+  font-size: 8px;
+}
+
+.sol-mgr-view-head button {
+  padding: 0 10px;
+}
+
+.sol-mgr-agent,
+.sol-mgr-job,
+.sol-mgr-run {
+  border: 1px solid rgba(17, 32, 56, 0.11);
+  border-radius: 16px;
+  background: #fff;
+  overflow: hidden;
+}
+
+.sol-mgr-agent {
+  padding: 12px;
+}
+
+.sol-mgr-agent.is-working {
+  border-color: rgba(52, 133, 98, 0.38);
+}
+
+.sol-mgr-agent.is-attention {
+  border-color: rgba(188, 135, 31, 0.42);
+}
+
+.sol-mgr-agent.is-blocked {
+  border-color: rgba(178, 49, 65, 0.4);
+}
+
+.sol-mgr-agent-head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 7px;
+  align-items: center;
+}
+
+.sol-mgr-agent-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #8e98a3;
+}
+
+.sol-mgr-agent.is-working .sol-mgr-agent-dot {
+  background: #3a9a72;
+  box-shadow: 0 0 0 4px rgba(58, 154, 114, 0.1);
+}
+
+.sol-mgr-agent.is-attention .sol-mgr-agent-dot {
+  background: #c68a1d;
+}
+
+.sol-mgr-agent.is-blocked .sol-mgr-agent-dot {
+  background: #ad3545;
+}
+
+.sol-mgr-agent-head strong,
+.sol-mgr-agent-head small {
+  display: block;
+}
+
+.sol-mgr-agent-head strong {
+  font-size: 12px;
+}
+
+.sol-mgr-agent-head small {
+  margin-top: 2px;
+  color: #7f8995;
+  font-size: 8px;
+}
+
+.sol-mgr-agent-head > b {
+  color: #78838f;
+  font-size: 8px;
+  text-transform: uppercase;
+}
+
+.sol-mgr-agent > p {
+  margin: 9px 0;
+  color: #687585;
+  font-size: 9px;
+  line-height: 1.4;
+}
+
+.sol-mgr-agent-metrics,
+.sol-mgr-job-evidence {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border: 1px solid rgba(17, 32, 56, 0.07);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.sol-mgr-agent-metrics span,
+.sol-mgr-job-evidence span {
+  min-width: 0;
+  padding: 7px 5px;
+  border-right: 1px solid rgba(17, 32, 56, 0.07);
+  text-align: center;
+}
+
+.sol-mgr-agent-metrics span:last-child,
+.sol-mgr-job-evidence span:last-child {
+  border-right: 0;
+}
+
+.sol-mgr-agent-metrics b,
+.sol-mgr-agent-metrics small,
+.sol-mgr-job-evidence b,
+.sol-mgr-job-evidence small {
+  display: block;
+}
+
+.sol-mgr-agent-metrics b,
+.sol-mgr-job-evidence b {
+  font-size: 11px;
+}
+
+.sol-mgr-agent-metrics small,
+.sol-mgr-job-evidence small {
+  margin-top: 2px;
+  color: #9299a3;
+  font-size: 7px;
+  text-transform: uppercase;
+}
+
+.sol-mgr-agent-next {
+  display: flex;
+  gap: 4px;
+  margin-top: 9px;
+  color: #536273;
+  font-size: 9px;
+  line-height: 1.4;
+}
+
+.sol-mgr-job,
+.sol-mgr-run {
+  padding: 12px;
+}
+
+.sol-mgr-job-head,
+.sol-mgr-run-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.sol-mgr-job-head > div span,
+.sol-mgr-run-head > div span {
+  display: block;
+  color: #a83245;
+  font-size: 8px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.sol-mgr-job-head > div strong,
+.sol-mgr-run-head > div strong {
+  display: block;
+  margin-top: 3px;
+  font-size: 12px;
+}
+
+.sol-mgr-job-head > b,
+.sol-mgr-run-head > b {
+  max-width: 42%;
+  padding: 4px 7px;
+  border-radius: 999px;
+  background: #f2f0eb;
+  color: #7a8490;
+  font-size: 7px;
+  font-weight: 800;
+  text-transform: uppercase;
+  text-align: center;
+}
+
+.sol-mgr-job > p {
+  margin: 8px 0 10px;
+  color: #6c7888;
+  font-size: 9px;
+  line-height: 1.45;
+}
+
+.sol-mgr-job-evidence {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.sol-mgr-job-actions,
+.sol-mgr-run-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.sol-mgr-job-actions button,
+.sol-mgr-run-actions button,
+.sol-mgr-run-actions a {
+  min-height: 31px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border: 1px solid rgba(17, 32, 56, 0.12);
+  border-radius: 9px;
+  padding: 0 9px;
+  background: #fff;
+  color: #657181;
+  font: inherit;
+  font-size: 9px;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.sol-mgr-job-actions button.is-primary,
+.sol-mgr-run-actions a {
+  background: #112038;
+  color: #fff;
+}
+
+.sol-mgr-job-actions button:disabled,
+.sol-mgr-run-actions button:disabled {
+  opacity: 0.48;
+}
+
+.sol-mgr-progress {
+  height: 7px;
+  margin-top: 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #eceae5;
+}
+
+.sol-mgr-progress i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #557b9e;
+}
+
+.sol-mgr-run.is-waiting_review .sol-mgr-progress i {
+  background: #c78a1f;
+}
+
+.sol-mgr-run.is-failed .sol-mgr-progress i,
+.sol-mgr-run.is-stalled .sol-mgr-progress i {
+  background: #ad3545;
+}
+
+.sol-mgr-run-meta {
+  display: flex;
+  gap: 10px;
+  margin-top: 6px;
+  color: #8d95a0;
+  font-size: 8px;
+}
+
+.sol-mgr-run-meta span:last-child {
+  margin-left: auto;
+}
+
+.sol-mgr-run-error {
+  display: flex;
+  gap: 6px;
+  margin: 9px 0 0;
+  padding: 8px;
+  border-radius: 9px;
+  background: #fff0ef;
+  color: #a3333f;
+  font-size: 8px;
+  line-height: 1.4;
+}
+
+.sol-mgr-empty {
+  min-height: 150px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 24px;
+  border: 1px dashed rgba(17, 32, 56, 0.15);
+  border-radius: 16px;
+  color: #7b8795;
+  text-align: center;
+}
+
+.sol-mgr-empty strong {
+  color: #26364e;
+  font-size: 11px;
+}
+
+.sol-mgr-empty span {
+  max-width: 260px;
+  font-size: 9px;
+  line-height: 1.4;
+}
+
+.sol-mgr-composer {
+  padding: 9px 10px 8px;
+  border-top: 1px solid rgba(17, 32, 56, 0.1);
+  background: #fff;
+}
+
+.sol-mgr-composer form {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) 34px;
+  gap: 7px;
+  align-items: center;
+  padding: 5px 5px 5px 9px;
+  border: 1px solid rgba(17, 32, 56, 0.14);
+  border-radius: 13px;
+  background: #fbfaf7;
+}
+
+.sol-mgr-composer textarea {
+  min-width: 0;
+  max-height: 84px;
+  resize: none;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #12213b;
+  font: inherit;
+  font-size: 11px;
+}
+
+.sol-mgr-composer form > button {
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 9px;
+  background: #112038;
+  color: #fff;
+}
+
+.sol-mgr-composer form > button:disabled {
+  opacity: 0.35;
+}
+
+.sol-mgr-composer > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 6px;
+  color: #9098a2;
+  font-size: 8px;
+}
+
+.sol-mgr-composer > div span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.sol-mgr-launcher {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 80;
+  min-width: 178px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 13px 9px 9px;
+  border: 1px solid rgba(17, 32, 56, 0.14);
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 14px 40px rgba(17, 32, 56, 0.16);
+  color: #12213b;
+  font: inherit;
+  text-align: left;
+}
+
+.sol-mgr-launcher > span:first-child {
+  position: relative;
+}
+
+.sol-mgr-launcher > span:first-child > b {
+  position: absolute;
+  right: -4px;
+  top: -4px;
+  min-width: 17px;
+  height: 17px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: #b23a4b;
+  color: #fff;
+  font-size: 8px;
+}
+
+.sol-mgr-launcher > span:last-child strong,
+.sol-mgr-launcher > span:last-child small {
+  display: block;
+}
+
+.sol-mgr-launcher > span:last-child strong {
+  font-size: 11px;
+}
+
+.sol-mgr-launcher > span:last-child small {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 2px;
+  color: #7d8793;
+  font-size: 8px;
+}
+
+.sol-mgr-launcher.is-running {
+  border-color: rgba(58, 154, 114, 0.38);
+}
+
+.sol-mgr-launcher.is-attention {
+  border-color: rgba(178, 58, 75, 0.34);
+}
+
+.sol-mgr-root .is-spinning,
+.sol-mgr-tool svg:first-child {
+  animation: solMgrSpin 0.9s linear infinite;
+}
+
+@keyframes solMgrSpin {
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 760px) {
+  .sol-mgr-panel {
+    inset: max(10px, env(safe-area-inset-top)) 10px calc(74px + env(safe-area-inset-bottom)) 10px;
+    width: auto;
+    height: auto;
+    border-radius: 20px;
+  }
+
+  .sol-mgr-launcher {
+    right: 12px;
+    bottom: calc(78px + env(safe-area-inset-bottom));
+  }
+
+  .sol-mgr-tabs button span {
+    font-size: 9px;
+  }
+
+  .sol-mgr-paused {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .sol-mgr-paused button {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+}
+
+@media (max-width: 390px) {
+  .sol-mgr-header {
+    padding-inline: 12px;
+  }
+
+  .sol-mgr-identity b {
+    display: none;
+  }
+
+  .sol-mgr-intelligence {
+    font-size: 9px;
+  }
+
+  .sol-mgr-modebar button {
+    padding-inline: 5px;
+  }
+
+  .sol-mgr-agent-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .sol-mgr-agent-metrics span:nth-child(2) {
+    border-right: 0;
+  }
+
+  .sol-mgr-agent-metrics span:nth-child(-n + 2) {
+    border-bottom: 1px solid rgba(17, 32, 56, 0.07);
+  }
+}

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { createHmac } from "node:crypto";
 import test from "node:test";
-import { buildSocialReply, findMatchingAutomation, keywordMatches, parseInstagramWebhook, verifyMetaSignature, type SocialAutomation } from "../src/social-messaging";
+import { buildSocialReply, findMatchingAutomation, isConnectedInstagramAuthor, isSelfAuthoredInstagramComment, keywordMatches, parseInstagramWebhook, verifyMetaSignature, type SocialAutomation } from "../src/social-messaging";
 
 function automation(overrides: Partial<SocialAutomation> = {}): SocialAutomation {
   return {
@@ -54,6 +54,38 @@ test("Instagram webhook parser handles both DM and comment keyword events", () =
   assert.equal(parsed.length, 2);
   assert.equal(parsed[0]?.triggerType, "dm_keyword");
   assert.equal(parsed[1]?.triggerType, "comment_keyword");
+  assert.equal(parsed[1]?.selfAuthored, false);
+});
+
+test("Instagram self comments are marked before any automation or AI logic", () => {
+  const payload = {
+    object: "instagram",
+    entry: [{
+      id: "connected-account-id",
+      changes: [{
+        field: "comments",
+        value: {
+          id: "bot-comment-id",
+          text: "Glad it encouraged you, bro! 🙌",
+          from: {
+            id: "app-scoped-author-id",
+            username: "apostolicguide",
+            self_ig_scoped_id: "self-scoped-id"
+          },
+          media: { id: "media-1" }
+        }
+      }]
+    }]
+  };
+  const [trigger] = parseInstagramWebhook(payload);
+  assert.equal(trigger?.selfAuthored, true);
+  assert.equal(isConnectedInstagramAuthor(trigger!, "different-connected-id", "different-username"), true);
+});
+
+test("self comment detection has ID and username fallbacks for Meta payload variants", () => {
+  assert.equal(isSelfAuthoredInstagramComment({ entryId: "account-1", from: { id: "account-1" } }), true);
+  assert.equal(isSelfAuthoredInstagramComment({ from: { id: "scoped-1", username: "@ApostolicGuide" }, connectedAccountId: "account-1", connectedUsername: "apostolicguide" }), true);
+  assert.equal(isSelfAuthoredInstagramComment({ from: { id: "person-1", username: "visitor" }, connectedAccountId: "account-1", connectedUsername: "apostolicguide" }), false);
 });
 
 test("Meta webhook signatures reject tampered bodies", () => {

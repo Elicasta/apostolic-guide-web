@@ -3,11 +3,13 @@ import Link from "next/link";
 import { ArrowRight, Clock3, Route } from "lucide-react";
 import { AppBridge, PageHero } from "@/components";
 import { allPathways, pathwayCollections } from "@/pathway-catalog";
+import { buildSeoMetadata, absoluteWebsiteUrl } from "@/seo";
 
-export const metadata: Metadata = {
-  title: "Scripture Pathways",
-  description: "Follow guided sequences of connected Scriptures through Apostolic doctrine and common questions."
-};
+export const metadata: Metadata = buildSeoMetadata({
+  title: "Guided Apostolic Bible Study Pathways",
+  description: "Follow guided sequences of connected Scriptures through Apostolic doctrine, salvation, Jesus Christ, baptism, and common biblical questions.",
+  path: "/pathways"
+});
 
 export default function PathwaysPage() {
   const grouped = pathwayCollections.map((collection) => ({
@@ -15,11 +17,29 @@ export default function PathwaysPage() {
     items: allPathways.filter((pathway) => pathway.collection === collection.title)
   }));
 
+  const collectionSchema = {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    name: "Guided Apostolic Bible Study Pathways",
+    url: absoluteWebsiteUrl("/pathways"),
+    description: "Step-by-step KJV Bible studies with Scripture, explanation and navigation.",
+    mainEntity: {
+      "@type": "ItemList",
+      itemListElement: allPathways.map((item, index) => ({
+        "@type": "ListItem",
+        position: index + 1,
+        name: item.title,
+        url: absoluteWebsiteUrl(`/pathways/${item.slug}`)
+      }))
+    }
+  };
   return (
     <>
-      <PageHero variant="pathways" eyebrow="Guided Scripture studies" title="Do not collect isolated verses. Follow the pathway." text="Website pathways give you the biblical structure without overwhelming you. Continue in the app for the full sequence, objections, branches, and deeper context." />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(collectionSchema) }} />
+      <PageHero variant="pathways" eyebrow="Guided Scripture studies" title="Do not collect isolated verses. Follow the pathway." text="Choose a study, read its full KJV Scripture cards, and use Next to follow the explanations and connected passages. Continue in the app for deeper study." />
       <section className="section pathways-index-section">
         <div className="shell pathway-directory">
+          <section className="sidebar-card" aria-label="Start studying"><span className="eyebrow">New here?</span><h2>Start with God Is One.</h2><p>Open the first card, read the Scripture and explanation, then tap Next. Each card tells you why the next passage follows.</p><Link className="button button-dark" data-study-entry="pathway-directory-feature" href="/pathways/god-is-one#step-1">Begin the study <ArrowRight size={16} /></Link></section>
           <nav className="pathway-category-nav" aria-label="Pathway categories">
             {grouped.map((group) => (
               <a key={group.title} href={`#${group.title.toLowerCase().replaceAll(" ", "-")}`}>
@@ -36,14 +56,14 @@ export default function PathwaysPage() {
               </header>
               <div className="pathway-grid">
                 {group.items.map((pathway, index) => (
-                  <Link className="pathway-card" href={`/pathways/${pathway.slug}`} key={pathway.slug} data-reveal>
+                  <Link className="pathway-card" data-study-entry="pathway-directory" href={`/pathways/${pathway.slug}`} key={pathway.slug} data-reveal>
                     <span className="pathway-number">{String(index + 1).padStart(2, "0")}</span>
                     <Route size={23} />
                     <span className="eyebrow">Scripture pathway</span>
                     <h2>{pathway.title}</h2>
                     <p>{pathway.summary}</p>
                     <div className="pathway-meta"><span><Clock3 size={12} /> {pathway.estimatedMinutes} min</span><span>{pathway.steps.length} key steps</span><span>{pathway.level}</span></div>
-                    <span className="text-link">Preview pathway <ArrowRight size={16} /></span>
+                    <span className="text-link">Start pathway <ArrowRight size={16} /></span>
                   </Link>
                 ))}
               </div>

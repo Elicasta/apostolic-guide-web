@@ -1,10 +1,57 @@
 {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
-  "regions": ["iad1"],
+  "regions": [
+    "iad1"
+  ],
+  "github": {
+    "autoJobCancelation": true
+  },
+  "ignoreCommand": "node scripts/vercel-ignore-build.mjs",
   "crons": [
     {
       "path": "/api/cron/publishing",
       "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/threads-publishing",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/instagram-feed-sync",
+      "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/cron/comment-guide",
+      "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/cron/sol-runner",
+      "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/cron/sol",
+      "schedule": "*/10 * * * *"
+    },
+    {
+      "path": "/api/cron/pathway-asset-ingest-cleanup",
+      "schedule": "17 4 * * *"
+    },
+    {
+      "path": "/api/cron/editorial",
+      "schedule": "23 11 * * *"
+    },
+    {
+      "path": "/api/cron/meta-token-health",
+      "schedule": "41 10 * * *"
+    },
+    {
+      "path": "/api/cron/email-automations",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/video-producer-transcription",
+      "schedule": "* * * * *"
     }
   ]
 }

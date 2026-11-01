@@ -1,4 +1,5 @@
-export const websiteUrl = process.env.NEXT_PUBLIC_WEBSITE_URL ?? "https://apostolicguide.com";
+export const canonicalWebsiteUrl = "https://www.apostolicguide.com";
+export const websiteUrl = process.env.NEXT_PUBLIC_WEBSITE_URL ?? canonicalWebsiteUrl;
 export const appUrl = "https://app.apostolicguide.com";
 
 export function buildDirectAppUrl(path = "/", context?: Record<string, string | undefined>) {

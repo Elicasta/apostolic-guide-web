@@ -1,0 +1,144 @@
+/* Publishing desk polish. Loaded last so it can safely correct older admin layers. */
+.master-publishing-panel.source-custom .custom-media-publisher{display:grid;gap:14px;min-width:0;max-width:100%}
+.master-publishing-panel.source-custom .custom-publish-card{display:grid;gap:16px;padding:20px!important;min-width:0;overflow:hidden}
+.master-publishing-panel.source-custom .custom-publish-card .calendar-section-head{margin:0}
+.master-publishing-panel.source-custom .custom-publish-card .calendar-section-head h2{margin:4px 0 5px;color:#10202a;letter-spacing:-.025em}
+.master-publishing-panel.source-custom .custom-publish-card .calendar-section-head p{margin:0;color:#6c7a80;font-size:12px;line-height:1.5}
+.master-publishing-panel.source-custom .custom-source-grid{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(180px,.8fr) minmax(180px,.8fr);gap:12px}
+.master-publishing-panel.source-custom .custom-copy-grid{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(260px,.7fr);gap:12px}
+.master-publishing-panel.source-custom .custom-meta-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.master-publishing-panel.source-custom .custom-publish-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.master-publishing-panel.source-custom .custom-publish-card label{display:grid;gap:6px;min-width:0;color:#647278;font-size:10px;font-weight:800}
+.master-publishing-panel.source-custom .custom-publish-card label>span{font-size:10px;font-weight:850;color:#607077}
+.master-publishing-panel.source-custom .custom-publish-card select,
+.master-publishing-panel.source-custom .custom-publish-card input,
+.master-publishing-panel.source-custom .custom-publish-card textarea{width:100%;min-width:0;border:1px solid #d8e0df;border-radius:11px;background:#fbfcfc;color:#10202a;font:inherit;outline:0}
+.master-publishing-panel.source-custom .custom-publish-card select,
+.master-publishing-panel.source-custom .custom-publish-card input{min-height:44px;padding:9px 11px}
+.master-publishing-panel.source-custom .custom-publish-card textarea{padding:11px 12px;resize:vertical;line-height:1.5}
+.master-publishing-panel.source-custom .custom-publish-card select:focus,
+.master-publishing-panel.source-custom .custom-publish-card input:focus,
+.master-publishing-panel.source-custom .custom-publish-card textarea:focus{border-color:#9eafb2;box-shadow:0 0 0 3px rgba(21,86,106,.07)}
+.master-publishing-panel.source-custom .custom-publish-card select:disabled,
+.master-publishing-panel.source-custom .custom-publish-card input:disabled,
+.master-publishing-panel.source-custom .custom-publish-card textarea:disabled{opacity:.55;background:#f2f4f3}
+.master-publishing-panel.source-custom .custom-full-field{display:grid;gap:6px}
+.master-publishing-panel.source-custom .custom-media-actions,
+.master-publishing-panel.source-custom .custom-sol-actions,
+.master-publishing-panel.source-custom .custom-save-actions,
+.master-publishing-panel.source-custom .custom-final-actions{display:flex;align-items:center;flex-wrap:wrap;gap:8px}
+.master-publishing-panel.source-custom .custom-media-actions>span{display:inline-flex;align-items:center;gap:6px;color:#2a7259;font-size:11px;font-weight:800}
+.master-publishing-panel.source-custom .custom-media-preview{width:min(100%,680px);overflow:hidden;border:1px solid #e0e6e4;border-radius:14px;background:#f0f3f2}
+.master-publishing-panel.source-custom .custom-media-preview img,
+.master-publishing-panel.source-custom .custom-media-preview video{display:block;width:100%;max-width:100%;height:auto;max-height:680px;object-fit:contain}
+.master-publishing-panel.source-custom .custom-pathway-summary{display:grid;gap:3px;margin:0;padding:12px 13px;border-radius:11px;background:#f7f9f8;color:#66757b;font-size:11px;line-height:1.45}
+.master-publishing-panel.source-custom .custom-pathway-summary strong{color:#10202a;font-size:12px}
+.master-publishing-panel.source-custom .custom-theology-pending{display:flex;align-items:center;gap:8px;padding:10px 12px;border:1px solid #e0e6e4;border-radius:11px;background:#f8faf9;color:#6b787e;font-size:10px;line-height:1.4}
+.master-publishing-panel.source-custom .custom-theology-pending svg{flex:0 0 auto;color:#15566a}
+.master-publishing-panel.source-custom .custom-theology-result{display:grid;gap:10px;padding:13px;border:1px solid #d7e5dd;border-radius:13px;background:#f7fbf8}
+.master-publishing-panel.source-custom .custom-theology-result.is-warning{border-color:#e5d7b7;background:#fffaf0}
+.master-publishing-panel.source-custom .custom-theology-result.is-block{border-color:#ebc7cd;background:#fff6f7}
+.master-publishing-panel.source-custom .custom-theology-head{display:flex;align-items:center;gap:9px}
+.master-publishing-panel.source-custom .custom-theology-head>div{display:grid;gap:1px}
+.master-publishing-panel.source-custom .custom-theology-head span{color:#607078;font-size:8px;font-weight:900;letter-spacing:.09em;text-transform:uppercase}
+.master-publishing-panel.source-custom .custom-theology-head strong{color:#1f6e53;font-size:12px}
+.master-publishing-panel.source-custom .custom-theology-result.is-warning .custom-theology-head strong{color:#8b651d}
+.master-publishing-panel.source-custom .custom-theology-result.is-block .custom-theology-head strong{color:#9d3041}
+.master-publishing-panel.source-custom .custom-theology-result>p{margin:0;color:#4f5e64;font-size:11px;line-height:1.5}
+.master-publishing-panel.source-custom .custom-theology-issues{display:grid;gap:7px}
+.master-publishing-panel.source-custom .custom-theology-issues article{display:grid;gap:3px;padding:9px 10px;border-left:3px solid #c59b46;border-radius:8px;background:rgba(255,255,255,.72)}
+.master-publishing-panel.source-custom .custom-theology-issues article.is-block{border-left-color:#a12d3d}
+.master-publishing-panel.source-custom .custom-theology-issues strong{font-size:10px;color:#10202a}
+.master-publishing-panel.source-custom .custom-theology-issues span{font-size:10px;color:#647278;line-height:1.45}
+.master-publishing-panel.source-custom .custom-theology-issues small{font-size:9px;color:#15566a}
+.master-publishing-panel.source-custom .custom-publish-status{padding-inline:2px}
+.master-publishing-panel.source-creative,
+.master-publishing-panel.source-creative .creative-guided-publishing,
+.master-publishing-panel.source-creative .creative-guided-card,
+.master-publishing-panel.source-creative .creative-preview-layout,
+.master-publishing-panel.source-creative .creative-preview-details{min-width:0;max-width:100%}
+.master-publishing-panel.source-creative .creative-preview-layout{overflow:hidden}
+.master-publishing-panel.source-creative .creative-instagram-preview{width:100%;max-width:420px;min-width:0;overflow:hidden}
+.master-publishing-panel.source-creative .creative-instagram-preview-media{width:100%;max-width:100%;overflow:hidden}
+.master-publishing-panel.source-creative .creative-instagram-preview-media>img{width:100%;max-width:100%;object-fit:contain;background:#edf1f0}
+.master-publishing-panel.source-creative .creative-preview-strip{max-width:100%;min-width:0}
+@media(max-width:760px){
+  html:has(.admin-layout),body:has(.admin-layout){min-height:100%;background:#f6f7f7;overscroll-behavior-y:none}
+  .admin-layout{min-height:100dvh}
+  .admin-header{min-height:calc(58px + env(safe-area-inset-top));padding-top:env(safe-area-inset-top);padding-left:max(12px,env(safe-area-inset-left));padding-right:max(12px,env(safe-area-inset-right))}
+  .admin-shell{min-height:calc(100dvh - 58px - env(safe-area-inset-top))}
+  .admin-main{padding-bottom:calc(78px + env(safe-area-inset-bottom))}
+  .admin-main:has(.master-publishing-shell){padding-top:12px;padding-left:max(10px,env(safe-area-inset-left));padding-right:max(10px,env(safe-area-inset-right))}
+  .studio-mobile-nav-drawer{height:100dvh;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
+  .master-publishing-shell{width:100%;max-width:100%;overflow:visible}
+  .master-publishing-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 8px}
+  .master-publishing-head>div:first-child{min-width:0}
+  .master-publishing-head>div:first-child>span,.master-publishing-head>div:first-child>p{display:none}
+  .master-publishing-head h1{margin:0;font-size:28px;line-height:1;letter-spacing:-.045em;white-space:nowrap}
+  .master-publishing-utilities{margin:0;flex:0 0 auto}
+  .master-publishing-utilities>a{width:42px;min-height:42px;justify-content:center;padding:0;border-radius:12px}
+  .master-publishing-utilities>a span{display:none}
+  .master-publishing-mark{display:none}
+  .master-publishing-switch{position:static;top:auto;z-index:auto;max-width:none;margin:0 0 6px;padding:3px;gap:3px;border-radius:12px}
+  .master-publishing-switch button{min-height:44px;padding:6px 8px;justify-content:center;border-radius:9px}
+  .master-publishing-switch strong{font-size:12px}
+  .master-publishing-switch small{display:none}
+  .master-publishing-source-bar{display:block;margin:0 0 10px;padding:6px 7px;border-radius:12px}
+  .master-publishing-source-bar>div,.master-publishing-source-bar>label>span{display:none}
+  .master-publishing-source-bar>label{display:block;width:100%;min-width:0}
+  .master-source-select{min-height:44px;padding:0 10px;border-radius:9px;background:#fff}
+  .master-source-select select{min-height:42px;font-size:16px}
+  .master-publishing-panel{min-width:0;max-width:100%;overflow:hidden}
+  .master-publishing-panel.source-custom .custom-media-publisher{gap:10px}
+  .master-publishing-panel.source-custom .custom-publish-card{gap:13px;padding:15px!important;border-radius:16px!important}
+  .master-publishing-panel.source-custom .custom-publish-card .calendar-section-head{display:block}
+  .master-publishing-panel.source-custom .custom-publish-card .calendar-section-head>svg{display:none}
+  .master-publishing-panel.source-custom .custom-publish-card .calendar-section-head h2{margin:3px 0 4px;font-size:24px;line-height:1.05}
+  .master-publishing-panel.source-custom .custom-publish-card .calendar-section-head p{font-size:11px;line-height:1.45}
+  .master-publishing-panel.source-custom .custom-source-grid,
+  .master-publishing-panel.source-custom .custom-copy-grid,
+  .master-publishing-panel.source-custom .custom-meta-grid,
+  .master-publishing-panel.source-custom .custom-publish-grid{grid-template-columns:1fr;gap:10px}
+  .master-publishing-panel.source-custom .custom-publish-card label{gap:5px}
+  .master-publishing-panel.source-custom .custom-publish-card label>span{font-size:10px}
+  .master-publishing-panel.source-custom .custom-publish-card select,
+  .master-publishing-panel.source-custom .custom-publish-card input,
+  .master-publishing-panel.source-custom .custom-publish-card textarea{font-size:16px!important}
+  .master-publishing-panel.source-custom .custom-publish-card select,
+  .master-publishing-panel.source-custom .custom-publish-card input{min-height:46px}
+  .master-publishing-panel.source-custom .custom-media-actions,
+  .master-publishing-panel.source-custom .custom-sol-actions,
+  .master-publishing-panel.source-custom .custom-save-actions,
+  .master-publishing-panel.source-custom .custom-final-actions{display:grid;grid-template-columns:1fr;width:100%;gap:7px}
+  .master-publishing-panel.source-custom .custom-media-actions .button,
+  .master-publishing-panel.source-custom .custom-sol-actions .button,
+  .master-publishing-panel.source-custom .custom-save-actions .button,
+  .master-publishing-panel.source-custom .custom-final-actions .button{width:100%;min-height:46px!important;justify-content:center}
+  .master-publishing-panel.source-custom .custom-media-actions>span{justify-content:center;padding:4px 0}
+  .master-publishing-panel.source-custom .custom-media-preview{width:100%;max-width:100%;border-radius:12px}
+  .master-publishing-panel.source-custom .custom-media-preview img,
+  .master-publishing-panel.source-custom .custom-media-preview video{max-height:70dvh}
+  .master-publishing-panel.source-custom .custom-pathway-summary{padding:10px 11px}
+  .master-publishing-panel.source-custom .custom-theology-result{padding:11px}
+  .master-publishing-panel.source-custom .calendar-ready-list article{grid-template-columns:1fr;gap:9px}
+  .master-publishing-panel.source-custom .calendar-ready-list .button{width:100%;justify-content:center}
+  .master-publishing-panel.source-creative .creative-publish-flow{position:static!important;top:auto!important;z-index:auto!important;margin-bottom:8px}
+  .master-publishing-panel.source-creative .creative-guided-card{padding:13px!important;overflow:hidden}
+  .master-publishing-panel.source-creative .creative-preview-layout{display:grid!important;grid-template-columns:minmax(0,1fr)!important;gap:14px!important;width:100%;overflow:hidden}
+  .master-publishing-panel.source-creative .creative-instagram-preview{width:100%!important;max-width:100%!important;margin:0!important;min-width:0!important}
+  .master-publishing-panel.source-creative .creative-instagram-preview-media>img{width:100%!important;max-width:100%!important;height:auto!important;object-fit:contain!important}
+  .master-publishing-panel.source-creative .creative-preview-details{width:100%;overflow:hidden}
+  .master-publishing-panel.source-creative .creative-preview-strip{width:100%;overflow-x:auto}
+  body:has(.master-publishing-shell) .sol-v3-launcher{right:max(10px,env(safe-area-inset-right));bottom:max(10px,env(safe-area-inset-bottom));width:52px;min-width:52px;min-height:52px;height:52px;padding:4px;justify-content:center;border-radius:16px}
+  body:has(.master-publishing-shell) .sol-v3-launcher>span:last-child{display:none}
+}
+@media(max-width:390px){
+  .master-publishing-head h1{font-size:25px}
+  .master-publishing-panel.source-custom .custom-publish-card{padding:13px!important}
+}
+@media(display-mode:standalone){
+  body:has(.admin-layout){-webkit-tap-highlight-color:transparent}
+  .admin-header{background:rgba(255,255,255,.98)}
+  .admin-main{padding-bottom:calc(88px + env(safe-area-inset-bottom))}
+  body:has(.master-publishing-shell) .sol-v3-launcher{bottom:calc(12px + env(safe-area-inset-bottom))}
+}

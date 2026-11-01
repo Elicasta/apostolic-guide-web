@@ -8,6 +8,8 @@ import { ScriptureLibraryBrowser } from "@/scripture-library-browser";
 import { SmartNext } from "@/smart-next";
 import { scriptureSuggestions } from "@/suggestion-data";
 import { scriptureByPath, scriptures, topicBySlug } from "@/data";
+import { breadcrumbJsonLd, buildSeoMetadata } from "@/seo";
+import { SearchIntentCluster } from "@/search-intent-cluster";
 import { buildAppSearchUrl } from "@/urls";
 
 export function generateStaticParams() {
@@ -18,10 +20,21 @@ type Props = { params: Promise<{ path?: string[] }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { path } = await params;
-  if (!path?.length) return { title: "Scripture", description: "Browse the Apostolic Guide Scripture library and follow connected passages." };
+  if (!path?.length) {
+    return buildSeoMetadata({
+      title: "Scripture Study Library",
+      description: "Browse the Apostolic Guide Scripture library and follow connected passages with context, explanations, and related Bible studies.",
+      path: "/scripture"
+    });
+  }
   const entry = scriptureByPath(path.join("/"));
   if (!entry) return {};
-  return { title: entry.reference, description: entry.mainPoint };
+  return buildSeoMetadata({
+    title: `${entry.reference} Meaning and Context`,
+    description: entry.mainPoint,
+    path: `/scripture/${entry.path}`,
+    type: "article"
+  });
 }
 
 export default async function ScripturePage({ params }: Props) {
@@ -47,12 +60,18 @@ export default async function ScripturePage({ params }: Props) {
   const joinedPath = path.join("/");
   const entry = scriptureByPath(joinedPath);
   if (!entry) notFound();
+  const currentPath = `/scripture/${entry.path}`;
   const topics = entry.topicSlugs.map(topicBySlug).filter((item): item is NonNullable<ReturnType<typeof topicBySlug>> => Boolean(item));
   const studyReferences = [entry.reference, ...entry.related];
   const suggestions = scriptureSuggestions(joinedPath);
+  const breadcrumbs = breadcrumbJsonLd([
+    { name: "Scripture", path: "/scripture" },
+    { name: entry.reference, path: currentPath }
+  ]);
 
   return (
     <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbs) }} />
       <section className="scripture-page-hero">
         <div className="shell">
           <Link className="back-link back-link-light" href="/scripture"><ArrowLeft size={15} /> Scripture library</Link>
@@ -91,8 +110,9 @@ export default async function ScripturePage({ params }: Props) {
         </div>
       </section>
       <section className="section section-tight"><div className="shell"><StudyScriptures references={studyReferences} /></div></section>
+      <section className="section section-tight"><div className="shell"><SearchIntentCluster currentPath={currentPath} /></div></section>
       <section className="section section-tight"><div className="shell"><AppBridge origin={`scripture-${entry.slug}`} compact /></div></section>
-      <section className="section section-tight"><div className="shell"><SmartNext currentPath={`/scripture/${entry.path}`} candidates={suggestions} eyebrow="Follow the connection" heading="Keep tracing the passage." /></div></section>
+      <section className="section section-tight"><div className="shell"><SmartNext currentPath={currentPath} candidates={suggestions} eyebrow="Follow the connection" heading="Keep tracing the passage." /></div></section>
     </>
   );
 }

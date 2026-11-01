@@ -41,14 +41,23 @@ type InstagramConfig = {
   graphVersion: string;
 };
 
-type ParsedInstagramTrigger = {
+export type ParsedInstagramTrigger = {
   externalEventId: string;
   triggerType: SocialTriggerType;
   text: string;
   senderId: string | null;
+  senderUsername: string | null;
   commentId: string | null;
+  parentCommentId: string | null;
   mediaId: string | null;
   eventAt: string;
+  selfAuthored: boolean;
+};
+
+export type InstagramCommentAuthor = {
+  id?: string | null;
+  username?: string | null;
+  self_ig_scoped_id?: string | null;
 };
 
 const SECRET_NAMES = {
@@ -64,6 +73,36 @@ export const DEFAULT_META_VERIFY_TOKEN = "apostolic-guide-instagram-webhook";
 
 function normalize(value: string) {
   return value.trim().toLocaleLowerCase();
+}
+
+export function isSelfAuthoredInstagramComment(input: {
+  entryId?: string | null;
+  from?: InstagramCommentAuthor | null;
+  connectedAccountId?: string | null;
+  connectedUsername?: string | null;
+}) {
+  const author = input.from;
+  if (!author) return false;
+  if (typeof author.self_ig_scoped_id === "string" && author.self_ig_scoped_id.trim()) return true;
+  const authorId = author.id?.trim();
+  const entryId = input.entryId?.trim();
+  const connectedAccountId = input.connectedAccountId?.trim();
+  if (authorId && (authorId === entryId || authorId === connectedAccountId)) return true;
+  const authorUsername = author.username ? normalize(author.username.replace(/^@/, "")) : "";
+  const connectedUsername = input.connectedUsername ? normalize(input.connectedUsername.replace(/^@/, "")) : "";
+  return Boolean(authorUsername && connectedUsername && authorUsername === connectedUsername);
+}
+
+export function isConnectedInstagramAuthor(
+  trigger: ParsedInstagramTrigger,
+  connectedAccountId: string | null | undefined,
+  connectedUsername?: string | null
+) {
+  return trigger.selfAuthored || isSelfAuthoredInstagramComment({
+    from: { id: trigger.senderId, username: trigger.senderUsername },
+    connectedAccountId,
+    connectedUsername
+  });
 }
 
 export function keywordMatches(message: string, keyword: string, matchType: SocialMatchType) {
@@ -271,7 +310,7 @@ export function parseInstagramWebhook(payload: unknown): ParsedInstagramTrigger[
   const results: ParsedInstagramTrigger[] = [];
   for (const entryRaw of root.entry) {
     if (!entryRaw || typeof entryRaw !== "object") continue;
-    const entry = entryRaw as { messaging?: unknown[]; changes?: unknown[] };
+    const entry = entryRaw as { id?: string; messaging?: unknown[]; changes?: unknown[] };
     for (const itemRaw of Array.isArray(entry.messaging) ? entry.messaging : []) {
       if (!itemRaw || typeof itemRaw !== "object") continue;
       const item = itemRaw as { sender?: { id?: string }; recipient?: { id?: string }; timestamp?: number; message?: { mid?: string; text?: string; is_echo?: boolean } };
@@ -281,14 +320,17 @@ export function parseInstagramWebhook(payload: unknown): ParsedInstagramTrigger[
         triggerType: "dm_keyword",
         text: item.message.text,
         senderId: item.sender?.id ?? null,
+        senderUsername: null,
         commentId: null,
+        parentCommentId: null,
         mediaId: null,
-        eventAt: item.timestamp ? new Date(item.timestamp).toISOString() : new Date().toISOString()
+        eventAt: item.timestamp ? new Date(item.timestamp).toISOString() : new Date().toISOString(),
+        selfAuthored: false
       });
     }
     for (const changeRaw of Array.isArray(entry.changes) ? entry.changes : []) {
       if (!changeRaw || typeof changeRaw !== "object") continue;
-      const change = changeRaw as { field?: string; value?: { id?: string; text?: string; from?: { id?: string }; media?: { id?: string } } };
+      const change = changeRaw as { field?: string; value?: { id?: string; text?: string; parent_id?: string; from?: InstagramCommentAuthor; media?: { id?: string } } };
       if (change.field !== "comments" && change.field !== "live_comments") continue;
       const value = change.value;
       if (!value?.id || !value.text) continue;
@@ -297,9 +339,12 @@ export function parseInstagramWebhook(payload: unknown): ParsedInstagramTrigger[
         triggerType: "comment_keyword",
         text: value.text,
         senderId: value.from?.id ?? null,
+        senderUsername: value.from?.username ?? null,
         commentId: value.id,
+        parentCommentId: value.parent_id ?? null,
         mediaId: value.media?.id ?? null,
-        eventAt: new Date().toISOString()
+        eventAt: new Date().toISOString(),
+        selfAuthored: isSelfAuthoredInstagramComment({ entryId: entry.id, from: value.from })
       });
     }
   }
@@ -337,6 +382,18 @@ export async function processInstagramWebhook(payload: unknown) {
   for (const trigger of triggers) {
     const existing = await service.from("social_events").select("id").eq("external_event_id", trigger.externalEventId).maybeSingle();
     if (existing.data) continue;
+
+    if (trigger.triggerType === "comment_keyword" && isConnectedInstagramAuthor(trigger, config.instagramUserId)) {
+      await service.from("social_events").insert({
+        external_event_id: trigger.externalEventId,
+        trigger_type: trigger.triggerType,
+        source_media_id: trigger.mediaId,
+        delivery_status: "ignored",
+        error_code: "Ignored the connected account's own comment",
+        event_at: trigger.eventAt
+      });
+      continue;
+    }
 
     const match = findMatchingAutomation(trigger.text, automations.filter((item) => item.trigger_type === trigger.triggerType));
     if (!match) {

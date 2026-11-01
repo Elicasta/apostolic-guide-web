@@ -1,0 +1,142 @@
+name: Video Producer preview renderer
+
+on:
+  repository_dispatch:
+    types: [video-producer-render-preview]
+
+permissions:
+  contents: read
+
+jobs:
+  render_chunks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      max-parallel: 20
+      matrix:
+        chunk: ${{ fromJSON(github.event.client_payload.preview_matrix) }}
+    env:
+      WORKER_REF: ${{ github.event.client_payload.worker_ref }}
+    steps:
+      - name: Validate staging worker ref
+        shell: bash
+        run: |
+          if [ "$WORKER_REF" != "codex/video-producer" ]; then
+            echo "Preview renderer only accepts codex/video-producer." >&2
+            exit 1
+          fi
+      - name: Check out staging worker
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.WORKER_REF }}
+          persist-credentials: false
+      - name: Prepare ffmpeg and AG fonts
+        shell: bash
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends ffmpeg fonts-noto-core fontconfig
+          for pkg in fonts-bebas-neue fonts-montserrat; do
+            if apt-cache show "$pkg" >/dev/null 2>&1; then
+              sudo apt-get install -y --no-install-recommends "$pkg"
+            fi
+          done
+          fc-cache -f >/dev/null 2>&1 || true
+      - name: Write preview payload
+        env:
+          PREVIEW_PAYLOAD: ${{ toJson(github.event.client_payload) }}
+        run: printf '%s' "$PREVIEW_PAYLOAD" > /tmp/video-producer-preview.json
+      - name: Render proof segment
+        shell: bash
+        run: |
+          index='${{ matrix.chunk.index }}'
+          output="/tmp/chunk-$(printf '%03d' "$index").mp4"
+          python3 scripts/render_video_producer_preview_chunk_worker.py \
+            /tmp/video-producer-preview.json \
+            "$output" \
+            "$index" \
+            '${{ matrix.chunk.start }}' \
+            '${{ matrix.chunk.end }}'
+      - name: Store proof segment
+        uses: actions/upload-artifact@v4
+        with:
+          name: video-producer-preview-${{ github.event.client_payload.job_id }}-${{ matrix.chunk.index }}
+          path: /tmp/chunk-*.mp4
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
+
+  assemble:
+    needs: render_chunks
+    if: ${{ always() && needs.render_chunks.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      WORKER_REF: ${{ github.event.client_payload.worker_ref }}
+    steps:
+      - name: Check out staging worker
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.WORKER_REF }}
+          persist-credentials: false
+      - name: Prepare ffmpeg, curl, and AG fonts
+        shell: bash
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends ffmpeg curl fonts-noto-core fontconfig
+          for pkg in fonts-bebas-neue fonts-montserrat; do
+            if apt-cache show "$pkg" >/dev/null 2>&1; then
+              sudo apt-get install -y --no-install-recommends "$pkg"
+            fi
+          done
+          fc-cache -f >/dev/null 2>&1 || true
+      - name: Download proof segments
+        uses: actions/download-artifact@v4
+        with:
+          pattern: video-producer-preview-${{ github.event.client_payload.job_id }}-*
+          path: /tmp/video-producer-preview-chunks
+          merge-multiple: true
+      - name: Write preview payload
+        env:
+          PREVIEW_PAYLOAD: ${{ toJson(github.event.client_payload) }}
+        run: printf '%s' "$PREVIEW_PAYLOAD" > /tmp/video-producer-preview.json
+      - name: Join, upload, and complete proof
+        run: |
+          python3 scripts/assemble_video_producer_preview_worker.py \
+            /tmp/video-producer-preview.json \
+            /tmp/video-producer-preview-chunks \
+            /tmp/video-producer-preview.mp4
+
+  report_failure:
+    needs: [render_chunks, assemble]
+    if: ${{ always() && (needs.render_chunks.result != 'success' || needs.assemble.result == 'failure') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Mark staging proof failed
+        env:
+          CALLBACK_URL: ${{ github.event.client_payload.callback_url }}
+          CALLBACK_TOKEN: ${{ github.event.client_payload.callback_token }}
+          JOB_ID: ${{ github.event.client_payload.job_id }}
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json, os, urllib.request
+          body = {
+              "job_id": os.environ["JOB_ID"],
+              "token": os.environ["CALLBACK_TOKEN"],
+              "status": "failed",
+              "progress": 100,
+              "stage": "Inspection proof failed",
+              "error": "One or more staging proof segments could not be rendered. The approved edit is preserved."
+          }
+          request = urllib.request.Request(
+              os.environ["CALLBACK_URL"],
+              data=json.dumps(body).encode("utf-8"),
+              method="POST",
+              headers={"content-type": "application/json", "user-agent": "apostolic-guide-video-producer-preview"},
+          )
+          with urllib.request.urlopen(request, timeout=60) as response:
+              if response.status >= 300:
+                  raise SystemExit(f"callback failed: {response.status}")
+          PY

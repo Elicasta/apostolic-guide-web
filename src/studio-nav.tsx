@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { BarChart3, Bell, BookOpen, FileClock, FileText, Film, Headphones, HeartPulse, Inbox, Instagram, ListFilter, Mail, Menu, Route, Send, Settings, Sparkles, UserCog, Users, X } from "lucide-react";
+import { BarChart3, Bell, Bot, BookOpen, Languages, FileClock, FileText, Film, FolderOpen, Headphones, HeartPulse, Inbox, Instagram, Layers3, ListFilter, Mail, Menu, MessageCircle, MonitorPlay, Route, Send, Settings, Sparkles, UserCog, Users, X } from "lucide-react";
 import { hasStudioPermission, type StudioPermission, type StudioRole } from "@/studio-permissions";
 
 export const studioNavSections: Array<{ label: string; items: Array<{ href: string; label: string; icon: typeof BarChart3; permission: StudioPermission; exact?: boolean }> }> = [
   { label: "Workspace", items: [
     { href: "/admin", label: "Overview", icon: BarChart3, permission: "view_workspace", exact: true },
+    { href: "/admin/sol", label: "Sol Operator", icon: Bot, permission: "view_workspace" },
     { href: "/admin/growth", label: "Growth Hub", icon: Sparkles, permission: "view_workspace" },
     { href: "/admin/notifications", label: "Notifications", icon: Bell, permission: "view_notifications" }
   ]},
@@ -18,17 +19,29 @@ export const studioNavSections: Array<{ label: string; items: Array<{ href: stri
     { href: "/admin/inbox", label: "Inbox", icon: Inbox, permission: "view_inbox" },
     { href: "/admin/journeys", label: "Journeys", icon: Route, permission: "view_journeys" }
   ]},
-  { label: "Publishing", items: [
-    { href: "/admin/pathways", label: "Pathway publishing", icon: Route, permission: "view_content" },
-    { href: "/admin/audio", label: "Pathway audio", icon: Headphones, permission: "manage_content" },
+  { label: "Create", items: [
+    { href: "/admin/carousel-studio", label: "Carousel Studio", icon: Layers3, permission: "manage_content" },
+    { href: "/admin/threads-studio", label: "Threads Studio", icon: MessageCircle, permission: "view_distribution" },
+    { href: "/admin/episode-studio", label: "Episode Studio", icon: FileText, permission: "manage_content" },
+    { href: "/admin/audio", label: "Pathway Audio", icon: Headphones, permission: "manage_content" },
+    { href: "/admin/video-producer", label: "Video Producer", icon: Sparkles, permission: "manage_content" },
     { href: "/admin/video-studio", label: "Video Studio", icon: Film, permission: "manage_content" },
-    { href: "/admin/content", label: "Website content", icon: FileText, permission: "view_content" },
-    { href: "/admin/app-content", label: "App content", icon: BookOpen, permission: "view_content" }
+    { href: "/admin/teleprompter", label: "Teleprompter", icon: MonitorPlay, permission: "manage_content" }
   ]},
-  { label: "Distribution", items: [
-    { href: "/admin/publish", label: "Channel Publishing", icon: Send, permission: "view_distribution" },
+  { label: "Library", items: [
+    { href: "/admin/pathways", label: "Pathway Projects", icon: Route, permission: "view_content" },
+    { href: "/admin/ekegusii-reviews", label: "Ekegusii Reviews", icon: Languages, permission: "manage_content" },
+    { href: "/admin/assets", label: "Pathway Assets", icon: FolderOpen, permission: "manage_content" },
+    { href: "/admin/content", label: "Website Content", icon: FileText, permission: "view_content" },
+    { href: "/admin/app-content", label: "App Content", icon: BookOpen, permission: "view_content" }
+  ]},
+  { label: "Publish", items: [
+    { href: "/admin/content-engine", label: "Content Engine", icon: Sparkles, permission: "view_distribution" },
+    { href: "/admin/publishing", label: "Publishing", icon: Send, permission: "view_distribution", exact: true },
     { href: "/admin/broadcasts", label: "Broadcasts", icon: Mail, permission: "view_distribution" },
-    { href: "/admin/social", label: "Social automations", icon: Instagram, permission: "view_distribution" },
+    { href: "/admin/email-automations", label: "Email Automations", icon: Mail, permission: "view_distribution" },
+    { href: "/admin/social", label: "Social Automations", icon: Instagram, permission: "view_distribution" },
+    { href: "/admin/comment-guide", label: "Comment Guide", icon: Bot, permission: "view_distribution" },
     { href: "/admin/analytics", label: "Analytics", icon: BarChart3, permission: "view_analytics" }
   ]},
   { label: "System", items: [
@@ -69,9 +82,7 @@ export function StudioNav({ role }: { role: StudioRole }) {
 }
 
 export function StudioMobileNav({ role }: { role: StudioRole }) {
-  const pathname = usePathname();
   const [open, setOpen] = useState(false);
-  useEffect(() => setOpen(false), [pathname]);
   useEffect(() => {
     if (!open) return;
     const previous = document.body.style.overflow;

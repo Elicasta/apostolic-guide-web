@@ -9,7 +9,9 @@ import { SmartNext } from "@/smart-next";
 import { articleSuggestions } from "@/suggestion-data";
 import { articleBySlug, articles, topicBySlug } from "@/data";
 import { getDatabaseContent } from "@/database-content";
-import { websiteUrl } from "@/urls";
+import { absoluteWebsiteUrl, breadcrumbJsonLd, buildSeoMetadata, defaultSeoImage } from "@/seo";
+import { SearchIntentCluster } from "@/search-intent-cluster";
+import { canonicalWebsiteUrl } from "@/urls";
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -22,10 +24,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const local = articleBySlug(slug);
   const database = local ? null : await getDatabaseContent("article", slug);
   if (!local && !database) return {};
-  return {
-    title: local?.title ?? database?.title,
-    description: local?.summary ?? database?.summary
-  };
+  return buildSeoMetadata({
+    title: local?.title ?? database!.title,
+    description: local?.summary ?? database!.summary,
+    path: `/articles/${slug}`,
+    type: "article"
+  });
 }
 
 export default async function ArticlePage({ params }: Props) {
@@ -34,6 +38,7 @@ export default async function ArticlePage({ params }: Props) {
   const database = local ? null : await getDatabaseContent("article", slug);
   if (!local && !database) notFound();
 
+  const currentPath = `/articles/${slug}`;
   const title = local?.title ?? database!.title;
   const summary = local?.summary ?? database!.summary;
   const topic = local ? topicBySlug(local.topicSlug) : null;
@@ -53,16 +58,22 @@ export default async function ArticlePage({ params }: Props) {
     "@type": "Article",
     headline: title,
     description: summary,
-    author: { "@type": "Organization", name: "Apostolic Guide" },
-    publisher: { "@type": "Organization", name: "Apostolic Guide", url: websiteUrl },
-    mainEntityOfPage: `${websiteUrl}/articles/${slug}`,
+    image: absoluteWebsiteUrl(defaultSeoImage),
+    author: { "@type": "Organization", name: "Apostolic Guide", url: canonicalWebsiteUrl },
+    publisher: { "@type": "Organization", name: "Apostolic Guide", url: canonicalWebsiteUrl, logo: { "@type": "ImageObject", url: `${canonicalWebsiteUrl}/icons/icon-512.png` } },
+    mainEntityOfPage: absoluteWebsiteUrl(currentPath),
     datePublished: local?.publishedAt ?? database?.publishedAt,
     dateModified: database?.updatedAt ?? local?.publishedAt
   };
+  const breadcrumbs = breadcrumbJsonLd([
+    { name: "Articles", path: "/articles" },
+    { name: title, path: currentPath }
+  ]);
 
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbs) }} />
       <article className="article-page">
         <header className="article-header ei-article-header">
           <div className="shell article-header-inner ei-article-header-inner">
@@ -102,9 +113,10 @@ export default async function ArticlePage({ params }: Props) {
             <div id="study-the-scriptures">
               <StudyScriptures references={references} />
             </div>
+            <SearchIntentCluster currentPath={currentPath} />
             <AppBridge compact origin={`article:${slug}`} />
             <SmartNext
-              currentPath={`/articles/${slug}`}
+              currentPath={currentPath}
               candidates={suggestions}
               eyebrow="Continue reading"
               heading="Read the next article."

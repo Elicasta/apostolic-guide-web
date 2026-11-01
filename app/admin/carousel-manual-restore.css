@@ -1,0 +1,41 @@
+/* Keep Manual Edit and the per-slide texture controls impossible to lose on mobile.
+   This file is intentionally loaded last for Carousel Studio. */
+.carousel-studio-master .carousel-manual-edit-toggle{
+  display:inline-flex!important;
+  visibility:visible!important;
+  opacity:1!important;
+}
+.carousel-studio-master [data-carousel-manual-edit-host]{
+  display:flex;
+  width:100%;
+  margin:10px 0 12px;
+}
+.carousel-studio-master .creative-studio-shell[data-manual-edit="open"] .carousel-manual-design-controls{
+  display:grid!important;
+}
+.carousel-studio-master .creative-studio-shell[data-manual-edit="open"] .carousel-manual-design-controls details[open] .carousel-manual-texture-panel{
+  display:grid!important;
+}
+
+@media(max-width:760px){
+  .carousel-studio-master .creative-head-actions{
+    overflow:visible!important;
+  }
+  .carousel-studio-master .creative-head-actions .carousel-manual-edit-toggle,
+  .carousel-studio-master [data-carousel-manual-edit-host] .carousel-manual-edit-toggle{
+    display:flex!important;
+    width:100%!important;
+    min-height:48px!important;
+    flex:1 1 100%!important;
+    order:99!important;
+  }
+  .carousel-studio-master [data-carousel-manual-edit-host]{
+    margin:8px 0 12px!important;
+  }
+  .carousel-studio-master .creative-studio-shell[data-manual-edit="open"] .carousel-manual-design-controls{
+    margin-top:0!important;
+  }
+  .carousel-studio-master .creative-studio-shell[data-manual-edit="open"] .carousel-manual-design-controls details{
+    width:100%!important;
+  }
+}

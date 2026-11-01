@@ -3,7 +3,11 @@ import { z } from "zod";
 import { getStudioPermission } from "@/auth";
 import { pathwayBySlug } from "@/pathway-catalog";
 import { normalizePathwayVideoPublishingMetadata } from "@/pathway-video-publishing";
+import { normalizeSocialClipPackage } from "@/social-clip-package";
 import { createServiceClient } from "@/supabase";
+import { assertDoctrineApproved } from "@/doctrine-gate";
+import { publicationDoctrineSource } from "@/publication-doctrine";
+
 
 export const runtime = "nodejs";
 
@@ -34,15 +38,23 @@ export async function POST(request: Request) {
   if (parsed.data.clipId) {
     if (parsed.data.platform === "youtube") return NextResponse.json({ error: "AI short clips can be scheduled for Instagram or TikTok, not the long-form YouTube slot." }, { status: 400 });
     const clipResult = await service.from("pathway_social_clips")
-      .select("id,pathway_slug,asset_id,status,output_url,caption,title")
+      .select("id,pathway_slug,asset_id,status,output_url,caption,title,analysis_metadata")
       .eq("id", parsed.data.clipId)
       .eq("pathway_slug", pathway.slug)
       .maybeSingle();
     if (clipResult.error) return NextResponse.json({ error: clipResult.error.message }, { status: 500 });
     const clip = clipResult.data;
     if (!clip?.output_url || clip.status !== "completed") return NextResponse.json({ error: "Render the selected AI clip before scheduling it." }, { status: 409 });
+    const social = normalizeSocialClipPackage(clip.analysis_metadata);
     assetId = clip.asset_id;
-    metadata = { source_kind: "clip", clip_id: clip.id, caption: clip.caption, title: clip.title };
+    metadata = {
+      source_kind: "clip",
+      clip_id: clip.id,
+      caption: parsed.data.platform === "instagram" ? (social.instagramCaption || clip.caption) : (social.tiktokCaption || clip.caption),
+      hashtags: social.hashtags,
+      cover_url: social.coverUrl,
+      title: clip.title
+    };
   } else if (parsed.data.renderId) {
     const renderResult = await service.from("pathway_video_renders")
       .select("id,pathway_slug,asset_id,format,status,output_url")
@@ -64,6 +76,9 @@ export async function POST(request: Request) {
   if (parsed.data.platform === "youtube") metadata = { ...metadata, requested_privacy: parsed.data.privacyStatus ?? "private", title: kit.youtubeTitle };
   if (parsed.data.platform === "instagram" && !metadata.caption) metadata = { ...metadata, caption: kit.reelCaption };
   if (parsed.data.platform === "tiktok" && !metadata.caption) metadata = { ...metadata, caption: kit.tiktokCaption };
+
+  try {await assertDoctrineApproved(service,publicationDoctrineSource(metadata));}
+  catch(error){return NextResponse.json({error:error instanceof Error?error.message:"Doctrine check required."},{status:409});}
 
   if (assetId) {
     const duplicate = await service.from("pathway_publications")

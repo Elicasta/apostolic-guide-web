@@ -5,7 +5,7 @@ export const metadata: Metadata = {
   title: "Install the Apostolic Guide App",
   description: "Add Apostolic Guide to your home screen, then continue into the Scripture study app.",
   alternates: { canonical: "/install-app" },
-  robots: { index: true, follow: true }
+  robots: { index: false, follow: true }
 };
 
 type Props = { searchParams: Promise<{ destination?: string }> };

@@ -1,0 +1,127 @@
+/* Rules-first Carousel Studio layer. Keeps the original studio architecture and overrides only art direction. */
+.carousel-studio-page{
+  --ag-carousel-paper:#f5f7f4;
+  --ag-carousel-white:#fff;
+  --ag-carousel-ink:#10202a;
+  --ag-carousel-ink-2:#263a44;
+  --ag-carousel-muted:#66777d;
+  --ag-carousel-line:#d9e1df;
+  --ag-carousel-crimson:#a12d3d;
+  --ag-carousel-blue:#15566a;
+  --ag-carousel-blue-soft:#dcebee;
+}
+
+/* Shared readability rules from the visual-design spec. */
+.carousel-artboard,.carousel-export-artboard{background:var(--ag-carousel-ink);color:var(--ag-carousel-paper)}
+.carousel-copy{left:8%;right:8%;gap:max(1.7cqw,var(--copy-gap,2.3cqw))}
+.carousel-copy>span{color:var(--ag-carousel-crimson);font-size:1.55cqw;letter-spacing:.16em}
+.carousel-copy>strong{letter-spacing:-.035em;line-height:.94}
+.carousel-copy>p{color:var(--ag-carousel-blue-soft);font-size:calc(2.45cqw * var(--body-scale,1));line-height:1.5;max-width:86%}
+.carousel-copy>em{background:var(--ag-carousel-crimson);color:var(--ag-carousel-white);padding:1.05cqw 1.55cqw .95cqw}
+.carousel-pathway-label{left:6.5%;top:6.2%;color:#b9c6ca}
+.carousel-footer{left:6.5%;right:6.5%;bottom:5.2%;color:#aebbc0}
+.carousel-brand-mark{right:6.3%;top:5.2%;width:9.8%}
+.carousel-grain{opacity:calc(.01 + var(--carousel-grain,.6)*.025)}
+.carousel-city{opacity:.18}
+.is-cover .carousel-copy>strong{font-size:calc(10.7cqw * var(--headline-scale,1));max-width:88%}
+.is-cover .carousel-copy>p{font-size:calc(2.3cqw * var(--body-scale,1));max-width:76%}
+.is-cta .carousel-copy>strong{font-size:calc(7.7cqw * var(--headline-scale,1))}
+
+/* Street Theology: bold doctrine, controlled grit, high contrast. */
+.carousel-artboard.is-street,.carousel-export-artboard.is-street{background:linear-gradient(180deg,#10202a 0%,#0c1b24 62%,#08131a 100%);color:var(--ag-carousel-paper)}
+.is-street .carousel-copy>strong{font-family:'Montserrat',Arial,sans-serif;font-weight:850;color:var(--ag-carousel-paper)}
+.is-street .carousel-copy>p{font-family:'Montserrat',Arial,sans-serif;font-weight:500;color:#dcebee}
+.is-street .carousel-ambient-red{background:radial-gradient(circle,rgba(161,45,61,.34),transparent 68%)}
+.is-street .carousel-ambient-blue{background:radial-gradient(circle,rgba(21,86,106,.32),transparent 68%)}
+.is-street .carousel-copy>em{background:var(--ag-carousel-crimson)}
+
+/* Brand White Editorial: teaching/word-study system. Calm, readable, tactile. */
+.carousel-artboard.is-editorial,.carousel-export-artboard.is-editorial{background:var(--ag-carousel-paper);color:var(--ag-carousel-ink)}
+.is-editorial .carousel-brand-mark{content:url('/brand/apostolic-guide-mark.png')}
+.is-editorial .carousel-ambient{opacity:.025}
+.is-editorial .carousel-city{display:none}
+.is-editorial .carousel-pathway-label{color:var(--ag-carousel-crimson)}
+.is-editorial .carousel-footer{color:var(--ag-carousel-muted)}
+.is-editorial .carousel-copy{left:9%;right:9%;gap:max(2cqw,var(--copy-gap,2.3cqw))}
+.is-editorial .carousel-copy>strong{font-family:'Cormorant Garamond',Georgia,serif;font-weight:650;letter-spacing:-.028em;line-height:.98;color:var(--ag-carousel-ink)}
+.is-editorial .carousel-copy>p{font-family:'Montserrat',Arial,sans-serif;font-weight:500;font-size:calc(2.42cqw * var(--body-scale,1));line-height:1.55;color:var(--ag-carousel-ink-2)}
+.is-editorial .carousel-copy>span{color:var(--ag-carousel-crimson)}
+.is-editorial .carousel-copy>em{background:var(--ag-carousel-crimson);color:#fff}
+.is-editorial.is-cover .carousel-copy>strong{font-size:calc(10.1cqw * var(--headline-scale,1))}
+
+/* Cinematic: restrained type over atmosphere, never murky copy. */
+.carousel-artboard.is-cinematic,.carousel-export-artboard.is-cinematic{background:radial-gradient(circle at 54% 30%,#263a44 0%,#10202a 48%,#071016 100%);color:var(--ag-carousel-paper)}
+.is-cinematic .carousel-ambient{opacity:.42}
+.is-cinematic .carousel-city{opacity:.12}
+.is-cinematic .carousel-copy>strong{font-family:'Cormorant Garamond',Georgia,serif;font-weight:600;letter-spacing:-.025em;line-height:.98;color:#fff;font-size:calc(8.8cqw * var(--headline-scale,1))}
+.is-cinematic .carousel-copy>p{font-family:'Montserrat',Arial,sans-serif;font-weight:500;font-size:calc(2.35cqw * var(--body-scale,1));line-height:1.55;color:#dcebee}
+.is-cinematic .carousel-copy>span{color:#f1a5af}
+.is-cinematic .carousel-pathway-label,.is-cinematic .carousel-footer{color:#b9c8cd}
+
+/* Verse Connection: teaching diagram. Fixes low-contrast body copy on white. */
+.carousel-artboard.is-verse,.carousel-export-artboard.is-verse{background:var(--ag-carousel-paper);color:var(--ag-carousel-ink)}
+.is-verse .carousel-brand-mark{content:url('/brand/apostolic-guide-mark.png')}
+.is-verse .carousel-city,.is-verse .carousel-ambient{display:none}
+.is-verse .carousel-pathway-label{color:var(--ag-carousel-crimson)}
+.is-verse .carousel-footer{color:var(--ag-carousel-muted)}
+.is-verse .carousel-copy>strong{font-family:'Montserrat',Arial,sans-serif;font-weight:800;color:var(--ag-carousel-ink);letter-spacing:-.035em}
+.is-verse .carousel-copy>p{font-family:'Montserrat',Arial,sans-serif;font-weight:500;color:var(--ag-carousel-ink-2);font-size:calc(2.5cqw * var(--body-scale,1));line-height:1.52}
+.is-verse .carousel-copy>span{color:var(--ag-carousel-crimson)}
+.is-verse .carousel-copy>em{background:var(--ag-carousel-crimson);color:#fff}
+.carousel-verse-connection{left:9%;right:9%;gap:2.7cqw}
+.carousel-verse-connection>span{justify-self:center;color:var(--ag-carousel-crimson);font-size:1.7cqw;letter-spacing:.12em;font-style:normal}
+.carousel-verse-connection>strong{font-size:9.2cqw;color:var(--ag-carousel-ink)}
+.carousel-verse-connection>p{max-width:84%;font-size:2.45cqw;line-height:1.5;color:var(--ag-carousel-ink-2)}
+.carousel-verse-connection>i{color:var(--ag-carousel-crimson);font-size:5.2cqw}
+
+/* Manifesto: one statement, little supporting copy, no crown. */
+.carousel-artboard.is-manifesto,.carousel-export-artboard.is-manifesto{background:linear-gradient(180deg,#10202a 0%,#0d1b24 100%);color:var(--ag-carousel-paper)}
+.is-manifesto .carousel-city{display:none}
+.is-manifesto .carousel-ambient{opacity:.18}
+.is-manifesto .carousel-copy>strong{font-family:'Montserrat',Arial,sans-serif;font-weight:800;font-size:calc(7.4cqw * var(--headline-scale,1));line-height:1.02;letter-spacing:-.025em;color:#fff}
+.is-manifesto .carousel-copy>p{font-family:'Cormorant Garamond',Georgia,serif;font-size:calc(2.8cqw * var(--body-scale,1));line-height:1.48;color:#dcebee;font-style:italic}
+.is-manifesto .carousel-copy>span{color:#f1a5af}
+.carousel-crown{display:none!important}
+
+/* Texture layer: procedural, reusable, and always under text/logo. */
+.carousel-artwork::before{content:"";position:absolute;inset:0;z-index:2;pointer-events:none;opacity:var(--texture-strength,.25);mix-blend-mode:soft-light}
+.carousel-artboard[data-texture="none"] .carousel-artwork::before,.carousel-export-artboard[data-texture="none"] .carousel-artwork::before{display:none}
+.carousel-artboard[data-texture="paper-soft"] .carousel-artwork::before,.carousel-export-artboard[data-texture="paper-soft"] .carousel-artwork::before{background-image:radial-gradient(circle at 20% 15%,rgba(16,32,42,.07) 0 1px,transparent 1.6px),radial-gradient(circle at 70% 58%,rgba(16,32,42,.05) 0 1px,transparent 1.5px);background-size:19px 17px,23px 21px;mix-blend-mode:multiply}
+.carousel-artboard[data-texture="paper-fibrous"] .carousel-artwork::before,.carousel-export-artboard[data-texture="paper-fibrous"] .carousel-artwork::before{background-image:repeating-linear-gradient(8deg,rgba(16,32,42,.055) 0 1px,transparent 1px 7px),repeating-linear-gradient(97deg,rgba(16,32,42,.03) 0 1px,transparent 1px 11px);mix-blend-mode:multiply}
+.carousel-artboard[data-texture="grit-fine"] .carousel-artwork::before,.carousel-export-artboard[data-texture="grit-fine"] .carousel-artwork::before{background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.94' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.62'/%3E%3C/svg%3E")}
+.carousel-artboard[data-texture="grit-heavy"] .carousel-artwork::before,.carousel-export-artboard[data-texture="grit-heavy"] .carousel-artwork::before{background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.55' numOctaves='5' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.78'/%3E%3C/svg%3E");mix-blend-mode:overlay}
+.carousel-artboard[data-texture="concrete-soft"] .carousel-artwork::before,.carousel-export-artboard[data-texture="concrete-soft"] .carousel-artwork::before{background-image:radial-gradient(ellipse at 24% 22%,rgba(255,255,255,.14),transparent 35%),radial-gradient(ellipse at 78% 65%,rgba(0,0,0,.18),transparent 42%),linear-gradient(115deg,rgba(255,255,255,.05),rgba(0,0,0,.08));filter:contrast(1.15)}
+.carousel-artboard[data-texture="fog-soft"] .carousel-artwork::before,.carousel-export-artboard[data-texture="fog-soft"] .carousel-artwork::before{background-image:radial-gradient(ellipse at 28% 28%,rgba(220,235,238,.28),transparent 40%),radial-gradient(ellipse at 72% 68%,rgba(21,86,106,.2),transparent 46%);filter:blur(12px);mix-blend-mode:screen}
+.carousel-artboard[data-texture="dust-speckle"] .carousel-artwork::before,.carousel-export-artboard[data-texture="dust-speckle"] .carousel-artwork::before{background-image:radial-gradient(circle,rgba(255,255,255,.6) 0 .6px,transparent .8px),radial-gradient(circle,rgba(255,255,255,.38) 0 .8px,transparent 1px);background-size:27px 31px,41px 37px;background-position:0 0,13px 17px}
+.carousel-artboard[data-texture="halftone"] .carousel-artwork::before,.carousel-export-artboard[data-texture="halftone"] .carousel-artwork::before{background-image:radial-gradient(circle,rgba(16,32,42,.28) 0 1px,transparent 1.2px);background-size:7px 7px;mix-blend-mode:multiply}
+.carousel-artboard[data-texture="newsprint"] .carousel-artwork::before,.carousel-export-artboard[data-texture="newsprint"] .carousel-artwork::before{background-image:repeating-linear-gradient(0deg,rgba(16,32,42,.035) 0 1px,transparent 1px 4px),radial-gradient(circle,rgba(16,32,42,.18) 0 .65px,transparent .8px);background-size:auto,9px 9px;mix-blend-mode:multiply}
+.carousel-artboard[data-texture="light-leak-red"] .carousel-artwork::before,.carousel-export-artboard[data-texture="light-leak-red"] .carousel-artwork::before{background:radial-gradient(ellipse at -4% 50%,rgba(161,45,61,.72),transparent 43%),radial-gradient(ellipse at 105% 20%,rgba(161,45,61,.32),transparent 36%);mix-blend-mode:screen}
+
+/* Texture library UI, intentionally compact and attached to preview. */
+.carousel-texture-director{margin-top:16px;padding-top:16px;border-top:1px solid var(--admin-border,#d8dde3);display:grid;gap:12px}
+.carousel-texture-heading{display:flex;justify-content:space-between;align-items:flex-start;gap:16px}
+.carousel-texture-heading>div{display:grid;gap:3px}.carousel-texture-heading>div>span{font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--ag-carousel-crimson)}
+.carousel-texture-heading>div>strong{font-size:15px}.carousel-texture-heading>small{font-size:11px;color:var(--admin-muted,#69727d);text-transform:capitalize}
+.carousel-texture-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+.carousel-texture-grid button{min-width:0;display:grid;grid-template-columns:34px minmax(0,1fr);align-items:center;gap:8px;border:1px solid var(--admin-border,#d8dde3);border-radius:10px;background:transparent;padding:7px;text-align:left;color:inherit;cursor:pointer}
+.carousel-texture-grid button.is-active{border-color:var(--ag-carousel-crimson);box-shadow:0 0 0 2px rgba(161,45,61,.08)}
+.carousel-texture-grid button>i{width:34px;height:34px;border-radius:7px;background:var(--ag-carousel-ink);overflow:hidden;position:relative}
+.carousel-texture-grid button>i::after{content:"";position:absolute;inset:0;opacity:.55;background-image:radial-gradient(circle,rgba(255,255,255,.55) 0 .7px,transparent .9px);background-size:7px 7px}
+.carousel-texture-grid button[data-texture-swatch="paper-soft"]>i,.carousel-texture-grid button[data-texture-swatch="paper-fibrous"]>i,.carousel-texture-grid button[data-texture-swatch="newsprint"]>i,.carousel-texture-grid button[data-texture-swatch="halftone"]>i{background:var(--ag-carousel-paper)}
+.carousel-texture-grid button[data-texture-swatch="fog-soft"]>i{background:radial-gradient(circle at 30% 30%,#66777d,#10202a 68%)}
+.carousel-texture-grid button[data-texture-swatch="light-leak-red"]>i{background:radial-gradient(circle at 15% 50%,#a12d3d,#10202a 65%)}
+.carousel-texture-grid button span{min-width:0}.carousel-texture-grid button strong,.carousel-texture-grid button small{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.carousel-texture-grid button strong{font-size:11px}.carousel-texture-grid button small{margin-top:2px;font-size:9px;color:var(--admin-muted,#69727d)}
+.carousel-texture-strength{display:grid;grid-template-columns:108px 1fr 38px;align-items:center;gap:9px;font-size:11px}.carousel-texture-strength span{font-weight:700}.carousel-texture-strength input{width:100%}.carousel-texture-strength b{text-align:right;color:var(--admin-muted,#69727d)}
+.carousel-texture-ai{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:end}.carousel-texture-ai label{display:grid;gap:6px}.carousel-texture-ai label>span{display:flex;align-items:center;gap:5px;font-size:11px;font-weight:800}.carousel-texture-ai textarea{width:100%;resize:vertical;border:1px solid var(--admin-border,#d8dde3);border-radius:9px;background:var(--admin-surface,#fff);padding:8px 10px;color:inherit;font:inherit}.carousel-texture-ai .button{min-height:40px}.carousel-texture-message{margin:0;color:var(--admin-muted,#69727d);font-size:11px;line-height:1.45}
+
+/* Make style cards more legible and visually tied to their role. */
+.carousel-style-tabs button{min-height:70px;padding:12px}.carousel-style-tabs button strong{font-size:14px;line-height:1.15}.carousel-style-tabs button span{font-size:10px;line-height:1.35}.carousel-style-tabs button.is-active{border-color:var(--ag-carousel-crimson);background:rgba(161,45,61,.045)}
+
+@media(max-width:760px){
+  .carousel-copy{left:8.5%;right:8.5%}
+  .carousel-brand-mark{width:9%}
+  .carousel-texture-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .carousel-texture-ai{grid-template-columns:1fr}
+  .carousel-texture-ai .button{width:100%}
+  .carousel-texture-strength{grid-template-columns:96px 1fr 34px}
+}

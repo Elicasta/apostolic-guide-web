@@ -1,0 +1,44 @@
+/* Final stability pass: Carousel Studio has one workflow source of truth.
+   The legacy custom workflow controller is intentionally not rendered. */
+.carousel-studio-master .carousel-workflow{display:none!important}
+
+/* The five-card art-direction picker is canonical. Keep only Alignment from
+   the older visual controls so there is never a second template selector. */
+.carousel-studio-master .creative-visual-controls{grid-template-columns:1fr}
+.carousel-studio-master .creative-visual-controls>label:first-child{display:none}
+
+@media(max-width:760px){
+  /* The top Create/Edit + Library switch already provides navigation.
+     Ready renders the current project automatically, so separate Library,
+     Render and Save Version buttons are secondary desktop utilities. */
+  .carousel-studio-master .creative-head-actions{
+    display:grid!important;
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    gap:8px!important;
+    width:100%!important;
+    margin-top:10px!important;
+  }
+  .carousel-studio-master .creative-head-actions>button:nth-child(-n+3){
+    display:none!important;
+  }
+  .carousel-studio-master .creative-head-actions>button:nth-child(n+4){
+    width:100%!important;
+    min-width:0!important;
+    min-height:46px!important;
+    margin:0!important;
+    justify-content:center!important;
+    border-radius:11px!important;
+  }
+  .carousel-studio-master .creative-project-head{
+    gap:8px!important;
+  }
+  .carousel-studio-master .creative-project-meta{
+    row-gap:6px!important;
+  }
+  .carousel-studio-master .creative-save-state.is-error{
+    width:100%!important;
+    max-width:100%!important;
+    white-space:normal!important;
+    line-height:1.35!important;
+  }
+}

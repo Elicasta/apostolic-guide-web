@@ -1,5 +1,6 @@
 import { createServiceClient, isSupabaseConfigured, isSupabaseServiceConfigured } from "./supabase";
 import { getInstagramConnection } from "./social-messaging";
+import { getMetaTokenHealth } from "./meta-token-health";
 
 export type HealthState = "healthy" | "warning" | "error" | "not_configured";
 export type HealthCheck = {
@@ -83,6 +84,17 @@ export async function getStudioHealth() {
     });
   } catch (error) {
     checks.push({ key: "instagram", label: "Instagram / Meta", state: "error", summary: "Instagram connection status could not be read.", detail: error instanceof Error ? error.message : undefined, href: "/admin/social" });
+  }
+
+  const tokenChecks=await Promise.all(["threads","instagram"].map(channel=>getMetaTokenHealth(channel as "threads"|"instagram")));
+  for(const token of tokenChecks){
+    const state:HealthState=token.state==="valid"?(token.expiringSoon?"warning":"healthy"):token.state==="missing"?"not_configured":"error";
+    const previous=checks.find(c=>c.key===token.platform);
+    const label=token.platform==="instagram"?"Instagram / Meta":"Threads / Meta";
+    const summary=token.state==="expired"?"Expired. Reconnect before publishing.":token.state==="unavailable"?"Live token verification failed.":token.state==="missing"?"Access token missing.":token.expiringSoon?"Token expires within 7 days.": "Token verified against the Meta API.";
+    const expiration=token.expiresAt?"Expires "+new Date(token.expiresAt).toLocaleString(): "Expiry date unavailable (older token)";
+    const item:HealthCheck={key:token.platform,label,state,summary,detail:expiration+" · "+token.detail,metric:token.daysRemaining!==null?token.daysRemaining+" days":undefined,href:"/admin/setup#social-publishing"};
+    if(previous)checks.splice(checks.indexOf(previous),1,item);else checks.push(item);
   }
 
   const resendConfigured = Boolean(process.env.RESEND_API_KEY && process.env.RESEND_FROM_EMAIL);

@@ -29,7 +29,7 @@ export default async function AdminSetupPage() {
       </section>
       <section className="admin-card">
         <h2>Launch order</h2>
-        <ol className="admin-list"><li>Keep Supabase and Vercel production environment variables healthy.</li><li>Connect the Video Studio renderer so final MP4 jobs can run asynchronously.</li><li>Store channel app credentials here. Existing Instagram values are reused rather than duplicated.</li><li>Authorize the YouTube, Instagram, and TikTok accounts through the channel OAuth flows.</li><li>Render and review approved video assets in Video Studio.</li><li>Send reviewed packages through Channel Publishing.</li><li>Bring post IDs and performance back into Analytics.</li></ol>
+        <ol className="admin-list"><li>Keep Supabase and Vercel production environment variables healthy.</li><li>Connect the Video Studio renderer so final MP4 jobs can run asynchronously.</li><li>Store channel app credentials here. Existing Instagram values are reused rather than duplicated.</li><li>Authorize YouTube, Instagram, Threads, and TikTok through their channel connection flows.</li><li>Render and review approved media assets.</li><li>Send reviewed packages through Channel Publishing.</li><li>Bring post IDs and performance back into Analytics.</li></ol>
       </section>
     </>
   );

@@ -1,0 +1,21 @@
+{
+  "tool": "video",
+  "version": 1,
+  "kind": "studio",
+  "id": "jesus-is-god",
+  "timeline": [
+    {
+      "id": "cue-1",
+      "start": 0,
+      "kind": "scripture",
+      "eyebrow": "THE WORD",
+      "title": "John 1:1",
+      "body": "In the beginning was the Word.",
+      "reference": "John 1:1"
+    }
+  ],
+  "style": {
+    "font": "Inter",
+    "theme": "editorial-white"
+  }
+}

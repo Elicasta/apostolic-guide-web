@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   CalendarDays,
   Check,
@@ -9,7 +9,9 @@ import {
   ChevronRight,
   CircleAlert,
   Clock3,
+  Copy,
   ExternalLink,
+  Image as ImageIcon,
   Instagram,
   Loader2,
   Play,
@@ -21,7 +23,9 @@ import {
   Youtube
 } from "lucide-react";
 import type { PathwayVideoPublishingMetadata } from "@/pathway-video-publishing";
+import { normalizeSocialClipPackage, socialClipCaption } from "@/social-clip-package";
 import type { SocialPublishingCredentialStatus } from "@/social-publishing-integrations";
+import { DoctrineCheckPanel } from "./doctrine-check-panel";
 
 type Render = {
   id: string;
@@ -67,8 +71,10 @@ type SocialClip = {
   output_url: string | null;
   error: string | null;
   model: string | null;
+  analysis_metadata: unknown;
   created_at: string;
   completed_at: string | null;
+  updated_at?: string;
 };
 
 type PublishingPackage = {
@@ -89,9 +95,15 @@ type PublishingPackage = {
 
 type SuiteTab = "publish" | "clips" | "calendar";
 type Platform = "youtube" | "instagram" | "tiktok";
+type YouTubePrivacy = "private" | "unlisted" | "public";
 
-function platformStatus(packageItem: PublishingPackage, platform: string) {
-  return packageItem.publications.find((publication) => publication.platform === platform && publication.status !== "cancelled") ?? null;
+function platformStatus(packageItem: PublishingPackage, platform: string, currentAssetId: string | null) {
+  if (!currentAssetId) return null;
+  return packageItem.publications.find((publication) =>
+    publication.platform === platform &&
+    publication.asset_id === currentAssetId &&
+    publication.status !== "cancelled"
+  ) ?? null;
 }
 
 function StatusPill({ publication }: { publication: Publication | null }) {
@@ -118,14 +130,43 @@ function PlatformIcon({ platform, size = 17 }: { platform: Platform; size?: numb
   return <span className="tiktok-glyph small">♪</span>;
 }
 
+function copyText(value: string) {
+  if (!value) return;
+  void navigator.clipboard?.writeText(value);
+}
+
+function clipRenderProgress(value: unknown, status: SocialClip["status"], fallbackUpdatedAt?: string) {
+  const metadata = value && typeof value === "object" ? value as Record<string, unknown> : {};
+  const rawProgress = metadata.renderProgress && typeof metadata.renderProgress === "object"
+    ? metadata.renderProgress as Record<string, unknown>
+    : {};
+  const fallbackPercent = status === "queued" ? 1 : status === "rendering" ? 5 : status === "completed" ? 100 : 0;
+  const rawPercent = typeof rawProgress.progress === "number" ? rawProgress.progress : fallbackPercent;
+  const percent = Math.max(0, Math.min(100, Math.round(rawPercent)));
+  const fallbackStage = status === "queued"
+    ? "Queued for render worker"
+    : status === "rendering"
+      ? "Rendering"
+      : status === "completed"
+        ? "Ready"
+        : status === "failed"
+          ? "Failed"
+          : "";
+  const stage = typeof rawProgress.stage === "string" && rawProgress.stage.trim() ? rawProgress.stage.trim() : fallbackStage;
+  const requestedAt = typeof metadata.requestedAt === "string" ? metadata.requestedAt : undefined;
+  const updatedAt = typeof rawProgress.updatedAt === "string" ? rawProgress.updatedAt : requestedAt || fallbackUpdatedAt;
+  return { percent, stage, updatedAt };
+}
+
 export function ChannelPublishing({ packages, credentials, canPublish }: {
   packages: PublishingPackage[];
   credentials: SocialPublishingCredentialStatus[];
   canPublish: boolean;
 }) {
   const [busy, setBusy] = useState<string | null>(null);
+  const [doctrineReady,setDoctrineReady] = useState(false);
   const [messages, setMessages] = useState<Record<string, string>>({});
-  const [privacy, setPrivacy] = useState<Record<string, "private" | "unlisted" | "public">>({});
+  const [privacy, setPrivacy] = useState<Record<string, YouTubePrivacy>>({});
   const [selectedSlug, setSelectedSlug] = useState(packages[0]?.slug ?? "");
   const [tab, setTab] = useState<SuiteTab>("publish");
   const [platform, setPlatform] = useState<Platform>("youtube");
@@ -145,6 +186,32 @@ export function ChannelPublishing({ packages, credentials, canPublish }: {
   const selectedClips = selected ? (clipsBySlug[selected.slug] ?? []).filter((clip) => clip.status !== "archived").sort((a, b) => a.rank - b.rank) : [];
   const completedClips = selectedClips.filter((clip) => clip.status === "completed" && clip.output_url);
   const selectedClip = selected ? completedClips.find((clip) => clip.id === selectedClipIds[selected.slug]) ?? null : null;
+  const selectedClipPackage = selectedClip ? normalizeSocialClipPackage(selectedClip.analysis_metadata) : null;
+  const selectedSlugForPoll = selected?.slug ?? "";
+  const hasActiveClipRender = selectedClips.some((clip) => clip.status === "queued" || clip.status === "rendering");
+
+  useEffect(() => {
+    if (!selectedSlugForPoll || !hasActiveClipRender) return;
+    let cancelled = false;
+
+    const sync = async () => {
+      try {
+        const response = await fetch(`/api/admin/publishing/viral-clips/status?slug=${encodeURIComponent(selectedSlugForPoll)}`, { cache: "no-store" });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || cancelled || !Array.isArray(data.clips)) return;
+        setClipsBySlug((current) => ({ ...current, [selectedSlugForPoll]: data.clips as SocialClip[] }));
+      } catch {
+        // Keep the current UI state and try again on the next poll.
+      }
+    };
+
+    void sync();
+    const timer = window.setInterval(() => void sync(), 1800);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [selectedSlugForPoll, hasActiveClipRender]);
 
   const calendarItems = useMemo(() => packages.flatMap((item) => item.publications.flatMap((publication) => {
     const timestamp = publication.scheduled_for || publication.published_at;
@@ -171,6 +238,7 @@ export function ChannelPublishing({ packages, credentials, canPublish }: {
     const render = target === "youtube" ? item.youtubeRender : item.verticalRender;
     const actionKey = key(item.slug, `publish:${target}`);
     if (!sourceClip && !render) return;
+    if(!doctrineReady){setMessage(actionKey,"Required Doctrine check has not passed.");return;}
     setBusy(actionKey);
     setMessage(actionKey, target === "youtube" ? "Uploading to YouTube…" : "Sending Reel to Instagram…");
     try {
@@ -214,6 +282,7 @@ export function ChannelPublishing({ packages, credentials, canPublish }: {
       setMessage(scheduleKey, "Render the required video first.");
       return;
     }
+    if(!doctrineReady){setMessage(scheduleKey,"Required Doctrine check has not passed.");return;}
     setBusy(scheduleKey);
     setMessage(scheduleKey, "Adding to publishing calendar…");
     try {
@@ -243,7 +312,7 @@ export function ChannelPublishing({ packages, credentials, canPublish }: {
   async function analyzeClips(item: PublishingPackage) {
     const actionKey = key(item.slug, "analyze-clips");
     setBusy(actionKey);
-    setMessage(actionKey, "AI is reading the approved narration and timing the strongest moments…");
+    setMessage(actionKey, "AI is reading the approved narration, finding clean sentence starts, and building the social package…");
     try {
       const response = await fetch("/api/admin/publishing/viral-clips", {
         method: "POST",
@@ -254,7 +323,7 @@ export function ChannelPublishing({ packages, credentials, canPublish }: {
       if (!response.ok) throw new Error(data.error || "AI clip analysis failed.");
       const clips = Array.isArray(data.clips) ? data.clips as SocialClip[] : [];
       setClipsBySlug((current) => ({ ...current, [item.slug]: clips }));
-      setMessage(actionKey, clips.length ? `Found ${clips.length} strong short-form moments.` : "No reliable clips were returned.");
+      setMessage(actionKey, clips.length ? `Built ${clips.length} social clip packages with captions, tags, and cover direction.` : "No reliable clips were returned.");
     } catch (error) {
       setMessage(actionKey, error instanceof Error ? error.message : "AI clip analysis failed.");
     } finally {
@@ -264,21 +333,23 @@ export function ChannelPublishing({ packages, credentials, canPublish }: {
 
   async function renderClip(item: PublishingPackage, clip: SocialClip) {
     const actionKey = key(item.slug, `clip:${clip.id}`);
+    const active = clip.status === "queued" || clip.status === "rendering";
     setBusy(actionKey);
-    setMessage(actionKey, "Cutting the selected 9:16 segment…");
+    setMessage(actionKey, clip.status === "completed" ? "Regenerating animated clip and cover…" : active ? "Restarting stalled render…" : "Starting animated clip and cover…");
     try {
       const response = await fetch("/api/admin/publishing/viral-clips/render", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ clipId: clip.id })
+        body: JSON.stringify({ clipId: clip.id, regenerate: clip.status === "completed" || active })
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || "Clip render failed to start.");
+      const queuedClip = data.clip && typeof data.clip === "object" ? data.clip as Partial<SocialClip> : {};
       setClipsBySlug((current) => ({
         ...current,
-        [item.slug]: (current[item.slug] ?? []).map((currentClip) => currentClip.id === clip.id ? { ...currentClip, status: "queued" } : currentClip)
+        [item.slug]: (current[item.slug] ?? []).map((currentClip) => currentClip.id === clip.id ? { ...currentClip, ...queuedClip, status: "queued" } : currentClip)
       }));
-      setMessage(actionKey, "Clip queued. Refresh when the render finishes.");
+      setMessage(actionKey, "Queued. Live progress will update here automatically.");
     } catch (error) {
       setMessage(actionKey, error instanceof Error ? error.message : "Clip render failed to start.");
     } finally {
@@ -289,13 +360,18 @@ export function ChannelPublishing({ packages, credentials, canPublish }: {
   if (!selected) return <section className="admin-card channel-empty"><Send size={24}/><h2>No publishing packages yet</h2><p>Finish a Video Studio render and generate its publishing kit. It will appear here automatically.</p><Link className="button button-primary" href="/admin/video-studio">Open Video Studio</Link></section>;
 
   const metadata = selected.publishingKit?.metadata;
-  const publication = platformStatus(selected, platform);
+  const currentAssetId = platform === "youtube" ? selected.youtubeRender?.asset_id ?? null : selectedClip?.asset_id ?? selected.verticalRender?.asset_id ?? null;
+  const publication = platformStatus(selected, platform, currentAssetId);
   const platformRender = platform === "youtube" ? selected.youtubeRender : selected.verticalRender;
   const previewUrl = platform === "youtube" ? selected.youtubeRender?.output_url : selectedClip?.output_url || selected.verticalRender?.output_url;
   const scheduleKey = key(selected.slug, `schedule:${platform}`);
   const publishKey = key(selected.slug, `publish:${platform}`);
   const analyzeKey = key(selected.slug, "analyze-clips");
   const channelAuthorized = platform === "youtube" ? youtube?.accountAuthorized : platform === "instagram" ? instagram?.accountAuthorized : tiktok?.accountAuthorized;
+  const selectedPrivacy = privacy[selected.slug] ?? "private";
+  const selectedSocialCaption = selectedClip
+    ? socialClipCaption(selectedClip.analysis_metadata, platform === "tiktok" ? "tiktok" : "instagram", selectedClip.caption)
+    : "";
 
   return <div className="channel-publishing-page">
     <header className="channel-publishing-hero compact">
@@ -318,12 +394,7 @@ export function ChannelPublishing({ packages, credentials, canPublish }: {
 
     <section className="admin-card publishing-workspace">
       <div className="publishing-toolbar">
-        <label className="pathway-picker">
-          <span>Pathway</span>
-          <select value={selected.slug} onChange={(event) => setSelectedSlug(event.target.value)}>
-            {packages.map((item) => <option key={item.slug} value={item.slug}>{item.title}</option>)}
-          </select>
-        </label>
+        <label className="pathway-picker"><span>Pathway</span><select value={selected.slug} onChange={(event) => setSelectedSlug(event.target.value)}>{packages.map((item) => <option key={item.slug} value={item.slug}>{item.title}</option>)}</select></label>
         <div className="publishing-tabs" role="tablist" aria-label="Publishing workspace">
           <button type="button" className={tab === "publish" ? "active" : ""} onClick={() => setTab("publish")}><Send size={15}/> Publish</button>
           <button type="button" className={tab === "clips" ? "active" : ""} onClick={() => setTab("clips")}><Scissors size={15}/> AI Clips</button>
@@ -345,80 +416,60 @@ export function ChannelPublishing({ packages, credentials, canPublish }: {
         <div className="platform-tabs" role="tablist" aria-label="Publishing channel">
           {(["youtube", "instagram", "tiktok"] as Platform[]).map((item) => <button type="button" key={item} className={platform === item ? "active" : ""} onClick={() => setPlatform(item)}><PlatformIcon platform={item}/>{item === "youtube" ? "YouTube" : item === "instagram" ? "Instagram" : "TikTok"}</button>)}
         </div>
-
         <div className="publish-main-grid">
           <div className="publish-preview-column">
-            <div className={`publish-preview-shell ${platform === "youtube" ? "wide" : "vertical"}`}>
-              {previewUrl ? <video className="channel-media-preview" src={previewUrl} controls preload="metadata"/> : <div className="channel-missing-media">Render the {platform === "youtube" ? "16:9" : "9:16"} video first.</div>}
-            </div>
+            <div className={`publish-preview-shell ${platform === "youtube" ? "wide" : "vertical"}`}>{previewUrl ? <video className="channel-media-preview" src={previewUrl} controls preload="metadata"/> : <div className="channel-missing-media">Render the {platform === "youtube" ? "16:9" : "9:16"} video first.</div>}</div>
             {platform !== "youtube" && completedClips.length ? <label className="source-picker"><span>Video source</span><select value={selectedClip?.id ?? "full"} onChange={(event) => setSelectedClipIds((current) => ({ ...current, [selected.slug]: event.target.value === "full" ? "" : event.target.value }))}><option value="full">Full Pathway 9:16</option>{completedClips.map((clip) => <option key={clip.id} value={clip.id}>AI clip #{clip.rank} · {clip.score}/100 · {seconds(Number(clip.end_seconds) - Number(clip.start_seconds))}</option>)}</select></label> : null}
             {selectedClip ? <div className="selected-clip-note"><Sparkles size={14}/><div><strong>AI-selected cut #{selectedClip.rank}</strong><span>{selectedClip.hook}</span></div></div> : null}
+            {selectedClipPackage?.coverUrl ? <a className="selected-clip-cover" href={selectedClipPackage.coverUrl} target="_blank" rel="noreferrer"><img src={selectedClipPackage.coverUrl} alt={`${selectedClip?.title ?? "AI clip"} social cover`}/><span><ImageIcon size={13}/> Cover ready</span></a> : null}
           </div>
-
           <div className="publish-control-column">
             <div className="channel-platform-head"><div><PlatformIcon platform={platform} size={20}/><strong>{platform === "youtube" ? "YouTube" : platform === "instagram" ? "Instagram Reel" : "TikTok"}</strong></div><StatusPill publication={publication}/></div>
-            {platform === "youtube" ? <label><span>Title</span><textarea rows={2} readOnly value={metadata?.youtubeTitle || "Generate the publishing kit in Video Studio."}/></label> : <label><span>Caption</span><textarea rows={5} readOnly value={selectedClip?.caption || (platform === "instagram" ? metadata?.reelCaption : metadata?.tiktokCaption) || "Generate the publishing kit in Video Studio."}/></label>}
-            {platform === "youtube" ? <label><span>Visibility</span><select value={privacy[selected.slug] ?? "private"} onChange={(event) => setPrivacy((current) => ({ ...current, [selected.slug]: event.target.value as "private" | "unlisted" | "public" }))}><option value="private">Private</option><option value="unlisted">Unlisted</option><option value="public">Public</option></select></label> : null}
-
-            <div className="publishing-action-card">
-              <div><strong>Publish now</strong><span>{platform === "tiktok" ? "Direct Post activates after TikTok approves the connection." : selectedClip ? "Publish the selected AI cut." : "Send the finished video now."}</span></div>
-              {publication?.published_url ? <a className="button" href={publication.published_url} target="_blank" rel="noreferrer">Open published post <ExternalLink size={14}/></a> : <button className="button button-primary" type="button" disabled={!canPublish || !channelAuthorized || platform === "tiktok" || (!selectedClip && !platformRender) || busy === publishKey} onClick={() => platform !== "tiktok" && void publishNow(selected, platform)}>{busy === publishKey ? <Loader2 className="spin" size={15}/> : <Send size={15}/>} {platform === "tiktok" ? "TikTok setup required" : `Publish to ${platform === "youtube" ? "YouTube" : "Instagram"}`}</button>}
-              {messages[publishKey] ? <p className="channel-action-message">{messages[publishKey]}</p> : null}
-            </div>
-
-            <div className="publishing-action-card schedule-card">
-              <div><strong>Schedule</strong><span>{platform === "tiktok" ? "Add it to the calendar now. Posting remains manual until Direct Post is enabled." : "It will publish automatically from the queue."}</span></div>
-              <input type="datetime-local" value={scheduleTimes[scheduleKey] ?? ""} onChange={(event) => setScheduleTimes((current) => ({ ...current, [scheduleKey]: event.target.value }))}/>
-              <button className="button" type="button" disabled={!canPublish || (!selectedClip && !platformRender) || busy === scheduleKey} onClick={() => void schedule(selected, platform)}>{busy === scheduleKey ? <Loader2 className="spin" size={15}/> : <CalendarDays size={15}/>} Add to calendar</button>
-              {messages[scheduleKey] ? <p className="channel-action-message">{messages[scheduleKey]}</p> : null}
-            </div>
+            {platform === "youtube" ? <label><span>Title</span><textarea rows={2} readOnly value={metadata?.youtubeTitle || "Generate the publishing kit in Video Studio."}/></label> : <><label><span>Caption</span><textarea rows={5} readOnly value={selectedSocialCaption || (platform === "instagram" ? metadata?.reelCaption : metadata?.tiktokCaption) || "Generate the publishing kit in Video Studio."}/></label>{selectedClipPackage?.hashtags.length ? <label><span>AI clip tags</span><textarea rows={2} readOnly value={selectedClipPackage.hashtags.join(" ")}/></label> : null}</>}
+            {platform === "youtube" ? <div className="youtube-visibility-card"><div className="youtube-visibility-copy"><strong>YouTube visibility</strong><span>Choose this before publishing or scheduling. The selected setting is sent directly with the YouTube upload.</span></div><div className="youtube-visibility-options" role="radiogroup" aria-label="YouTube visibility">{(["private", "unlisted", "public"] as YouTubePrivacy[]).map((value) => <button key={value} type="button" role="radio" aria-checked={selectedPrivacy === value} className={selectedPrivacy === value ? "active" : ""} onClick={() => setPrivacy((current) => ({ ...current, [selected.slug]: value }))}>{value === "private" ? "Private" : value === "unlisted" ? "Unlisted" : "Public"}</button>)}</div></div> : null}
+            {platform !== "tiktok" && (selectedClip?.id || platformRender?.id) ? <DoctrineCheckPanel key={selected.slug+":"+platform+":"+(selectedClip?.id||platformRender?.id||"")} sourceType={selectedClip?"video_clip":"video_render"} sourceId={(selectedClip?.id||platformRender?.id) as string} caption={platform==="youtube"?"":selectedClip?(selectedSocialCaption||selectedClip.caption):(metadata?.reelCaption||"")} fields={platform==="youtube"?{title:metadata?.youtubeTitle||""}:selectedClip?{title:selectedClip.title,hashtags:selectedClipPackage?.hashtags.join(" ")||""}:{}} onChange={approved=>setDoctrineReady(approved)}/> : null}
+            <div className="publishing-action-card"><div><strong>Publish now</strong><span>{platform === "tiktok" ? "Direct Post activates after TikTok approves the connection." : selectedClip ? "Publish the selected AI cut with its AI caption and tags." : "Send the finished video now."}</span></div>{publication?.published_url ? <a className="button" href={publication.published_url} target="_blank" rel="noreferrer">Open published post <ExternalLink size={14}/></a> : <button className="button button-primary" type="button" disabled={!canPublish || !doctrineReady || !channelAuthorized || platform === "tiktok" || (!selectedClip && !platformRender) || busy === publishKey} onClick={() => platform !== "tiktok" && void publishNow(selected, platform)}>{busy === publishKey ? <Loader2 className="spin" size={15}/> : <Send size={15}/>} {platform === "tiktok" ? "TikTok setup required" : `Publish to ${platform === "youtube" ? "YouTube" : "Instagram"}`}</button>}{messages[publishKey] ? <p className="channel-action-message">{messages[publishKey]}</p> : null}</div>
+            <div className="publishing-action-card schedule-card"><div><strong>Schedule</strong><span>{platform === "tiktok" ? "Add it to the calendar now. Posting remains manual until Direct Post is enabled." : "It will publish automatically from the queue."}</span></div><input type="datetime-local" value={scheduleTimes[scheduleKey] ?? ""} onChange={(event) => setScheduleTimes((current) => ({ ...current, [scheduleKey]: event.target.value }))}/><button className="button" type="button" disabled={!canPublish || !doctrineReady || (!selectedClip && !platformRender) || busy === scheduleKey} onClick={() => void schedule(selected, platform)}>{busy === scheduleKey ? <Loader2 className="spin" size={15}/> : <CalendarDays size={15}/>} Add to calendar</button>{messages[scheduleKey] ? <p className="channel-action-message">{messages[scheduleKey]}</p> : null}</div>
           </div>
         </div>
       </div> : null}
 
       {tab === "clips" ? <div className="ai-clips-panel">
-        <div className="ai-clips-intro">
-          <div className="ai-clips-intro-copy"><span className="ai-icon"><Sparkles size={18}/></span><div><span className="section-kicker">AI Moment Finder</span><h3>Find the strongest short-form cuts</h3><p>AI scores the approved narration for hook strength, clarity, completeness, tension, and shareability, then maps exact cuts back to the audio timestamps. It does not rewrite the doctrine to make it more sensational.</p></div></div>
-          <button className="button button-primary" type="button" disabled={!canPublish || !selected.verticalRender || busy === analyzeKey} onClick={() => void analyzeClips(selected)}>{busy === analyzeKey ? <Loader2 className="spin" size={15}/> : <Sparkles size={15}/>} {selectedClips.length ? "Re-analyze moments" : "Find best moments"}</button>
-        </div>
+        <div className="ai-clips-intro"><div className="ai-clips-intro-copy"><span className="ai-icon"><Sparkles size={18}/></span><div><span className="section-kicker">AI Moment Finder</span><h3>Build native short-form packages</h3><p>AI finds clean sentence starts, ranks the strongest moments, writes channel-native captions and tags, directs the cover, and times kinetic captions back to the actual narration.</p></div></div><button className="button button-primary" type="button" disabled={!canPublish || !selected.verticalRender || busy === analyzeKey} onClick={() => void analyzeClips(selected)}>{busy === analyzeKey ? <Loader2 className="spin" size={15}/> : <Sparkles size={15}/>} {selectedClips.length ? "Re-analyze moments" : "Find best moments"}</button></div>
         {messages[analyzeKey] ? <p className="channel-action-message ai-message">{messages[analyzeKey]}</p> : null}
-
-        {!selectedClips.length ? <div className="ai-clips-empty"><Scissors size={28}/><strong>No AI cuts yet</strong><span>Run the Moment Finder after the 9:16 video is rendered.</span></div> : <div className="ai-clip-grid">
-          {selectedClips.map((clip) => {
-            const clipKey = key(selected.slug, `clip:${clip.id}`);
-            const clipDuration = Number(clip.end_seconds) - Number(clip.start_seconds);
-            return <article className={`ai-clip-card ${clip.rank === 1 ? "top-pick" : ""}`} key={clip.id}>
-              <div className="ai-clip-card-head">
-                <div><span className="clip-rank">#{clip.rank}</span><div><strong>{clip.title}</strong><span>{clip.platform === "both" ? "Instagram + TikTok" : clip.platform === "instagram" ? "Instagram" : "TikTok"}</span></div></div>
-                <span className="viral-score"><strong>{clip.score}</strong><small>potential</small></span>
-              </div>
-              {clip.output_url ? <video className="ai-clip-video" src={clip.output_url} controls preload="metadata"/> : null}
-              <blockquote>{clip.hook}</blockquote>
-              <p>{clip.rationale}</p>
-              <div className="clip-metrics"><span>{seconds(Number(clip.start_seconds))} → {seconds(Number(clip.end_seconds))}</span><span>{seconds(clipDuration)} cut</span><span className={`clip-state ${clip.status}`}>{clip.status}</span></div>
-              {clip.error ? <p className="clip-error">{clip.error}</p> : null}
-              {messages[clipKey] ? <p className="channel-action-message">{messages[clipKey]}</p> : null}
-              <div className="clip-actions">
-                {clip.status === "completed" && clip.output_url ? <><button className="button" type="button" onClick={() => { setSelectedClipIds((current) => ({ ...current, [selected.slug]: clip.id })); setPlatform(clip.platform === "tiktok" ? "tiktok" : "instagram"); setTab("publish"); }}><Send size={14}/> Use this cut</button><a className="button" href={clip.output_url} target="_blank" rel="noreferrer">Open video <ExternalLink size={14}/></a></> : <button className="button button-primary" type="button" disabled={busy === clipKey || clip.status === "queued" || clip.status === "rendering"} onClick={() => void renderClip(selected, clip)}>{busy === clipKey || clip.status === "queued" || clip.status === "rendering" ? <Loader2 className="spin" size={14}/> : <Scissors size={14}/>} {clip.status === "queued" || clip.status === "rendering" ? "Rendering…" : "Render this cut"}</button>}
-              </div>
-            </article>;
-          })}
-        </div>}
+        {!selectedClips.length ? <div className="ai-clips-empty"><Scissors size={28}/><strong>No AI cuts yet</strong><span>Run the Moment Finder after the 9:16 video is rendered.</span></div> : <div className="ai-clip-grid">{selectedClips.map((clip) => {
+          const clipKey = key(selected.slug, `clip:${clip.id}`);
+          const clipDuration = Number(clip.end_seconds) - Number(clip.start_seconds);
+          const social = normalizeSocialClipPackage(clip.analysis_metadata);
+          const tags = social.hashtags.join(" ");
+          const progress = clipRenderProgress(clip.analysis_metadata, clip.status, clip.updated_at || clip.created_at);
+          const activeRender = clip.status === "queued" || clip.status === "rendering";
+          const progressUpdatedAt = progress.updatedAt ? new Date(progress.updatedAt).getTime() : NaN;
+          const stalled = activeRender && Number.isFinite(progressUpdatedAt) && Date.now() - progressUpdatedAt > 180_000;
+          const progressStage = stalled ? "No renderer progress for 3 minutes" : progress.stage;
+          return <article className={`ai-clip-card ${clip.rank === 1 ? "top-pick" : ""}`} key={clip.id}>
+            <div className="ai-clip-card-head"><div><span className="clip-rank">#{clip.rank}</span><div><strong>{clip.title}</strong><span>{clip.platform === "both" ? "Instagram + TikTok" : clip.platform === "instagram" ? "Instagram" : "TikTok"}</span></div></div><span className="viral-score"><strong>{clip.score}</strong><small>potential</small></span></div>
+            <div className="ai-clip-media-grid">{clip.output_url ? <video className="ai-clip-video" src={clip.output_url} controls preload="metadata"/> : <div className="ai-clip-placeholder"><Scissors size={22}/><span>Animated cut not rendered yet</span></div>}{social.coverUrl ? <a className="ai-clip-cover" href={social.coverUrl} target="_blank" rel="noreferrer"><img src={social.coverUrl} alt={`${clip.title} cover`}/><span>9:16 cover</span></a> : <div className="ai-clip-cover empty"><ImageIcon size={22}/><span>Cover renders with the clip</span></div>}</div>
+            <blockquote>{clip.hook}</blockquote><p>{clip.rationale}</p>
+            <div className="clip-metrics"><span>{seconds(Number(clip.start_seconds))} → {seconds(Number(clip.end_seconds))}</span><span>{seconds(clipDuration)} cut</span><span className={`clip-state ${clip.status}`}>{clip.status}</span><span>Kinetic captions</span></div>
+            {activeRender ? <div className={`clip-render-progress ${stalled ? "stalled" : ""}`} aria-label={`${progressStage} ${progress.percent}%`}>
+              <div className="clip-render-progress-head"><span>{progressStage}</span><strong>{progress.percent}%</strong></div>
+              <div className="clip-render-progress-track"><span style={{ width: `${progress.percent}%` }}/></div>
+              {stalled ? <small>The worker stopped reporting. Restarting creates a fresh render job.</small> : null}
+            </div> : null}
+            <div className="clip-social-package">
+              <div className="clip-copy-block"><div><strong>Instagram caption</strong><button type="button" onClick={() => copyText(social.instagramCaption || clip.caption)}><Copy size={12}/> Copy</button></div><p>{social.instagramCaption || clip.caption}</p></div>
+              <div className="clip-copy-block"><div><strong>TikTok caption</strong><button type="button" onClick={() => copyText(social.tiktokCaption || clip.caption)}><Copy size={12}/> Copy</button></div><p>{social.tiktokCaption || clip.caption}</p></div>
+              {tags ? <div className="clip-copy-block tags"><div><strong>Hashtags</strong><button type="button" onClick={() => copyText(tags)}><Copy size={12}/> Copy</button></div><p>{tags}</p></div> : null}
+              <div className="clip-cover-direction"><ImageIcon size={14}/><div><strong>{social.coverHeadline || clip.title}</strong><span>{social.coverSubline || selected.title}</span></div></div>
+            </div>
+            {clip.error ? <p className="clip-error">{clip.error}</p> : null}{messages[clipKey] ? <p className="channel-action-message">{messages[clipKey]}</p> : null}
+            <div className="clip-actions">{clip.status === "completed" && clip.output_url ? <><button className="button button-primary" type="button" onClick={() => { setSelectedClipIds((current) => ({ ...current, [selected.slug]: clip.id })); setPlatform(clip.platform === "tiktok" ? "tiktok" : "instagram"); setTab("publish"); }}><Send size={14}/> Use this cut</button><button className="button" type="button" disabled={busy === clipKey} onClick={() => void renderClip(selected, clip)}>{busy === clipKey ? <Loader2 className="spin" size={14}/> : <RefreshCw size={14}/>} {social.coverUrl ? "Regenerate clip + cover" : "Create cover + animation"}</button><a className="button" href={clip.output_url} target="_blank" rel="noreferrer">Open video <ExternalLink size={14}/></a></> : <button className="button button-primary" type="button" disabled={busy === clipKey || (activeRender && !stalled)} onClick={() => void renderClip(selected, clip)}>{busy === clipKey || (activeRender && !stalled) ? <Loader2 className="spin" size={14}/> : stalled ? <RefreshCw size={14}/> : <Sparkles size={14}/>} {stalled ? "Restart stalled render" : activeRender ? `${progressStage} · ${progress.percent}%` : "Render animated clip + cover"}</button>}</div>
+          </article>;
+        })}</div>}
       </div> : null}
 
-      {tab === "calendar" ? <div className="publishing-calendar-panel">
-        <div className="calendar-head"><div><span className="section-kicker">Content calendar</span><h2>{month.toLocaleDateString(undefined, { month: "long", year: "numeric" })}</h2></div><div className="calendar-nav"><button className="button button-icon" type="button" aria-label="Previous month" onClick={() => setMonth((current) => new Date(current.getFullYear(), current.getMonth() - 1, 1))}><ChevronLeft size={17}/></button><button className="button" type="button" onClick={() => { const now = new Date(); setMonth(new Date(now.getFullYear(), now.getMonth(), 1)); }}>Today</button><button className="button button-icon" type="button" aria-label="Next month" onClick={() => setMonth((current) => new Date(current.getFullYear(), current.getMonth() + 1, 1))}><ChevronRight size={17}/></button></div></div>
-        <div className="calendar-weekdays">{["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => <span key={day}>{day}</span>)}</div>
-        <div className="publishing-calendar-grid">
-          {calendarDays.map((day) => {
-            const dayEvents = calendarItems.filter((item) => dateKey(new Date(item.timestamp)) === dateKey(day));
-            const today = dateKey(day) === dateKey(new Date());
-            const muted = day.getMonth() !== month.getMonth();
-            return <div className={`calendar-day ${muted ? "muted" : ""} ${today ? "today" : ""}`} key={day.toISOString()}><span className="calendar-day-number">{day.getDate()}</span><div className="calendar-events">{dayEvents.map((item) => <div className={`calendar-event ${item.platform} ${item.status}`} key={item.id}><PlatformIcon platform={(item.platform === "youtube" || item.platform === "instagram" ? item.platform : "tiktok") as Platform} size={12}/><div><strong>{item.pathwayTitle}</strong><span>{new Date(item.timestamp).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })} · {item.status}</span></div></div>)}</div></div>;
-          })}
-        </div>
-        <div className="calendar-legend"><span><i className="legend-dot scheduled"/> Scheduled</span><span><i className="legend-dot published"/> Published</span><span><i className="legend-dot failed"/> Needs attention</span></div>
-      </div> : null}
+      {tab === "calendar" ? <div className="publishing-calendar-panel"><div className="calendar-head"><div><span className="section-kicker">Content calendar</span><h2>{month.toLocaleDateString(undefined, { month: "long", year: "numeric" })}</h2></div><div className="calendar-nav"><button className="button button-icon" type="button" aria-label="Previous month" onClick={() => setMonth((current) => new Date(current.getFullYear(), current.getMonth() - 1, 1))}><ChevronLeft size={17}/></button><button className="button" type="button" onClick={() => { const now = new Date(); setMonth(new Date(now.getFullYear(), now.getMonth(), 1)); }}>Today</button><button className="button button-icon" type="button" aria-label="Next month" onClick={() => setMonth((current) => new Date(current.getFullYear(), current.getMonth() + 1, 1))}><ChevronRight size={17}/></button></div></div><div className="calendar-weekdays">{["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => <span key={day}>{day}</span>)}</div><div className="publishing-calendar-grid">{calendarDays.map((day) => { const dayEvents = calendarItems.filter((item) => dateKey(new Date(item.timestamp)) === dateKey(day)); const today = dateKey(day) === dateKey(new Date()); const muted = day.getMonth() !== month.getMonth(); return <div className={`calendar-day ${muted ? "muted" : ""} ${today ? "today" : ""}`} key={day.toISOString()}><span className="calendar-day-number">{day.getDate()}</span><div className="calendar-events">{dayEvents.map((item) => <div className={`calendar-event ${item.platform} ${item.status}`} key={item.id}><PlatformIcon platform={(item.platform === "youtube" || item.platform === "instagram" ? item.platform : "tiktok") as Platform} size={12}/><div><strong>{item.pathwayTitle}</strong><span>{new Date(item.timestamp).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })} · {item.status}</span></div></div>)}</div></div>; })}</div><div className="calendar-legend"><span><i className="legend-dot scheduled"/> Scheduled</span><span><i className="legend-dot published"/> Published</span><span><i className="legend-dot failed"/> Needs attention</span></div></div> : null}
     </section>
   </div>;
 }

@@ -4,6 +4,8 @@ import { getStudioPermission } from "@/auth";
 import { normalizePathwayVideoPublishingMetadata } from "@/pathway-video-publishing";
 import { getSocialPublishingCredentialValues } from "@/social-publishing-integrations";
 import { createServiceClient } from "@/supabase";
+import { assertDoctrineApproved } from "@/doctrine-gate";
+import { publicationDoctrineSource } from "@/publication-doctrine";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -66,6 +68,8 @@ export async function POST(request: Request) {
   if (!kitResult.data) return NextResponse.json({ error: "Generate and save the publishing kit before publishing." }, { status: 409 });
   const metadata = normalizePathwayVideoPublishingMetadata(kitResult.data.metadata);
   if (!metadata.youtubeTitle || !metadata.youtubeDescription) return NextResponse.json({ error: "YouTube title and description are required." }, { status: 409 });
+  try{await assertDoctrineApproved(service,publicationDoctrineSource({source_kind:"render",render_id:render.id,title:metadata.youtubeTitle}));}
+  catch(error){return NextResponse.json({error:error instanceof Error?error.message:"Doctrine check required before YouTube publishing."},{status:409});}
 
   const existing = await service.from("pathway_publications")
     .select("id,status,published_url")

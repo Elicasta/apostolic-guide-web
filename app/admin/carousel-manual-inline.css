@@ -1,0 +1,172 @@
+/* Final Carousel Manual Edit surface.
+   The controls are mounted directly under the live preview so mobile never
+   loses Manual Edit or texture access behind a hidden editor column. */
+
+.carousel-inline-manual-host{
+  width:min(100%,760px);
+  margin:14px auto 0;
+}
+.carousel-inline-manual{display:grid;gap:10px;width:100%}
+.carousel-inline-manual .carousel-manual-edit-toggle{
+  width:100%!important;
+  min-height:50px!important;
+  margin:0!important;
+  justify-content:center!important;
+  border-radius:12px!important;
+  border:1px solid #d8e0df!important;
+  background:#fff!important;
+  color:#10202a!important;
+  box-shadow:none!important;
+}
+.carousel-inline-manual .carousel-manual-edit-toggle.is-open{
+  background:#10202a!important;
+  border-color:#10202a!important;
+  color:#fff!important;
+}
+.carousel-inline-manual .carousel-manual-edit-toggle>span{
+  display:flex!important;
+  align-items:baseline!important;
+  justify-content:center!important;
+  gap:8px!important;
+  text-align:center!important;
+}
+.carousel-inline-manual .carousel-manual-edit-toggle strong{font-size:12px!important}
+.carousel-inline-manual .carousel-manual-edit-toggle small{font-size:9px!important;color:#77858b!important}
+.carousel-inline-manual .carousel-manual-edit-toggle.is-open small{color:#d4dcde!important}
+
+.carousel-inline-manual-panel{
+  display:grid;
+  gap:12px;
+  padding:14px;
+  border:1px solid #dce3e2;
+  border-radius:14px;
+  background:#f8faf9;
+}
+.carousel-inline-manual-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+}
+.carousel-inline-manual-head>div:first-child{display:grid;gap:2px}
+.carousel-inline-manual-head strong{font-size:13px;color:#10202a}
+.carousel-inline-manual-head small{font-size:9px;color:#748187;font-weight:650}
+.carousel-inline-manual-actions{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.carousel-inline-manual-actions button,
+.carousel-inline-apply-all,
+.carousel-inline-color button{
+  min-height:36px;
+  border:1px solid #d7dfde;
+  border-radius:9px;
+  background:#fff;
+  color:#15566a;
+  padding:7px 10px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  font:inherit;
+  font-size:10px;
+  font-weight:850;
+}
+.carousel-inline-manual-actions .is-close{background:#10202a;color:#fff;border-color:#10202a}
+.carousel-inline-error{margin:0;padding:9px 10px;border-radius:9px;background:#fff0f1;color:#a12d3d;font-size:10px;font-weight:750;line-height:1.4}
+
+.carousel-inline-manual-panel details{
+  border:1px solid #e0e7e5;
+  border-radius:11px;
+  background:#fff;
+  overflow:hidden;
+}
+.carousel-inline-manual-panel summary{
+  list-style:none;
+  cursor:pointer;
+  padding:11px 12px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  color:#10202a;
+  font-size:11px;
+  font-weight:900;
+}
+.carousel-inline-manual-panel summary::-webkit-details-marker{display:none}
+.carousel-inline-manual-panel summary::after{content:"+";font-size:17px;line-height:1;color:#718086}
+.carousel-inline-manual-panel details[open] summary{background:#f3f7f6;border-bottom:1px solid #e5eae9}
+.carousel-inline-manual-panel details[open] summary::after{content:"−"}
+.carousel-inline-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:12px}
+.carousel-inline-range,.carousel-inline-field{display:grid;gap:7px;min-width:0}
+.carousel-inline-range>span,.carousel-inline-field>span{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  color:#637279;
+  font-size:10px;
+  font-weight:800;
+}
+.carousel-inline-range b{color:#10202a;font-size:10px}
+.carousel-inline-range input[type="range"]{width:100%;accent-color:#15566a}
+.carousel-inline-field select{
+  width:100%;
+  min-height:42px;
+  border:1px solid #d7dfde;
+  border-radius:9px;
+  background:#fff;
+  color:#10202a;
+  padding:0 10px;
+  font:inherit;
+  font-size:11px;
+  font-weight:700;
+}
+.carousel-inline-color>div{display:grid;grid-template-columns:44px minmax(0,1fr) auto;align-items:center;gap:8px}
+.carousel-inline-color input[type="color"]{width:44px;height:42px;padding:3px;border:1px solid #d7dfde;border-radius:9px;background:#fff}
+.carousel-inline-color code{min-width:0;padding:8px;border-radius:8px;background:#eef2f1;color:#10202a;font-size:10px;text-align:center;overflow:hidden;text-overflow:ellipsis}
+.carousel-inline-texture{display:grid;gap:10px;padding:12px}
+.carousel-inline-texture>p{margin:0;color:#748187;font-size:10px;line-height:1.45}
+.carousel-inline-apply-all{justify-self:start}
+
+/* New inline editor owns these controls. The retired legacy portal must never
+   reappear farther down the page and create a second editing surface. */
+.carousel-studio-master .creative-editor-panel>.carousel-manual-design-controls{display:none!important}
+
+/* The existing texture renderer reads these data attributes and variables. */
+.persistent-carousel-artboard[data-manual-text-color="true"] .carousel-copy>strong,
+.persistent-carousel-artboard[data-manual-text-color="true"] .carousel-copy>p,
+.persistent-carousel-artboard[data-manual-text-color="true"] .carousel-copy>em{
+  color:var(--manual-text-color)!important;
+}
+
+@media(max-width:760px){
+  .carousel-inline-manual-host{margin-top:10px}
+  .carousel-inline-manual-panel{padding:10px;border-radius:12px}
+  .carousel-inline-grid{grid-template-columns:1fr;gap:11px;padding:10px}
+  .carousel-inline-texture{padding:10px}
+  .carousel-inline-manual-head{align-items:center}
+
+  /* Pin the actual artwork, not the whole preview card. The controls remain
+     scrollable immediately below it. */
+  .carousel-studio-master .creative-studio-shell[data-manual-edit="open"] .creative-preview-panel{
+    position:relative!important;
+    top:auto!important;
+    z-index:auto!important;
+    padding:10px!important;
+    box-shadow:none!important;
+    backdrop-filter:none!important;
+    -webkit-backdrop-filter:none!important;
+  }
+  .carousel-studio-master .creative-studio-shell[data-manual-edit="open"] .creative-preview-panel .creative-frame-preview{
+    position:sticky!important;
+    top:calc(env(safe-area-inset-top) + 96px)!important;
+    z-index:50!important;
+    width:min(72vw,300px)!important;
+    max-width:300px!important;
+    margin:0 auto!important;
+    box-shadow:0 12px 32px rgba(13,29,43,.16)!important;
+  }
+  .carousel-studio-master .creative-studio-shell[data-manual-edit="open"] .creative-editor-panel{
+    display:block!important;
+  }
+  .carousel-studio-master .creative-studio-shell[data-manual-edit="open"] .creative-visual-controls{
+    display:none!important;
+  }
+}

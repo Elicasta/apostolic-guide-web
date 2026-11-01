@@ -2,11 +2,13 @@ import type { Metadata } from "next";
 import { PageHero } from "@/components";
 import { topics } from "@/data";
 import { TopicDirectory } from "@/topic-directory";
+import { buildSeoMetadata } from "@/seo";
 
-export const metadata: Metadata = {
-  title: "Topics",
-  description: "Explore Apostolic Guide doctrine topics with central claims, key Scriptures, explanations, and related study pathways."
-};
+export const metadata: Metadata = buildSeoMetadata({
+  title: "Apostolic Doctrine Topics and Bible Studies",
+  description: "Explore Apostolic doctrine topics with central claims, key Scriptures, explanations, direct answers, and connected Bible study pathways.",
+  path: "/topics"
+});
 
 export default function TopicsPage() {
   return (

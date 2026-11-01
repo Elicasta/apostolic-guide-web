@@ -3,11 +3,13 @@ import { articles } from "@/data";
 import { PageHero } from "@/components";
 import { ArticlePoster } from "@/article-poster";
 import { listDatabaseContent } from "@/database-content";
+import { buildSeoMetadata } from "@/seo";
 
-export const metadata: Metadata = {
-  title: "Articles",
-  description: "Bible studies, doctrinal explanations, passage breakdowns, and direct responses from Apostolic Guide."
-};
+export const metadata: Metadata = buildSeoMetadata({
+  title: "Apostolic Bible Studies and Doctrine Articles",
+  description: "Read Scripture-first Bible studies, doctrinal explanations, passage breakdowns, and direct responses about God, Jesus Christ, and salvation.",
+  path: "/articles"
+});
 
 export default async function ArticlesPage() {
   const databaseArticles = await listDatabaseContent("article");

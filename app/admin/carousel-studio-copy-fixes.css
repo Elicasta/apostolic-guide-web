@@ -1,0 +1,2 @@
+.carousel-style-tabs button:nth-child(5) span{font-size:0}
+.carousel-style-tabs button:nth-child(5) span::after{content:"Single statement";font-size:10px;line-height:1.35;color:var(--admin-muted,#69727d)}

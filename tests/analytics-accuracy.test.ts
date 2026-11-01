@@ -1,0 +1,137 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+
+function source(path: string) {
+  return readFileSync(path, "utf8");
+}
+
+test("analytics dashboard uses exact V3 database aggregates with a safe V2 fallback", () => {
+  const page = source("app/admin/analytics/page.tsx");
+  const loader = source("src/analytics-v3-server.ts");
+  assert.match(page, /loadAnalyticsV3\(\)/);
+  assert.match(loader, /schema\("analytics"\)\.rpc\("dashboard_snapshot_v3"\)/);
+  assert.match(loader, /schema\("analytics"\)\.rpc\("dashboard_snapshot_v2"\)/);
+  assert.doesNotMatch(page, /limit\(10000\)/);
+  assert.match(page, /c\.visitors/);
+  assert.match(page, /c\.engagedStudySessions/);
+  assert.match(page, /c\.appTransitionSessions/);
+});
+
+test("analytics dashboard excludes retired pathway and article slugs from current-content cards", () => {
+  const page = source("app/admin/analytics/page.tsx");
+  assert.match(page, /const catalog = new Map\(allPathways\.map/);
+  assert.match(page, /const pathway = catalog\.get\(row\.slug\)/);
+  assert.match(page, /articleTitles\.has\(row\.slug\)/);
+});
+
+test("analytics reporting migration calculates visitor, session, live, and study metrics from the full ledger", () => {
+  const migration = source("supabase/migrations/202608190001_analytics_accuracy_hardening.sql");
+  assert.match(migration, /create or replace function analytics\.dashboard_snapshot\(\)/i);
+  assert.match(migration, /count\(distinct anonymous_id\).*event_name = 'page_viewed'/is);
+  assert.match(migration, /count\(distinct session_id\).*event_name = 'page_viewed'/is);
+  assert.match(migration, /occurred_at >= now\(\) - interval '75 seconds'/i);
+  assert.match(migration, /pathway_rows_final/);
+  assert.match(migration, /article_rows_final/);
+  assert.match(migration, /grant execute on function analytics\.dashboard_snapshot\(\) to service_role/i);
+});
+
+test("Analytics V2 defines a strict engaged-study metric, Pathway funnel, retention cohorts, and source conversion", () => {
+  const migration = source("supabase/migrations/202608190002_analytics_v2_decision_metrics.sql");
+  assert.match(migration, /create or replace function analytics\.dashboard_snapshot_v2\(\)/i);
+  assert.match(migration, /pathway_step_completed.*pathway_completed.*article_completed.*audio_completed/is);
+  assert.match(migration, /audio_progress.*listened_seconds.*>= 30/is);
+  assert.match(migration, /pathway_funnel/);
+  assert.match(migration, /seven_day_return_rate/);
+  assert.match(migration, /thirty_day_return_rate/);
+  assert.match(migration, /study_rate/);
+  assert.match(migration, /app_rate/);
+  assert.match(migration, /grant execute on function analytics\.dashboard_snapshot_v2\(\) to service_role/i);
+});
+
+test("Analytics V2 separates known Studio and preview traffic from public traffic", () => {
+  const publicTraffic = source("supabase/migrations/202608190003_analytics_v2_public_traffic.sql");
+  const nullFix = source("supabase/migrations/202608190004_analytics_v2_internal_null_fix.sql");
+  const liveMetrics = source("supabase/migrations/202608190005_analytics_v2_public_live_metrics.sql");
+  assert.match(publicTraffic, /studio\.apostolicguide\.com/);
+  assert.match(publicTraffic, /elicastas-projects\.vercel\.app/);
+  assert.match(nullFix, /coalesce\([\s\S]*false[\s\S]*\) as is_internal/);
+  assert.match(liveMetrics, /public_page_views/);
+  assert.match(liveMetrics, /public_active_browsers/);
+  assert.match(liveMetrics, /occurred_at >= now\(\) - interval '75 seconds'/i);
+});
+
+test("Analytics V2 study, search, app and Pathway funnel metrics use public sessions only", () => {
+  const migration = source("supabase/migrations/202608190006_analytics_v2_public_study_metrics.sql");
+  assert.match(migration, /create or replace function analytics\.public_study_metrics_v2\(\)/i);
+  assert.match(migration, /public_events as \([\s\S]*where not c\.is_internal/);
+  assert.match(migration, /weekly_engaged_study_sessions/);
+  assert.match(migration, /weekly_pathway_start_sessions/);
+  assert.match(migration, /weekly_pathway_completion_sessions/);
+  assert.match(migration, /weekly_app_transition_sessions/);
+  assert.match(migration, /search_success_rate/);
+  assert.match(migration, /'pathwayFunnel'/);
+  assert.match(migration, /jsonb_set\(value, '\{v2,pathwayFunnel\}'/);
+  assert.match(migration, /grant execute on function analytics\.public_study_metrics_v2\(\) to service_role/i);
+});
+
+test("Analytics V3 compares exact public current and prior periods and keeps funnels session-bound", () => {
+  const migration = source("supabase/migrations/202608310001_analytics_v3_decision_system.sql");
+  assert.match(migration, /create or replace function analytics\.dashboard_snapshot_v3\(\)/i);
+  assert.match(migration, /current_start/);
+  assert.match(migration, /previous_start/);
+  assert.match(migration, /where not c\.is_internal/);
+  assert.match(migration, /'visitors'/);
+  assert.match(migration, /'engagedStudySessions'/);
+  assert.match(migration, /current_pathway_sessions/);
+  assert.match(migration, /count\(\*\) filter \(where c\.started and c\.progress >= 25\)/);
+  assert.match(migration, /'priorSessions'/);
+  assert.match(migration, /'daily'/);
+  assert.match(migration, /'devices'/);
+  assert.match(migration, /'countries'/);
+  assert.match(migration, /grant execute on function analytics\.dashboard_snapshot_v3\(\) to service_role/i);
+});
+
+test("Analytics surfaces exact reader journeys without reintroducing coarse overlapping funnels", () => {
+  const page = source("app/admin/analytics/page.tsx");
+  const css = source("app/admin/analytics-v3.css");
+  assert.match(page, /id="journeys"/);
+  assert.match(page, /direct entries/);
+  assert.match(page, /Last observed \(not completed\)/);
+  assert.match(page, /row\.arrows/);
+  assert.match(page, /row\.swipes/);
+  assert.match(page, /row\.completed\} reading completions/);
+  assert.match(css, /@media\(max-width:600px\)/);
+  assert.doesNotMatch(page, /Biggest observed loss:/);
+  assert.doesNotMatch(page, /<table/);
+});
+
+test("browser identity is shared across Apostolic Guide subdomains and any UTM field can establish attribution", () => {
+  const analytics = source("src/analytics.tsx");
+  assert.match(analytics, /cookieValue\(ANONYMOUS_KEY\)/);
+  assert.match(analytics, /window\.localStorage\.setItem\(ANONYMOUS_KEY, shared\)/);
+  assert.match(analytics, /Object\.values\(attribution\)\.some/);
+  assert.match(analytics, /Domain=\.apostolicguide\.com/);
+});
+
+test("Pathway starts and search-result opens are instrumented for V2/V3 funnels", () => {
+  const analytics = source("src/analytics.tsx");
+  const route = source("app/api/analytics/events/route.ts");
+  assert.match(analytics, /if \(section === "pathways"\) return \{ name: "pathway_started"/);
+  assert.match(analytics, /trackEvent\("search_result_opened"/);
+  assert.match(route, /"pathway_started"/);
+  assert.match(route, /"search_result_opened"/);
+});
+
+test("install guide records button and returning-user app handoffs", () => {
+  const guide = source("src/app-install-guide.tsx");
+  assert.match(guide, /trackEvent\("app_link_clicked", appHandoffProperties\(target, "returning-auto"\)\)/);
+  assert.match(guide, /trackEvent\("app_link_clicked", appHandoffProperties\(target, "install-guide-button"\)\)/);
+});
+
+test("analytics ingestion fails visibly instead of reporting success when writes are unavailable", () => {
+  const route = source("app/api/analytics/events/route.ts");
+  assert.match(route, /status: 503/);
+  assert.match(route, /status: 500/);
+  assert.match(route, /analytics ingestion failed/);
+});

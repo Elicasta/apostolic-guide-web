@@ -1,0 +1,17 @@
+{
+  "passed": true,
+  "saveCount": 5,
+  "checks": [
+    "live editing",
+    "undo redo",
+    "theme selection",
+    "frame composition",
+    "regeneration preserves copy",
+    "1080px PNG download",
+    "reload persistence",
+    "frame switching",
+    "390px overflow",
+    "409 conflict preserves edits and retry"
+  ],
+  "pageErrors": []
+}

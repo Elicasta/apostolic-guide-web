@@ -1,7 +1,9 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { getStudioPermission } from "@/auth";
 import { allPathways } from "@/pathway-catalog";
 import { PathwayVideoStudio } from "@/pathway-video-studio";
+import { VideoStudioWorkflow } from "@/video-studio-workflow";
 import type { PathwayVideoCue, PathwayVideoCueKind, PathwayVideoFormat } from "@/pathway-video";
 import { createServiceClient } from "@/supabase";
 
@@ -155,5 +157,11 @@ export default async function AdminVideoStudioPage() {
     };
   });
 
-  return <PathwayVideoStudio pathways={pathways} databaseReady={databaseReady} rendererReady={rendererReady}/>;
+  const aiReady = Boolean(process.env.OPENAI_API_KEY?.trim());
+
+  return <>
+    <p><Link className="button" href="/admin/code-mode?tool=video">Open Code Mode · Video Metadata</Link></p>
+      <PathwayVideoStudio pathways={pathways} databaseReady={databaseReady} rendererReady={rendererReady}/>
+    <VideoStudioWorkflow aiReady={aiReady}/>
+  </>;
 }

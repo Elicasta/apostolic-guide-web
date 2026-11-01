@@ -29,13 +29,100 @@ type RenderProgressSnapshot = {
 type RenderSnapshot = {
   rendererBridge?: BridgeSnapshot;
   rendererProgress?: RenderProgressSnapshot;
+  replaceExisting?: boolean;
   [key: string]: unknown;
+};
+
+type CompletedRender = {
+  id: string;
+  asset_id: string | null;
+  storage_path: string | null;
 };
 
 function tokenMatches(raw: string, expected: string) {
   const actual = createHash("sha256").update(raw).digest();
   const wanted = Buffer.from(expected, "hex");
   return actual.length === wanted.length && timingSafeEqual(actual, wanted);
+}
+
+function record(value: unknown) {
+  return value && typeof value === "object" ? value as Record<string, unknown> : {};
+}
+
+async function replacePreviousRenders(
+  service: NonNullable<ReturnType<typeof createServiceClient>>,
+  current: { id: string; pathway_slug: string; asset_id: string | null; format: string },
+  now: string
+) {
+  const previousResult = await service.from("pathway_video_renders")
+    .select("id,asset_id,storage_path")
+    .eq("pathway_slug", current.pathway_slug)
+    .eq("format", current.format)
+    .eq("status", "completed")
+    .neq("id", current.id)
+    .order("requested_at", { ascending: false });
+  if (previousResult.error) throw new Error(previousResult.error.message);
+
+  const previous = (previousResult.data ?? []) as CompletedRender[];
+  if (!previous.length) return;
+
+  for (const old of previous) {
+    if (!old.asset_id || !current.asset_id) continue;
+    const activePublications = await service.from("pathway_publications")
+      .select("id,metadata")
+      .eq("asset_id", old.asset_id)
+      .in("status", ["scheduled", "publishing"]);
+    if (activePublications.error) throw new Error(activePublications.error.message);
+
+    for (const publication of activePublications.data ?? []) {
+      const metadata = record(publication.metadata);
+      const nextMetadata = metadata.source_kind === "render" || metadata.render_id === old.id
+        ? { ...metadata, source_kind: "render", render_id: current.id }
+        : metadata;
+      const publicationUpdate = await service.from("pathway_publications").update({
+        asset_id: current.asset_id,
+        metadata: nextMetadata,
+        updated_at: now
+      }).eq("id", publication.id);
+      if (publicationUpdate.error) throw new Error(publicationUpdate.error.message);
+    }
+  }
+
+  const storagePaths = previous.flatMap((old) => old.storage_path ? [old.storage_path] : []);
+  if (storagePaths.length) {
+    const removal = await service.storage.from("pathway-video").remove(storagePaths);
+    if (removal.error) throw new Error(removal.error.message);
+  }
+
+  for (const old of previous) {
+    let keepPublishedStatus = false;
+    if (old.asset_id) {
+      const published = await service.from("pathway_publications")
+        .select("id")
+        .eq("asset_id", old.asset_id)
+        .eq("status", "published")
+        .limit(1)
+        .maybeSingle();
+      if (published.error) throw new Error(published.error.message);
+      keepPublishedStatus = Boolean(published.data);
+
+      const assetUpdate = await service.from("pathway_assets").update({
+        status: keepPublishedStatus ? "published" : "archived",
+        file_url: null,
+        notes: `Local MP4 replaced by regenerated ${current.format} render ${current.id}.`,
+        updated_at: now
+      }).eq("id", old.asset_id);
+      if (assetUpdate.error) throw new Error(assetUpdate.error.message);
+    }
+
+    const renderUpdate = await service.from("pathway_video_renders").update({
+      status: "failed",
+      storage_path: null,
+      output_url: null,
+      error: `Replaced by regenerated render ${current.id}.`
+    }).eq("id", old.id);
+    if (renderUpdate.error) throw new Error(renderUpdate.error.message);
+  }
 }
 
 export async function POST(request: Request) {
@@ -46,7 +133,7 @@ export async function POST(request: Request) {
   if (!service) return NextResponse.json({ error: "Renderer callback is unavailable." }, { status: 503 });
 
   const renderResult = await service.from("pathway_video_renders")
-    .select("id,asset_id,status,started_at,config_snapshot")
+    .select("id,pathway_slug,asset_id,format,status,started_at,config_snapshot")
     .eq("id", parsed.data.job_id)
     .maybeSingle();
   if (renderResult.error) return NextResponse.json({ error: renderResult.error.message }, { status: 500 });
@@ -134,6 +221,19 @@ export async function POST(request: Request) {
   const results = await Promise.all(updates);
   const failed = results.find((result) => result.error);
   if (failed?.error) return NextResponse.json({ error: failed.error.message }, { status: 500 });
+
+  if (snapshot.replaceExisting) {
+    try {
+      await replacePreviousRenders(service, {
+        id: renderResult.data.id,
+        pathway_slug: renderResult.data.pathway_slug,
+        asset_id: renderResult.data.asset_id,
+        format: renderResult.data.format
+      }, now);
+    } catch (cleanupError) {
+      console.error("regenerated render cleanup failed", cleanupError);
+    }
+  }
 
   return NextResponse.json({ ok: true, output_url: bridge.publicUrl });
 }

@@ -1,0 +1,152 @@
+[
+  {
+    "theme": "street-theology",
+    "role": "hook",
+    "issues": []
+  },
+  {
+    "theme": "street-theology",
+    "role": "scripture",
+    "issues": []
+  },
+  {
+    "theme": "street-theology",
+    "role": "explanation",
+    "issues": []
+  },
+  {
+    "theme": "street-theology",
+    "role": "support",
+    "issues": []
+  },
+  {
+    "theme": "street-theology",
+    "role": "statement",
+    "issues": []
+  },
+  {
+    "theme": "street-theology",
+    "role": "cta",
+    "issues": []
+  },
+  {
+    "theme": "editorial-white",
+    "role": "hook",
+    "issues": []
+  },
+  {
+    "theme": "editorial-white",
+    "role": "scripture",
+    "issues": []
+  },
+  {
+    "theme": "editorial-white",
+    "role": "explanation",
+    "issues": []
+  },
+  {
+    "theme": "editorial-white",
+    "role": "support",
+    "issues": []
+  },
+  {
+    "theme": "editorial-white",
+    "role": "statement",
+    "issues": []
+  },
+  {
+    "theme": "editorial-white",
+    "role": "cta",
+    "issues": []
+  },
+  {
+    "theme": "cinematic",
+    "role": "hook",
+    "issues": []
+  },
+  {
+    "theme": "cinematic",
+    "role": "scripture",
+    "issues": []
+  },
+  {
+    "theme": "cinematic",
+    "role": "explanation",
+    "issues": []
+  },
+  {
+    "theme": "cinematic",
+    "role": "support",
+    "issues": []
+  },
+  {
+    "theme": "cinematic",
+    "role": "statement",
+    "issues": []
+  },
+  {
+    "theme": "cinematic",
+    "role": "cta",
+    "issues": []
+  },
+  {
+    "theme": "verse-connection",
+    "role": "hook",
+    "issues": []
+  },
+  {
+    "theme": "verse-connection",
+    "role": "scripture",
+    "issues": []
+  },
+  {
+    "theme": "verse-connection",
+    "role": "explanation",
+    "issues": []
+  },
+  {
+    "theme": "verse-connection",
+    "role": "support",
+    "issues": []
+  },
+  {
+    "theme": "verse-connection",
+    "role": "statement",
+    "issues": []
+  },
+  {
+    "theme": "verse-connection",
+    "role": "cta",
+    "issues": []
+  },
+  {
+    "theme": "manifesto",
+    "role": "hook",
+    "issues": []
+  },
+  {
+    "theme": "manifesto",
+    "role": "scripture",
+    "issues": []
+  },
+  {
+    "theme": "manifesto",
+    "role": "explanation",
+    "issues": []
+  },
+  {
+    "theme": "manifesto",
+    "role": "support",
+    "issues": []
+  },
+  {
+    "theme": "manifesto",
+    "role": "statement",
+    "issues": []
+  },
+  {
+    "theme": "manifesto",
+    "role": "cta",
+    "issues": []
+  }
+]

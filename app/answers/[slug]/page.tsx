@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
@@ -8,14 +9,23 @@ import { ShareButton } from "@/share-button";
 import { SmartNext } from "@/smart-next";
 import { answerSuggestions } from "@/suggestion-data";
 import { getDatabaseContent } from "@/database-content";
+import { breadcrumbJsonLd, buildSeoMetadata } from "@/seo";
+import { seoSectionsForAnswer } from "@/seo-ranking-content";
+import { SearchIntentCluster } from "@/search-intent-cluster";
 
 export function generateStaticParams() { return answers.map((answer) => ({ slug: answer.slug })); }
 
-export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
   const answer = answerBySlug(slug);
   const database = answer ? null : await getDatabaseContent("answer", slug);
-  return answer ? { title: answer.question, description: answer.shortAnswer } : database ? { title: database.title, description: database.summary } : {};
+  if (!answer && !database) return {};
+  return buildSeoMetadata({
+    title: answer?.question ?? database!.title,
+    description: answer?.shortAnswer ?? database!.summary,
+    path: `/answers/${slug}`,
+    type: "article"
+  });
 }
 
 export default async function AnswerPage({ params }: { params: Promise<{ slug: string }> }) {
@@ -24,11 +34,18 @@ export default async function AnswerPage({ params }: { params: Promise<{ slug: s
   const database = answer ? null : await getDatabaseContent("answer", slug);
   if (!answer && !database) notFound();
   const suggestions = answerSuggestions(slug);
+  const pageTitle = answer?.question ?? database!.title;
+  const currentPath = `/answers/${slug}`;
+  const breadcrumbs = breadcrumbJsonLd([
+    { name: "Answers", path: "/answers" },
+    { name: pageTitle, path: currentPath }
+  ]);
 
   if (!answer && database) {
     const databaseReferences = extractScriptureReferences([database.summary, database.body]);
     return (
       <>
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbs) }} />
         <PageHero variant="answers" eyebrow="Direct answer" title={database.title} text={database.summary} />
         <section className="section">
           <div className="shell reading-layout">
@@ -37,8 +54,9 @@ export default async function AnswerPage({ params }: { params: Promise<{ slug: s
               <DatabaseDocument body={database.body} />
               <ShareButton title={database.title} contentKey={`answer:${slug}`} />
               <StudyScriptures references={databaseReferences} />
+              <SearchIntentCluster currentPath={currentPath} />
               <AppBridge compact origin={`answer:${slug}`} />
-              <SmartNext currentPath={`/answers/${slug}`} candidates={suggestions} />
+              <SmartNext currentPath={currentPath} candidates={suggestions} />
             </div>
           </div>
         </section>
@@ -49,40 +67,45 @@ export default async function AnswerPage({ params }: { params: Promise<{ slug: s
   const resolvedAnswer = answer!;
   const topic = topicBySlug(resolvedAnswer.topicSlug);
   const linked = resolvedAnswer.scriptures.map((reference) => scriptures.find((entry) => entry.reference === reference || reference.includes(entry.reference.split("–")[0]))).filter(Boolean);
+  const rankingSections = seoSectionsForAnswer(resolvedAnswer.slug);
 
   return (
-    <section className="answer-detail-page">
-      <div className="shell">
-        <header className="content-header">
-          <span className="eyebrow">Answer · {topic?.title}</span>
-          <h1>{resolvedAnswer.question}</h1>
-          <p className="lede">{resolvedAnswer.summary}</p>
-          <ShareButton title={resolvedAnswer.question} contentKey={`answer:${resolvedAnswer.slug}`} />
-        </header>
-        <div className="answer-summary" data-reveal><strong>Direct answer</strong><p>{resolvedAnswer.shortAnswer}</p></div>
-        <div className="topic-page-grid">
-          <ContentBody sections={resolvedAnswer.sections} />
-          <aside>
-            <div className="sidebar-card">
-              <h3>Key Scriptures</h3>
-              {linked.map((entry) => entry && <ScriptureMiniCard key={entry.slug} reference={entry.reference} point={entry.mainPoint} href={`/scripture/${entry.path}`} />)}
-              {linked.length === 0 && resolvedAnswer.scriptures.map((reference) => <div className="scripture-mini" key={reference}><span><strong>{reference}</strong></span></div>)}
-              <ScriptureContextNote />
-            </div>
-            {topic && (
-              <div className="sidebar-card related-topic-card">
-                <span className="eyebrow">Related topic</span>
-                <h3>{topic.title}</h3>
-                <p>{topic.claim}</p>
-                <Link className="text-link" href={`/topics/${topic.slug}`}>Explore topic <ArrowRight size={16} /></Link>
+    <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbs) }} />
+      <section className="answer-detail-page">
+        <div className="shell">
+          <header className="content-header">
+            <span className="eyebrow">Answer · {topic?.title}</span>
+            <h1>{resolvedAnswer.question}</h1>
+            <p className="lede">{resolvedAnswer.summary}</p>
+            <ShareButton title={resolvedAnswer.question} contentKey={`answer:${resolvedAnswer.slug}`} />
+          </header>
+          <div className="answer-summary" data-reveal><strong>Direct answer</strong><p>{resolvedAnswer.shortAnswer}</p></div>
+          <div className="topic-page-grid">
+            <ContentBody sections={[...resolvedAnswer.sections, ...rankingSections]} />
+            <aside>
+              <div className="sidebar-card">
+                <h3>Key Scriptures</h3>
+                {linked.map((entry) => entry && <ScriptureMiniCard key={entry.slug} reference={entry.reference} point={entry.mainPoint} href={`/scripture/${entry.path}`} />)}
+                {linked.length === 0 && resolvedAnswer.scriptures.map((reference) => <div className="scripture-mini" key={reference}><span><strong>{reference}</strong></span></div>)}
+                <ScriptureContextNote />
               </div>
-            )}
-          </aside>
+              {topic && (
+                <div className="sidebar-card related-topic-card">
+                  <span className="eyebrow">Related topic</span>
+                  <h3>{topic.title}</h3>
+                  <p>{topic.claim}</p>
+                  <Link className="text-link" href={`/topics/${topic.slug}`}>Explore topic <ArrowRight size={16} /></Link>
+                </div>
+              )}
+            </aside>
+          </div>
+          <StudyScriptures references={resolvedAnswer.scriptures} />
+          <SearchIntentCluster currentPath={currentPath} />
+          <AppBridge compact origin={`answer:${resolvedAnswer.slug}`} />
+          <SmartNext currentPath={currentPath} candidates={suggestions} />
         </div>
-        <StudyScriptures references={resolvedAnswer.scriptures} />
-        <AppBridge compact origin={`answer:${resolvedAnswer.slug}`} />
-        <SmartNext currentPath={`/answers/${resolvedAnswer.slug}`} candidates={suggestions} />
-      </div>
-    </section>
+      </section>
+    </>
   );
 }

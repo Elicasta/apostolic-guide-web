@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { buildBroadcastEmail, type BroadcastCampaign } from "./broadcast-email";
 import { addCampaignTracking, type CampaignIntelligenceRow, type CampaignLinkRow } from "./campaign-intelligence";
 import { createServiceClient } from "./supabase";
+import {emailCodeRender,type EmailCodeDocument} from "./code-mode/broadcast";
 
 export const RESEND_SEGMENTS = {
   general: process.env.RESEND_GENERAL_SEGMENT_ID ?? "9120e755-2e0a-4315-a663-fb169040fc0f",
@@ -32,11 +33,11 @@ async function updateCampaignByBroadcast(broadcastId: string, values: Record<str
   if (error) console.error("campaign intelligence update failed", { code: error.code, message: error.message });
 }
 
-export async function createBroadcastDraft(input: { campaign: BroadcastCampaign; audience: AudienceKey; createdBy?: string }) {
+export async function createBroadcastDraft(input: { campaign: BroadcastCampaign; audience: AudienceKey; createdBy?: string;code?: EmailCodeDocument }) {
   const campaignId = randomUUID();
   const trackedUrl = addCampaignTracking(input.campaign.url, campaignId, input.campaign.type);
   const trackedCampaign = { ...input.campaign, url: trackedUrl };
-  const email = buildBroadcastEmail(trackedCampaign);
+  const email = input.code?emailCodeRender({...input.code,campaign:{...input.code.campaign,url:trackedUrl}}):buildBroadcastEmail(trackedCampaign);
   const campaignName = `${input.campaign.eyebrow}: ${input.campaign.title}`.slice(0, 180);
   const service = createServiceClient();
 
@@ -137,8 +138,8 @@ export async function listCampaignLinks(campaignIds: string[]) {
   return (data ?? []) as CampaignLinkRow[];
 }
 
-export async function sendBroadcastTest(input: { campaign: BroadcastCampaign; to: string }) {
-  const email = buildBroadcastEmail(input.campaign);
+export async function sendBroadcastTest(input: { campaign: BroadcastCampaign; to: string; code?: EmailCodeDocument }) {
+  const email = input.code?emailCodeRender(input.code):buildBroadcastEmail(input.campaign);
   const html = email.html.replaceAll("{{{RESEND_UNSUBSCRIBE_URL}}}", "https://apostolicguide.com");
   const text = email.text.replaceAll("{{{RESEND_UNSUBSCRIBE_URL}}}", "https://apostolicguide.com");
   const response = await fetch("https://api.resend.com/emails", {

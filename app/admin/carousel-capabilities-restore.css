@@ -1,0 +1,161 @@
+/* Restored Carousel Studio capabilities. This file loads last so the current
+   persistent editor keeps these controls visible and the exported boards use
+   the same per-frame typography as the live preview. */
+
+.carousel-studio-master .carousel-inline-manual-host{
+  display:block!important;
+  visibility:visible!important;
+  width:min(100%,760px)!important;
+  margin:14px auto 0!important;
+  position:relative!important;
+  z-index:6!important;
+}
+
+.carousel-studio-master .persistent-carousel-artboard[data-manual-typography="true"] .carousel-copy>strong,
+.carousel-studio-master .persistent-carousel-artboard[data-manual-typography="true"] .carousel-copy>span{
+  font-family:var(--manual-headline-font)!important;
+  color:var(--manual-headline-color)!important;
+}
+.carousel-studio-master .persistent-carousel-artboard[data-manual-typography="true"] .carousel-copy>p,
+.carousel-studio-master .persistent-carousel-artboard[data-manual-typography="true"] .carousel-copy>em{
+  font-family:var(--manual-body-font)!important;
+  color:var(--manual-body-color)!important;
+}
+
+.carousel-inline-brand-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:12px;
+  padding:12px;
+}
+.carousel-inline-brand-grid>section{
+  display:grid;
+  gap:10px;
+  min-width:0;
+  padding:12px;
+  border:1px solid #e0e7e5;
+  border-radius:11px;
+  background:#fff;
+}
+.carousel-inline-brand-grid>section>div:first-child{display:grid;gap:2px}
+.carousel-inline-brand-grid>section>div:first-child strong{font-size:11px;color:#10202a}
+.carousel-inline-brand-grid>section>div:first-child small{font-size:9px;color:#748187}
+
+.carousel-inline-palette{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:6px;
+}
+.carousel-inline-palette button{
+  min-width:0;
+  min-height:48px;
+  padding:6px 4px;
+  border:1px solid #dce3e2;
+  border-radius:8px;
+  background:#fff;
+  color:#66777d;
+  display:grid;
+  justify-items:center;
+  gap:4px;
+  font:inherit;
+  font-size:8px;
+  font-weight:750;
+}
+.carousel-inline-palette button i{
+  display:block;
+  width:22px;
+  height:22px;
+  border-radius:50%;
+  border:1px solid rgba(16,32,42,.16);
+  box-shadow:0 0 0 2px #fff;
+}
+.carousel-inline-palette button.is-active{
+  border-color:#15566a;
+  box-shadow:inset 0 0 0 1px #15566a;
+  color:#10202a;
+}
+
+.carousel-inline-sol-texture{
+  display:grid;
+  gap:8px;
+  padding:10px;
+  border:1px solid #dfe6e4;
+  border-radius:10px;
+  background:#f4f7f6;
+}
+.carousel-inline-sol-texture textarea{
+  width:100%;
+  resize:vertical;
+  min-height:58px;
+  border:1px solid #d7dfde;
+  border-radius:9px;
+  background:#fff;
+  color:#10202a;
+  padding:9px 10px;
+  font:inherit;
+  font-size:10px;
+  line-height:1.45;
+}
+.carousel-inline-sol-texture>button{
+  justify-self:start;
+  min-height:36px;
+  border:1px solid #15566a;
+  border-radius:9px;
+  background:#15566a;
+  color:#fff;
+  padding:7px 10px;
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  font:inherit;
+  font-size:10px;
+  font-weight:850;
+}
+.carousel-inline-sol-texture>button:disabled{opacity:.55}
+.carousel-inline-sol-texture>small{font-size:9px;line-height:1.45;color:#66777d}
+
+.sequence-art-director{
+  width:min(100%,760px);
+  margin:14px auto 0;
+  padding:14px;
+  border:1px solid #dce3e2;
+  border-radius:14px;
+  background:#f8faf9;
+  display:grid;
+  gap:12px;
+}
+.sequence-art-director .single-art-director-head{margin:0}
+.sequence-art-director .single-art-fields{display:grid;gap:10px}
+.sequence-art-director .sequence-art-recommendation{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  gap:10px;
+  align-items:center;
+  padding:10px;
+  border:1px solid #dfe6e4;
+  border-radius:10px;
+  background:#fff;
+}
+.sequence-art-director .sequence-art-recommendation div{display:grid;gap:2px}
+.sequence-art-director .sequence-art-recommendation strong{font-size:10px;color:#10202a}
+.sequence-art-director .sequence-art-recommendation small{font-size:9px;color:#66777d;line-height:1.4}
+.sequence-art-director .sequence-art-recommendation button{
+  min-height:34px;
+  border:1px solid #d7dfde;
+  border-radius:8px;
+  background:#fff;
+  color:#15566a;
+  padding:6px 9px;
+  font:inherit;
+  font-size:9px;
+  font-weight:850;
+}
+.sequence-art-director .sequence-art-note{margin:0;font-size:9px;line-height:1.45;color:#66777d}
+
+@media(max-width:760px){
+  .carousel-inline-brand-grid{grid-template-columns:1fr;padding:10px}
+  .carousel-inline-palette{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .sequence-art-director{padding:10px;border-radius:12px}
+  .sequence-art-director .sequence-art-recommendation{grid-template-columns:1fr}
+  .sequence-art-director .sequence-art-recommendation button{justify-self:start}
+}

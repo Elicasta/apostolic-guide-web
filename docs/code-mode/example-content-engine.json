@@ -1,0 +1,20 @@
+{
+  "tool": "content_engine",
+  "version": 1,
+  "productionDate": "2026-11-02",
+  "expectedStateVersion": 1,
+  "title": "Jesus Christ Is Lord",
+  "caption": "Explore the New Testament witness.",
+  "artDirection": "Editorial, clear Scripture emphasis",
+  "frames": [
+    {
+      "id": "replace-with-real-frame-id",
+      "order": 1,
+      "role": "hook",
+      "headline": "Jesus Is Lord",
+      "body": "Read John 1",
+      "scripture": "John 1:1"
+    }
+  ],
+  "newsletter": null
+}

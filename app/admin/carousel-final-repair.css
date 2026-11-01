@@ -1,0 +1,26 @@
+/* Final QA repair: render/export boards must never participate in the visible editor layout. */
+.carousel-studio-master .creative-render-stage{
+  position:fixed!important;
+  left:-12000px!important;
+  top:0!important;
+  width:1080px!important;
+  height:auto!important;
+  margin:0!important;
+  padding:0!important;
+  pointer-events:none!important;
+  z-index:-1!important;
+}
+
+/* Manual alignment wins on the editable copy itself even when the persistent artwork renderer refreshes. */
+.carousel-studio-master .persistent-carousel-artboard .carousel-copy[style*="text-align: center"]{
+  align-items:center!important;
+  justify-items:center!important;
+}
+.carousel-studio-master .persistent-carousel-artboard .carousel-copy[style*="text-align: left"]{
+  align-items:flex-start!important;
+  justify-items:start!important;
+}
+.carousel-studio-master .persistent-carousel-artboard .carousel-copy[style*="text-align: right"]{
+  align-items:flex-end!important;
+  justify-items:end!important;
+}

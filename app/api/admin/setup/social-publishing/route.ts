@@ -9,10 +9,10 @@ import {
 
 export const runtime = "nodejs";
 
-const platformSchema = z.enum(["youtube", "instagram", "tiktok"]);
+const platformSchema = z.enum(["youtube", "instagram", "threads", "tiktok"]);
 const schema = z.object({
   platform: platformSchema,
-  values: z.record(z.string(), z.string().max(5000)).default({})
+  values: z.record(z.string(), z.string().max(10000)).default({})
 });
 
 async function permission() {

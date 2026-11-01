@@ -1,0 +1,75 @@
+name: AG Studio checks
+
+on:
+  pull_request:
+    paths:
+      - 'app/studio/**'
+      - 'app/output/**'
+      - 'app/admin/**'
+      - 'app/api/studio/**'
+      - 'app/api/admin/**'
+      - 'app/api/cron/**'
+      - 'src/studio/**'
+      - 'src/carousel-*'
+      - 'public/fonts/**'
+      - 'src/creative-*.ts'
+      - 'src/creative-*.tsx'
+      - 'src/sol-*.ts'
+      - 'src/sol-*.tsx'
+      - 'supabase/migrations/**'
+      - 'supabase/rollback/**'
+      - 'tests/studio-*.test.ts'
+      - '.github/workflows/ag-studio-checks.yml'
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci --no-audit --no-fund
+      - run: npm test
+      - name: Lint changed Code Mode TypeScript and TSX
+        run: |
+          git fetch origin main --depth=1
+          git diff --name-only -z --diff-filter=ACMR origin/main HEAD -- '*.ts' '*.tsx' | xargs -0 -r npx eslint
+      - run: npm run typecheck
+      - run: npm run build
+      - name: Verify Code Mode Chromium exports
+        env:
+          CAROUSEL_CHROMIUM_PATH: /tmp/carousel-code-chromium
+        run: |
+          node -e "const f=require('fs'),z=require('zlib');f.writeFileSync(process.env.CAROUSEL_CHROMIUM_PATH,z.brotliDecompressSync(f.readFileSync('node_modules/@sparticuz/chromium/bin/chromium.br')));f.chmodSync(process.env.CAROUSEL_CHROMIUM_PATH,0o755)"
+          node --conditions=react-server --import tsx scripts/carousel-code-proof.ts
+      - run: npx playwright install --with-deps chromium --only-shell
+      - run: node scripts/carousel-browser-proof.mjs
+      - name: Verify Chromium motion composite produces playable MP4
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends ffmpeg
+          ffmpeg -y -hide_banner -loglevel error -f lavfi -i testsrc2=size=360x640:rate=30 -f lavfi -i sine=frequency=440:sample_rate=48000 -t 1 -c:v libx264 -pix_fmt yuv420p -c:a aac /tmp/ag-motion-source.mp4
+          node --import tsx scripts/render-video-code-mode.ts tests/fixtures/video-code-mode-v2.json /tmp/ag-motion-source.mp4 /tmp/ag-motion-result.mp4 0 1
+          python3 - <<'PY'
+          import json, subprocess
+          result=json.loads(subprocess.check_output(['ffprobe','-v','error','-show_streams','-of','json','/tmp/ag-motion-result.mp4']))
+          assert any(s['codec_type']=='video' for s in result['streams']), result
+          assert any(s['codec_type']=='audio' for s in result['streams']), result
+          assert any(int(s.get('width',0))==360 and int(s.get('height',0))==640 for s in result['streams']), result
+          PY
+          ffmpeg -y -hide_banner -loglevel error -f lavfi -i testsrc2=size=360x640:rate=30 -f lavfi -i sine=frequency=220:sample_rate=48000 -t 5 -c:v libx264 -pix_fmt yuv420p -c:a aac /tmp/ag-motion-source-5s.mp4
+          node --import tsx scripts/render-video-code-mode.ts tests/fixtures/video-code-mode-kinetic-5s.json /tmp/ag-motion-source-5s.mp4 /tmp/ag-motion-result-5s.mp4 0 5
+          python3 -c "import subprocess; d=float(subprocess.check_output([\"ffprobe\",\"-v\",\"error\",\"-show_entries\",\"format=duration\",\"-of\",\"default=noprint_wrappers=1:nokey=1\",\"/tmp/ag-motion-result-5s.mp4\"])); assert 4.8 <= d <= 5.2, f\"Kinetic 5s proof truncated: {d}s\""
+          test "$(stat -c %s /tmp/ag-motion-result-5s.mp4)" -gt 1024
+          node scripts/check-video-code-mode-30s.mjs
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: carousel-studio-proof
+          path: |
+            docs/carousel-studio-3/
+            docs/carousel-code-mode/

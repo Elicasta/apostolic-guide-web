@@ -1,0 +1,20 @@
+{
+  "tool": "broadcast",
+  "version": 1,
+  "campaign": {
+    "type": "announcement",
+    "subject": "A Scripture study for this week",
+    "previewText": "Read the passage and examine the context.",
+    "eyebrow": "Apostolic Guide",
+    "title": "Jesus Christ is Lord",
+    "summary": "A study of the New Testament witness to Jesus Christ.",
+    "ctaLabel": "Read the study",
+    "url": "https://www.apostolicguide.com"
+  },
+  "theme": {
+    "html": "<div class=\"email-copy\"><p class=\"eyebrow\">{{eyebrow}}</p><h1>{{headline}}</h1><p>{{body}}</p><p>{{resources}}</p></div>",
+    "css": ".email-copy{padding:32px}.eyebrow{color:#a12d3d;font-weight:700}h1{font-family:Georgia,serif;font-size:34px}p{line-height:1.6}",
+    "containerWidth": 600
+  },
+  "overrides": {}
+}

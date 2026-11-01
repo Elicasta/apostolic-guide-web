@@ -15,6 +15,8 @@ export type DatabaseContentItem = {
   updatedAt?: string;
 };
 
+export type ContentPublishingHealth = { ready: boolean; error: string | null };
+
 type PublicationRow = {
   channel?: string;
   status?: string;
@@ -52,6 +54,20 @@ function mapItem(row: ContentRow): DatabaseContentItem {
   };
 }
 
+export async function getContentPublishingHealth(): Promise<ContentPublishingHealth> {
+  const access = await getAdminAccess();
+  if (access.state !== "allowed") return { ready: false, error: "Admin access is not available." };
+  const service = createServiceClient();
+  if (!service) return { ready: false, error: "Supabase service access is not configured." };
+  try {
+    const result = await service.schema("content").from("items").select("id", { count: "exact", head: true });
+    if (result.error) return { ready: false, error: result.error.message };
+    return { ready: true, error: null };
+  } catch (error) {
+    return { ready: false, error: error instanceof Error ? error.message : "Website Content database check failed." };
+  }
+}
+
 export async function listDatabaseContent(kind?: string): Promise<DatabaseContentItem[]> {
   const supabase = await createSupabaseServerClient();
   if (!supabase) return [];
@@ -64,9 +80,13 @@ export async function listDatabaseContent(kind?: string): Promise<DatabaseConten
       .order("updated_at", { ascending: false });
     if (kind) query = query.eq("kind", kind);
     const { data, error } = await query;
-    if (error || !data) return [];
+    if (error || !data) {
+      if (error) console.error("Published database content query failed", error.message);
+      return [];
+    }
     return (data as ContentRow[]).map(mapItem);
-  } catch {
+  } catch (error) {
+    console.error("Published database content query failed", error);
     return [];
   }
 }
@@ -82,9 +102,13 @@ export async function listAdminContent(): Promise<DatabaseContentItem[]> {
       .eq("source_system", "website")
       .is("deleted_at", null)
       .order("updated_at", { ascending: false });
-    if (error || !data) return [];
+    if (error || !data) {
+      if (error) console.error("Admin Website Content query failed", error.message);
+      return [];
+    }
     return (data as ContentRow[]).map(mapItem);
-  } catch {
+  } catch (error) {
+    console.error("Admin Website Content query failed", error);
     return [];
   }
 }

@@ -2,15 +2,15 @@
 
 import { useEffect } from "react";
 import { trackEvent } from "./analytics";
+import { cardReaderStepProperties } from "./pathway-reader-funnel";
 
 export function PathwayStudyTracker({ slug, stepCount }: { slug: string; stepCount: number }) {
   useEffect(() => {
-    const elements = Array.from(document.querySelectorAll<HTMLElement>("[data-pathway-step]"));
-    if (!elements.length) return;
-
     const completed = new Set<number>();
     const timers = new Map<number, number>();
+    const observed = new WeakSet<HTMLElement>();
     let pathwayCompletionSent = false;
+
     const observer = new IntersectionObserver((entries) => {
       for (const entry of entries) {
         const element = entry.target as HTMLElement;
@@ -22,15 +22,21 @@ export function PathwayStudyTracker({ slug, stepCount }: { slug: string; stepCou
           const timer = window.setTimeout(() => {
             completed.add(index);
             timers.delete(index);
-            trackEvent("pathway_step_completed", {
-              contentKey: slug,
-              pathwaySlug: slug,
+            trackEvent("pathway_step_viewed", cardReaderStepProperties({
+              slug,
               stepIndex: index,
-              stepNumber: index + 1,
               stepCount,
               reference: element.dataset.pathwayReference ?? null
-            });
-            if (!pathwayCompletionSent && index + 1 >= stepCount) {
+            }));
+            // Legacy event kept for comparable history while transition analytics
+            // records how readers actually navigate the card interface.
+            trackEvent("pathway_step_completed", cardReaderStepProperties({
+              slug,
+              stepIndex: index,
+              stepCount,
+              reference: element.dataset.pathwayReference ?? null
+            }));
+            if (!pathwayCompletionSent && completed.size >= stepCount) {
               pathwayCompletionSent = true;
               trackEvent("pathway_completed", {
                 contentKey: slug,
@@ -50,8 +56,33 @@ export function PathwayStudyTracker({ slug, stepCount }: { slug: string; stepCou
       }
     }, { threshold: [0.55, 0.75] });
 
-    elements.forEach((element) => observer.observe(element));
+    const observeSteps = (root: ParentNode = document) => {
+      root.querySelectorAll<HTMLElement>("[data-pathway-step]").forEach((element) => {
+        if (observed.has(element)) return;
+        observed.add(element);
+        observer.observe(element);
+      });
+    };
+
+    observeSteps();
+
+    const mutationObserver = new MutationObserver((records) => {
+      for (const record of records) {
+        for (const node of record.addedNodes) {
+          if (!(node instanceof HTMLElement)) continue;
+          if (node.matches("[data-pathway-step]") && !observed.has(node)) {
+            observed.add(node);
+            observer.observe(node);
+          }
+          observeSteps(node);
+        }
+      }
+    });
+
+    mutationObserver.observe(document.body, { childList: true, subtree: true });
+
     return () => {
+      mutationObserver.disconnect();
       observer.disconnect();
       timers.forEach((timer) => window.clearTimeout(timer));
       timers.clear();

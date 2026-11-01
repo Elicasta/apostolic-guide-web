@@ -1,0 +1,16 @@
+{
+  "passed": true,
+  "checks": [
+    "text-only controls",
+    "frame HTML/CSS Apply",
+    "JSON errors preserve draft",
+    "10-slide JSON Apply",
+    "custom preset save",
+    "sandbox without same-origin",
+    "1080px view",
+    "mobile containment",
+    "ZIP download",
+    "revision restore"
+  ],
+  "pageErrors": []
+}
