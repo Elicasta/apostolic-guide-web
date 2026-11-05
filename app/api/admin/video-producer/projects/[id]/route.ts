@@ -47,6 +47,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
   }
   return NextResponse.json({
     project: { ...project, transcript_local_text: localTranscript.text, transcript_local_duration: localTranscript.duration },
+    ownerCanEdit: access.role === "owner",
     renders: rendersResult.data ?? [],
     sourcePreviewUrl,
     renderPreviewUrl
