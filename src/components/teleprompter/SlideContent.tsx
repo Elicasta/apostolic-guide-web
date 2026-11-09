@@ -91,6 +91,13 @@ export default function SlideContent({
           if (line.quote) {
             return <blockquote key={line.id}>{renderInline(line.text)}</blockquote>;
           }
+          if (line.text.startsWith("• ")) {
+            return (
+              <p key={line.id} className="tp-teaching-point">
+                {renderInline(line.text.slice(2))}
+              </p>
+            );
+          }
           return <p key={line.id}>{renderInline(line.text)}</p>;
         })}
       </div>

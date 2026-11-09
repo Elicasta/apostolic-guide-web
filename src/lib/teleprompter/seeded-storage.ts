@@ -4,20 +4,21 @@ import {
   JESUS_IS_GOD_SAMPLE,
   TELEPROMPTER_LAST_DOCUMENT_KEY,
   TELEPROMPTER_STORAGE_KEY,
+  TELEPROMPTER_TEACHING_RESET_KEY,
+  TELEPROMPTER_PREVIOUS_SCRIPTS_KEY,
   createTeleprompterDocument,
   duplicateTeleprompterDocument,
   getLastPresentedDocumentId,
-  getSeedDocuments as getLegacySeedDocuments,
+  getPreviousTeleprompterScriptsBackup,
+  getSeedDocuments as getCurrentSeedDocuments,
   isUntouchedStarterDocument,
-  loadTeleprompterDocuments as loadLegacyDocuments,
+  loadTeleprompterDocuments as loadCurrentDocuments,
   saveTeleprompterDocuments,
   selectTeleprompterDocument,
   setLastPresentedDocumentId,
 } from "./storage";
 import {
   TELEPROMPTER_EPISODE_PREVIOUS_SEEDED_AT,
-  TELEPROMPTER_EPISODE_SEED_KEY,
-  TELEPROMPTER_EPISODE_SEED_VERSION,
   getEpisodeSeedDocuments,
 } from "./episodes";
 
@@ -26,17 +27,22 @@ export {
   JESUS_IS_GOD_SAMPLE,
   TELEPROMPTER_LAST_DOCUMENT_KEY,
   TELEPROMPTER_STORAGE_KEY,
+  TELEPROMPTER_TEACHING_RESET_KEY,
+  TELEPROMPTER_PREVIOUS_SCRIPTS_KEY,
   createTeleprompterDocument,
   duplicateTeleprompterDocument,
   getLastPresentedDocumentId,
+  getPreviousTeleprompterScriptsBackup,
   isUntouchedStarterDocument,
   saveTeleprompterDocuments,
   selectTeleprompterDocument,
   setLastPresentedDocumentId,
 };
 
+// The old episode sources are retained in Git history and as compatibility
+// utilities, but no longer installed in the active teleprompter library.
 export function getSeedDocuments(): TeleprompterDocument[] {
-  return [...getLegacySeedDocuments(), ...getEpisodeSeedDocuments()];
+  return getCurrentSeedDocuments();
 }
 
 function isUntouchedPreviousEpisodeSeed(document: TeleprompterDocument) {
@@ -47,6 +53,8 @@ function isUntouchedPreviousEpisodeSeed(document: TeleprompterDocument) {
   );
 }
 
+// Compatibility helper used by historical migration tests. Not called by
+// the current loader, which deliberately keeps the new library to one guide.
 export function mergeEpisodeSeeds(
   documents: TeleprompterDocument[],
   episodeSeeds = getEpisodeSeedDocuments(),
@@ -57,14 +65,9 @@ export function mergeEpisodeSeeds(
   const merged = documents.map((document) => {
     const seed = seedById.get(document.id);
     if (!seed) return document;
-
     seenIds.add(document.id);
     if (!isUntouchedPreviousEpisodeSeed(document)) return document;
-
-    return {
-      ...seed,
-      createdAt: document.createdAt,
-    };
+    return { ...seed, createdAt: document.createdAt };
   });
 
   for (const seed of episodeSeeds) {
@@ -72,25 +75,9 @@ export function mergeEpisodeSeeds(
       merged.push(seed);
     }
   }
-
   return merged;
 }
 
 export function loadTeleprompterDocuments(): TeleprompterDocument[] {
-  const documents = loadLegacyDocuments();
-  if (typeof window === "undefined") return documents;
-
-  const installedVersion = Number(
-    window.localStorage.getItem(TELEPROMPTER_EPISODE_SEED_KEY) || "0",
-  );
-
-  if (installedVersion >= TELEPROMPTER_EPISODE_SEED_VERSION) return documents;
-
-  const merged = mergeEpisodeSeeds(documents);
-  saveTeleprompterDocuments(merged);
-  window.localStorage.setItem(
-    TELEPROMPTER_EPISODE_SEED_KEY,
-    String(TELEPROMPTER_EPISODE_SEED_VERSION),
-  );
-  return merged;
+  return loadCurrentDocuments();
 }

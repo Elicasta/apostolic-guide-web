@@ -1,16 +1,22 @@
 import type { TeleprompterDocument } from "./types";
-import { EPISODE_01_SCRIPT, EPISODE_01_TITLE } from "./episodes/episode-01";
+import { EPISODE_01_SCRIPT } from "./episodes/episode-01";
+import {
+  TEACHING_SESSION_ID,
+  TEACHING_SESSION_SCRIPT,
+  TEACHING_SESSION_TITLE,
+  TEACHING_SESSION_VERSION,
+} from "./teaching-session";
 
 export const TELEPROMPTER_STORAGE_KEY = "ag:teleprompter:documents:v1";
 export const TELEPROMPTER_LAST_DOCUMENT_KEY = "ag:teleprompter:last-presented:v1";
+export const TELEPROMPTER_TEACHING_RESET_KEY = "ag:teleprompter:teaching-reset:v1";
+export const TELEPROMPTER_PREVIOUS_SCRIPTS_KEY = "ag:teleprompter:previous-scripts:20261108";
 
-export const DEFAULT_TELEPROMPTER_CONTENT = "# Intro\nPut the full opening section here.\n\n@note Private speaking cue.\n\n---\n\n# Point 1\nEach --- starts a new teleprompter page. Keep the whole section together.";
+export const DEFAULT_TELEPROMPTER_CONTENT =
+  "# Opening\n**Main idea**\n• Teaching point\n@ref John 1:1\n\n---\n\n# Next Section\n**Second idea**\n• Explain in your own words.";
 
-// Kept as a compatibility export for existing imports.
+// Compatibility export for older imports; this is no longer seeded.
 export const JESUS_IS_GOD_SAMPLE = EPISODE_01_SCRIPT;
-
-const EPISODE_01_ID = "apostolic-guide-episode-01";
-const EPISODE_01_SEEDED_AT = "2026-08-30T06:15:00.000Z";
 
 function makeId() {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) return crypto.randomUUID();
@@ -25,49 +31,18 @@ export function createTeleprompterDocument(
   return { id: makeId(), title, content, createdAt: now, updatedAt: now };
 }
 
-function getEpisodeOneSeed(): TeleprompterDocument {
+function getTeachingSeed(): TeleprompterDocument {
   return {
-    id: EPISODE_01_ID,
-    title: `Episode 1: ${EPISODE_01_TITLE}`,
-    content: EPISODE_01_SCRIPT,
-    createdAt: EPISODE_01_SEEDED_AT,
-    updatedAt: EPISODE_01_SEEDED_AT,
+    id: TEACHING_SESSION_ID,
+    title: TEACHING_SESSION_TITLE,
+    content: TEACHING_SESSION_SCRIPT,
+    createdAt: "2026-11-08T00:00:00.000Z",
+    updatedAt: "2026-11-08T00:00:00.000Z",
   };
 }
 
 export function getSeedDocuments(): TeleprompterDocument[] {
-  return [getEpisodeOneSeed()];
-}
-
-function isOriginalJesusSeed(document: TeleprompterDocument) {
-  return (
-    document.title === "Jesus Is God" &&
-    document.content.includes("# Before. After. Beside.") &&
-    document.content.includes("# Put It Together") &&
-    document.content.includes("# Where We Go Next")
-  );
-}
-
-function isUntouchedPreviousJesusSeed(document: TeleprompterDocument) {
-  return (
-    document.title === "Jesus Is God" &&
-    document.updatedAt === document.createdAt &&
-    document.content.includes("# 1. Start With One God") &&
-    document.content.includes("# 7. Who Is The Savior?")
-  );
-}
-
-function ensureEpisodeOneSeed(documents: TeleprompterDocument[]) {
-  if (documents.some((document) => document.id === EPISODE_01_ID)) return documents;
-
-  const replacementIndex = documents.findIndex(
-    (document) => isOriginalJesusSeed(document) || isUntouchedPreviousJesusSeed(document),
-  );
-  const seed = getEpisodeOneSeed();
-
-  if (replacementIndex < 0) return [seed, ...documents];
-
-  return documents.map((document, index) => (index === replacementIndex ? seed : document));
+  return [getTeachingSeed()];
 }
 
 export function isUntouchedStarterDocument(document: TeleprompterDocument) {
@@ -84,6 +59,11 @@ export function setLastPresentedDocumentId(documentId: string) {
   window.localStorage.setItem(TELEPROMPTER_LAST_DOCUMENT_KEY, documentId);
 }
 
+export function getPreviousTeleprompterScriptsBackup() {
+  if (typeof window === "undefined") return null;
+  return window.localStorage.getItem(TELEPROMPTER_PREVIOUS_SCRIPTS_KEY);
+}
+
 export function selectTeleprompterDocument(
   documents: TeleprompterDocument[],
   requestedDocumentId?: string | null,
@@ -96,36 +76,71 @@ export function selectTeleprompterDocument(
   if (lastPresented && !isUntouchedStarterDocument(lastPresented)) return lastPresented;
 
   return (
-    documents.find((document) => document.id === EPISODE_01_ID) ??
-    documents.find((document) => document.title === "Jesus Is God") ??
+    documents.find((document) => document.id === TEACHING_SESSION_ID) ??
     documents.find((document) => !isUntouchedStarterDocument(document)) ??
     documents[0]
   );
 }
 
+function isDocument(value: unknown): value is TeleprompterDocument {
+  if (!value || typeof value !== "object") return false;
+  const item = value as Record<string, unknown>;
+  return (
+    typeof item.id === "string" &&
+    typeof item.title === "string" &&
+    typeof item.content === "string" &&
+    typeof item.createdAt === "string" &&
+    typeof item.updatedAt === "string"
+  );
+}
+
+function parseDocuments(raw: string | null): TeleprompterDocument[] {
+  if (!raw) return [];
+  try {
+    const value: unknown = JSON.parse(raw);
+    return Array.isArray(value) && value.every(isDocument) ? value : [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * One-time owner-requested changeover from the old script collection to a
+ * single section-based teaching guide. This is per-browser localStorage.
+ * Preserve every existing document in a separate JSON backup before replacing
+ * the active library. Edits made after the changeover are never reseeded.
+ */
+export function migrateToTeachingGuide(storage: Pick<Storage, "getItem" | "setItem">) {
+  const currentRaw = storage.getItem(TELEPROMPTER_STORAGE_KEY);
+  if (storage.getItem(TELEPROMPTER_TEACHING_RESET_KEY) === TEACHING_SESSION_VERSION) {
+    const documents = parseDocuments(currentRaw);
+    if (documents.length > 0) return documents;
+    const seed = getSeedDocuments();
+    storage.setItem(TELEPROMPTER_STORAGE_KEY, JSON.stringify(seed));
+    return seed;
+  }
+
+  if (currentRaw !== null && storage.getItem(TELEPROMPTER_PREVIOUS_SCRIPTS_KEY) === null) {
+    // If this backup cannot be written, leave the old active data untouched.
+    storage.setItem(TELEPROMPTER_PREVIOUS_SCRIPTS_KEY, currentRaw);
+  }
+
+  const seed = getSeedDocuments();
+  storage.setItem(TELEPROMPTER_STORAGE_KEY, JSON.stringify(seed));
+  storage.setItem(TELEPROMPTER_LAST_DOCUMENT_KEY, TEACHING_SESSION_ID);
+  storage.setItem(TELEPROMPTER_TEACHING_RESET_KEY, TEACHING_SESSION_VERSION);
+  return seed;
+}
+
 export function loadTeleprompterDocuments(): TeleprompterDocument[] {
   if (typeof window === "undefined") return [];
-
   try {
-    const raw = window.localStorage.getItem(TELEPROMPTER_STORAGE_KEY);
-    if (!raw) {
-      const seed = getSeedDocuments();
-      saveTeleprompterDocuments(seed);
-      return seed;
-    }
-
-    const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed) || parsed.length === 0) {
-      const seed = getSeedDocuments();
-      saveTeleprompterDocuments(seed);
-      return seed;
-    }
-
-    const documents = ensureEpisodeOneSeed(parsed as TeleprompterDocument[]);
-    saveTeleprompterDocuments(documents);
-    return documents;
-  } catch {
-    return getSeedDocuments();
+    return migrateToTeachingGuide(window.localStorage);
+  } catch (error) {
+    console.error("Teleprompter teaching guide migration could not be saved", error);
+    return parseDocuments(window.localStorage.getItem(TELEPROMPTER_STORAGE_KEY)).length
+      ? parseDocuments(window.localStorage.getItem(TELEPROMPTER_STORAGE_KEY))
+      : getSeedDocuments();
   }
 }
 
