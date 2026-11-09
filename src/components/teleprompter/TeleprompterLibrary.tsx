@@ -7,6 +7,7 @@ import { parseTeleprompterDocument } from "@/lib/teleprompter/parser";
 import {
   createTeleprompterDocument,
   duplicateTeleprompterDocument,
+  getPreviousTeleprompterScriptsBackup,
   loadTeleprompterDocuments,
   saveTeleprompterDocuments,
 } from "@/lib/teleprompter/storage";
@@ -22,12 +23,14 @@ export default function TeleprompterLibrary() {
   const [previewIndex, setPreviewIndex] = useState(0);
   const [previewTheme, setPreviewTheme] = useState<TeleprompterTheme>("night");
   const [hydrated, setHydrated] = useState(false);
+  const [hasPreviousScripts, setHasPreviousScripts] = useState(false);
 
   useEffect(() => {
     const loaded = loadTeleprompterDocuments();
     const requested = new URLSearchParams(window.location.search).get("doc");
     const selected = loaded.find((doc) => doc.id === requested) ?? loaded[0];
     setDocuments(loaded);
+    setHasPreviousScripts(Boolean(getPreviousTeleprompterScriptsBackup()));
     setSelectedId(selected?.id ?? "");
     setHydrated(true);
   }, []);
@@ -84,6 +87,20 @@ export default function TeleprompterLibrary() {
     setPreviewIndex(0);
   };
 
+  const downloadPreviousScripts = () => {
+    const previous = getPreviousTeleprompterScriptsBackup();
+    if (!previous) return;
+    const blob = new Blob([previous], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "apostolic-guide-previous-teleprompter-scripts-20261108.json";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  };
+
   const remove = () => {
     if (!selected || documents.length <= 1) return;
     if (!window.confirm(`Delete “${selected.title}”?`)) return;
@@ -113,8 +130,13 @@ export default function TeleprompterLibrary() {
             />
             <p>Teleprompter</p>
             <button type="button" onClick={createNew} className="tp-library-primary">
-              + New script
+              + New teaching guide
             </button>
+            {hasPreviousScripts ? (
+              <button type="button" className="tp-library-backup" onClick={downloadPreviousScripts}>
+                Export previous scripts
+              </button>
+            ) : null}
             <input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
