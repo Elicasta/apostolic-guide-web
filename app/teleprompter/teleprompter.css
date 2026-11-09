@@ -395,3 +395,21 @@
   .tp-primary-button,
   .tp-secondary-button { transition: none; }
 }
+
+
+/* Recovery is visible only on devices with a pre-changeover local backup. */
+.tp-library-backup {
+  display: block;
+  width: 100%;
+  border: 1px solid #465363;
+  border-radius: 4px;
+  background: transparent;
+  color: #c9d3db;
+  padding: 10px 12px;
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+  text-align: center;
+}
+.tp-library-backup:hover { border-color: #a8b3bc; color: #ffffff; }
+.tp-library-backup:focus-visible { outline: 3px solid #c3444e; outline-offset: 2px; }
