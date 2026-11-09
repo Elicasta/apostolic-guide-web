@@ -343,3 +343,20 @@
   .tp-scroll-panel-toggle > span { align-items: flex-start; flex-direction: column; gap: 3px; }
   .tp-script:not(.tp-script-compact) { width: 76vw; }
 }
+
+
+/* Teaching mode: short talking points are subordinate to the Scripture text. */
+.tp-script-body p.tp-teaching-point {
+  font-size: .78em;
+  font-weight: 510;
+  line-height: 1.52;
+  padding-block: .13em;
+}
+.tp-script-body p.tp-teaching-point::before {
+  content: "•";
+  color: var(--tp-red-bright);
+  padding-right: .4em;
+  font-weight: 800;
+}
+.tp-script-day .tp-script-body p.tp-teaching-point::before { color: var(--tp-red); }
+.tp-script-compact .tp-script-body p.tp-teaching-point { font-size: .87em; }
