@@ -57,9 +57,9 @@ def rnnoise_filter(plan):
         raise RuntimeError("RNNoise mix must be between 0 and 1")
     if mix == 0:
         return ""
-    model = os.environ.get("VIDEO_PRODUCER_RNNOISE_MODEL", "").strip()
+    model = os.environ.get("VIDEO_PRODUCER_RNNOISE_MODEL", "").strip() or os.path.join(ROOT,"models","video-producer","std.rnnn")
     if not model or not os.path.isfile(model):
-        raise RuntimeError("RNNoise enabled but VIDEO_PRODUCER_RNNOISE_MODEL is missing. Configure a local FFmpeg arnndn model file on the worker, or turn RNNoise mix to 0.")
+        raise RuntimeError("RNNoise enabled but the bundled models/video-producer/std.rnnn model is missing. Restore the licensed model, configure VIDEO_PRODUCER_RNNOISE_MODEL, or set mix to 0.")
     if any(char in model for char in ("'", ":", "\\", "[", "]", ",")):
         raise RuntimeError("RNNoise model path contains unsupported FFmpeg filter characters")
     return f"arnndn=m='{model}':mix={mix:.3f},"
