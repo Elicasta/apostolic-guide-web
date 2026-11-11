@@ -16,7 +16,7 @@ export function KineticScenePreview({raw,sourceUrl="",sourceOffset=0,transcriptW
  const parsed=useMemo(()=>videoSceneDocument.safeParse((()=>{try{return JSON.parse(raw)}catch{return null}})()),[raw]);
  const doc=parsed.success?parsed.data:null;
  const fps=doc?.format.fps||30;
- const duration=doc?Math.max(...doc.scenes.map(s=>s.end)):0;
+ const duration=doc?Math.max(...doc.scenes.map(s=>s.end),...doc.overlays.map(s=>s.end),0):0;
  const assetIds=JSON.stringify(doc?.assets.map(a=>a.id)??[]);
  useEffect(()=>{let alive=true;const ids=JSON.parse(assetIds) as string[];
   Promise.all(ids.map(async id=>{
