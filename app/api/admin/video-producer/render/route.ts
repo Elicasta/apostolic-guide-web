@@ -158,7 +158,7 @@ export async function POST(request: Request) {
         } : null
       },
       source: { filename: project.source_filename, duration: project.source_duration, range: sourceRange },
-      renderPlan: {...(alignedScenes?{...renderPlan,overlays:[]}:renderPlan), brandAudioTarget:videoProducerBrandAudioTarget(brandProfile), rnnoiseMix:project.rnnoise_mix??brandProfile.config.audio.rnnoiseMix},
+      renderPlan: {...(alignedScenes?{...renderPlan,overlays:[],intro:false,outro:false}:renderPlan), brandAudioTarget:videoProducerBrandAudioTarget(brandProfile), rnnoiseMix:project.rnnoise_mix??brandProfile.config.audio.rnnoiseMix},
       transcript: localTranscript,
       musicTracks,
       ...(production.usesMulticam ? {
