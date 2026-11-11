@@ -4,6 +4,7 @@ import { getStudioPermission } from "@/auth";
 import { pathwayBySlug } from "@/pathway-catalog";
 import { createServiceClient } from "@/supabase";
 import type { VideoProducerEditPlan } from "@/video-producer";
+import { correctScriptureOverlays } from "@/video-producer-scripture";
 import {
   normalizeVideoProducerDirectorOutput,
   normalizeVideoProducerTranscript,
@@ -192,10 +193,12 @@ export async function POST(request: Request) {
         duckUnderVoice: true
       }];
     }
+    // Ground every Scripture graphic in the canonical bundled KJV, never Sol transcription paraphrases.
+    const exactPlan = correctScriptureOverlays(directed.plan);
     const now = new Date().toISOString();
     const saved = await service.from("video_producer_projects").update({
       status: "planned",
-      edit_plan: directed.plan,
+      edit_plan: exactPlan,
       approval_fingerprint: null,
       approved_at: null,
       director_metadata: {
@@ -205,7 +208,7 @@ export async function POST(request: Request) {
       updated_by: access.user.id
     }).eq("id", project.id).select("*").single();
     if (saved.error) throw new Error(saved.error.message);
-    return NextResponse.json({ project: saved.data, plan: directed.plan, summary: directed.summary });
+    return NextResponse.json({ project: saved.data, plan: exactPlan, summary: directed.summary });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Edit Director failed.";
     await service.from("video_producer_projects").update({
