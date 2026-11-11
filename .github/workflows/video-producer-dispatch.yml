@@ -19,7 +19,7 @@ jobs:
         shell: bash
         run: |
           case "$WORKER_REF" in
-            main|codex/video-producer) ;;
+            main|codex/video-producer|codex/video-producer-brand-episodes) ;;
             *) echo "Refusing untrusted Video Producer worker ref: $WORKER_REF" >&2; exit 1 ;;
           esac
       - name: Check out requested worker ref
@@ -190,7 +190,7 @@ jobs:
         env:
           WORKER_PAYLOAD: ${{ toJson(github.event.client_payload) }}
         run: printf '%s' "$WORKER_PAYLOAD" > /tmp/video-producer-thumbnail.json
-      - name: Render three YouTube candidates
+      - name: Render real frame YouTube thumbnail candidates
         run: python3 scripts/video_producer_thumbnail_worker.py /tmp/video-producer-thumbnail.json
 
   publisher_handoff:
