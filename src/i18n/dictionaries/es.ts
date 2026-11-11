@@ -1,0 +1,58 @@
+import type { Dictionary } from "./en";
+
+export const es = {
+  common: {
+    continue: "Continuar",
+    back: "Atrás",
+    next: "Siguiente",
+    previous: "Anterior",
+    close: "Cerrar",
+    share: "Compartir",
+    save: "Guardar",
+    saved: "Guardado",
+    start: "Comenzar",
+    explore: "Explorar",
+    read: "Leer",
+    learnMore: "Ver más",
+  },
+  nav: {
+    home: "Inicio",
+    search: "Buscar",
+    pathways: "Rutas Bíblicas",
+    topics: "Temas",
+    answers: "Respuestas",
+    scriptures: "Escrituras",
+    objections: "Objeciones",
+    library: "Biblioteca",
+    account: "Cuenta",
+  },
+  pathways: {
+    singular: "Ruta Bíblica",
+    plural: "Rutas Bíblicas",
+    start: "Comenzar ruta",
+    continue: "Continuar ruta",
+  },
+  scripture: {
+    related: "Escrituras relacionadas",
+    supporting: "Escrituras de apoyo",
+    key: "Escritura clave",
+    mainPoint: "Punto principal",
+    whyItMatters: "Por qué importa",
+    apostolicConnection: "Conexión apostólica",
+    commonMisunderstanding: "Malentendido común",
+    conversationUse: "Cómo usar este versículo",
+    readInContext: "Leer en contexto",
+  },
+  account: {
+    settings: "Configuración",
+    language: "Idioma",
+    signIn: "Iniciar sesión",
+    signOut: "Cerrar sesión",
+    createAccount: "Crear cuenta",
+  },
+  errors: {
+    notFound: "No encontramos esa página.",
+    returnHome: "Volver al inicio",
+    unavailableInLanguage: "Este contenido todavía no está disponible en este idioma.",
+  },
+} as const satisfies Dictionary;
