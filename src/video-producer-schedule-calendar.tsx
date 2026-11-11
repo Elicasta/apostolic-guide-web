@@ -32,7 +32,7 @@ export function VideoProducerScheduleCalendar(){
  },[]);
  useEffect(()=>{
   let live=true;
-  void load().catch(e=>{if(live)setError(e instanceof Error?e.message:"Could not load calendar");});
+  void Promise.resolve().then(load).catch(e=>{if(live)setError(e instanceof Error?e.message:"Could not load calendar");});
   void json<{channels:Channel[]}>("/api/admin/video-producer/youtube-channels?brand=in-the-now")
    .then(result=>{if(live)setChannels(result.channels||[]);})
    .catch(e=>{if(live)setError(e instanceof Error?e.message:"Connect YouTube in Admin Setup.");});
