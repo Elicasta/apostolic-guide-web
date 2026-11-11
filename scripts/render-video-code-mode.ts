@@ -14,6 +14,7 @@ import {chromium} from "playwright";
 import {videoSceneDocument} from "../src/code-mode/video-scenes";
 import {renderVideoSceneFrame,type SceneFontMap} from "../src/code-mode/video-scene-frame";
 import {footageFilter} from "../src/code-mode/video-footage-motion";
+import {detectVideoTextOverflow} from "../src/code-mode/video-scene-overflow";
 
 const fontNames:Record<keyof SceneFontMap,string>={
  montserrat400:"montserrat-400.woff",
@@ -109,6 +110,11 @@ export async function renderSceneVideo(args:string[]){
     document.body.innerHTML=html;
     await Promise.all(Array.from(document.images).map(img=>img.decode().catch(()=>{})));
    },body);
+   if(frame===0||frame%15===0||doc.overlays?.some(o=>Math.abs(o.start-clock)<1/fps||Math.abs(o.end-clock)<1/fps)){
+    await page.evaluate(()=>document.fonts.ready);
+    const overflow=await page.evaluate(detectVideoTextOverflow);
+    if(overflow.length)throw new Error("Text overflow at "+clock.toFixed(2)+"s: "+overflow.join("; ")+". Adjust text, spacing or timing before final rendering.");
+   }
    const png=await page.screenshot({omitBackground:true,animations:"disabled"});
    const pngPath=join(dir,String(frame).padStart(6,"0")+".png");
    // Chromium encodes fully opaque frames as PNG RGB but transparent scenes
