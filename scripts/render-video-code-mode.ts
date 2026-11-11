@@ -112,7 +112,7 @@ export async function renderSceneVideo(args:string[]){
    },body);
    if(frame===0||frame%15===0||doc.overlays?.some(o=>Math.abs(o.start-clock)<1/fps||Math.abs(o.end-clock)<1/fps)){
     await page.evaluate(()=>document.fonts.ready);
-    const overflow=await page.evaluate(detectVideoTextOverflow);
+    const overflow=await page.evaluate(detectVideoTextOverflow as () => string[]);
     if(overflow.length)throw new Error("Text overflow at "+clock.toFixed(2)+"s: "+overflow.join("; ")+". Adjust text, spacing or timing before final rendering.");
    }
    const png=await page.screenshot({omitBackground:true,animations:"disabled"});
