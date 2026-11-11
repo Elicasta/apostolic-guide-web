@@ -39,7 +39,7 @@ const scene=z.object({
  for(let i=0;i<value.keyframes.length;i++)if(value.keyframes[i].t>value.end-value.start)ctx.addIssue({code:"custom",path:["keyframes",i,"t"],message:"Keyframe exceeds scene duration"});
  // Scene HTML is inert markup, not arbitrary JavaScript. Never load remote resources.
  const combined=value.html+"\n"+value.css;
- if(/<\s*(script|iframe|object|embed|video|audio|link|meta|base)\b/i.test(combined)||/\bon\w+\s*=/i.test(combined)||/javascript\s*:|@import\b|url\s*\(/i.test(combined))
+ if(/<\s*(script|iframe|object|embed|video|audio|link|meta|base|button|form|input|textarea|select|option|a)\b/i.test(combined)||/\bon\w+\s*=/i.test(combined)||/javascript\s*:|@import\b|url\s*\(/i.test(combined))
    ctx.addIssue({code:"custom",path:["html"],message:"Executable markup and external resources are forbidden"});
 });
 const presetFields=z.object({
