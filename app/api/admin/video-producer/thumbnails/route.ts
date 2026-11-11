@@ -6,7 +6,7 @@ import { pathwayBySlug } from "@/pathway-catalog";
 import { createServiceClient } from "@/supabase";
 import {getVideoProducerBrand} from "@/video-producer-brand-server";
 import { sourceTimeToOutputTime, type VideoProducerEditPlan } from "@/video-producer";
-import { normalizeVideoProducerTranscript, transcriptForModel } from "@/video-producer-ai";
+import { normalizeVideoProducerTranscript, sliceVideoProducerTranscript, transcriptForModel } from "@/video-producer-ai";
 import {
   createPrivateBlobDownloadUrl,
   createPrivateBlobUploadUrl,
@@ -72,7 +72,13 @@ export async function POST(request: Request) {
   if (!project.source_locator || project.source_provider !== "vercel_blob") return NextResponse.json({ error: "A private source video is required." }, { status: 409 });
   if (!project.edit_plan) return NextResponse.json({ error: "Run the Edit Director before generating thumbnails." }, { status: 409 });
 
-  const transcript = normalizeVideoProducerTranscript(project.transcript);
+  const fullTranscript = normalizeVideoProducerTranscript(project.transcript);
+  // Child mini episodes share their parent source transcript, but thumbnail
+  // timestamps in the editor are local to the named episode. The worker adds
+  // source_range_start exactly once when reading the original file.
+  const transcript = project.source_range_start != null && project.source_range_end != null
+    ? sliceVideoProducerTranscript(fullTranscript, Number(project.source_range_start), Number(project.source_range_end))
+    : fullTranscript;
   if (!transcript.text || !transcript.words.length) return NextResponse.json({ error: "A timestamped transcript is required." }, { status: 409 });
   let profile;
   try{profile=await getVideoProducerBrand(service,project.brand_profile||"apostolic-guide");}
