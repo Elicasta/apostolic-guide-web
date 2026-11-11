@@ -104,7 +104,7 @@ export async function resolveVideoProducerProductionState(service: ServiceClient
   const cameraRanges = cameraPlan ? compileCameraRangesThroughContentCuts(cameraPlan, project.edit_plan.cuts, duration, cameraBCoverage) : [];
   const usesMulticam = Boolean(cameraPlan || audioPlan.source === "external_audio");
   const fingerprintInput = {
-    ...videoProducerProductionFingerprintInput({ contentPlan: project.edit_plan, cameraPlan, audioPlan, media: usedMedia }),
+    content:videoProducerProductionFingerprintInput({ contentPlan: project.edit_plan, cameraPlan, audioPlan, media: usedMedia }),
     brandProfile:project.brand_profile??"apostolic-guide",
     brandConfig:project.brand_config??null,
     kineticSceneV2:project.scene_document??null,
