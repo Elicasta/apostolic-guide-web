@@ -22,7 +22,14 @@ export function VideoProducerEpisodeSplitPanel({projectId,duration}:{projectId:s
   const data=await json<{episodes:Episode[]}>(`/api/admin/video-producer/split-episodes?projectId=${encodeURIComponent(projectId)}`);
   setEpisodes(data.episodes||[]);
  },[projectId]);
- useEffect(()=>{void load().catch(e=>setError(e.message));},[load]);
+ useEffect(()=>{
+  let active=true;
+  void fetch(`/api/admin/video-producer/split-episodes?projectId=${encodeURIComponent(projectId)}`,{cache:"no-store"})
+   .then(async response=>{const data=await response.json();if(!response.ok)throw new Error(data.error||"Could not load episodes");return data;})
+   .then(value=>{if(active)setEpisodes(value.episodes||[]);})
+   .catch(error=>{if(active)setError(error instanceof Error?error.message:"Could not load episodes");});
+  return ()=>{active=false;};
+ },[projectId]);
  function change(index:number,patch:Partial<Item>){setDraft(rows=>rows.map((row,i)=>i===index?{...row,...patch}:row));}
  async function split(){
   setBusy(true);setError("");setNotice("");
