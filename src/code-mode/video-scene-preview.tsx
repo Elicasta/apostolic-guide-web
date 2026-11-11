@@ -6,9 +6,10 @@ const FILES:Record<keyof SceneFontMap,string>={
  montserrat400:"/fonts/montserrat-400.woff",montserrat800:"/fonts/montserrat-800.woff",
  bebas400:"/fonts/bebas-400.woff",cormorant400:"/fonts/cormorant-400.woff",
  cormorant700:"/fonts/cormorant-700.woff",
- playfairVariable:"/fonts/playfair-display-variable.ttf"
+ playfairVariable:"/fonts/playfair-display-variable.ttf",
+ poppins400:"/fonts/poppins-regular.ttf",poppins700:"/fonts/poppins-bold.ttf"
 };
-export function KineticScenePreview({raw,sourceUrl="",sourceOffset=0,transcriptWords=[],keepSegments=[]}:{raw:string;sourceUrl?:string;sourceOffset?:number;transcriptWords?:Array<{word:string;start:number;end:number}>;keepSegments?:Array<{start:number;end:number}>}){
+export function KineticScenePreview({raw,sourceUrl="",sourceOffset=0,transcriptWords=[],keepSegments=[],brandLogoData=""}:{raw:string;sourceUrl?:string;sourceOffset?:number;transcriptWords?:Array<{word:string;start:number;end:number}>;keepSegments?:Array<{start:number;end:number}>;brandLogoData?:string}){
  const [frame,setFrame]=useState(0),[guides,setGuides]=useState(true),[playing,setPlaying]=useState(false),[loop,setLoop]=useState(true);
  const [fonts,setFonts]=useState<SceneFontMap>({});
  const [images,setImages]=useState<Record<string,string>>({});
@@ -63,7 +64,7 @@ export function KineticScenePreview({raw,sourceUrl="",sourceOffset=0,transcriptW
   if(playing){void video.play().catch(()=>{});}else video.pause();
  },[requestedVideoTime,sourceUrl,playing]);
  let source:string;
- try{source=doc?renderVideoSceneFrame(doc,current,fonts,images):""}catch{source=""}
+ try{source=doc?renderVideoSceneFrame(doc,current,fonts,{...images,...(brandLogoData?{__brand_logo:brandLogoData}:{})}):""}catch{source=""}
  if(!doc)return <p role="alert">Fix Video V2 JSON to preview: {parsed.success?"Unknown validation error":parsed.error.issues[0]?.path.join(".")+": "+parsed.error.issues[0]?.message}</p>;
  return <section aria-label="Kinetic scene frame preview" style={{display:"grid",gap:12}}>
   <div style={{display:"flex",gap:10,alignItems:"center",flexWrap:"wrap"}}>
