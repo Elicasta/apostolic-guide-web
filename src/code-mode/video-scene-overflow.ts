@@ -8,7 +8,10 @@ export function videoTextBoundsOverflow(child:VideoTextBounds,parent:VideoTextBo
   child.right>parent.right+tolerance||child.bottom>parent.bottom+tolerance;
 }
 
-export function detectVideoTextOverflow(doc:Document):string[]{
+export function detectVideoTextOverflow(doc:Document=document):string[]{
+ // Keep the entire evaluator self-contained: Playwright serializes this
+ // function into Chromium without module imports.
+ const exceeds=(child:VideoTextBounds,parent:VideoTextBounds,tolerance=3)=>child.left<parent.left-tolerance||child.top<parent.top-tolerance||child.right>parent.right+tolerance||child.bottom>parent.bottom+tolerance;
  const view=doc.defaultView;
  if(!view)return [];
  const root=doc.documentElement;
@@ -26,7 +29,7 @@ export function detectVideoTextOverflow(doc:Document):string[]{
   if(!box.width||!box.height)continue;
   const label=item.getAttribute("class")||item.tagName.toLowerCase();
   // These are visible overlays, never intentionally full-bleed art.
-  if(videoTextBoundsOverflow(box,viewport,4)){
+  if(exceeds(box,viewport,4)){
    failures.push(label+" exceeds the video frame");
    continue;
   }
@@ -39,7 +42,7 @@ export function detectVideoTextOverflow(doc:Document):string[]{
    const range=doc.createRange();
    range.selectNodeContents(child);
    const ink=range.getBoundingClientRect();
-   if(ink.width>0&&ink.height>0&&videoTextBoundsOverflow(ink,box,5))
+   if(ink.width>0&&ink.height>0&&exceeds(ink,box,5))
     failures.push(label+" glyphs are clipped by their container");
   }
   if(item.classList.contains("vp-outro")&&box.bottom>viewport.bottom*.75+4)
