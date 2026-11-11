@@ -35,13 +35,79 @@ export function VideoKineticCodeEditor({initialId="",initialKind="producer",init
  const [loadedProducerId,setLoadedProducerId]=useState(""),[savedRaw,setSavedRaw]=useState("");
  const [brandLogoData,setBrandLogoData]=useState("");
  const [brandName,setBrandName]=useState("");
+ const [brandSlug,setBrandSlug]=useState("apostolic-guide");
+ const [brandPresets,setBrandPresets]=useState<Array<{id:string;name:string;version:number;document:VideoSceneDocument}>>([]);
+ const [presetName,setPresetName]=useState("");
+ const [presetSelected,setPresetSelected]=useState("");
+ const [presetRevision,setPresetRevision]=useState("");
+ const [presetRevisions,setPresetRevisions]=useState<Array<{version:number;created_at:string}>>([]);
  const parsed=useMemo(()=>{try{return videoSceneDocument.safeParse(JSON.parse(raw))}catch{return null}},[raw]);
  const document=parsed?.success?parsed.data:null;
  const scene=document?.scenes.find(s=>s.id===selected)||document?.scenes[0];
+ async function loadPresets(slug:string,presetId=""){
+  const query=new URLSearchParams({brand:slug});
+  if(presetId)query.set("revisions",presetId);
+  const response=await fetch("/api/admin/video-producer/brand-presets?"+query.toString(),{cache:"no-store"});
+  const result=await response.json();
+  if(!response.ok)throw new Error(result.error||"Brand presets could not be loaded.");
+  setBrandPresets(Array.isArray(result.presets)?result.presets:[]);
+  setPresetRevisions(Array.isArray(result.revisions)?result.revisions:[]);
+ }
+ async function saveBrandPreset(replace=false){
+  if(!document||busy)return;
+  if(!presetName.trim()&&!replace){setError("Give the series preset a name.");return;}
+  const selectedPreset=brandPresets.find(p=>p.id===presetSelected);
+  if(replace&&!selectedPreset){setError("Select an existing preset to update.");return;}
+  if(replace&&!window.confirm("Replace this saved brand preset? Its current version will be available for undo."))return;
+  setBusy(true);setError("");
+  try{
+   const input=replace?{action:"update",id:selectedPreset!.id,expectedVersion:selectedPreset!.version,document}:
+    {action:"create",brandSlug,name:presetName.trim(),document};
+   const response=await fetch("/api/admin/video-producer/brand-presets",{
+    method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(input)
+   });
+   const result=await response.json();
+   if(!response.ok)throw new Error(result.error||"Could not save brand preset.");
+   setPresetSelected(result.preset.id);
+   setPresetName(result.preset.name);
+   await loadPresets(brandSlug,result.preset.id);
+   setNotice("Reusable preset saved. Project approval is unchanged until you Apply JSON to the draft.");
+  }catch(e){setError(e instanceof Error?e.message:"Preset save failed");}
+  finally{setBusy(false);}
+ }
+ async function restoreBrandPreset(){
+  const selected=brandPresets.find(p=>p.id===presetSelected);
+  if(!selected||!presetRevision||busy)return;
+  if(!window.confirm("Restore this older preset as a new version? Its current version will remain in revision history."))return;
+  setBusy(true);setError("");
+  try{
+   const response=await fetch("/api/admin/video-producer/brand-presets",{
+    method:"POST",headers:{"content-type":"application/json"},
+    body:JSON.stringify({action:"restore",id:selected.id,expectedVersion:selected.version,restoreVersion:Number(presetRevision)})
+   });
+   const result=await response.json();
+   if(!response.ok)throw new Error(result.error||"Preset revision could not be restored.");
+   setPresetRevision("");
+   await loadPresets(brandSlug,selected.id);
+   setNotice("Saved preset restored. Select Apply preset to load it into your project sandbox.");
+  }catch(e){setError(e instanceof Error?e.message:"Preset undo failed");}
+  finally{setBusy(false);}
+ }
+ function loadSavedBrandPreset(){
+  const selected=brandPresets.find(p=>p.id===presetSelected);
+  if(!selected||!document||readOnly||busy)return;
+  const applied=videoSceneDocument.safeParse({...selected.document,id:document.id,kind:document.kind,
+   expectedUpdatedAt:document.expectedUpdatedAt});
+  if(!applied.success){setError("Saved preset is invalid: "+applied.error.issues[0]?.message);return;}
+  update(applied.data);
+  setNotice("Preset loaded into the sandbox. Review every timeline item, then Apply JSON to save. Approval remains a separate human action.");
+ }
  async function loadProject(checkpoint=""){
   if(!projectId){setError("Enter a project ID or Pathway slug.");return}
   setBusy(true);setError("");setNotice("");
-  try{const query=new URLSearchParams({kind,id:projectId});if(checkpoint)query.set("checkpoint",checkpoint);const res=await fetch("/api/admin/code-mode/video-v2?"+query.toString(),{cache:"no-store"});const value=await res.json();if(!res.ok)throw new Error(value.error||"Load failed");const loaded=JSON.stringify(value.document,null,2);setRaw(loaded);setSavedRaw(loaded);setBrandName(String(value.brand?.name||""));setBrandLogoData(String(value.brandLogoData||""));setLoadedProducerId(kind==="producer"?projectId:"");setReadOnly(Boolean(value.readOnly));setSelected(initialScene||value.document.scenes?.[0]?.id||"scene-1");setHistory([]);setCheckpoints(Array.isArray(value.history)?value.history:[]);setSourceUrl(String(value.previewSourceUrl||""));setTranscriptLane(Array.isArray(value.transcriptLane)?value.transcriptLane:[]);setKeptRanges(Array.isArray(value.keptRanges)?value.keptRanges:[]);setSourceOffset(Number(value.sourceOffset||0));setNotice(checkpoint?"Loaded checkpoint for review. Apply JSON to restore this version.":"Loaded "+value.projectStatus+" project.");}catch(e){setError(e instanceof Error?e.message:"Load failed");}finally{setBusy(false)}
+  try{const query=new URLSearchParams({kind,id:projectId});if(checkpoint)query.set("checkpoint",checkpoint);const res=await fetch("/api/admin/code-mode/video-v2?"+query.toString(),{cache:"no-store"});const value=await res.json();if(!res.ok)throw new Error(value.error||"Load failed");const loaded=JSON.stringify(value.document,null,2);setRaw(loaded);setSavedRaw(loaded);setBrandName(String(value.brand?.name||""));setBrandSlug(String(value.brand?.slug||"apostolic-guide"));
+  if(kind==="producer"&&value.brand?.slug)await loadPresets(String(value.brand.slug));
+  setBrandLogoData(String(value.brandLogoData||""));setLoadedProducerId(kind==="producer"?projectId:"");setReadOnly(Boolean(value.readOnly));setSelected(initialScene||value.document.scenes?.[0]?.id||"scene-1");setHistory([]);setCheckpoints(Array.isArray(value.history)?value.history:[]);setSourceUrl(String(value.previewSourceUrl||""));setTranscriptLane(Array.isArray(value.transcriptLane)?value.transcriptLane:[]);setKeptRanges(Array.isArray(value.keptRanges)?value.keptRanges:[]);setSourceOffset(Number(value.sourceOffset||0));setNotice(checkpoint?"Loaded checkpoint for review. Apply JSON to restore this version.":"Loaded "+value.projectStatus+" project.");}catch(e){setError(e instanceof Error?e.message:"Load failed");}finally{setBusy(false)}
  }
  useEffect(()=>{void fetch("/api/admin/video-producer/graphics",{cache:"no-store"}).then(r=>r.ok?r.json():{assets:[]}).then(value=>{
   const rows=Array.isArray(value.assets)?value.assets:[];
@@ -122,6 +188,27 @@ export function VideoKineticCodeEditor({initialId="",initialKind="producer",init
    {libraryAssets.length?<><label>Graphics library<select value={graphicId} onChange={e=>setGraphicId(e.target.value)}><option value="">Select graphic</option>{libraryAssets.map(a=><option key={a.id} value={a.id}>{a.title}</option>)}</select></label><button type="button" disabled={readOnly||busy||!graphicId} onClick={attachGraphic}>Attach graphic</button></>:null}
    {document?<label>Scene<select value={scene?.id||""} onChange={e=>setSelected(e.target.value)}>{document.scenes.map(s=><option key={s.id}>{s.id}</option>)}</select></label>:null}
   </div>
+  {kind==="producer"&&document?<section aria-label="Reusable brand presets" style={{display:"grid",gap:10,border:"1px solid #66777d",padding:12,borderRadius:10}}>
+   <strong>Reusable {brandName||brandSlug} presets</strong>
+   <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"end"}}>
+    <label>Saved presets<select value={presetSelected} onChange={e=>{
+     const id=e.target.value;setPresetSelected(id);setPresetRevision("");
+     const found=brandPresets.find(p=>p.id===id);setPresetName(found?.name||"");
+     if(id)void loadPresets(brandSlug,id).catch(e=>setError(e instanceof Error?e.message:"Could not load revisions"));
+    }}><option value="">Choose saved preset</option>{brandPresets.map(p=><option key={p.id} value={p.id}>{p.name} · v{p.version}</option>)}</select></label>
+    <button type="button" disabled={busy||readOnly||!presetSelected} onClick={loadSavedBrandPreset}>Load into sandbox</button>
+    <label>Series preset name<input value={presetName} maxLength={120} onChange={e=>setPresetName(e.target.value)} placeholder="New series preset"/></label>
+    <button type="button" disabled={busy||!document||!presetName.trim()} onClick={()=>void saveBrandPreset(false)}>Save as new preset</button>
+    <button type="button" disabled={busy||!presetSelected} onClick={()=>void saveBrandPreset(true)}>Update saved preset</button>
+   </div>
+   {presetSelected&&presetRevisions.length?<div style={{display:"flex",gap:8,alignItems:"end",flexWrap:"wrap"}}>
+    <label>Undo to revision<select value={presetRevision} onChange={e=>setPresetRevision(e.target.value)}>
+     <option value="">Choose older version</option>{presetRevisions.map(r=><option key={r.version} value={r.version}>Version {r.version} · {new Date(r.created_at).toLocaleString()}</option>)}
+    </select></label>
+    <button type="button" disabled={busy||!presetRevision} onClick={()=>void restoreBrandPreset()}>Restore selected revision</button>
+   </div>:null}
+   <small>Saving presets does not edit or publish a project. Load a saved document into the sandbox, review timings, then Apply JSON to a draft checkpoint.</small>
+  </section>:null}
   {mode==="fields"&&document?<details open style={{display:"grid",gap:10}}>
     <summary>Shared brand preset · {brandName||"Video"}</summary>
     <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(210px,1fr))",gap:10}}>
