@@ -13,7 +13,6 @@ export function detectVideoTextOverflow():string[]{
  // Keep the entire evaluator self-contained: Playwright serializes this
  // function into Chromium without module imports.
  const exceeds=(child:VideoTextBounds,parent:VideoTextBounds,tolerance=3)=>child.left<parent.left-tolerance||child.top<parent.top-tolerance||child.right>parent.right+tolerance||child.bottom>parent.bottom+tolerance;
- const target=doc;
  const view=doc.defaultView;
  if(!view)return [];
  const root=doc.documentElement;
