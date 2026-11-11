@@ -40,7 +40,7 @@ async function fontMap(){
 async function graphicData(doc:ReturnType<typeof videoSceneDocument.parse>){
  const resolved:Record<string,string>={};
  const localLogo=(doc.style as Record<string,unknown>).logoAssetPath;
- if(typeof localLogo==="string"&&/^public\\/brand\\/[a-zA-Z0-9._-]+\\.(?:png|jpe?g|webp)$/.test(localLogo)){
+ if(typeof localLogo==="string"&&new RegExp("^public/brand/[a-zA-Z0-9._-]+[.](png|jpe?g|webp)$").test(localLogo)){
   const bytes=await readFile(resolve(process.cwd(),localLogo));
   if(bytes.length>2*1024*1024)throw new Error("Brand logo exceeds 2MB.");
   const type=localLogo.endsWith(".png")?"png":localLogo.endsWith(".webp")?"webp":"jpeg";
