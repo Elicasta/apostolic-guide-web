@@ -12,6 +12,7 @@ export default async function AdminVideoProducerPage() {
     <>
       <VideoProducerUploadRecovery />
       <p><Link className="button" href="/admin/code-mode?tool=video">Open Code Mode · Video Producer JSON</Link></p>
+      <p><Link className="button" href="/admin/video-producer/calendar">Personal YouTube release calendar</Link></p>
       <VideoProducerDashboard />
       <VideoProducerReadiness />
     </>
