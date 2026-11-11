@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 import {
   isVideoProducerWorkerStale,
   VIDEO_PRODUCER_RENDER_STALE_MS,
+  VIDEO_PRODUCER_QUEUED_RENDER_STALE_MS,
+  videoProducerStalledRenderReason,
   VIDEO_PRODUCER_TRANSCRIPTION_STALE_MS,
   VIDEO_PRODUCER_UPLOAD_STALE_MS
 } from "../src/video-producer-job-state";
@@ -41,4 +43,17 @@ test("render stays active through the three-minute heartbeat recovery boundary",
 
 test("render becomes retryable immediately after the three-minute heartbeat margin", () => {
   assert.equal(isVideoProducerWorkerStale(isoBefore(VIDEO_PRODUCER_RENDER_STALE_MS + 1), VIDEO_PRODUCER_RENDER_STALE_MS, NOW), true);
+});
+
+test("queued renders wait for GitHub runner allocation before failing", () => {
+  const requestedAt = isoBefore(VIDEO_PRODUCER_QUEUED_RENDER_STALE_MS);
+  assert.equal(videoProducerStalledRenderReason({status:"queued",requestedAt,now:NOW}),null);
+  const reason = videoProducerStalledRenderReason({status:"queued",requestedAt:isoBefore(VIDEO_PRODUCER_QUEUED_RENDER_STALE_MS+1),now:NOW});
+  assert.match(reason || "",/Contents: write/);
+});
+test("stalled rendering fails with last stage and a manual retry path",()=>{
+  const reason=videoProducerStalledRenderReason({status:"rendering",requestedAt:isoBefore(10*60*1000),heartbeatAt:isoBefore(4*60*1000),stage:"Encoding master",now:NOW});
+  assert.match(reason || "",/Encoding master/);
+  assert.match(reason || "",/Retry render/);
+  assert.equal(videoProducerStalledRenderReason({status:"completed",requestedAt:isoBefore(86400000),now:NOW}),null);
 });
