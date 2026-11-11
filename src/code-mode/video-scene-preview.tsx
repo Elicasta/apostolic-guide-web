@@ -2,6 +2,7 @@
 import {useEffect,useMemo,useRef,useState} from "react";
 import {videoSceneDocument} from "./video-scenes";
 import {renderVideoSceneFrame,type SceneFontMap} from "./video-scene-frame";
+import {detectVideoTextOverflow} from "./video-scene-overflow";
 const FILES:Record<keyof SceneFontMap,string>={
  montserrat400:"/fonts/montserrat-400.woff",montserrat800:"/fonts/montserrat-800.woff",
  bebas400:"/fonts/bebas-400.woff",cormorant400:"/fonts/cormorant-400.woff",
@@ -11,9 +12,17 @@ const FILES:Record<keyof SceneFontMap,string>={
 };
 export function KineticScenePreview({raw,sourceUrl="",sourceOffset=0,transcriptWords=[],keepSegments=[],brandLogoData=""}:{raw:string;sourceUrl?:string;sourceOffset?:number;transcriptWords?:Array<{word:string;start:number;end:number}>;keepSegments?:Array<{start:number;end:number}>;brandLogoData?:string}){
  const [frame,setFrame]=useState(0),[guides,setGuides]=useState(true),[playing,setPlaying]=useState(false),[loop,setLoop]=useState(true);
+ const [overflow,setOverflow]=useState("");
  const [fonts,setFonts]=useState<SceneFontMap>({});
  const [images,setImages]=useState<Record<string,string>>({});
  const previewRef=useRef<HTMLDivElement>(null),footageRef=useRef<HTMLVideoElement>(null),[previewWidth,setPreviewWidth]=useState(380);
+ function checkOverflow(iframe:HTMLIFrameElement){
+  const inner=iframe.contentDocument;if(!inner)return;
+  void inner.fonts.ready.then(()=>{
+   const next=detectVideoTextOverflow(inner).join("; ");
+   setOverflow(current=>current===next?current:next);
+  });
+ }
  const parsed=useMemo(()=>videoSceneDocument.safeParse((()=>{try{return JSON.parse(raw)}catch{return null}})()),[raw]);
  const doc=parsed.success?parsed.data:null;
  const fps=doc?.format.fps||30;
@@ -78,10 +87,11 @@ export function KineticScenePreview({raw,sourceUrl="",sourceOffset=0,transcriptW
   <input aria-label="Timeline scrubber" type="range" min={0} max={endFrame} step={1} value={Math.min(frame,endFrame)} onChange={e=>setFrame(Number(e.target.value))}/>
   <div ref={previewRef} style={{position:"relative",width:"100%",maxWidth:doc.format.w>doc.format.h?780:380,aspectRatio:doc.format.w+"/"+doc.format.h,background:"#10202A",overflow:"hidden"}}>
    {sourceUrl?<video ref={footageRef} src={sourceUrl} playsInline muted preload="metadata" aria-label="Source footage preview" style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover"}}/>:null}
-   <iframe title="Kinetic composition preview" sandbox="" referrerPolicy="no-referrer" srcDoc={source} style={{display:"block",position:"relative",width:doc.format.w,height:doc.format.h,transformOrigin:"top left",transform:"scale("+(previewWidth/doc.format.w)+")",border:0,pointerEvents:"none"}}/>
+   <iframe title="Kinetic composition preview" sandbox="allow-same-origin" onLoad={event=>checkOverflow(event.currentTarget)} referrerPolicy="no-referrer" srcDoc={source} style={{display:"block",position:"relative",width:doc.format.w,height:doc.format.h,transformOrigin:"top left",transform:"scale("+(previewWidth/doc.format.w)+")",border:0,pointerEvents:"none"}}/>
    {guides?<div aria-hidden="true" style={{position:"absolute",inset:"7% 7% 15%",border:"1px dashed #ffffff80",pointerEvents:"none"}}/>:null}
   </div>
   {transcriptWords.length?<div aria-label="Word-level transcript lane" style={{display:"flex",gap:5,overflowX:"auto",padding:8,border:"1px solid #66777D",maxWidth:780}}>{transcriptWords.filter(w=>w.end>=current-2&&w.start<=current+5).slice(0,50).map((w,i)=><button type="button" key={w.start+":"+i} aria-label={"Go to word "+w.word+" at "+w.start.toFixed(2)+" seconds"} onClick={()=>setFrame(Math.round(w.start*fps))} style={{whiteSpace:"nowrap",border:w.start<=current&&w.end>=current?"2px solid #A12D3D":"1px solid #66777D"}}>{w.word}</button>)}</div>:null}
+  {overflow?<p role="alert" style={{color:"#b3212d"}}>Text overflow: {overflow}. Fix before rendering.</p>:null}
   <small>Scene typography and motion use the exact export frame generator. Footage is positioned from the retained edit ranges; playback decoding may vary by browser.</small>
  </section>;
 }
