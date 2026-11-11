@@ -157,6 +157,16 @@ def main():
         thumbnail.render_variant(src, "face-hook", "ONE GOD", "God Is One", 2.0, thumb, d)
         if not os.path.exists(thumb) or os.path.getsize(thumb) < 1024:
             raise RuntimeError("thumbnail smoke output missing")
+        thumbnail.render_variant(src,"A","WHO IS JESUS?","In the Now",2.0,thumb,d,
+                                 {"ink":"220909","accent":"6A0000","paper":"FFF9F2"})
+        if "width=1280" not in probe(thumb) or "height=720" not in probe(thumb):
+            raise RuntimeError("YouTube thumbnail A must be 1280x720")
+        thumbnail.render_variant(src,"B","Jesus is God.","In the Now",2.3,thumb,d)
+        if "width=1280" not in probe(thumb) or "height=720" not in probe(thumb):
+            raise RuntimeError("YouTube thumbnail B must be 1280x720")
+        chosen=thumbnail.select_source_frame(src,2.0,d)
+        if not 0 <= chosen < 6:
+            raise RuntimeError("Real source frame scoring escaped the source duration")
         print(probe(out))
         print(reel_probe)
         print("Video Producer finishing smoke passed")
