@@ -7,6 +7,8 @@ import { z } from "zod";
 import { getStudioPermission } from "@/auth";
 import { pathwayBySlug } from "@/pathway-catalog";
 import { createServiceClient } from "@/supabase";
+import {getVideoProducerBrand} from "@/video-producer-brand-server";
+import {videoProducerBrandAudioTarget} from "@/video-producer-brand-profiles";
 import { compileVideoProducerRenderPlan, type VideoProducerEditPlan } from "@/video-producer";
 import { normalizeVideoProducerTranscript, sliceVideoProducerTranscript } from "@/video-producer-ai";
 import type { VideoProducerAudioPlan, VideoProducerCameraPlan } from "@/video-producer-multicam";
@@ -53,7 +55,7 @@ export async function POST(request: Request) {
   if (!service) return NextResponse.json({ error: "Supabase service access is not configured." }, { status: 503 });
 
   const result = await service.from("video_producer_projects")
-    .select("id,title,mode,status,parent_project_id,pathway_slug,selected_music_track_id,source_provider,source_locator,source_filename,source_duration,source_range_start,source_range_end,transcript,edit_plan,camera_plan,audio_plan,director_metadata,approval_fingerprint,approved_at")
+    .select("id,title,mode,status,brand_profile,parent_project_id,pathway_slug,selected_music_track_id,source_provider,source_locator,source_filename,source_duration,source_range_start,source_range_end,transcript,edit_plan,camera_plan,audio_plan,director_metadata,approval_fingerprint,approved_at")
     .eq("id", parsed.data.projectId).is("deleted_at", null).maybeSingle();
   if (result.error) return NextResponse.json({ error: result.error.message }, { status: 500 });
   const project = result.data;
@@ -61,6 +63,9 @@ export async function POST(request: Request) {
   if (project.status !== "approved" || !project.approval_fingerprint) return NextResponse.json({ error: "Approve the current edit before rendering." }, { status: 409 });
   if (project.source_provider !== "vercel_blob") return NextResponse.json({ error: "This source provider is not renderable yet." }, { status: 409 });
 
+  let brandProfile;
+  try {brandProfile=await getVideoProducerBrand(service,project.brand_profile||"apostolic-guide");}
+  catch(error){return NextResponse.json({error:error instanceof Error?error.message:"Brand profile unavailable"},{status:409});}
   const plan = project.edit_plan as VideoProducerEditPlan;
   let renderPlan;
   let production;
@@ -76,7 +81,9 @@ export async function POST(request: Request) {
       source_range_end: project.source_range_end,
       edit_plan: plan,
       camera_plan: project.camera_plan as VideoProducerCameraPlan | null,
-      audio_plan: project.audio_plan as VideoProducerAudioPlan | null
+      audio_plan: project.audio_plan as VideoProducerAudioPlan | null,
+      brand_profile:brandProfile.slug,brand_config:brandProfile.config,
+      scene_document:(project.director_metadata as Record<string,unknown>|null)?.kineticSceneV2??null
     });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Production plan could not be compiled." }, { status: 422 });
@@ -150,7 +157,7 @@ export async function POST(request: Request) {
         } : null
       },
       source: { filename: project.source_filename, duration: project.source_duration, range: sourceRange },
-      renderPlan: alignedScenes?{...renderPlan,overlays:[]}:renderPlan,
+      renderPlan: {...(alignedScenes?{...renderPlan,overlays:[]}:renderPlan), brandAudioTarget:videoProducerBrandAudioTarget(brandProfile), rnnoiseMix:brandProfile.config.audio.rnnoiseMix},
       transcript: localTranscript,
       musicTracks,
       ...(production.usesMulticam ? {
@@ -177,8 +184,10 @@ export async function POST(request: Request) {
         }
       } : {}),
       brand: {
-        logo: "public/brand/apostolic-guide-mark-reversed.png",
-        wordmark: "public/brand/apostolic-guide-wordmark-reversed.png"
+        profile:brandProfile.slug,
+        config:brandProfile.config,
+        logo:brandProfile.slug==="apostolic-guide"?"public/brand/apostolic-guide-mark-reversed.png":"",
+        wordmark:brandProfile.config.logo.assetPath||""
       }
     };
 
@@ -192,6 +201,7 @@ export async function POST(request: Request) {
         version: production.usesMulticam ? 2 : 1,
         approvalFingerprint: production.fingerprint,
         mode: project.mode,
+        brandProfile:brandProfile.slug,
         pathwaySlug: pathway?.slug ?? null,
         musicTrackId,
         output: renderPlan.output,
