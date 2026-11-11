@@ -26,7 +26,7 @@ export async function POST(request: Request) {
   if (!service) return NextResponse.json({ error: "Supabase service access is not configured." }, { status: 503 });
 
   const projectResult = await service.from("video_producer_projects")
-    .select("id,title,mode,status,pathway_slug,publisher_render_id")
+    .select("id,title,mode,status,brand_profile,pathway_slug,publisher_render_id")
     .eq("id", parsed.data.projectId).maybeSingle();
   if (projectResult.error) return NextResponse.json({ error: projectResult.error.message }, { status: 500 });
   const project = projectResult.data;
