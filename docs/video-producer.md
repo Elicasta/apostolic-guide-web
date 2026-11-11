@@ -1,234 +1,154 @@
 # Video Producer
 
-Video Producer is Apostolic Guide's transcript-driven post-production system.
+One transcript-driven production pipeline for multiple brands. The existing admin editor is at `/admin/video-producer`; its Chromium scene editor is at `/admin/code-mode/video-v2`. This release extends them rather than introducing another editor or commercial video service.
 
-## Principle
+**Working rule:** AI decides. Code edits. Humans approve and publish.
 
-**AI decides. Code edits.**
-
-GPT-5.6 Sol proposes editorial decisions from timestamped transcript data. Server code validates the plan, a human approves the exact version, and FFmpeg executes the frozen manifest. Model output never edits frames directly and never publishes automatically.
-
-## Production lanes
-
-### Podcast Mode
-
-- 16:9, 1920x1080, 30 fps MP4
-- conservative long-form cuts
-- `ag-voice-clean` audio preset
-- `ag-studio` color preset
-- chapter, Scripture and statement overlays
-- restrained motion
-- branded code-generated intro/outro
-- captions off by default
-
-The server rejects Podcast Director plans that remove more than 35% of source time.
-
-### Reels Producer
-
-- 9:16, 1080x1920, 30 fps MP4
-- retention-focused cuts
-- `ag-voice-punch` audio preset
-- `ag-clean` color preset
-- animated captions and current-word emphasis
-- punch-in/reframe motion with numeric focal point and zoom
-- Scripture, statement and CTA overlays
-- no long-form bumper by default
-
-Caption styles are `kinetic-clean`, `word-pop`, `editorial`, and `minimal`. Caption animations are `highlight`, `pop`, `rise`, and `none`.
-
-Changing Reels caption direction after a plan was generated makes that plan stale and blocks approval until the Reels Director runs again.
-
-## Implemented flow
+## Architecture and trust boundary
 
 ```text
-private raw video
-      ↓
-word-level transcription worker
-      ↓
-normalized timestamped transcript
-      ↓
-Podcast Director or Reels Director
-      ↓
-validated edit plan
-      ↓
-human review
-      ↓
-approval fingerprint
-      ↓
-immutable private render manifest
-      ↓
-default-branch GitHub dispatcher
-      ↓
-branch-aware FFmpeg worker
-      ↓
-private review master
+Admin chooses a brand profile and uploads a private source
+  -> Vercel Blob private multipart source
+  -> GitHub Actions transcribe worker -> whisper-1 word timestamps
+  -> Sol proposes an edit plan, validated by server code
+  -> Optional source-linked mini episodes and 12–60 second Shorts
+  -> Code Mode V2 saved scene document: theme, overlays, assets, words
+  -> Human review, doctrine gate when required, SHA-256 approval fingerprint
+  -> Immutable private render manifest
+  -> GitHub repository_dispatch / trusted FFmpeg finishing worker
+  -> Chromium compositor reads saved, validated scene state
+  -> Private Blob review master and human review
+  -> AG Publisher or confirmed personal YouTube scheduling
 ```
 
-The browser does not need to stay open for transcription or rendering.
+The browser is not needed after transcription/render dispatch. The source media is never modified or duplicated to make child episodes. Supabase holds service-role-managed project state; the durable private Vercel Blob path is stored, not an expiring signed URL. Workers receive expiring URLs and hashed, one-use callback tokens. **Do not send stored Blob pathnames or rendered URLs directly to untrusted assistant inputs.**
 
-## Storage and compute
+## Brand profiles
 
-- **Supabase Postgres** stores project state, transcript, edit plan, approval fingerprint, reel candidates, render jobs, and progress.
-- **Private Vercel Blob** stores raw source media, immutable render manifests, and finished review masters.
-- **GitHub Actions** runs long-form transcription and FFmpeg rendering.
+Profiles are **data** in `video_producer_brand_profiles`, managed via `/api/admin/video-producer/brand-profiles`. The project stores `brand_profile`. Every new project selects the active brand before upload; source-linked child projects inherit the parent's brand.
 
-Raw camera files do not use Supabase Storage. Browser source uploads use private multipart Blob upload and do not pass through a Vercel Function request body.
+| Setting | Apostolic Guide | In the Now |
+| --- | --- | --- |
+| Slug | `apostolic-guide` | `in-the-now` |
+| Brand colors | navy `#0E1E2D`, red `#B3212D`, warm `#FFF9F2` | red `#6A0000`, warm `#FFF9F2` |
+| Fonts | Bebas Neue, Montserrat, Playfair Display | Poppins, Playfair Display, Bebas Neue |
+| Mark | existing AG reversed wordmark PNG | In the Now wordmark text until a licensed logo asset is supplied |
+| Pathway | required for Podcast | optional, never blocks a personal project |
+| Doctrine gate | mandatory | optional, not a blocking approval step |
+| Delivery | existing AG Publisher | YouTube handle **`@iamelicastaneda`** only |
+| Master loudness | Podcast `-16 LUFS` | `-14 LUFS`, peak `-1.5 dBTP` |
 
-Persistent records store the private provider pathname, never an expiring signed URL. Workers receive short-lived signed download/upload URLs. If render dispatch fails after a manifest was uploaded, the server deletes the orphan manifest and records the failed job.
+The database, brand API, new project selector, and YouTube channel verifier reject any Cornerstone destination. Do not add Cornerstone to future profile seed data. Creating more series means inserting a validated profile, not branching the editor or compositor.
 
-### Required runtime setup
+**Brand asset note:** The AG logo already exists under `public/brand`. The seed for In the Now currently provides a text wordmark. To use a specific personal logo image, add an approved PNG under `public/brand` and set `config.logo.assetPath`. No image is invented by the pipeline.
 
-The Vercel project needs a connected Blob store so `BLOB_READ_WRITE_TOKEN` is available. Video Producer currently application-limits source files to 20 GB, while provider/account limits remain authoritative.
+## Production lanes and source-linked episodes
 
-Video Producer uses its own `VIDEO_PRODUCER_OPENAI_API_KEY` in Vercel for Sol direction and short-form selection. It intentionally does not fall back to the application's existing `OPENAI_API_KEY`, so the publishing/narration workload remains isolated. `OPENAI_VIDEO_PRODUCER_MODEL` or `OPENAI_VIDEO_DIRECTOR_MODEL` can override the default `gpt-5.6-sol` director model.
+- **Podcast:** 1920 × 1080, 30 fps H.264/AAC. Conservative cuts, approved chapters and overlays, optional branded intro and outro, captions usually disabled. Existing Sol guardrails prohibit removal of over 35% of original source time.
+- **Reels and Shorts:** 1080 × 1920, 30 fps H.264/AAC, with transcript-based cut-aware word captions, animated overlays, and numeric vertical focus/motion. The 9:16 end item reads “Full episode on my channel.”
+- **Split one recording:** `POST /api/admin/video-producer/split-episodes` creates up to 24 named podcast children and a 12–60 second matching Short for each. Specify source-relative `start`, `end`, optional `shortStart`, `shortEnd`. Source windows must be nonoverlapping. Each child is a separate draft needing a Sol editorial pass, review and approval. Existing Podcast to Reels candidate selection still works.
 
-The GitHub repository also needs an Actions secret named `VIDEO_PRODUCER_OPENAI_API_KEY` for the asynchronous transcription worker. The same secret name is passed only to the Video Producer worker process.
+The source project page lists every generated episode and matching Short. Transcripts are sliced from the immutable root recording. No implicit approval or publishing occurs during splitting.
 
-The app also needs the existing Video Studio GitHub render token/repository configuration, either through environment variables or the encrypted integration-secret fallback.
+## Code Mode V2 and brand presets
 
-## Default-branch worker dispatcher
+The retained renderer is `src/code-mode/video-scenes.ts`, `video-scene-frame.ts`, `video-word-sync.ts`, and `scripts/render-video-code-mode.ts`. `src/code-mode/video-brand-overlays.ts` compiles typed overlays into the same Chromium frames.
 
-GitHub `repository_dispatch` requires the receiving workflow to exist on the repository default branch. Video Producer therefore uses one inert default-branch dispatcher at:
+A document contains:
 
-`/.github/workflows/video-producer-dispatch.yml`
+- `tool: "video"`, `version: 2`, project ID, frame size, FPS, and registered asset IDs.
+- `style`, one shared `themeCss`, one shared `templateHtml`, and editable `fields`: `series`, `episodeTitle`, `logo`, `lowerThird`, `boxText`, `quote`, `kicker`, `label`.
+- `overlays` containing **`type`, `text`, `start`, `end`, `position`, `preset`**. Types: `intro`, `outro`, `logo`, `lowerThird`, `boxText`, `quote`, `captions`, `shortsEnd`. These are timed items, not executable document controls.
+- `scenes` with HTML, CSS, and keyframes. Stored scene revision IDs power checkpoints, restore, and draft undo.
 
-The dispatcher:
+The default intro/outro distribute series and title with equal vertical spacing. Outro copy uses only the upper 75% of the frame for YouTube end-screen widgets. Persistent logos have a 5% top/right margin. Boxed highlights use `padding: .22em .35em`, optically adjusted white text and consistent line height. Lower thirds require a full sentence or attributed quote and ending punctuation, not an isolated word. Visual overflow measures Chromium bounds after fonts load and blocks invalid finishing renders rather than silently truncating text.
 
-- listens only for `video-producer-transcribe` and `video-producer-render`
-- uses read-only `contents: read` repository permission
-- accepts only trusted worker refs: `main` and `codex/video-producer`
-- checks out worker code with persisted Git credentials disabled
-- lets draft preview deployments run their exact branch worker code before the feature is merged
-- naturally falls back to `main` after production merge
+**Apply JSON** uses line-numbered syntax/schema errors. Apply is draft-only, uses a matching `expectedUpdatedAt`, preserves a checkpoint, and invalidates the previous approval. Export reads the saved state and its new approval fingerprint, never unsaved textarea edits. The preview iframe is restricted and HTML scripts, handlers, network resources, forms, and publishing controls are rejected. Brand fonts and the approved logo are converted into local inline data so the Linux Chromium renderer does not fetch live `/fonts` or `/brand` endpoints.
 
-Preview app requests include the active Vercel Git ref as `worker_ref`; production resolves to `main` unless explicitly overridden.
+Named brand presets and revisions are stored in `video_producer_brand_presets` and `video_producer_brand_preset_revisions`. A preset is a design document, not a project, schedule, or publish action. Preset apply must preserve the target project ID and optimistic version.
 
-## System readiness panel
+## Audio and thumbnails
 
-The protected Video Producer admin route includes a server-rendered readiness panel. It checks without displaying secret values:
+The FFmpeg finishing worker is `scripts/render_video_producer_finishing_worker.py`. Its filter order is source cleanup, optional `arnndn` noise reduction with mix amount `0..1`, then the existing de-esser, compressor, limiter, and output normalization. The RNNoise model is included under `models/video-producer` with its license.
 
-1. Video Producer database access
-2. private Vercel Blob configuration
-3. dedicated Video Producer OpenAI/Sol configuration
-4. GitHub worker token/repository access
-5. presence of the default-branch Video Producer dispatcher
-6. visibility/presence of the GitHub Actions `VIDEO_PRODUCER_OPENAI_API_KEY` when token permissions allow inspection
+`scripts/video_producer_audio_master.py` runs measured **two-pass** loudnorm after any music and bumpers have been combined, and copies the video bitstream. A brand-specific `brandAudioTarget` freezes integrated LUFS, true peak and LRA into the approved render manifest. A personal master targets `-14 LUFS` and `-1.5 dBTP`, while AG Podcast stays at `-16 LUFS`.
 
-A secret-name inspection permission failure is shown as a warning rather than falsely reporting the secret as missing.
+Thumbnail generation uses `scripts/video_producer_thumbnail_worker.py`. It samples only **actual camera frames** around transcript-derived candidate timestamps, evaluates face/eye/sharpness proxies when OpenCV is available, avoids synthetic facial replacements, lightly adjusts exposure and contrast, and overlays actual text. Both YouTube Test and Compare options **A** and **B** are 1280 × 720 JPEGs. The stored thumbnail output path stays private. These image-quality proxies cannot guarantee closed mouth, direct eye contact, or no hands near the face; final selection still needs human review.
 
-## Upload recovery
+## Human YouTube calendar
 
-Source upload state is provisional until the private Blob completion callback arrives.
+`/admin/video-producer/calendar` is the personal brand calendar. It lists approved or in-progress work and lets the editor create an alternating sequence: episode, Short, episode, Short, **one item per day**.
 
-If the browser is closed, Wi-Fi drops, or the response is lost while a project is left in `uploading`, a fresh Video Producer page performs one recovery pass:
+- Default schedule: **6:00 PM America/New_York**, including DST, editable per item.
+- A schedule row is only a **draft**. No cron or assistant API submits it.
+- Before submission the admin checks channel authorization, selected brand handle, completed private master, matching approval fingerprint, future publishing time, title/description, thumbnail A or B or privately uploaded 1280 × 720 custom image, and optional playlist ID.
+- `POST /api/admin/video-producer/schedule/[id]/submit` requires a live signed-in administrator with `manage_distribution` and explicit JSON `{"confirm":true}`. It connects only to the OAuth account that owns `@iamelicastaneda` for the personal profile. The upload creates a **private** YouTube video carrying future `publishAt`; YouTube schedules the transition.
+- After YouTube confirms the new video ID, the system records it before optional thumbnail or playlist calls. A failure there does **not** reupload the video; check YouTube Studio and repair the add-on manually.
 
-- if the expected private Blob exists, the project is finalized as `uploaded`
-- if the Blob does not exist, provisional source fields are cleared and the project returns to `draft` for retry
-- if Blob itself cannot be checked, state is preserved rather than guessed
+Existing AG publishing continues through `/api/admin/video-producer/send-to-publisher`; a personal project cannot be sent to AG Publisher without a pathway.
 
-The recovery assistant runs once on page load, not continuously during an active multipart upload, so it does not race legitimate large transfers.
+**OAuth:** The prior upload-only scope remains, and the additional `https://www.googleapis.com/auth/youtube.force-ssl` scope is requested for playlist operations. Reauthorize the intended YouTube account after deploying the OAuth change. The app does not access other channel destinations. Review Google's OAuth app verification and quota requirements independently.
 
-## Transcription worker
+## Authenticated assistant API, draft only
 
-`video-producer-transcribe`:
+A scoped token can be issued/revoked by a human administrator with `manage_integrations` via `/api/admin/video-producer/agent-tokens`. Its plaintext appears only once, a SHA-256 hash is stored in the service-only `video_producer_agent_tokens` table, and tokens expire or can be revoked.
 
-1. downloads the private source
-2. probes duration with `ffprobe`
-3. extracts mono 16 kHz dialogue audio
-4. splits long audio into 30-minute MP3 chunks
-5. transcribes each chunk with `whisper-1` word and segment timestamps
-6. offsets chunk timing back onto the original source timeline
-7. sends the compact transcript back through a one-time authenticated callback
+The agent route `/api/admin/video-producer/agent` accepts bearer `vpa_...` credentials. The explicit scope names are:
 
-Completed transcripts must contain usable word timestamps before they are accepted.
+- `draft:projects`: create a draft project under an approved profile.
+- `draft:timeline`: save validated Code Mode JSON to the same project with optimistic locking and a checkpoint.
+- `draft:assets`: authorize then confirm a private registered asset upload.
+- `draft:preview`: request a short private Chromium preview of saved state.
+- `draft:read`: read draft status and preview results.
 
-## Sol Edit Director
+The API cannot approve, modify a past-draft project, publish, schedule, create distribution credentials, or modify production secrets. A separate callback endpoint validates hashed one-use tokens for preview workers. A machine preview is never a finished review master.
 
-Both directors use strict structured output and default to `gpt-5.6-sol`.
+## Worker health and recovery
 
-Podcast rules prioritize doctrinal continuity, natural pacing, false-start/repeated-take cleanup, Scripture graphics, chapters, and restrained motion. Substantive teaching must not be removed merely to shorten runtime.
+The readiness panel on `/admin/video-producer` checks Supabase, private Blob, Sol key, GitHub repository access, dispatcher workflow, and the transcription key visible to the worker. **Secret values are never displayed.**
 
-Reels rules protect the actual spoken hook, tighten dead air/stumbles, propose vertical punch-ins/reframes, and add Scripture/statement/CTA graphics. The model may not manufacture a hook or fake B-roll.
+A GitHub **401** for worker token, dispatcher and transcription readiness usually means the runtime token `VIDEO_STUDIO_GITHUB_TOKEN` or encrypted `analytics.integration_secrets.video_studio_github_token` is invalid, expired or revoked. It **does not prove** the transcription API key is missing.
 
-All model-proposed transforms are sanitized before render. `focusX` and `focusY` are clamped to `0..1`; zoom scale is clamped to `1..2.5`.
+- For a fine-grained PAT, repository **Contents: write** is needed to call `repository_dispatch`; read permissions cover the repository/dispatcher probes. Secrets: read is needed only to enumerate Actions secret names. The independent GitHub Actions secret `VIDEO_PRODUCER_OPENAI_API_KEY` is required for `whisper-1`.
+- The dispatcher must live on the repository default branch at `.github/workflows/video-producer-dispatch.yml`; workers check out only a strict allowlist of known refs with persisted Git credentials disabled.
+- A **queued render** without a worker start for over 15 minutes fails with a GitHub dispatch/runner explanation. An active render without a progress heartbeat for over 3 minutes fails with the last reported stage. Its approval remains intact for a controlled retry. Transcription timeout remains conservative at two hours and invalidates the previous callback hash.
 
-## Approval safety
+Only update credentials through normal GitHub/Vercel settings. **Never commit a token, print it in logs, or copy it into this documentation.** Runtime secrets were not changed by the feature branch.
 
-Approval stores a SHA-256 fingerprint of the exact edit plan. The render route recomputes that fingerprint before dispatch. If the edit changed after approval, rendering is rejected and the project must be reviewed again.
+## Database migrations in order
 
-Timed overlays, motion, and music ranges are remapped around cuts. A point event that lands inside removed footage is not silently moved onto an unrelated sentence.
+Apply to a staging database first, then production only after review:
 
-## Callback and stale-job safety
+1. `20261111190000_video_producer_brand_profiles.sql`: brand profiles, project mapping, named preset storage and calendar draft base.
+2. `20261111191500_video_producer_thumbnail_variants.sql`: A/B thumbnail variant support.
+3. `20261111192500_video_producer_episodes_from_source.sql`: episode-to-Short parent relationship.
+4. `20261111193000_video_producer_noise_mix.sql`: optional RNNoise mix per project.
+5. `20261111194500_video_producer_agent_api.sql`: restricted assistant tokens, private uploads and proof jobs.
+6. `20261111210000_video_producer_schedule_safety.sql`: calendar state, channel/day uniqueness and custom image paths.
+7. `20261111211500_video_producer_brand_preset_revisions.sql`: optimistic preset revisions/restore.
 
-Worker callbacks use random tokens whose hashes are stored with the project/render snapshot. Terminal states burn the token by clearing the stored hash.
+All new security-sensitive tables have RLS enabled and no direct anonymous or authenticated client access. Writes use service-role server APIs behind specific admin permissions or scoped machine tokens.
 
-Callback tokens are invalidated after:
+## Tests and release checks
 
-- successful transcription
-- failed transcription
-- transcription timeout recovery
-- successful render
-- failed render
-- render timeout recovery
+Run locally or in GitHub Actions:
 
-This prevents an old or delayed worker from overwriting the state of a newer retry.
+```sh
+npm ci
+npm test
+npm run typecheck
+npm run lint
+python3 -m py_compile scripts/render_video_producer_finishing_worker.py scripts/video_producer_thumbnail_worker.py
+python3 scripts/check_video_producer_audio_master.py
+python3 scripts/check_video_producer_finishing.py
+```
 
-Workers report heartbeat timestamps through progress callbacks. Project refresh performs conservative stale-job reconciliation:
+CI separately covers video Code Mode scene compilation, word alignment, intro and outro spacing, boxed type, text overflow bounds, A/B thumbnail dimensions, brand audio targets, AG versus personal pathway policies, rejection of Cornerstone, and draft-only agent permissions. GitHub Actions' worker smoke task actually generates media with Linux FFmpeg; the web workflow checks Node/React/TypeScript.
 
-- transcription can self-fail only after exceeding the 90-minute worker window with margin
-- rendering can self-fail only after exceeding the 180-minute worker window with margin
-- a stale render returns the project to `approved`, preserving the reviewed edit and allowing render retry
+**Before merging:** confirm the latest branch CI is green, apply migrations in a staging environment, verify the correct worker token permissions and callback origin, upload a real talking-head source, approve and render one video for each brand, examine lip/face alignment and thumbnails, then test a **private future YouTube schedule** on the selected personal channel. A passing synthetic worker smoke does not substitute for those live credential and account checks.
 
-## FFmpeg render worker
+## Operational boundaries
 
-`video-producer-render` executes:
+This implementation intentionally does not add Remotion, Shotstack, Creatomate, Runway, ElevenLabs, a second editor, generated faces, automated approval, or automated publication. In the Now's exact image logo is not bundled until a real approved file is provided. OAuth connection, actual GitHub 401 token repairs, production migrations and end-to-end external scheduling require environment owner action.
 
-1. child-reel source-range extraction
-2. normalized cut/concat
-3. Podcast or Reels output geometry
-4. selected audio preset
-5. selected color preset
-6. cut-aware ASS captions
-7. current-word caption emphasis
-8. cut-aware branded overlays
-9. numeric punch-in/reframe motion
-10. AG wordmark intro/outro when enabled
-11. H.264/AAC encode
-12. private review-master upload
-13. progress/failure/completion callbacks
-
-The worker workflow has a separate smoke test that compiles the Python workers and actually renders synthetic Podcast and Reels masters on Linux FFmpeg.
-
-## Podcast to Reels
-
-An approved Podcast can ask Sol for 5–15 self-contained reel candidates. Candidates are validated to 12–150 seconds, scores are normalized to 0–100, and strongly overlapping selections are deduplicated.
-
-Accepting a candidate creates a child Reels project that references the same immutable raw source instead of copying the media. The inherited transcript is sliced to the selected source range and shifted to a local `0.00` timeline before the Reels Director runs.
-
-## Database
-
-Service-role-only tables:
-
-- `video_producer_projects`
-- `video_producer_renders`
-
-RLS is enabled and no direct client-write policies are created. Admin APIs require `manage_content` permission and mutate through the service client. Actor foreign keys have covering indexes.
-
-## Verification boundary
-
-The repository's Node suite covers timestamp normalization, transcript slicing, destructive-cut guards, strict director parsing, mode geometry, transform sanitization, and reel-candidate deduplication. Vercel performs the production Next.js/TypeScript build. GitHub Actions separately smoke-renders both media modes with FFmpeg.
-
-A real camera-file end-to-end run requires private Blob configuration plus `VIDEO_PRODUCER_OPENAI_API_KEY` in both Vercel and GitHub Actions. The app and worker intentionally use the dedicated Video Producer credential rather than the existing publishing key.
-
-## Next layers
-
-Not implemented yet:
-
-- first-party music library selection and deterministic ducking/mixing
-- automatic camera/log profile identification and camera-specific transforms
-- external B-roll asset insertion
-- cover/thumbnail generation
-- direct publishing handoff into the existing content-control queue
-- detailed manual timeline correction UI
-
-These should extend the current approved render-plan contract rather than creating a second editor stack.
+See also `docs/carousel-code-mode/README.md` for the design editor lineage and `docs/video-producer-deployment.md` for private Blob environment details.
