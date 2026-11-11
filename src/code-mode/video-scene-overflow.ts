@@ -8,14 +8,15 @@ export function videoTextBoundsOverflow(child:VideoTextBounds,parent:VideoTextBo
   child.right>parent.right+tolerance||child.bottom>parent.bottom+tolerance;
 }
 
-export function detectVideoTextOverflow(doc:Document=document):string[]{
+export function detectVideoTextOverflow():string[]{
+ const doc=document;
  // Keep the entire evaluator self-contained: Playwright serializes this
  // function into Chromium without module imports.
  const exceeds=(child:VideoTextBounds,parent:VideoTextBounds,tolerance=3)=>child.left<parent.left-tolerance||child.top<parent.top-tolerance||child.right>parent.right+tolerance||child.bottom>parent.bottom+tolerance;
  const target=doc;
  const view=doc.defaultView;
  if(!view)return [];
- const root=target.documentElement;
+ const root=doc.documentElement;
  const viewport={left:0,top:0,right:root.clientWidth,bottom:root.clientHeight};
  const selectors=[
   ".vp-card-copy",".vp-card-series",".vp-card-title",".vp-lower-third",
@@ -23,7 +24,7 @@ export function detectVideoTextOverflow(doc:Document=document):string[]{
   ".vp-kicker",".vp-label",".vp-logo"
  ];
  const failures:string[]=[];
- for(const item of Array.from(target.querySelectorAll<HTMLElement>(selectors.join(",")))){
+ for(const item of Array.from(doc.querySelectorAll<HTMLElement>(selectors.join(",")))){
   const style=view.getComputedStyle(item);
   if(style.display==="none"||style.visibility==="hidden"||Number(style.opacity)===0)continue;
   const box=item.getBoundingClientRect();
@@ -39,8 +40,8 @@ export function detectVideoTextOverflow(doc:Document=document):string[]{
   // Range geometry catches the content extending beyond even when the parent
   // element auto-expands and its scrollWidth appears within the viewport.
   for(const child of Array.from(item.childNodes)){
-   if(child.nodeType!==target.TEXT_NODE||!child.textContent?.trim())continue;
-   const range=target.createRange();
+   if(child.nodeType!==doc.TEXT_NODE||!child.textContent?.trim())continue;
+   const range=doc.createRange();
    range.selectNodeContents(child);
    const ink=range.getBoundingClientRect();
    if(ink.width>0&&ink.height>0&&exceeds(ink,box,5))
