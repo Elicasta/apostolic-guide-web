@@ -42,16 +42,50 @@ const scene=z.object({
  if(/<\s*(script|iframe|object|embed|video|audio|link|meta|base)\b/i.test(combined)||/\bon\w+\s*=/i.test(combined)||/javascript\s*:|@import\b|url\s*\(/i.test(combined))
    ctx.addIssue({code:"custom",path:["html"],message:"Executable markup and external resources are forbidden"});
 });
+const presetFields=z.object({
+ series:z.string().max(150).default(""),
+ episodeTitle:z.string().max(240).default(""),
+ logo:z.string().max(150).default(""),
+ lowerThird:z.string().max(600).default(""),
+ boxText:z.string().max(600).default(""),
+ quote:z.string().max(600).default(""),
+ kicker:z.string().max(140).default(""),
+ label:z.string().max(140).default("")
+}).strict();
+const timedOverlay=z.object({
+ type:z.enum(["intro","outro","logo","lowerThird","boxText","quote","captions","shortsEnd"]),
+ text:z.string().max(600),
+ start:finite.min(0),
+ end:positive,
+ position:z.enum(["top-left","top-right","lower-left","bottom","center","full"]),
+ preset:z.string().min(1).max(120)
+}).strict().superRefine((overlay,ctx)=>{
+ if(overlay.end<=overlay.start)ctx.addIssue({code:"custom",path:["end"],message:"Overlay end must exceed start"});
+ if(overlay.type==="lowerThird"){
+  const text=overlay.text.trim();
+  if(text.split(/\s+/).length<3||!/[.!?]["”']?$/.test(text))
+   ctx.addIssue({code:"custom",path:["text"],message:"Lower thirds must be a full sentence or attributed quotation with punctuation"});
+ }
+});
+function inertOverlayDocument(value:string):boolean {
+ return !/<\s*(?:script|iframe|object|embed|video|audio|link|meta|base)\b|\bon\w+\s*=|javascript\s*:|@import\b|url\s*\(/i.test(value);
+}
 export const videoSceneDocument=z.object({
  tool:z.literal("video"),version:z.literal(2),
  kind:z.enum(["studio","producer"]),
  id:z.string().min(1).max(120),
  format:z.object({w:z.number().int().min(320).max(7680),h:z.number().int().min(320).max(7680),fps:z.number().int().min(12).max(120)}).strict(),
  assets:z.array(asset).max(100).default([]),
+ templateHtml:z.string().max(12000).default(""),
+ themeCss:z.string().max(12000).default(""),
+ fields:presetFields.default({}),
+ overlays:z.array(timedOverlay).max(250).default([]),
  style:z.object({preset:z.string().min(1).max(100),ink:color.default("#10202A"),paper:color.default("#F5F7F4"),crimson:color.default("#A12D3D")}).passthrough(),
  scenes:z.array(scene).min(1).max(120),
  expectedUpdatedAt:z.string().datetime({offset:true}).optional()
 }).strict().superRefine((value,ctx)=>{
+ if(!inertOverlayDocument(value.templateHtml+"\n"+value.themeCss))
+  ctx.addIssue({code:"custom",path:["templateHtml"],message:"Overlay HTML and CSS cannot contain scripts, handlers or resource URLs"});
  const ids=new Set<string>();
  value.scenes.forEach((s,i)=>{
   if(ids.has(s.id))ctx.addIssue({code:"custom",path:["scenes",i,"id"],message:"Duplicate scene ID"});
