@@ -89,7 +89,7 @@ export async function GET(request:Request){
  }
  let brandLogoData:string|null=null;
  const logoPath=brand?.config.logo.assetPath;
- if(logoPath&&/^public\\/brand\\/[a-zA-Z0-9._-]+\\.(?:png|jpe?g|webp)$/.test(logoPath)){
+ if(logoPath&&new RegExp("^public/brand/[a-zA-Z0-9._-]+[.](png|jpe?g|webp)$").test(logoPath)){
   try{
    const bytes=await readFile(resolve(process.cwd(),logoPath));
    if(bytes.length<=2*1024*1024)brandLogoData="data:image/"+(logoPath.endsWith(".png")?"png":logoPath.endsWith(".webp")?"webp":"jpeg")+";base64,"+bytes.toString("base64");
