@@ -1,4 +1,5 @@
 import "server-only";
+import { githubWorkerDiagnostic } from "./video-producer-github-health";
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { del, issueSignedToken, presignUrl, put } from "@vercel/blob";
 import type { createServiceClient } from "./supabase";
@@ -133,6 +134,6 @@ export async function dispatchVideoProducerWorker(input: {
   });
   if (!response.ok) {
     const detail = (await response.text().catch(() => "")).slice(0, 1000);
-    throw new Error(`Worker dispatch failed (${response.status})${detail ? `: ${detail}` : ""}`);
+    throw new Error(`${githubWorkerDiagnostic(response.status, "dispatch", input.repository)}${response.status >= 500 && detail ? ` GitHub response: ${detail}` : ""}`);
   }
 }
