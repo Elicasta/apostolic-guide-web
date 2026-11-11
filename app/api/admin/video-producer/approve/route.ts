@@ -5,7 +5,7 @@ import { z } from "zod";
 import { getStudioPermission } from "@/auth";
 import { createServiceClient } from "@/supabase";
 import {getVideoProducerBrand} from "@/video-producer-brand-server";
-import {requiresVideoProducerDoctrineGate} from "@/video-producer-brand-profiles";
+import {requiresVideoProducerDoctrineGate,requiresVideoProducerPathway} from "@/video-producer-brand-profiles";
 import { compileVideoProducerRenderPlan, type VideoProducerEditPlan } from "@/video-producer";
 import type { VideoProducerAudioPlan, VideoProducerCameraPlan } from "@/video-producer-multicam";
 import { resolveVideoProducerProductionState } from "@/video-producer-production-server";
@@ -41,6 +41,10 @@ export async function POST(request: Request) {
   let brand;
   try {brand=await getVideoProducerBrand(service,project.data.brand_profile||"apostolic-guide");}
   catch(error){return NextResponse.json({error:error instanceof Error?error.message:"Brand unavailable"},{status:409});}
+  if(requiresVideoProducerPathway(brand,project.data.mode)&&!project.data.pathway_slug)
+   return NextResponse.json({error:"An Apostolic Guide podcast needs a pathway before approval."},{status:409});
+  if(brand.slug==="in-the-now"&&!(project.data.director_metadata as Record<string,unknown>|null)?.kineticSceneV2)
+   return NextResponse.json({error:"Save the In the Now brand preset in Kinetic Video Code Mode before approving. Only saved scenes can be rendered."},{status:409});
   try {
     if(requiresVideoProducerDoctrineGate(brand)){
     const source = videoProducerDoctrineSource(project.data);
