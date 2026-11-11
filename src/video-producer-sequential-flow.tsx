@@ -125,6 +125,8 @@ export function VideoProducerSequentialFlow({ projectId: initialProjectId = "", 
   const [detail, setDetail] = useState<ProjectDetail | null>(null);
   const [finishing, setFinishing] = useState<FinishingData | null>(null);
   const [mode, setMode] = useState<VideoProducerMode>(initialMode);
+  const [startBrand,setStartBrand]=useState("apostolic-guide");
+  const [availableBrands,setAvailableBrands]=useState<Array<{slug:string;name:string}>>([]);
   const [title, setTitle] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState("");
@@ -137,6 +139,13 @@ export function VideoProducerSequentialFlow({ projectId: initialProjectId = "", 
   const [musicFile, setMusicFile] = useState<File | null>(null);
   const autoDirectorRef = useRef(false);
 
+  useEffect(()=>{
+   let active=true;
+   void fetch("/api/admin/video-producer/brand-profiles",{cache:"no-store"}).then(r=>r.ok?r.json():{profiles:[]}).then(value=>{
+    if(active)setAvailableBrands((value.profiles||[]).filter((p:{slug:string;name:string})=>!(/cornerstone/i).test(p.slug+" "+p.name)));
+   }).catch(()=>{});
+   return ()=>{active=false;};
+  },[]);
   const project = detail?.project ?? finishing?.project ?? null;
   const plan = project?.edit_plan ?? null;
   const isPersonal=project?.brand_profile==="in-the-now";
@@ -232,7 +241,7 @@ export function VideoProducerSequentialFlow({ projectId: initialProjectId = "", 
     try {
       const projectTitle = title.trim() || titleFromFile(file.name);
       const created = await json<{ project: ProducerProject }>("/api/admin/video-producer/projects", {
-        method: "POST", body: JSON.stringify({ title: projectTitle, mode })
+        method: "POST", body: JSON.stringify({ title: projectTitle, mode, brandProfile:startBrand })
       });
       const id = created.project.id;
       setProjectId(id); setTitle(projectTitle);
@@ -388,7 +397,11 @@ export function VideoProducerSequentialFlow({ projectId: initialProjectId = "", 
             <div className={styles.workspaceBody}><div className={styles.stack}>
               {!project ? <>
                 <div className={styles.panel}>
-                  <h3 className={styles.panelTitle}>Production lane</h3>
+                  <h3 className={styles.panelTitle}>Brand profile</h3>
+                  <select className={styles.select} disabled={Boolean(busy)} value={startBrand} onChange={event=>setStartBrand(event.target.value)}>
+                   {(availableBrands.length?availableBrands:[{slug:"apostolic-guide",name:"Apostolic Guide"}]).map(profile=><option key={profile.slug} value={profile.slug}>{profile.name}</option>)}
+                  </select>
+                  <h3 className={styles.panelTitle} style={{marginTop:18}}>Production lane</h3>
                   <div className={styles.modeChoice}>
                     <button type="button" data-active={mode === "podcast"} onClick={() => setMode("podcast")}><Film size={19}/><span><strong>Podcast</strong><small>16:9 · long form</small></span></button>
                     <button type="button" data-active={mode === "reels"} onClick={() => setMode("reels")}><Smartphone size={19}/><span><strong>Reels</strong><small>9:16 · short form</small></span></button>
