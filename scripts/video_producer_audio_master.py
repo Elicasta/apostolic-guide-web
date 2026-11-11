@@ -12,6 +12,22 @@ import subprocess
 
 
 def target_for_plan(plan):
+    # Brand target is stored in the approved manifest and takes precedence.
+    # Missing or corrupt configuration never silently changes a target.
+    explicit = plan.get("brandAudioTarget")
+    if explicit is not None:
+        if not isinstance(explicit, dict):
+            raise ValueError("Brand audio target must be an object")
+        try:
+            integrated = float(explicit["integrated"])
+            true_peak = float(explicit["truePeak"])
+            lra = float(explicit["lra"])
+        except (KeyError, TypeError, ValueError) as error:
+            raise ValueError("Brand audio target is incomplete") from error
+        if not (math.isfinite(integrated) and math.isfinite(true_peak) and math.isfinite(lra)
+                and -24 <= integrated <= -10 and -6 <= true_peak <= -1 and 3 <= lra <= 12):
+            raise ValueError("Brand audio target is outside safe supported limits")
+        return {"integrated": integrated, "truePeak": true_peak, "lra": lra}
     preset = plan.get("audioPreset") or "none"
     if preset == "ag-voice-clean":
         return {"integrated": -16, "truePeak": -1, "lra": 7}
