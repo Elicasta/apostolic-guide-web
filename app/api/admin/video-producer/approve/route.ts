@@ -22,7 +22,7 @@ export async function POST(request: Request) {
   const service = createServiceClient();
   if (!service) return NextResponse.json({ error: "Supabase service access is not configured." }, { status: 503 });
   const project = await service.from("video_producer_projects")
-    .select("id,parent_project_id,mode,status,brand_profile,source_duration,source_range_start,source_range_end,edit_plan,camera_plan,audio_plan,director_metadata,transcript,transcript_text,pathway_slug,updated_at")
+    .select("id,parent_project_id,mode,status,brand_profile,rnnoise_mix,source_duration,source_range_start,source_range_end,edit_plan,camera_plan,audio_plan,director_metadata,transcript,transcript_text,pathway_slug,updated_at")
     .eq("id", parsed.data.projectId).is("deleted_at", null).maybeSingle();
   if (project.error) return NextResponse.json({ error: project.error.message }, { status: 500 });
   if (!project.data?.edit_plan || (project.data.mode !== "podcast" && project.data.mode !== "reels")) return NextResponse.json({ error: "Generate an edit plan before approval." }, { status: 409 });
@@ -64,7 +64,8 @@ export async function POST(request: Request) {
       camera_plan: project.data.camera_plan as VideoProducerCameraPlan | null,
       audio_plan: project.data.audio_plan as VideoProducerAudioPlan | null,
       brand_profile:brand.slug,brand_config:brand.config,
-      scene_document:(project.data.director_metadata as Record<string,unknown>|null)?.kineticSceneV2??null
+      scene_document:(project.data.director_metadata as Record<string,unknown>|null)?.kineticSceneV2??null,
+      rnnoise_mix:project.data.rnnoise_mix
     });
     const now = new Date().toISOString();
     const update = await service.from("video_producer_projects").update({
