@@ -40,7 +40,9 @@ export function compileVideoBrandOverlayFrame(doc:VideoSceneDocument,time:number
    lowerThird:fields.lowerThird,boxText:fields.boxText,quote:fields.quote,kicker:fields.kicker,label:fields.label};
   let body="";
   const text=escape(item.text||"");
-  if(doc.templateHtml){
+  // A shared custom template can style text overlays, but must not replace
+  // the logo or end-screen-safe intro/outro structure.
+  if(doc.templateHtml && ["lowerThird","boxText","quote","captions"].includes(item.type)){
    body=expandCodePlaceholders(doc.templateHtml,{...values,boxText:item.text||values.boxText,lowerThird:item.text||values.lowerThird,quote:item.text||values.quote});
   }else if(item.type==="logo"){
    body=logoData?'<img alt="" class="vp-logo" src="'+logoData+'">':'<span class="vp-logo">'+escape(fields.logo)+'</span>';
