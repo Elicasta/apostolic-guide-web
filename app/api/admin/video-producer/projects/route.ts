@@ -4,7 +4,6 @@ import { getStudioPermission } from "@/auth";
 import { pathwayBySlug } from "@/pathway-catalog";
 import { createServiceClient } from "@/supabase";
 import {getVideoProducerBrand} from "@/video-producer-brand-server";
-import {requiresVideoProducerPathway} from "@/video-producer-brand-profiles";
 
 export const runtime = "nodejs";
 
@@ -46,9 +45,6 @@ export async function POST(request: Request) {
   catch(error){return NextResponse.json({error:error instanceof Error?error.message:"Brand unavailable"},{status:400});}
   const requestedPathway = parsed.data.pathwaySlug ? pathwayBySlug(parsed.data.pathwaySlug) : null;
   if (parsed.data.pathwaySlug && !requestedPathway) return NextResponse.json({ error: "Unknown pathway." }, { status: 400 });
-
-  if(requiresVideoProducerPathway(profile,parsed.data.mode)&&!requestedPathway&&!parsed.data.parentProjectId)
-    return NextResponse.json({error:"Select an Apostolic Guide pathway before creating a podcast."},{status:400});
 
   let inherited: Record<string, unknown> = {};
   if (parsed.data.parentProjectId) {
