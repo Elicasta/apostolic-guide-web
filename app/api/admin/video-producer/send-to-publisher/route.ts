@@ -4,6 +4,7 @@ import { z } from "zod";
 import { getStudioPermission } from "@/auth";
 import { pathwayBySlug } from "@/pathway-catalog";
 import { createServiceClient } from "@/supabase";
+import {getVideoProducerBrand} from "@/video-producer-brand-server";
 import {
   createPrivateBlobDownloadUrl,
   createWorkerCallbackToken,
@@ -31,6 +32,10 @@ export async function POST(request: Request) {
   if (projectResult.error) return NextResponse.json({ error: projectResult.error.message }, { status: 500 });
   const project = projectResult.data;
   if (!project) return NextResponse.json({ error: "Project not found." }, { status: 404 });
+  let profile;
+  try{profile=await getVideoProducerBrand(service,project.brand_profile||"apostolic-guide");}
+  catch(e){return NextResponse.json({error:e instanceof Error?e.message:"Brand unavailable"},{status:409});}
+  if(profile.config.destination.type!=="ag_publisher")return NextResponse.json({error:"This brand cannot be sent to AG Publisher. Use its selected channel instead."},{status:403});
   if (!project.pathway_slug || !pathwayBySlug(project.pathway_slug)) return NextResponse.json({ error: "Choose the pathway before sending this project to Publisher." }, { status: 409 });
   if (!['review', 'completed'].includes(project.status)) return NextResponse.json({ error: "The review master must be complete before sending it to Publisher." }, { status: 409 });
 
