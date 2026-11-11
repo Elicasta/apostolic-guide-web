@@ -1,4 +1,5 @@
 import {videoSceneDocument,sceneAt,propsAt,easingAt,type VideoSceneDocument,type VideoScene} from "./video-scenes";
+import {compileVideoBrandOverlayFrame} from "./video-brand-overlays";
 
 export type SceneFontMap=Partial<Record<"montserrat400"|"montserrat800"|"bebas400"|"cormorant400"|"cormorant700"|"playfairVariable",string>>;
 function htmlEscape(s:string){return s.replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]||c));}
@@ -76,6 +77,7 @@ export function renderVideoSceneFrame(input:VideoSceneDocument,time:number,fonts
   return '<section data-scene="'+htmlEscape(scene.id)+'" class="ag-scene ag-'+scene.layer+'" style="opacity:'+transition.opacity+';transform:'+transition.transform+';clip-path:'+transition.clip+'">'+
      markup+'</section><style data-scene-style="'+i+'">'+scene.css+'</style>';
  }).join("");
+ const timed=compileVideoBrandOverlayFrame(doc,time,imageData);
  const css='*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:transparent}'+
  'body{container-type:inline-size;font-family:"Montserrat",Arial,sans-serif;color:'+doc.style.paper+'}'+
  '.ag-scene{position:absolute;inset:0;display:grid;place-items:center;overflow:hidden}'+
@@ -83,5 +85,5 @@ export function renderVideoSceneFrame(input:VideoSceneDocument,time:number,fonts
  '.ag-lowerthird{inset:64% 5% 8%}.ag-lowerthird>div{width:100%}';
  return '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'+
  '<meta http-equiv="Content-Security-Policy" content="default-src &#39;none&#39;; img-src data:; font-src data:; style-src &#39;unsafe-inline&#39;; script-src &#39;none&#39;">'+
- '<style>'+fontsCss(fonts)+css+'</style></head><body>'+body+'</body></html>';
+ '<style>'+fontsCss(fonts)+css+'</style></head><body>'+body+timed.css+timed.html+'</body></html>';
 }
