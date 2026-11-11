@@ -8,8 +8,8 @@ export function videoTextBoundsOverflow(child:VideoTextBounds,parent:VideoTextBo
   child.right>parent.right+tolerance||child.bottom>parent.bottom+tolerance;
 }
 
-export function detectVideoTextOverflow():string[]{
- const doc=document;
+export function detectVideoTextOverflow(...args:[doc?:Document]):string[]{
+ const doc=args[0]??document;
  // Keep the entire evaluator self-contained: Playwright serializes this
  // function into Chromium without module imports.
  const exceeds=(child:VideoTextBounds,parent:VideoTextBounds,tolerance=3)=>child.left<parent.left-tolerance||child.top<parent.top-tolerance||child.right>parent.right+tolerance||child.bottom>parent.bottom+tolerance;
