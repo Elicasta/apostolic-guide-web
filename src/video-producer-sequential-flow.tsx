@@ -557,6 +557,11 @@ export function VideoProducerSequentialFlow({ projectId: initialProjectId = "", 
                 {latestRender?.error ? <div className={`${styles.notice} ${styles.warning}`} style={{ marginTop: 12 }}>{latestRender.error}</div> : null}
                 {!latestRender || latestRender.status === "failed" ? <button className={styles.button} style={{ marginTop: 14 }} disabled={!project.approval_fingerprint || Boolean(busy)} onClick={() => void renderMaster(latestRender?.status === "failed")}><Play size={14}/>{latestRender?.status === "failed" ? " Restart render" : " Render master"}</button> : null}
               </div>
+              {latestRender?.status === "completed" && isPersonal ? <div className={styles.panel}>
+                <h3 className={styles.panelTitle}>In the Now YouTube schedule</h3>
+                <p className={styles.panelText}>Submit the reviewed master to your personal channel from the daily calendar. Uploads never happen automatically.</p>
+                <Link className={styles.button} href="/admin/video-producer/calendar">Open release calendar</Link>
+              </div> : null}
               {latestRender?.status === "completed" ? <div className={styles.panel}>
                 <h3 className={styles.panelTitle}><Download size={17}/> Master ready</h3>
                 <p className={styles.panelText}>Private review MP4. The signed download is generated only when you request it.</p>
