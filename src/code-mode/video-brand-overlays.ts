@@ -9,7 +9,7 @@ const safeFont=(raw:unknown)=>typeof raw==="string"&&/^[A-Za-z0-9 ,'-]{1,90}$/.t
 const embedded=(raw:string|undefined)=>raw&&/^data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(raw)?raw:null;
 
 export function compileVideoBrandOverlayFrame(doc:VideoSceneDocument,time:number,imageData:Record<string,string>={}):{html:string;css:string}{
- const fields=doc.fields;
+ const fields={series:"",episodeTitle:"",logo:"",lowerThird:"",boxText:"",quote:"",kicker:"",label:"",...doc.fields};
  const logoData=embedded(imageData["__brand_logo"]);
  const css=`<style>
  :root{--vp-ink:${safeColor(doc.style.ink,"#0E1E2D")};--vp-accent:${safeColor(doc.style.crimson,"#B3212D")};--vp-paper:${safeColor(doc.style.paper,"#FFF9F2")}}
@@ -34,7 +34,7 @@ export function compileVideoBrandOverlayFrame(doc:VideoSceneDocument,time:number
  .vp-template{display:flex;flex-direction:column;align-items:center;text-align:center;gap:1.2em;max-width:90%;padding:1em}
  .vp-kicker{font-size:2.5cqw;letter-spacing:.14em;text-transform:uppercase}.vp-label{font-size:2.3cqw}
  </style>`;
- const active=doc.overlays.filter(item=>item.start<=time&&time<item.end);
+ const active=(doc.overlays||[]).filter(item=>item.start<=time&&time<item.end);
  const html=active.map(item=>{
   const values={series:fields.series,episodeTitle:fields.episodeTitle,logo:fields.logo,
    lowerThird:fields.lowerThird,boxText:fields.boxText,quote:fields.quote,kicker:fields.kicker,label:fields.label};
