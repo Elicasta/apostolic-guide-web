@@ -25,6 +25,9 @@ export type VideoProducerProductionProject = {
   edit_plan: VideoProducerEditPlan;
   camera_plan?: VideoProducerCameraPlan | null;
   audio_plan?: VideoProducerAudioPlan | null;
+  brand_profile?: string;
+  brand_config?: Record<string,unknown>;
+  scene_document?: unknown;
 };
 
 export type VideoProducerResolvedProduction = {
@@ -90,7 +93,12 @@ export async function resolveVideoProducerProductionState(service: ServiceClient
   const usedMedia = media.filter((asset) => (cameraPlan && asset.role === "camera_b") || (audioPlan.source === "external_audio" && asset.role === "external_audio"));
   const cameraRanges = cameraPlan ? compileCameraRangesThroughContentCuts(cameraPlan, project.edit_plan.cuts, duration, cameraBCoverage) : [];
   const usesMulticam = Boolean(cameraPlan || audioPlan.source === "external_audio");
-  const fingerprintInput = videoProducerProductionFingerprintInput({ contentPlan: project.edit_plan, cameraPlan, audioPlan, media: usedMedia });
+  const fingerprintInput = {
+    ...videoProducerProductionFingerprintInput({ contentPlan: project.edit_plan, cameraPlan, audioPlan, media: usedMedia }),
+    brandProfile:project.brand_profile??"apostolic-guide",
+    brandConfig:project.brand_config??null,
+    kineticSceneV2:project.scene_document??null
+  };
   return {
     rootProjectId,
     media: usedMedia,
