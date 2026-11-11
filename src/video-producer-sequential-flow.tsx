@@ -24,6 +24,7 @@ import { useRouter } from "next/navigation";
 import { compileVideoProducerRenderPlan, formatProducerTime, type VideoProducerEditPlan, type VideoProducerMode } from "@/video-producer";
 import styles from "./video-producer-sequential.module.css";
 import { VideoProducerDoctrinePanel } from "./video-producer-doctrine-panel";
+import {VideoProducerEpisodeSplitPanel} from "./video-producer-episode-split-panel";
 
 export type VideoProducerStep = "source" | "produce" | "finish" | "review" | "deliver";
 
@@ -411,6 +412,8 @@ export function VideoProducerSequentialFlow({ projectId: initialProjectId = "", 
                   {project.transcript_local_text ? <details className={styles.details} style={{ marginTop: 12 }}><summary>Transcript ready · tap to review</summary><div className={styles.detailsBody}><div className={styles.transcript}>{project.transcript_local_text}</div></div></details> : <p className={styles.panelText}>{project.status === "failed" ? "Transcription needs attention." : "The transcript will appear here when the worker finishes."}</p>}
                   {project.status === "failed" && project.source_locator ? <button className={styles.buttonSecondary} style={{ marginTop: 14 }} disabled={Boolean(busy)} onClick={() => void startTranscription()}>Retry transcription</button> : null}
                 </div>
+                {project.mode==="podcast"&&!project.parent_project_id&&project.transcript_local_text&&project.source_duration
+                 ? <VideoProducerEpisodeSplitPanel projectId={project.id} duration={project.source_duration}/> : null}
                 <div className={styles.stickyActions}>
                   <button className={styles.button} disabled={!project.transcript_local_text} onClick={() => go("produce")}>Continue to Produce <ArrowRight size={15}/></button>
                 </div>
