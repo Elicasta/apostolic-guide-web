@@ -63,6 +63,7 @@ type ProducerProject = {
   approved_at?: string | null;
   pathway_slug?: string | null;
   brand_profile?: string | null;
+  rnnoise_mix?:number|null;
   selected_music_track_id?: string | null;
 };
 
@@ -462,6 +463,9 @@ export function VideoProducerSequentialFlow({ projectId: initialProjectId = "", 
 
               <div className={styles.panel}>
                 <h3 className={styles.panelTitle}><Music2 size={17}/> Voice mastering</h3>
+                <label style={{display:"grid",gap:5,margin:"12px 0"}}>Optional RNNoise mix, {Math.round((finishing.project.rnnoise_mix??0)*100)}%
+                 <input type="range" min={0} max={100} step={5} value={Math.round((finishing.project.rnnoise_mix??0)*100)} disabled={Boolean(busy)} onChange={event=>void patchFinish({rnnoiseMix:Number(event.target.value)/100})}/>
+                </label>
                 <p className={styles.panelText}>Clean is the natural podcast chain. Punch is tighter and more forward for short-form. Both include EQ, de-essing, compression, limiting and loudness control.</p>
                 <div className={styles.choiceGrid}>
                   {[{id:"ag-voice-clean",name:"AG Voice Clean",desc:"Natural · -16 LUFS podcast target"},{id:"ag-voice-punch",name:"AG Voice Punch",desc:"Tighter · -14 LUFS short-form target"},{id:"none",name:"No mastering",desc:"Preserve source audio"}].map((item) => <button type="button" className={styles.choice} data-active={audioPreset === item.id} key={item.id} disabled={Boolean(busy)} onClick={() => void patchFinish({ audioPreset: item.id as "ag-voice-clean" | "ag-voice-punch" | "none" })}><strong>{item.name}</strong><small>{item.desc}</small></button>)}
