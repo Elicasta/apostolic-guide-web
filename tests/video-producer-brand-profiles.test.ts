@@ -45,3 +45,13 @@ test("Cornerstone cannot be selected even if inserted by an external caller",()=
  assert.equal(isSelectableVideoProducerBrand({...profile,active:false}),false);
  assert.equal(isSelectableVideoProducerBrand(make("in-the-now",{handle:"@someotherchannel"})),false);
 });
+
+test("admin edits cannot require a pathway for personal or disable AG doctrine checks",()=>{
+ const personal=make("in-the-now");
+ assert.equal(isSelectableVideoProducerBrand({...personal,config:{...personal.config,pathwayRequired:true}}),false);
+ assert.equal(isSelectableVideoProducerBrand({...personal,config:{...personal.config,doctrineGate:"required"}}),false);
+ assert.equal(isSelectableVideoProducerBrand({...personal,config:{...personal.config,audio:{...personal.config.audio,integratedLufs:-16}}}),false);
+ const ag=make("apostolic-guide",{pathwayRequired:true,doctrineGate:"required",destination:"ag_publisher",handle:null,lufs:-16,peak:-1});
+ assert.equal(isSelectableVideoProducerBrand({...ag,config:{...ag.config,pathwayRequired:false}}),false);
+ assert.equal(isSelectableVideoProducerBrand({...ag,config:{...ag.config,doctrineGate:"optional"}}),false);
+});
