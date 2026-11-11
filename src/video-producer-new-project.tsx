@@ -10,6 +10,7 @@ import styles from "./video-producer-sequential.module.css";
 
 const MULTIPART_THRESHOLD_BYTES = 100 * 1024 * 1024;
 
+type BrandProfile = {slug:string;name:string;config:{pathwayRequired:boolean;destination:{type:"youtube"|"ag_publisher";youtubeHandle:string|null}}};
 type Pathway = { slug: string; title: string; summary: string; steps: Array<{ title: string; reference: string }> };
 
 function safeName(value: string) {
@@ -34,12 +35,22 @@ export function VideoProducerNewProject({ initialMode = "podcast" }: { initialMo
   const [mode, setMode] = useState<VideoProducerMode>(initialMode);
   const [title, setTitle] = useState("");
   const [pathwaySlug, setPathwaySlug] = useState("");
+  const [brandProfile, setBrandProfile] = useState("apostolic-guide");
+  const [profiles, setProfiles] = useState<BrandProfile[]>([]);
   const [pathways, setPathways] = useState<Pathway[]>([]);
   const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState(0);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    void json<{profiles:BrandProfile[]}>("/api/admin/video-producer/brand-profiles")
+      .then(result=>{if(!cancelled)setProfiles((result.profiles||[]).filter(profile=>!(/cornerstone/i).test(profile.slug+" "+profile.name+" "+(profile.config.destination.youtubeHandle||""))));})
+      .catch(loadError=>{if(!cancelled)setError(loadError instanceof Error?loadError.message:"Brand profiles could not be loaded.");});
+    return ()=>{cancelled=true;};
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -50,7 +61,9 @@ export function VideoProducerNewProject({ initialMode = "podcast" }: { initialMo
   }, []);
 
   const selectedPathway = pathways.find((pathway) => pathway.slug === pathwaySlug) ?? null;
-  const canStart = Boolean(file && (title.trim() || file.name) && (mode === "reels" || pathwaySlug) && !busy);
+  const selectedBrand=profiles.find(profile=>profile.slug===brandProfile);
+  const needsPathway=Boolean(selectedBrand?.config.pathwayRequired && mode==="podcast");
+  const canStart = Boolean(file && selectedBrand && (title.trim() || file.name) && (!needsPathway || pathwaySlug) && !busy);
 
   async function start() {
     if (!file || !canStart) return;
@@ -59,7 +72,7 @@ export function VideoProducerNewProject({ initialMode = "podcast" }: { initialMo
       const projectTitle = title.trim() || titleFromFile(file.name);
       const created = await json<{ project: { id: string } }>("/api/admin/video-producer/projects", {
         method: "POST",
-        body: JSON.stringify({ title: projectTitle, mode, pathwaySlug: mode === "podcast" ? pathwaySlug : undefined })
+        body: JSON.stringify({ title: projectTitle, mode, brandProfile, pathwaySlug: needsPathway ? pathwaySlug : undefined })
       });
       const projectId = created.project.id;
       const mime = file.type || (file.name.toLowerCase().endsWith(".mov") ? "video/quicktime" : "video/mp4");
@@ -87,12 +100,17 @@ export function VideoProducerNewProject({ initialMode = "podcast" }: { initialMo
         <div className={styles.flowTopline}><Link className={styles.backLink} href="/admin/video-producer"><ArrowLeft size={14}/> Projects</Link></div>
         <section className={styles.workspace}>
           <header className={styles.workspaceHeader}>
-            <div className={styles.workspaceHeaderRow}><div><div className={styles.eyebrow}>New project</div><h2>Start with context</h2><p>Set the production lane and, for a podcast, its real pathway before Sol ever sees the transcript. Then upload once.</p></div><span className={styles.statusPill}>Source</span></div>
+            <div className={styles.workspaceHeaderRow}><div><div className={styles.eyebrow}>New project</div><h2>Start with context</h2><p>Choose the brand and production lane before uploading. Apostolic Guide podcasts also need a pathway.</p></div><span className={styles.statusPill}>Source</span></div>
           </header>
           <div className={styles.workspaceBody}><div className={styles.stack}>
             {error ? <div className={`${styles.notice} ${styles.warning}`}>{error}</div> : null}
             <div className={styles.panel}>
-              <h3 className={styles.panelTitle}>Production lane</h3>
+              <h3 className={styles.panelTitle}>Brand profile</h3>
+              <select className={styles.select} disabled={busy||!profiles.length} value={brandProfile} onChange={event=>{setBrandProfile(event.target.value);setPathwaySlug("");}}>
+                {profiles.map(profile=><option key={profile.slug} value={profile.slug}>{profile.name}</option>)}
+              </select>
+              {selectedBrand ? <p className={styles.panelText} style={{marginTop:8}}>Destination: {selectedBrand.config.destination.type==="youtube"?selectedBrand.config.destination.youtubeHandle:"Apostolic Guide Publisher"}</p> : null}
+              <h3 className={styles.panelTitle} style={{marginTop:20}}>Production lane</h3>
               <div className={styles.modeChoice}>
                 <button type="button" data-active={mode === "podcast"} disabled={busy} onClick={() => setMode("podcast")}><Film size={19}/><span><strong>Podcast</strong><small>Long-form · 16:9</small></span></button>
                 <button type="button" data-active={mode === "reels"} disabled={busy} onClick={() => setMode("reels")}><Smartphone size={19}/><span><strong>Reels</strong><small>Short-form · 9:16</small></span></button>
@@ -100,7 +118,7 @@ export function VideoProducerNewProject({ initialMode = "podcast" }: { initialMo
               <div className={styles.field} style={{ marginTop: 14 }}><label>Project title</label><input className={styles.input} disabled={busy} value={title} onChange={(event) => setTitle(event.target.value)} placeholder="God Is One — Episode 01"/></div>
             </div>
 
-            {mode === "podcast" ? <div className={styles.panel}>
+            {needsPathway ? <div className={styles.panel}>
               <h3 className={styles.panelTitle}>Episode pathway</h3>
               <p className={styles.panelText}>This becomes the source of truth for Sol’s section structure and Graphics V2 Pathway Stops.</p>
               <select className={styles.select} style={{ marginTop: 12 }} disabled={busy} value={pathwaySlug} onChange={(event) => setPathwaySlug(event.target.value)}>
