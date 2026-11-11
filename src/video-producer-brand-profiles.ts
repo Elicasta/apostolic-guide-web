@@ -53,8 +53,17 @@ export function isSelectableVideoProducerBrand(value: unknown): value is VideoPr
       forbiddenChannel.test(profile.config.destination.youtubeHandle || "")) return false;
   if (profile.config.destination.type === "youtube" && !profile.config.destination.youtubeHandle) return false;
   if (profile.slug === "in-the-now" &&
-      (profile.config.destination.type !== "youtube" || profile.config.destination.youtubeHandle?.toLowerCase() !== "@iamelicastaneda")) return false;
-  if (profile.slug === "apostolic-guide" && profile.config.destination.type !== "ag_publisher") return false;
+      (profile.config.destination.type !== "youtube" ||
+       profile.config.destination.youtubeHandle?.toLowerCase() !== "@iamelicastaneda" ||
+       profile.config.pathwayRequired ||
+       profile.config.doctrineGate !== "optional" ||
+       profile.config.audio.integratedLufs !== -14 ||
+       profile.config.audio.truePeakDbtp !== -1.5)) return false;
+  if (profile.slug === "apostolic-guide" &&
+      (profile.config.destination.type !== "ag_publisher" ||
+       !profile.config.pathwayRequired ||
+       profile.config.doctrineGate !== "required" ||
+       profile.config.audio.integratedLufs !== -16)) return false;
   return true;
 }
 export function requiresVideoProducerPathway(profile: VideoProducerBrandProfile, mode: "podcast" | "reels") {
