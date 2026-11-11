@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getStudioPermission } from "@/auth";
 import { pathwayBySlug } from "@/pathway-catalog";
 import { createServiceClient } from "@/supabase";
+import {getVideoProducerBrand} from "@/video-producer-brand-server";
 import type { VideoProducerEditPlan } from "@/video-producer";
 import {
   normalizeVideoProducerDirectorOutput,
@@ -82,7 +83,7 @@ function fallbackOpeningHook(metadata: Record<string, unknown>, projectTitle: st
     const title = cleanHook(projectTitle);
     if (title) return title;
   }
-  return spoken || "Apostolic Guide";
+  return spoken || "The central question.";
 }
 
 function firstVisibleSourceTime(plan: VideoProducerEditPlan) {
@@ -118,7 +119,7 @@ export async function POST(request: Request) {
   if (!service) return NextResponse.json({ error: "Supabase service access is not configured." }, { status: 503 });
 
   const projectResult = await service.from("video_producer_projects")
-    .select("id,title,mode,status,pathway_slug,selected_music_track_id,source_duration,source_range_start,source_range_end,transcript,director_metadata")
+    .select("id,title,mode,status,brand_profile,pathway_slug,selected_music_track_id,source_duration,source_range_start,source_range_end,transcript,director_metadata")
     .eq("id", parsed.data.projectId)
     .is("deleted_at", null)
     .maybeSingle();
@@ -127,6 +128,9 @@ export async function POST(request: Request) {
   if (!project) return NextResponse.json({ error: "Video Producer project not found." }, { status: 404 });
   if (project.mode !== "podcast" && project.mode !== "reels") return NextResponse.json({ error: "Unsupported producer mode." }, { status: 409 });
 
+  let brand;
+  try{brand=await getVideoProducerBrand(service,project.brand_profile||"apostolic-guide");}
+  catch(error){return NextResponse.json({error:error instanceof Error?error.message:"Brand unavailable"},{status:409});}
   const fullTranscript = normalizeVideoProducerTranscript(project.transcript);
   if (!fullTranscript.words.length || !fullTranscript.text) return NextResponse.json({ error: "Transcribe the source before running the Edit Director." }, { status: 409 });
   const localTranscript = project.source_range_start != null && project.source_range_end != null
@@ -160,7 +164,13 @@ export async function POST(request: Request) {
           format: { type: "json_schema", name: `ag_video_producer_${project.mode}_director`, strict: true, schema: VIDEO_PRODUCER_DIRECTOR_JSON_SCHEMA }
         },
         input: [
-          { role: "developer", content: [{ type: "input_text", text: directorRules(project.mode, Boolean(pathway)).join("\n") }] },
+          { role: "developer", content: [{ type: "input_text", text: (brand.slug==="in-the-now"?[
+  "You are the In the Now personal Video Producer Edit Director. Preserve the speaker's actual statements, intended meaning and personality. Do not inject Apostolic Guide pathways or doctrine.",
+  "Produce editorial cuts, meaningful full sentence lower thirds and truthful overlays. Never generate graphic styling as copy.",
+  "All timestamps refer to local transcript time. Honor the existing JSON schema.",
+  "Use normal grammar and punctuation. Never use hyphens or dashes in titles or on screen text.",
+  "Use a restrained human editorial tone, not invented spectacle."
+  ]:directorRules(project.mode,Boolean(pathway))).join("\n") }] },
           { role: "user", content: [{ type: "input_text", text: [
             `PROJECT: ${project.title}`,
             `MODE: ${project.mode}`,
