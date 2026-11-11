@@ -69,3 +69,15 @@ test("shared template resolves all placeholders without treating copy as HTML",(
  assert.match(frame.html,/Questions\?/);
  assert.match(frame.html,/EPISODE/);
 });
+
+test("shared template cannot erase brand logo or end screen spacing",()=>{
+ const doc=starter();
+ doc.templateHtml='<div class="vp-template">{{boxText}}</div>';
+ const outro=compileVideoBrandOverlayFrame(doc,357);
+ assert.match(outro.html,/vp-outro/);
+ assert.match(outro.css,/height:75%;align-self:start/);
+ const logo=compileVideoBrandOverlayFrame(doc,20);
+ assert.match(logo.html,/class="vp-logo"/);
+ doc.overlays=[{type:"boxText",text:"Truth matters.",start:1,end:3,position:"center",preset:"brand-box"}];
+ assert.match(compileVideoBrandOverlayFrame(doc,2).html,/vp-template/);
+});
