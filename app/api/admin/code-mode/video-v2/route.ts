@@ -9,6 +9,11 @@ import {wordsOnOutput} from "@/code-mode/video-word-sync";
 import {createPrivateBlobDownloadUrl} from "@/video-producer-server";
 import {z} from "zod";
 import {videoCheckpointTableMissing} from "@/code-mode/video-checkpoints";
+import {getVideoProducerBrand} from "@/video-producer-brand-server";
+import {videoBrandSceneStarter} from "@/code-mode/video-brand-starter";
+import type {VideoProducerBrandProfile} from "@/video-producer-brand-profiles";
+import {readFile} from "node:fs/promises";
+import {resolve} from "node:path";
 
 export const runtime="nodejs";
 const idSchema=z.string().uuid();
@@ -22,11 +27,15 @@ function starter(kind:"producer"|"studio",id:string,duration=30):VideoSceneDocum
  style:{preset:"AG Editorial",ink:"#10202A",paper:"#F5F7F4",crimson:"#A12D3D"},
  scenes:[{...s,end:Math.min(Math.max(duration,1),3)}]};
 }
-function extract(row:Record<string,unknown>,kind:"producer"|"studio",id:string):VideoSceneDocument{
+function extract(row:Record<string,unknown>,kind:"producer"|"studio",id:string,brand?:VideoProducerBrandProfile|null):VideoSceneDocument{
  const holder=record(kind==="producer"?row.director_metadata:row.style);
  const persisted=holder.kineticSceneV2;
  const source=videoSceneDocument.safeParse(persisted);
- const result=source.success?source.data:starter(kind,id,Number(row.source_duration||30));
+ const outputDuration=(()=>{
+  try {return row.edit_plan ? compileVideoProducerRenderPlan(row.edit_plan as Parameters<typeof compileVideoProducerRenderPlan>[0]).outputDuration : Number(row.source_range_end||0)-Number(row.source_range_start||0)||Number(row.source_duration||30)}
+  catch{return Number(row.source_duration||30)}
+ })();
+ const result=source.success?source.data:brand?videoBrandSceneStarter({profile:brand,projectId:id,kind,mode:row.mode==="reels"?"reels":"podcast",title:String(row.title||brand.name),duration:outputDuration}):starter(kind,id,outputDuration);
  return {...result,kind,id,expectedUpdatedAt:String(row.updated_at)};
 }
 export async function GET(request:Request){
@@ -42,19 +51,24 @@ export async function GET(request:Request){
  if(r.error)return responseError(r.error.message,500);
  if(!r.data)return responseError("Video project not found.",404);
  const row=r.data as Record<string,unknown>;
+ let brand:VideoProducerBrandProfile|null=null;
+ if(kind==="producer"){
+  try{brand=await getVideoProducerBrand(s,String(row.brand_profile||"apostolic-guide"));}
+  catch(error){return responseError(error instanceof Error?error.message:"Brand unavailable",409)}
+ }
  const status=String(row.status||"draft");
  const previous=await s.from("studio_code_mode_checkpoints").select("id,created_at").eq("tool","video").eq("source_id",id).order("created_at",{ascending:false}).limit(25);
  if(previous.error&&!videoCheckpointTableMissing(previous.error))return responseError(previous.error.message,500);
  const historyAvailable=!previous.error;
  const versionId=url.searchParams.get("checkpoint")||"";
- let document=extract(row,kind,id);
+ let document=extract(row,kind,id,brand);
  if(versionId){
   if(!historyAvailable)return responseError("Scene history is not configured for this environment.",409);
   if(!idSchema.safeParse(versionId).success)return responseError("Invalid checkpoint.",400);
   const snapshot=await s.from("studio_code_mode_checkpoints").select("document").eq("tool","video").eq("source_id",id).eq("id",versionId).maybeSingle();
   if(snapshot.error)return responseError(snapshot.error.message,500);
   if(!snapshot.data)return responseError("Checkpoint not found.",404);
-  const restored=extract(record(snapshot.data.document),kind,id);
+  const restored=extract(record(snapshot.data.document),kind,id,brand);
   document={...restored,expectedUpdatedAt:String(row.updated_at)};
  }
  let previewSourceUrl:string|null=null;
@@ -73,7 +87,15 @@ export async function GET(request:Request){
    try{previewSourceUrl=await createPrivateBlobDownloadUrl(String(row.source_locator),30*60*1000)}catch{previewSourceUrl=null}
   }
  }
- return NextResponse.json({document,readOnly:kind==="producer"&&!writableProducer.has(status),projectStatus:status,
+ let brandLogoData:string|null=null;
+ const logoPath=brand?.config.logo.assetPath;
+ if(logoPath&&/^public\\/brand\\/[a-zA-Z0-9._-]+\\.(?:png|jpe?g|webp)$/.test(logoPath)){
+  try{
+   const bytes=await readFile(resolve(process.cwd(),logoPath));
+   if(bytes.length<=2*1024*1024)brandLogoData="data:image/"+(logoPath.endsWith(".png")?"png":logoPath.endsWith(".webp")?"webp":"jpeg")+";base64,"+bytes.toString("base64");
+  }catch{/* Text fallback is safe. */}
+ }
+ return NextResponse.json({document,brand,brandLogoData,readOnly:kind==="producer"&&!writableProducer.has(status),projectStatus:status,
   previewSourceUrl,sourceOffset:kind==="producer"?Number(row.source_range_start??0):0,transcriptLane,keptRanges,
   history:(previous.data||[]).map(h=>({id:h.id,createdAt:h.created_at})),
   historyAvailable});
