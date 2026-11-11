@@ -48,7 +48,16 @@ function rangeCovered(start: number, end: number, coverage: { start: number; end
 }
 
 export async function resolveVideoProducerProductionState(service: ServiceClient, project: VideoProducerProductionProject): Promise<VideoProducerResolvedProduction> {
-  const rootProjectId = project.parent_project_id || project.id;
+  // One source can produce root podcast -> mini episode -> matching Short.
+  // Camera/audio assets remain owned by the immutable root recording.
+  let rootProjectId = project.parent_project_id || project.id;
+  if(project.parent_project_id){
+   const parent=await service.from("video_producer_projects")
+     .select("parent_project_id").eq("id",project.parent_project_id).maybeSingle();
+   if(parent.error)throw new Error(parent.error.message);
+   if(!parent.data)throw new Error("Source parent project is no longer available.");
+   if(parent.data.parent_project_id)rootProjectId=parent.data.parent_project_id;
+  }
   const assetsResult = await service.from("video_producer_media_assets")
     .select("id,project_id,role,storage_provider,storage_locator,filename,mime_type,size_bytes,duration,has_audio,sync_status,sync_method,offset_seconds,sync_confidence,sync_metadata,revision,active")
     .eq("project_id", rootProjectId).eq("active", true);
