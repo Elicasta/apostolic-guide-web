@@ -47,12 +47,30 @@ def color_filter_v2(plan):
     return "null"
 
 
+def rnnoise_filter(plan):
+    """Optional FFmpeg arnndn ahead of existing de-esser and compressor."""
+    try:
+        mix = float(plan.get("rnnoiseMix") or 0)
+    except (TypeError, ValueError) as error:
+        raise RuntimeError("Invalid RNNoise mix amount") from error
+    if not 0 <= mix <= 1:
+        raise RuntimeError("RNNoise mix must be between 0 and 1")
+    if mix == 0:
+        return ""
+    model = os.environ.get("VIDEO_PRODUCER_RNNOISE_MODEL", "").strip()
+    if not model or not os.path.isfile(model):
+        raise RuntimeError("RNNoise enabled but VIDEO_PRODUCER_RNNOISE_MODEL is missing. Configure a local FFmpeg arnndn model file on the worker, or turn RNNoise mix to 0.")
+    if any(char in model for char in ("'", ":", "\\", "[", "]", ",")):
+        raise RuntimeError("RNNoise model path contains unsupported FFmpeg filter characters")
+    return f"arnndn=m='{model}':mix={mix:.3f},"
+
 def audio_filter_v2(plan):
     preset = plan.get("audioPreset") or "none"
+    denoise = rnnoise_filter(plan)
     tail = "aresample=48000,aformat=sample_fmts=fltp:sample_rates=48000:channel_layouts=stereo"
     if preset == "ag-voice-punch":
         return (
-            "highpass=f=80,"
+            denoise + "highpass=f=80,"
             "equalizer=f=260:t=q:w=1:g=-1.5,"
             "equalizer=f=3600:t=q:w=1:g=1.4,"
             "deesser=i=0.14:m=0.5:f=0.5,"
@@ -61,14 +79,14 @@ def audio_filter_v2(plan):
         )
     if preset == "ag-voice-clean":
         return (
-            "highpass=f=70,"
+            denoise + "highpass=f=70,"
             "equalizer=f=260:t=q:w=1:g=-1.8,"
             "equalizer=f=3600:t=q:w=1:g=1.0,"
             "deesser=i=0.12:m=0.5:f=0.5,"
             "acompressor=threshold=-21dB:ratio=2.4:attack=12:release=160:makeup=1.2,"
             "alimiter=limit=0.94," + tail
         )
-    return tail
+    return denoise + tail
 
 
 bw.base.color_filter = color_filter_v2
