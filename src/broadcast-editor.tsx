@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { BroadcastCampaign } from "./broadcast-email";
 import {CodeModeJsonPanel} from "./code-mode/json-panel";
 import {CodeModeSandboxPreview} from "./code-mode/preview";
@@ -91,11 +91,59 @@ export function BroadcastEditor({ sources, audienceCounts, initialCampaign }: { 
   const [draftId,setDraftId]=useState<string|null>(null);
   const [version,setVersion]=useState(0);
   const [revisions,setRevisions]=useState<Array<{version:number;created_at:string}>>([]);
+  const [savedDrafts,setSavedDrafts]=useState<Array<{id:string;title:string;version:number;updated_at:string}>>([]);
+  const [presets,setPresets]=useState<Array<{id:string;name:string;document:EmailCodeDocument;created_at:string}>>([]);
+  const [presetName,setPresetName]=useState("");
+  const [editorKey,setEditorKey]=useState(0);
   const [doctrineReady,setDoctrineReady]=useState(false);
   const [codeError,setCodeError]=useState("");
   const editableDoc:EmailCodeDocument={...(codeDoc||initialEmailCodeDocument(campaign)),campaign};
   const documentMatches=Boolean(savedDoc&&JSON.stringify(savedDoc)===JSON.stringify(editableDoc));
   const authorized=Boolean(draftId&&doctrineReady&&documentMatches);
+  async function getJson(url:string,init?:RequestInit){
+   const response=await fetch(url,{cache:"no-store",...init});
+   const result=await response.json().catch(()=>({}));
+   if(!response.ok)throw new Error(result.error||"Code Mode request failed.");
+   return result;
+  }
+  async function refreshCodeLists(){
+   const [drafts,stored]=await Promise.all([getJson("/api/admin/broadcast-code"),getJson("/api/admin/broadcast-code/presets")]);
+   setSavedDrafts(drafts.drafts||[]);setPresets(stored.presets||[]);
+  }
+  useEffect(()=>{
+   if(!codeOpen)return;
+   let active=true;
+   void Promise.all([getJson("/api/admin/broadcast-code"),getJson("/api/admin/broadcast-code/presets")])
+    .then(([drafts,stored])=>{if(active){setSavedDrafts(drafts.drafts||[]);setPresets(stored.presets||[]);}})
+    .catch(error=>{if(active)setCodeError(error instanceof Error?error.message:"Unable to list saved drafts.");});
+   return ()=>{active=false;};
+  },[codeOpen]);
+  async function loadCode(id:string){
+   setCodeError("");
+   const result=await getJson("/api/admin/broadcast-code?id="+encodeURIComponent(id));
+   setDraftId(result.draft.id);setVersion(result.draft.version);setSavedDoc(result.draft.document);setEditorKey(v=>v+1);
+   setCodeDoc(result.draft.document);setCampaign(result.draft.document.campaign);
+   setSourceUrl(result.draft.document.campaign.url);setRevisions(result.revisions||[]);
+   setDoctrineReady(false);setBroadcastId(null);
+   setMessage("Saved draft loaded. Run the doctrine check before any email action.");
+  }
+  async function savePreset(){
+   setCodeError("");
+   if(!presetName.trim())throw new Error("Enter a preset name.");
+   await getJson("/api/admin/broadcast-code/presets",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({name:presetName.trim(),document:emailCodeSchema.parse(editableDoc)})});
+   setPresetName("");await refreshCodeLists();setMessage("Design preset saved privately. No email sent.");
+  }
+  function loadPreset(preset:EmailCodeDocument){
+   setCodeDoc(preset);setCampaign(preset.campaign);setSourceUrl(preset.campaign.url);
+   setDraftId(null);setSavedDoc(null);setVersion(0);setRevisions([]);setEditorKey(v=>v+1);
+   setDoctrineReady(false);setBroadcastId(null);
+   setMessage("Preset loaded into an unsaved draft. Apply JSON or save HTML/CSS to continue.");
+  }
+  async function deletePreset(id:string){
+   setCodeError("");
+   await getJson("/api/admin/broadcast-code/presets",{method:"DELETE",headers:{"content-type":"application/json"},body:JSON.stringify({id})});
+   await refreshCodeLists();
+  }
   async function saveCode(next:EmailCodeDocument){
    setCodeError("");
    const checked=emailCodeSchema.parse(next);
@@ -105,7 +153,7 @@ export function BroadcastEditor({ sources, audienceCounts, initialCampaign }: { 
    setCodeDoc(result.draft.document);setSavedDoc(result.draft.document);setCampaign(result.draft.document.campaign);
    setDoctrineReady(false);setBroadcastId(null);
    const history=await fetch("/api/admin/broadcast-code?id="+encodeURIComponent(result.draft.id)).then(r=>r.json());
-   setRevisions(history.revisions||[]);setMessage("Code Mode draft saved. Run the required doctrine check before any email action.");
+   setRevisions(history.revisions||[]);await refreshCodeLists();setMessage("Code Mode draft saved. Run the required doctrine check before any email action.");
   }
   async function restoreCode(revisionVersion:number){
    if(!draftId)return;
@@ -114,7 +162,8 @@ export function BroadcastEditor({ sources, audienceCounts, initialCampaign }: { 
    const result=await response.json();if(!response.ok)throw new Error(result.error||"Restore failed.");
    setCodeDoc(result.draft.document);setSavedDoc(result.draft.document);setCampaign(result.draft.document.campaign);setVersion(result.draft.version);
    setDoctrineReady(false);setBroadcastId(null);
-   const history=await fetch("/api/admin/broadcast-code?id="+encodeURIComponent(draftId)).then(r=>r.json());setRevisions(history.revisions||[]);
+   const history=await getJson("/api/admin/broadcast-code?id="+encodeURIComponent(draftId));setRevisions(history.revisions||[]);
+   await refreshCodeLists();setMessage("Revision restored as a new draft version. Doctrine approval reset.");
   }
 
   const matchingSources = sources.filter((source) => source.kind === campaign.type);
@@ -126,7 +175,7 @@ export function BroadcastEditor({ sources, audienceCounts, initialCampaign }: { 
     setCampaign(next);
     setSourceUrl(source?.url ?? "");
     setAudience(defaultAudience(type));
-    setBroadcastId(null);setDraftId(null);setVersion(0);setCodeDoc(null);setSavedDoc(null);setDoctrineReady(false);
+    setBroadcastId(null);setDraftId(null);setVersion(0);setCodeDoc(null);setSavedDoc(null);setRevisions([]);setEditorKey(v=>v+1);setDoctrineReady(false);
     setState("idle");
     setMessage("");
   }
@@ -135,7 +184,7 @@ export function BroadcastEditor({ sources, audienceCounts, initialCampaign }: { 
     setSourceUrl(url);
     const source = matchingSources.find((item) => item.url === url);
     if (source) setCampaign(campaignFrom(campaign.type, source));
-    setDraftId(null);setCodeDoc(null);setSavedDoc(null);setDoctrineReady(false);setBroadcastId(null);
+    setDraftId(null);setCodeDoc(null);setSavedDoc(null);setVersion(0);setRevisions([]);setEditorKey(v=>v+1);setDoctrineReady(false);setBroadcastId(null);
   }
 
   async function callApi(payload: unknown) {
@@ -189,7 +238,7 @@ export function BroadcastEditor({ sources, audienceCounts, initialCampaign }: { 
       {codeOpen?<section className="admin-card" style={{padding:18,display:"grid",gap:16}}>
         <h3>Shared Code Mode · Broadcasts</h3>
         <p>Edit the full campaign in JSON. HTML and CSS are in theme; footer, unsubscribe and site link cannot be removed.</p>
-        <CodeModeJsonPanel label="Whole-campaign JSON" data={editableDoc} parse={v=>emailCodeSchema.parse(v)} onApply={saveCode}/>
+        <CodeModeJsonPanel key={(draftId||"new")+":"+version+":"+editorKey} label="Whole-campaign JSON" data={editableDoc} parse={v=>emailCodeSchema.parse(v)} onApply={saveCode}/>
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(240px,1fr))",gap:12}}>
           <label>HTML template<textarea rows={10} value={editableDoc.theme.html} onChange={e=>setCodeDoc({...editableDoc,theme:{...editableDoc.theme,html:e.target.value}})} /></label>
           <label>CSS<textarea rows={10} value={editableDoc.theme.css} onChange={e=>setCodeDoc({...editableDoc,theme:{...editableDoc.theme,css:e.target.value}})} /></label>
@@ -197,7 +246,21 @@ export function BroadcastEditor({ sources, audienceCounts, initialCampaign }: { 
         <label>Container width <input type="number" min={320} max={720} value={editableDoc.theme.containerWidth} onChange={e=>setCodeDoc({...editableDoc,theme:{...editableDoc.theme,containerWidth:Number(e.target.value)}})}/></label>
         <button type="button" className="button" onClick={()=>void saveCode(editableDoc).catch(e=>setCodeError(e.message))}>Apply HTML / CSS to saved draft</button>
         {(()=>{try{return <CodeModeSandboxPreview title="Email code preview" document={emailCodeRender(editableDoc).html}/>;}catch(error){return <p role="alert">{error instanceof Error?error.message:"Invalid email design"}</p>;}})()}
-        {revisions.length?<details><summary>Revisions · Undo / Restore</summary>{revisions.map(rev=><button type="button" key={rev.version} onClick={()=>void restoreCode(rev.version).catch(e=>setCodeError(e.message))}>Restore version {rev.version} ({new Date(rev.created_at).toLocaleString()})</button>)}</details>:null}
+        <section aria-label="Saved Broadcast drafts" style={{display:"grid",gap:8}}>
+          <h4>Saved drafts</h4>
+          {savedDrafts.length?<div style={{display:"flex",flexWrap:"wrap",gap:8}}>{savedDrafts.map(d=><button type="button" className="button button-outline" key={d.id} onClick={()=>void loadCode(d.id).catch(e=>setCodeError(e.message))} aria-current={d.id===draftId?"true":undefined}>{d.title} · v{d.version}</button>)}</div>:<small>No saved drafts yet.</small>}
+        </section>
+        <section aria-label="Revision history" style={{display:"grid",gap:8}}>
+          <h4>Undo / Restore · revision history</h4>
+          <p>Current saved version: {draftId?version:"not saved"}. Restore creates a new version; it never sends email.</p>
+          <button type="button" className="button" disabled={!revisions.length} onClick={()=>void restoreCode(revisions[0].version).catch(e=>setCodeError(e.message))}>Undo to previous saved version</button>
+          {revisions.length?<div style={{display:"flex",flexWrap:"wrap",gap:8}}>{revisions.map(rev=><button type="button" className="button button-outline" key={rev.version} onClick={()=>void restoreCode(rev.version).catch(e=>setCodeError(e.message))}>Restore v{rev.version} · {new Date(rev.created_at).toLocaleString()}</button>)}</div>:<small>Save a second version to create the first restore point.</small>}
+        </section>
+        <section aria-label="Saved design presets" style={{display:"grid",gap:8}}>
+          <h4>Saved design presets</h4>
+          <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"end"}}><label>Preset name <input value={presetName} maxLength={100} onChange={e=>setPresetName(e.target.value)} placeholder="My broadcast layout"/></label><button type="button" className="button" disabled={!presetName.trim()} onClick={()=>void savePreset().catch(e=>setCodeError(e.message))}>Save current design as preset</button></div>
+          {presets.length?<div style={{display:"grid",gap:8}}>{presets.map(p=><div key={p.id} style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}><strong>{p.name}</strong><button type="button" className="button button-outline" onClick={()=>loadPreset(p.document)}>Load preset</button><button type="button" className="button button-outline" onClick={()=>void deletePreset(p.id).catch(e=>setCodeError(e.message))}>Delete</button></div>)}</div>:<small>No presets saved yet. Presets are private to your admin account.</small>}
+        </section>
       </section>:null}
       {codeError?<p role="alert">{codeError}</p>:null}
       {draftId?<DoctrineCheckPanel key={draftId+":"+version} sourceType="broadcast" sourceId={draftId} onChange={approved=>setDoctrineReady(approved)}/>:<p className="broadcast-draft-note">Save a local draft to unlock the required Doctrine checker. No email is sent by saving.</p>}
