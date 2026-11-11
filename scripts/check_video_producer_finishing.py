@@ -110,6 +110,14 @@ def reel_manifest():
 def main():
     os.chdir(ROOT)
     finishing = load("finishing_smoke", FINISH_PATH)
+    assert "arnndn" not in finishing.audio_filter_v2({"audioPreset":"ag-voice-clean","rnnoiseMix":0})
+    try:
+        finishing.audio_filter_v2({"audioPreset":"ag-voice-clean","rnnoiseMix":.5})
+    except RuntimeError as error:
+        assert "VIDEO_PRODUCER_RNNOISE_MODEL" in str(error)
+    else:
+        assert os.environ.get("VIDEO_PRODUCER_RNNOISE_MODEL"), "RNNoise missing model must fail"
+
     thumbnail = load("thumbnail_smoke", THUMB_PATH)
     with tempfile.TemporaryDirectory(prefix="ag-finishing-smoke-") as d:
         src = os.path.join(d, "source.mp4")
