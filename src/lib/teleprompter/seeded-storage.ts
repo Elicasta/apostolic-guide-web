@@ -20,6 +20,11 @@ import {
   TELEPROMPTER_EPISODE_SEED_VERSION,
   getEpisodeSeedDocuments,
 } from "./episodes";
+import {
+  TELEPROMPTER_PERSONAL_SEED_KEY,
+  TELEPROMPTER_PERSONAL_SEED_VERSION,
+  getPersonalChannelSeedDocuments,
+} from "./personal";
 
 export {
   DEFAULT_TELEPROMPTER_CONTENT,
@@ -36,7 +41,11 @@ export {
 };
 
 export function getSeedDocuments(): TeleprompterDocument[] {
-  return [...getLegacySeedDocuments(), ...getEpisodeSeedDocuments()];
+  return [
+    ...getLegacySeedDocuments(),
+    ...getEpisodeSeedDocuments(),
+    ...getPersonalChannelSeedDocuments(),
+  ];
 }
 
 function isUntouchedPreviousEpisodeSeed(document: TeleprompterDocument) {
@@ -76,21 +85,48 @@ export function mergeEpisodeSeeds(
   return merged;
 }
 
+// New personal-channel episodes are installed once per browser without modifying
+// existing scripts. Preserve user edits and intentional deletions after installation.
+export function mergePersonalChannelSeeds(
+  documents: TeleprompterDocument[],
+  personalSeeds = getPersonalChannelSeedDocuments(),
+): TeleprompterDocument[] {
+  const existingIds = new Set(documents.map((document) => document.id));
+  return [
+    ...personalSeeds.filter((seed) => !existingIds.has(seed.id)),
+    ...documents,
+  ];
+}
+
 export function loadTeleprompterDocuments(): TeleprompterDocument[] {
-  const documents = loadLegacyDocuments();
+  let documents = loadLegacyDocuments();
   if (typeof window === "undefined") return documents;
 
   const installedVersion = Number(
     window.localStorage.getItem(TELEPROMPTER_EPISODE_SEED_KEY) || "0",
   );
 
-  if (installedVersion >= TELEPROMPTER_EPISODE_SEED_VERSION) return documents;
+  if (installedVersion < TELEPROMPTER_EPISODE_SEED_VERSION) {
+    documents = mergeEpisodeSeeds(documents);
+    saveTeleprompterDocuments(documents);
+    window.localStorage.setItem(
+      TELEPROMPTER_EPISODE_SEED_KEY,
+      String(TELEPROMPTER_EPISODE_SEED_VERSION),
+    );
+  }
 
-  const merged = mergeEpisodeSeeds(documents);
-  saveTeleprompterDocuments(merged);
-  window.localStorage.setItem(
-    TELEPROMPTER_EPISODE_SEED_KEY,
-    String(TELEPROMPTER_EPISODE_SEED_VERSION),
+  const installedPersonalVersion = Number(
+    window.localStorage.getItem(TELEPROMPTER_PERSONAL_SEED_KEY) || "0",
   );
-  return merged;
+
+  if (installedPersonalVersion < TELEPROMPTER_PERSONAL_SEED_VERSION) {
+    documents = mergePersonalChannelSeeds(documents);
+    saveTeleprompterDocuments(documents);
+    window.localStorage.setItem(
+      TELEPROMPTER_PERSONAL_SEED_KEY,
+      String(TELEPROMPTER_PERSONAL_SEED_VERSION),
+    );
+  }
+
+  return documents;
 }
