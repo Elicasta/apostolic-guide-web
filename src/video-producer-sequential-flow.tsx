@@ -289,7 +289,7 @@ export function VideoProducerSequentialFlow({ projectId: initialProjectId = "", 
     } finally { setBusy(null); }
   }
 
-  async function patchFinish(payload: { pathwaySlug?: string | null; musicTrackId?: string | null; audioPreset?: "ag-voice-clean" | "ag-voice-punch" | "none"; colorPreset?: "ag-studio" | "ag-warm" | "ag-clean" | "none" }) {
+  async function patchFinish(payload: { pathwaySlug?: string | null; musicTrackId?: string | null; audioPreset?: "ag-voice-clean" | "ag-voice-punch" | "none"; colorPreset?: "ag-studio" | "ag-warm" | "ag-clean" | "none";rnnoiseMix?:number }) {
     if (!projectId) return;
     setBusy("finish"); setError("");
     try {
