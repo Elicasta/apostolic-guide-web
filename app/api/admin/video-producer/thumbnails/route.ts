@@ -4,6 +4,7 @@ import { z } from "zod";
 import { getStudioPermission } from "@/auth";
 import { pathwayBySlug } from "@/pathway-catalog";
 import { createServiceClient } from "@/supabase";
+import {getVideoProducerBrand} from "@/video-producer-brand-server";
 import { sourceTimeToOutputTime, type VideoProducerEditPlan } from "@/video-producer";
 import { normalizeVideoProducerTranscript, transcriptForModel } from "@/video-producer-ai";
 import {
@@ -21,7 +22,7 @@ export const runtime = "nodejs";
 export const maxDuration = 300;
 
 const requestSchema = z.object({ projectId: z.string().uuid() });
-const variants = ["face-hook", "doctrine", "pathway"] as const;
+const variants = ["A", "B"] as const;
 type ThumbnailVariant = typeof variants[number];
 
 const THUMBNAIL_SCHEMA = {
@@ -31,8 +32,8 @@ const THUMBNAIL_SCHEMA = {
   properties: {
     candidates: {
       type: "array",
-      minItems: 3,
-      maxItems: 3,
+      minItems: 2,
+      maxItems: 2,
       items: {
         type: "object",
         additionalProperties: false,
@@ -48,7 +49,7 @@ const THUMBNAIL_SCHEMA = {
 } as const;
 
 function cleanHeadline(value: unknown) {
-  return String(value || "").trim().replace(/\s+/g, " ").split(" ").slice(0, 6).join(" ").slice(0, 80);
+  return String(value || "").trim().replace(/[\u2010-\u2015-]/g, " ").replace(/\s+/g, " ").split(" ").slice(0, 6).join(" ").slice(0, 80);
 }
 
 export async function POST(request: Request) {
@@ -62,7 +63,7 @@ export async function POST(request: Request) {
   if (!apiKey) return NextResponse.json({ error: "VIDEO_PRODUCER_OPENAI_API_KEY is not configured." }, { status: 503 });
 
   const projectResult = await service.from("video_producer_projects")
-    .select("id,title,mode,status,pathway_slug,source_provider,source_locator,source_duration,source_range_start,source_range_end,transcript,edit_plan")
+    .select("id,title,mode,status,brand_profile,pathway_slug,source_provider,source_locator,source_duration,source_range_start,source_range_end,transcript,edit_plan")
     .eq("id", parsed.data.projectId).maybeSingle();
   if (projectResult.error) return NextResponse.json({ error: projectResult.error.message }, { status: 500 });
   const project = projectResult.data;
@@ -73,6 +74,9 @@ export async function POST(request: Request) {
 
   const transcript = normalizeVideoProducerTranscript(project.transcript);
   if (!transcript.text || !transcript.words.length) return NextResponse.json({ error: "A timestamped transcript is required." }, { status: 409 });
+  let profile;
+  try{profile=await getVideoProducerBrand(service,project.brand_profile||"apostolic-guide");}
+  catch(error){return NextResponse.json({error:error instanceof Error?error.message:"Brand unavailable"},{status:409});}
   const plan = project.edit_plan as VideoProducerEditPlan;
   const pathway = project.pathway_slug ? pathwayBySlug(project.pathway_slug) : null;
   const model = process.env.OPENAI_VIDEO_PRODUCER_MODEL?.trim() || process.env.OPENAI_VIDEO_DIRECTOR_MODEL?.trim() || "gpt-5.6-sol";
@@ -89,13 +93,13 @@ export async function POST(request: Request) {
         text: { verbosity: "low", format: { type: "json_schema", name: "ag_youtube_thumbnail_candidates", strict: true, schema: THUMBNAIL_SCHEMA } },
         input: [
           { role: "developer", content: [{ type: "input_text", text: [
-            "Create exactly three DISTINCT YouTube long-form thumbnail concepts for Apostolic Guide.",
-            "Use only the supplied transcript and pathway. The thumbnail must accurately represent the video; never manufacture controversy, emotion, doctrine or a claim that is not present.",
+            `Create exactly two DISTINCT YouTube thumbnail candidates (A and B) for ${profile.name}.`,
+            "Use only the supplied transcript and optional pathway. Never invent controversy, emotion, doctrine, or claims not present. Never generate a face.",
             "YouTube thumbnails should be simple, readable at small sizes, and complement the title rather than repeat a full sentence.",
-            "face-hook: 2-5 words, curiosity-forward but accurate; choose a source timestamp likely to show the speaker during an emphatic statement.",
-            "doctrine: 2-5 words, a clear doctrinal statement actually supported by the transcript.",
-            "pathway: 1-5 words, clean and branded around the pathway/central biblical question.",
-            "The three concepts must differ materially in wording and intent so they are useful for YouTube thumbnail testing.",
+            "A: 2 to 5 words, curiosity forward but faithful to the speaker.",
+            "B: 2 to 5 words, accurate central idea, substantially different from A.",
+            "No hyphens or dashes in headline text. All question headlines end in a question mark.",
+            "Choose an approximate source timestamp with the presenter facing camera. The worker evaluates nearby true frames for closed mouth, open eyes, and face position.",
             "sourceTimestamp must be a timestamp from the supplied source transcript, not output time."
           ].join("\n") }] },
           { role: "user", content: [{ type: "input_text", text: [
@@ -121,7 +125,7 @@ export async function POST(request: Request) {
       const sourceTimestamp = Math.max(0, Math.min(transcript.duration, Number(item.sourceTimestamp || 0)));
       if (headline) byVariant.set(variant, { headline, sourceTimestamp });
     }
-    if (byVariant.size !== 3) throw new Error("Thumbnail director did not return all three required variants.");
+    if (byVariant.size !== 2) throw new Error("Thumbnail director did not return both A and B variants.");
 
     batchId = randomUUID();
     const callback = createWorkerCallbackToken();
@@ -168,7 +172,8 @@ export async function POST(request: Request) {
         source_range_start: project.source_range_start,
         source_range_end: project.source_range_end,
         project_title: project.title,
-        pathway_title: pathway?.title ?? "Apostolic Guide",
+        pathway_title: pathway?.title ?? profile.name,
+        brand_colors:{ink:profile.config.theme.ink,accent:profile.config.theme.accent,paper:profile.config.theme.paper},
         variants: workerVariants,
         callback_url: `${new URL(request.url).origin}/api/admin/video-producer/thumbnails/callback`,
         callback_token: callback.token
