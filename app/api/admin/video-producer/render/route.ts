@@ -55,7 +55,7 @@ export async function POST(request: Request) {
   if (!service) return NextResponse.json({ error: "Supabase service access is not configured." }, { status: 503 });
 
   const result = await service.from("video_producer_projects")
-    .select("id,title,mode,status,brand_profile,parent_project_id,pathway_slug,selected_music_track_id,source_provider,source_locator,source_filename,source_duration,source_range_start,source_range_end,transcript,edit_plan,camera_plan,audio_plan,director_metadata,approval_fingerprint,approved_at")
+    .select("id,title,mode,status,brand_profile,rnnoise_mix,parent_project_id,pathway_slug,selected_music_track_id,source_provider,source_locator,source_filename,source_duration,source_range_start,source_range_end,transcript,edit_plan,camera_plan,audio_plan,director_metadata,approval_fingerprint,approved_at")
     .eq("id", parsed.data.projectId).is("deleted_at", null).maybeSingle();
   if (result.error) return NextResponse.json({ error: result.error.message }, { status: 500 });
   const project = result.data;
@@ -83,7 +83,8 @@ export async function POST(request: Request) {
       camera_plan: project.camera_plan as VideoProducerCameraPlan | null,
       audio_plan: project.audio_plan as VideoProducerAudioPlan | null,
       brand_profile:brandProfile.slug,brand_config:brandProfile.config,
-      scene_document:(project.director_metadata as Record<string,unknown>|null)?.kineticSceneV2??null
+      scene_document:(project.director_metadata as Record<string,unknown>|null)?.kineticSceneV2??null,
+      rnnoise_mix:project.rnnoise_mix
     });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Production plan could not be compiled." }, { status: 422 });
@@ -157,7 +158,7 @@ export async function POST(request: Request) {
         } : null
       },
       source: { filename: project.source_filename, duration: project.source_duration, range: sourceRange },
-      renderPlan: {...(alignedScenes?{...renderPlan,overlays:[]}:renderPlan), brandAudioTarget:videoProducerBrandAudioTarget(brandProfile), rnnoiseMix:brandProfile.config.audio.rnnoiseMix},
+      renderPlan: {...(alignedScenes?{...renderPlan,overlays:[]}:renderPlan), brandAudioTarget:videoProducerBrandAudioTarget(brandProfile), rnnoiseMix:project.rnnoise_mix??brandProfile.config.audio.rnnoiseMix},
       transcript: localTranscript,
       musicTracks,
       ...(production.usesMulticam ? {
