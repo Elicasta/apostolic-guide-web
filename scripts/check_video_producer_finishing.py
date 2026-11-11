@@ -111,12 +111,8 @@ def main():
     os.chdir(ROOT)
     finishing = load("finishing_smoke", FINISH_PATH)
     assert "arnndn" not in finishing.audio_filter_v2({"audioPreset":"ag-voice-clean","rnnoiseMix":0})
-    try:
-        finishing.audio_filter_v2({"audioPreset":"ag-voice-clean","rnnoiseMix":.5})
-    except RuntimeError as error:
-        assert "VIDEO_PRODUCER_RNNOISE_MODEL" in str(error)
-    else:
-        assert os.environ.get("VIDEO_PRODUCER_RNNOISE_MODEL"), "RNNoise missing model must fail"
+    denoise_filter=finishing.audio_filter_v2({"audioPreset":"ag-voice-clean","rnnoiseMix":.5})
+    assert "arnndn=" in denoise_filter and denoise_filter.index("arnndn=")<denoise_filter.index("deesser="),denoise_filter
 
     thumbnail = load("thumbnail_smoke", THUMB_PATH)
     with tempfile.TemporaryDirectory(prefix="ag-finishing-smoke-") as d:
