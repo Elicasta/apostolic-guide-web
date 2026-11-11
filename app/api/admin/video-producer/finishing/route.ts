@@ -30,7 +30,7 @@ export async function GET(request: Request) {
 
   const [projectResult, tracksResult, thumbsResult, renderResult] = await Promise.all([
     service.from("video_producer_projects")
-      .select("id,title,mode,status,parent_project_id,pathway_slug,selected_music_track_id,publisher_render_id,source_duration,edit_plan,approval_fingerprint")
+      .select("id,title,mode,status,brand_profile,parent_project_id,pathway_slug,selected_music_track_id,publisher_render_id,source_duration,edit_plan,approval_fingerprint")
       .eq("id", projectId).maybeSingle(),
     service.from("video_producer_music_tracks")
       .select("id,title,source_provider,source_url,storage_locator,filename,content_type,size_bytes,duration_seconds,bpm,mood,tags,rights_note,active,updated_at")
