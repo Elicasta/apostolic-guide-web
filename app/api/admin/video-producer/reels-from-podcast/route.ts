@@ -17,7 +17,7 @@ export async function POST(request: Request) {
   if (!service) return NextResponse.json({ error: "Supabase service access is not configured." }, { status: 503 });
 
   const parentResult = await service.from("video_producer_projects")
-    .select("id,title,mode,status,pathway_slug,source_provider,source_locator,source_filename,source_mime_type,source_size_bytes,source_duration,transcript_text,transcript,reel_candidates,audio_plan")
+    .select("id,title,mode,status,brand_profile,pathway_slug,source_provider,source_locator,source_filename,source_mime_type,source_size_bytes,source_duration,transcript_text,transcript,reel_candidates,audio_plan")
     .eq("id", parsed.data.projectId).is("deleted_at", null).maybeSingle();
   if (parentResult.error) return NextResponse.json({ error: parentResult.error.message }, { status: 500 });
   const parent = parentResult.data;
@@ -53,6 +53,7 @@ export async function POST(request: Request) {
     status: "uploaded",
     parent_project_id: parent.id,
     pathway_slug: parent.pathway_slug ?? null,
+    brand_profile:parent.brand_profile||"apostolic-guide",
     source_provider: parent.source_provider,
     source_locator: parent.source_locator,
     source_filename: parent.source_filename,
