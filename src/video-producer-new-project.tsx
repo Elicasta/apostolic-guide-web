@@ -115,7 +115,7 @@ export function VideoProducerNewProject({ initialMode = "podcast" }: { initialMo
                 <button type="button" data-active={mode === "podcast"} disabled={busy} onClick={() => setMode("podcast")}><Film size={19}/><span><strong>Podcast</strong><small>Long-form · 16:9</small></span></button>
                 <button type="button" data-active={mode === "reels"} disabled={busy} onClick={() => setMode("reels")}><Smartphone size={19}/><span><strong>Reels</strong><small>Short-form · 9:16</small></span></button>
               </div>
-              <div className={styles.field} style={{ marginTop: 14 }}><label>Project title</label><input className={styles.input} disabled={busy} value={title} onChange={(event) => setTitle(event.target.value)} placeholder="God Is One — Episode 01"/></div>
+              <div className={styles.field} style={{ marginTop: 14 }}><label>Project title</label><input className={styles.input} disabled={busy} value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Why Did Jesus Pray?"/></div>
             </div>
 
             {needsPathway ? <div className={styles.panel}>
