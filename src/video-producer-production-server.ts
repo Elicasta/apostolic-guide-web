@@ -28,6 +28,7 @@ export type VideoProducerProductionProject = {
   brand_profile?: string;
   brand_config?: Record<string,unknown>;
   scene_document?: unknown;
+  rnnoise_mix?:number|null;
 };
 
 export type VideoProducerResolvedProduction = {
@@ -106,7 +107,8 @@ export async function resolveVideoProducerProductionState(service: ServiceClient
     ...videoProducerProductionFingerprintInput({ contentPlan: project.edit_plan, cameraPlan, audioPlan, media: usedMedia }),
     brandProfile:project.brand_profile??"apostolic-guide",
     brandConfig:project.brand_config??null,
-    kineticSceneV2:project.scene_document??null
+    kineticSceneV2:project.scene_document??null,
+    rnnoiseMix:project.rnnoise_mix??null
   };
   return {
     rootProjectId,
