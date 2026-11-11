@@ -1,7 +1,7 @@
 import "server-only";
 import {
   isVideoProducerWorkerStale,
-  VIDEO_PRODUCER_RENDER_STALE_MS,
+  videoProducerStalledRenderReason,
   VIDEO_PRODUCER_TRANSCRIPTION_STALE_MS
 } from "./video-producer-job-state";
 import type { ServiceClient } from "./video-producer-server";
@@ -54,17 +54,16 @@ export async function reconcileVideoProducerWorkerState(service: ServiceClient, 
   if (renderResult.error || !renderResult.data) return;
   const render = renderResult.data;
   const progress = record(render.progress);
-  const lastSignal = progress.heartbeatAt || render.requested_at;
-  if (!isVideoProducerWorkerStale(lastSignal, VIDEO_PRODUCER_RENDER_STALE_MS)) return;
+  const error = videoProducerStalledRenderReason({ status: render.status, requestedAt: render.requested_at, heartbeatAt: progress.heartbeatAt, stage: progress.stage });
+  if (!error) return;
 
   const now = new Date().toISOString();
-  const error = "Render worker stopped reporting progress. The approved edit is preserved and can be rendered again.";
   const snapshot = record(render.config_snapshot);
   const bridge = record(snapshot.rendererBridge);
   await Promise.all([
     service.from("video_producer_renders").update({
       status: "failed",
-      progress: { ...progress, stage: "Render timed out", heartbeatAt: now },
+      progress: { ...progress, stage: render.status === "queued" ? "GitHub worker did not start" : "Render heartbeat timed out", heartbeatAt: now, failureReason: error },
       error,
       completed_at: now,
       config_snapshot: {
