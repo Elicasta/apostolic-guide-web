@@ -1,16 +1,16 @@
 import {videoSceneDocument,sceneAt,propsAt,easingAt,type VideoSceneDocument,type VideoScene} from "./video-scenes";
 import {compileVideoBrandOverlayFrame} from "./video-brand-overlays";
 
-export type SceneFontMap=Partial<Record<"montserrat400"|"montserrat800"|"bebas400"|"cormorant400"|"cormorant700"|"playfairVariable",string>>;
+export type SceneFontMap=Partial<Record<"montserrat400"|"montserrat800"|"bebas400"|"cormorant400"|"cormorant700"|"playfairVariable"|"poppins400"|"poppins700",string>>;
 function htmlEscape(s:string){return s.replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]||c));}
 function cssEscape(s:string){return s.replace(/["\\]/g,c=>"\\"+c);}
 function fontsCss(fonts:SceneFontMap){
  const items:[keyof SceneFontMap,string,number][]=[
- ["montserrat400","Montserrat",400],["montserrat800","Montserrat",800],["bebas400","Bebas Neue",400],["cormorant400","Cormorant Garamond",400],["cormorant700","Cormorant Garamond",700]];
+ ["montserrat400","Montserrat",400],["montserrat800","Montserrat",800],["bebas400","Bebas Neue",400],["cormorant400","Cormorant Garamond",400],["cormorant700","Cormorant Garamond",700],["poppins400","Poppins",400],["poppins700","Poppins",700]];
  return items.flatMap(([key,family,weight])=>{
   const value=fonts[key];if(!value||!/^[A-Za-z0-9+/=]+$/.test(value))return [];
-  const ext=key.startsWith("montserrat")||key.startsWith("bebas")||key.startsWith("cormorant")?"woff":"woff";
-  return ['@font-face{font-family:"'+cssEscape(family)+'";font-weight:'+weight+';src:url(data:font/'+ext+';base64,'+value+') format("woff");font-display:block}'];
+  const ext=key.startsWith("poppins")?"ttf":"woff";
+  return ['@font-face{font-family:"'+cssEscape(family)+'";font-weight:'+weight+';src:url(data:font/'+ext+';base64,'+value+') format("'+(ext==="ttf"?"truetype":"woff")+'");font-display:block}'];
  }).join("\n")+(fonts.playfairVariable&&/^[A-Za-z0-9+/=]+$/.test(fonts.playfairVariable)?'\n@font-face{font-family:"Playfair Display";font-weight:100 900;src:url(data:font/ttf;base64,'+fonts.playfairVariable+') format("truetype");font-display:block}':'');
 }
 function clamp(v:number){return Math.min(1,Math.max(0,v));}
