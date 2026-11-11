@@ -6,7 +6,8 @@ import { getSocialPublishingCredentialValues } from "@/social-publishing-integra
 export const runtime = "nodejs";
 
 const CALLBACK_URL = "https://apostolicguide.com/api/admin/youtube/oauth/callback";
-const YOUTUBE_UPLOAD_SCOPE = "https://www.googleapis.com/auth/youtube.upload";
+// youtube.force-ssl is required only for adding uploaded videos to playlists.
+const YOUTUBE_UPLOAD_SCOPE = "https://www.googleapis.com/auth/youtube.upload https://www.googleapis.com/auth/youtube.force-ssl";
 
 export async function GET() {
   const { access, allowed } = await getStudioPermission("manage_integrations");
