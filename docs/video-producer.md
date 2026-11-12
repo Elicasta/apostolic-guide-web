@@ -114,6 +114,8 @@ The document also retains its required `tool`, `version`, `kind`, `id`, `format`
 
 All overlays are timed items. Allowed types include `intro`, `outro`, `logo`, `lowerThird`, `boxText`, `quote`, `captions`, and `shortsEnd`. The renderer directly reads `start`, `end`, `text`, `position`, and `preset`. Lower thirds must contain a full sentence or real quotation with punctuation, not a single word.
 
+Burned FFmpeg captions take their font, fill and word highlight colors from the selected profile. Personal captions use Poppins and the In the Now red, and the legacy AG logo bug is never inserted into personal output. AG captions keep their existing palette. This is applied to the compiled ASS render, not only the browser preview.
+
 Default intro/outro cards distribute series and title evenly. The outro copy occupies at most the upper 75% of the frame, leaving YouTube's lower 25% available for end screens. Logo bugs have a safe corner margin. Red box highlights use optical padding near 0.35em at the sides and 0.22em top/bottom. Word-sync timing uses the existing transcript-to-kept-segment mapping, not arbitrary text changes.
 
 ### Previews, font embedding, and safety
