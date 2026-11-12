@@ -68,7 +68,7 @@ const timedOverlay=z.object({
  }
 });
 function inertOverlayDocument(value:string):boolean {
- return !/<\s*(?:script|iframe|object|embed|video|audio|link|meta|base)\b|\bon\w+\s*=|javascript\s*:|@import\b|url\s*\(/i.test(value);
+ return !/<\s*(?:script|iframe|object|embed|video|audio|link|meta|base|button|form|input|textarea|select|option|a)\b|\bon\w+\s*=|javascript\s*:|@import\b|url\s*\(/i.test(value);
 }
 export const videoSceneDocument=z.object({
  tool:z.literal("video"),version:z.literal(2),
