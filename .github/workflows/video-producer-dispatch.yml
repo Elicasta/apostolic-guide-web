@@ -108,6 +108,8 @@ jobs:
               sudo apt-get install -y --no-install-recommends "$pkg"
             fi
           done
+          sudo install -d -m 755 /usr/local/share/fonts/video-producer-poppins
+          sudo install -m 644 public/fonts/poppins-regular.ttf public/fonts/poppins-bold.ttf /usr/local/share/fonts/video-producer-poppins/
           fc-cache -f >/dev/null 2>&1 || true
       - name: Write render payload
         env:
