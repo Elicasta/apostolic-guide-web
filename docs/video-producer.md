@@ -58,7 +58,7 @@ Profiles live in `public.video_producer_brand_profiles` and are validated throug
 
 `isSelectableVideoProducerBrand()` excludes all Cornerstone-branded profiles and handles. The API and database also reject Cornerstone destinations. Existing AG project rows automatically default to the AG profile. **Do not present Cornerstone channels in a selector.**
 
-If you want a real graphical In the Now logo rather than the text fallback, register an approved asset and assign its `assetPath` in the brand config. The compositor embeds it; it must not fetch `/brand` during worker export.
+If you want a graphical In the Now logo rather than the text fallback, upload a private image to the Video Producer graphics library and set `config.logo.assetId` to that registered image UUID through the protected brand profile API. The profile validator checks that the asset is active, private, an approved image format, and below 2 MB. The scene starter registers the logo by ID and the compositor embeds it, without fetching `/brand` or a signed URL during Chromium export. `assetPath` remains supported for existing bundled AG logos.
 
 ### Database changes
 
