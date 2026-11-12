@@ -164,7 +164,7 @@ The **In the Now** calendar is `/admin/video-producer/calendar`. It provides:
 - Default **6:00 PM America/New_York**, configurable per day. Time conversion accounts for daylight saving time and rejects nonexistent wall-clock times.
 - Editable title, description, thumbnail A/B or custom image, playlist ID, and local release date/time.
 - A separate **human confirmation** for each send to YouTube; no scheduler cron ever initiates an upload.
-- A stored YouTube video ID when accepted, which prevents blind duplicate retry if a later playlist or thumbnail step fails.
+- A stored YouTube video ID when accepted, which prevents blind duplicate retry if a later playlist or thumbnail step fails. A progress stage and percent are shown while the GitHub worker streams the review master.
 
 YouTube OAuth uses the existing upload authorization plus the scope required for playlist work. If the scope changed, the human account owner must reconnect YouTube in Admin Setup. The AG profile still uses its separate AG Publisher destination. Do not select or add a Cornerstone destination.
 
