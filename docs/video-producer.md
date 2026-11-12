@@ -71,6 +71,7 @@ Apply these in migration order to staging, then production after reviewing the P
 5. `20261111194500_video_producer_agent_api.sql`: hashed draft assistant tokens, asset authorizations, and preview records.
 6. `20261111210000_video_producer_schedule_safety.sql`: human-controlled release calendar fields, one active item per brand per day, immutable submitted state.
 7. `20261111211500_video_producer_brand_preset_revisions.sql`: durable named preset versions and restore history.
+8. `20261111213500_video_producer_schedule_worker.sql`: callback token hashes, progress, heartbeat and signed worker expiry.
 
 All new tables enable RLS. The admin API uses service-role database access **only after permissions are checked**. Do not publish service-role credentials to browser or agent clients.
 
@@ -168,7 +169,7 @@ The **In the Now** calendar is `/admin/video-producer/calendar`. It provides:
 
 YouTube OAuth uses the existing upload authorization plus the scope required for playlist work. If the scope changed, the human account owner must reconnect YouTube in Admin Setup. The AG profile still uses its separate AG Publisher destination. Do not select or add a Cornerstone destination.
 
-**Operational limit:** The scheduled YouTube upload currently happens in an authenticated Vercel request (`maxDuration = 300`). Large episodes can exceed that runtime or memory budget; leave the release in draft and transfer long-form media via a worker before treating this path as ready for unattended large uploads. Never resubmit after an unknown YouTube outcome without checking YouTube Studio first.
+**Streaming release worker:** Human confirmation calls the authenticated submit endpoint, which checks the approved render fingerprint and the exact OAuth-linked brand channel, then dispatches `video-producer-youtube-schedule` through GitHub Actions. The Python worker streams 8 MB private Blob chunks to a resumable YouTube session, refreshes short-lived Google tokens through a hashed callback broker, records the confirmed YouTube video ID before thumbnail/playlist work, and reports progress. The Vercel function does not upload the video bytes. Never resubmit an unknown YouTube outcome before inspecting YouTube Studio.
 
 ## Draft-only agent API
 
