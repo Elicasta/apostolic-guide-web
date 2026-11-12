@@ -7,8 +7,8 @@ import {VideoProducerDoctrinePanel} from "../video-producer-doctrine-panel";
 
 const library=[
  {name:"Scripture reveal",layer:"overlay" as const,text:"Hear, O Israel: The LORD our God is one LORD."},
- {name:"Statement punch",layer:"overlay" as const,text:"JESUS IS GOD"},
- {name:"Lower third",layer:"lowerthird" as const,text:"APOSTOLIC GUIDE"},
+ {name:"Statement punch",layer:"overlay" as const,text:"Jesus is God."},
+ {name:"Lower third",layer:"lowerthird" as const,text:"This is the central point."},
  {name:"Question stack",layer:"fullframe" as const,text:"WHO IS JESUS?"},
  {name:"Split comparison",layer:"fullframe" as const,text:"CLAIM / SCRIPTURE"},
  {name:"List build",layer:"fullframe" as const,text:"ONE GOD"},
