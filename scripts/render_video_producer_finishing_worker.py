@@ -101,6 +101,66 @@ def _even(value, minimum=2):
     return max(minimum, int(round(float(value) / 2.0) * 2))
 
 
+def face_crop_x_expression(focus=0.5):
+    """Keep a detected frontal face centered in the native source crop.
+
+    FFmpeg clamps at the edges so a near-edge face remains visible rather than
+    requesting pixels outside the source. This never invents or edits a face.
+    """
+    focus = _clamp(float(focus), 0.0, 1.0)
+    frame_crop = "min(iw,ih*9/16)"
+    return (f"x='max(0,min(iw-{frame_crop},iw*{focus:.5f}-{frame_crop}/2))'")
+
+
+def estimate_face_focus(source, source_range=None, max_samples=13):
+    """Estimate stable talking-head horizontal position from genuine frames.
+
+    The optional OpenCV Haar detector is installed on the Actions render worker.
+    Fallback is the original centered crop when there are too few detections.
+    """
+    try:
+        import cv2
+        from statistics import median
+    except ImportError:
+        print("OpenCV unavailable; using center reframe", flush=True)
+        return 0.5
+    cap = cv2.VideoCapture(source)
+    if not cap.isOpened():
+        return 0.5
+    try:
+        duration = float(cap.get(cv2.CAP_PROP_FRAME_COUNT) or 0) / max(1.0, float(cap.get(cv2.CAP_PROP_FPS) or 30))
+        start = max(0.0, float((source_range or {}).get("start", 0)))
+        end = min(duration, float((source_range or {}).get("end", duration)))
+        if end <= start or duration <= 0:
+            return 0.5
+        cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
+        if cascade.empty():
+            return 0.5
+        positions = []
+        for index in range(max_samples):
+            t = start + (end - start) * (index + 0.5) / max_samples
+            cap.set(cv2.CAP_PROP_POS_MSEC, t * 1000)
+            ok, frame = cap.read()
+            if not ok:
+                continue
+            height, width = frame.shape[:2]
+            if min(height, width) <= 0:
+                continue
+            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            faces = cascade.detectMultiScale(gray, scaleFactor=1.12, minNeighbors=5,
+                                             minSize=(max(45, width//18), max(45, height//18)))
+            if len(faces):
+                x, _y, face_width, _height = max(faces, key=lambda item: int(item[2])*int(item[3]))
+                positions.append(_clamp((x + face_width * .5) / width, .06, .94))
+        if len(positions) < 2:
+            return 0.5
+        focus = _clamp(float(median(positions)), 0.06, 0.94)
+        print(f"Real-frame presenter horizontal focus: {focus:.3f} from {len(positions)} samples", flush=True)
+        return focus
+    finally:
+        cap.release()
+
+
 def reel_motion_intervals(plan):
     duration = max(0.0, float(plan.get("outputDuration") or 0))
     if duration <= 0:
@@ -159,8 +219,8 @@ def motion_crop(scale, fx, fy):
 def append_reel_motion_graph(graph, plan):
     graph.append(
         "[vcat]fps=30,crop=w='min(iw,ih*9/16)':h=ih:"
-        "x='(iw-min(iw,ih*9/16))*0.5':y=0,"
-        "scale=1080:1920:flags=fast_bilinear,setsar=1[vbase]"
+        + face_crop_x_expression(plan.get("faceFocusX", 0.5))
+        + ":y=0,scale=1080:1920:flags=fast_bilinear,setsar=1[vbase]"
     )
     intervals = reel_motion_intervals(plan)
     if not intervals:
@@ -189,9 +249,10 @@ def append_reel_motion_graph(graph, plan):
     return "vmotion"
 
 
-def video_normalize_chain(mode):
+def video_normalize_chain(mode, face_focus=0.5):
     if mode == "reels":
-        return "fps=30,crop=w='min(iw,ih*9/16)':h=ih:x='(iw-min(iw,ih*9/16))*0.5':y=0,scale=1080:1920:flags=fast_bilinear,setsar=1"
+        return ("fps=30,crop=w='min(iw,ih*9/16)':h=ih:" + face_crop_x_expression(face_focus)
+                + ":y=0,scale=1080:1920:flags=fast_bilinear,setsar=1")
     return "fps=30,scale=1920:1080:force_original_aspect_ratio=decrease:flags=fast_bilinear,pad=1920:1080:(ow-iw)/2:(oh-ih)/2:black,setsar=1"
 
 
@@ -247,7 +308,7 @@ def build_ffmpeg_multicam(manifest, source, ass_file, output_file):
     source_range_start = float(multicam.get("sourceRangeStart") or 0)
     graph = []
     video_labels = []
-    normalize = video_normalize_chain(mode)
+    normalize = video_normalize_chain(mode, plan.get("faceFocusX", 0.5))
     for index, segment in enumerate(camera_ranges):
         local_start = float(segment["start"])
         local_end = float(segment["end"])
@@ -436,6 +497,12 @@ def main():
             local_path = os.path.join(directory, f"music-{index}")
             bw.base.download(url, local_path)
             track["localPath"] = local_path
+
+        if manifest.get("project", {}).get("mode") == "reels":
+            # Crop real frames around the presenter. This is derived locally
+            # from approved footage and does not mutate the saved edit plan.
+            manifest["renderPlan"]["faceFocusX"] = estimate_face_focus(
+                source_path, (manifest.get("source") or {}).get("range"))
 
         bw.base.callback(payload, "rendering", 12, "Building Graphics V2 and mastering chain")
         build_broadcast_ass_v2(manifest, ass_path)
