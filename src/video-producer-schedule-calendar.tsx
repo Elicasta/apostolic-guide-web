@@ -6,7 +6,7 @@ import {CalendarDays,CheckCircle2,ExternalLink,Loader2,ShieldCheck,Upload} from 
 type Project={id:string;title:string;mode:"podcast"|"reels";status:string;hasSource:boolean};
 type Draft={id:string;project_id:string;brand_slug:string;channel_handle:string;local_date:string;local_time:string;publish_at:string;title:string;description:string;playlist_id:string|null;thumbnail_variant:"A"|"B"|null;status:string;youtube_video_id:string|null;error_message:string|null};
 type Brand={slug:string;name:string;config:{destination:{type:string;youtubeHandle:string|null}}};
-type Loaded={brand:Brand;defaultSlot:{localDate:string;localTime:string};projects:Project[];drafts:Draft[]};
+type Loaded={brand:Brand;profiles:Brand[];defaultSlot:{localDate:string;localTime:string};projects:Project[];drafts:Draft[]};
 type Channel={id:string;handle:string;title:string};
 async function json<T>(url:string,init?:RequestInit):Promise<T>{
  const response=await fetch(url,{...init,cache:"no-store",
@@ -18,6 +18,7 @@ async function json<T>(url:string,init?:RequestInit):Promise<T>{
 const localLabel=(date:string,time:string)=>new Date(date+"T12:00:00Z").toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric",timeZone:"UTC"})+" at "+time+" ET";
 export function VideoProducerScheduleCalendar(){
  const [data,setData]=useState<Loaded|null>(null);
+ const [brandSlug,setBrandSlug]=useState("in-the-now");
  const [channels,setChannels]=useState<Channel[]>([]);
  const [selected,setSelected]=useState<string[]>([]);
  const [start,setStart]=useState(""),[clock,setClock]=useState("18:00");
@@ -25,19 +26,19 @@ export function VideoProducerScheduleCalendar(){
  const [busy,setBusy]=useState(""),[error,setError]=useState(""),[message,setMessage]=useState("");
  const [edits,setEdits]=useState<Record<string,Partial<Draft>>>({});
  const load=useCallback(async()=>{
-  const result=await json<Loaded>("/api/admin/video-producer/schedule?brand=in-the-now");
+  const result=await json<Loaded>("/api/admin/video-producer/schedule?brand="+encodeURIComponent(brandSlug));
   setData(result);setStart(current=>current||result.defaultSlot.localDate);
   setClock(current=>current||result.defaultSlot.localTime);
   setChannel(result.brand.config.destination.youtubeHandle||"");
- },[]);
+ },[brandSlug]);
  useEffect(()=>{
   let live=true;
   void Promise.resolve().then(load).catch(e=>{if(live)setError(e instanceof Error?e.message:"Could not load calendar");});
-  void json<{channels:Channel[]}>("/api/admin/video-producer/youtube-channels?brand=in-the-now")
+  void json<{channels:Channel[]}>("/api/admin/video-producer/youtube-channels?brand="+encodeURIComponent(brandSlug))
    .then(result=>{if(live)setChannels(result.channels||[]);})
    .catch(e=>{if(live)setError(e instanceof Error?e.message:"Connect YouTube in Admin Setup.");});
   return ()=>{live=false;};
- },[load]);
+ },[load,brandSlug]);
  const byId=new Map((data?.projects||[]).map(project=>[project.id,project]));
  const projectAvailable=(data?.projects||[]).filter(p=>p.hasSource&&p.status!=="failed");
  const drafts=data?.drafts||[];
@@ -63,7 +64,7 @@ export function VideoProducerScheduleCalendar(){
   <header className="vp-calendar-head">
    <div><Link href="/admin/video-producer" className="vp-calendar-back">Video Producer</Link>
     <div className="vp-calendar-eyebrow"><CalendarDays size={16}/> Release calendar</div>
-    <h1>Schedule In the Now</h1><p>One video per day, alternating full episodes and Shorts. Nothing is sent to YouTube until you confirm each item.</p>
+    <h1>{data?.brand.name || "Video release calendar"}</h1><p>One video per day, alternating full episodes and Shorts. Nothing is sent to YouTube until you confirm each item.</p>
    </div>
    <span className="vp-calendar-pill"><ShieldCheck size={15}/> Human approval required</span>
   </header>
@@ -72,6 +73,12 @@ export function VideoProducerScheduleCalendar(){
   <section className="vp-calendar-panel">
    <div className="vp-calendar-heading"><h2>Build a calendar</h2><p>Select rendered or in-progress projects. The final upload button becomes available after each video is reviewed.</p></div>
    <div className="vp-calendar-fields">
+    <label>Brand profile<select value={brandSlug} onChange={e=>{
+     setBrandSlug(e.target.value);setSelected([]);setEdits({});setStart("");
+     setChannels([]);setChannel("");setData(null);setError("");setMessage("");
+    }}>
+     {(data?.profiles||[]).map(profile=><option value={profile.slug} key={profile.slug}>{profile.name}</option>)}
+    </select></label>
     <label>Channel<select value={channel} onChange={e=>setChannel(e.target.value)}>
      {channels.length?channels.map(ch=><option key={ch.id} value={ch.handle}>{ch.title} ({ch.handle})</option>):<option value="">YouTube not verified</option>}
     </select></label>
