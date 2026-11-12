@@ -18,7 +18,7 @@ export async function POST(request:Request,context:{params:Promise<{id:string}>}
   .eq("id",jobId).maybeSingle();
  if(r.error)return NextResponse.json({error:"Unavailable"},{status:503});
  const job=r.data;
- if(!job||job.status!=="submitting"||!job.worker_callback_token_hash||
+ if(!job||!["submitting","submitted"].includes(job.status)||!job.worker_callback_token_hash||
    !job.worker_token_expires_at||new Date(job.worker_token_expires_at)<new Date()||
    !workerTokenMatches(parsed.data.token,job.worker_callback_token_hash))
   return NextResponse.json({error:"Invalid or expired schedule worker token"},{status:403});
