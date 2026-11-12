@@ -16,7 +16,7 @@ This is **one editor and one processing pipeline**. It does not depend on Remoti
 | Create a Video Producer project | `/admin/video-producer/new` |
 | Project source and finishing flow | `/admin/video-producer/[id]/source` and corresponding existing stages |
 | Kinetic Video Code Mode | `/admin/code-mode/video-v2` |
-| In the Now release calendar | `/admin/video-producer/calendar` |
+| Brand restricted YouTube release calendar | `/admin/video-producer/calendar` |
 
 The existing AG video studio/publishing routes remain available to the Apostolic Guide profile.
 
