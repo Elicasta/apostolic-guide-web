@@ -267,7 +267,7 @@ jobs:
   youtube_schedule:
     if: github.event.action == 'video-producer-youtube-schedule'
     runs-on: ubuntu-latest
-    timeout-minutes: 360
+    timeout-minutes: 240
     env:
       WORKER_REF: ${{ github.event.client_payload.worker_ref || github.event.repository.default_branch }}
     steps:
