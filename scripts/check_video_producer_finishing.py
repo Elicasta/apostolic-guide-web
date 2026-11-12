@@ -107,6 +107,36 @@ def reel_manifest():
     }
 
 
+def check_personal_caption_brand(finishing):
+    """A personal podcast must never inherit AG logo and caption colors."""
+    manifest = reel_manifest()
+    manifest["brand"] = {
+        "profile": "in-the-now",
+        "config": {
+            "theme": {"ink": "#220909"},
+            "captions": {"font": "Poppins", "fill": "#FFF9F2", "highlight": "#6A0000"}
+        }
+    }
+    manifest["renderPlan"]["captions"] = {
+        "enabled": True, "style": "kinetic-clean", "animation": "highlight",
+        "maxWordsPerCard": 5, "highlightCurrentWord": True
+    }
+    manifest["transcript"]["words"] = [
+        {"word": "A", "start": .3, "end": .5},
+        {"word": "true", "start": .5, "end": .8},
+        {"word": "sentence.", "start": .8, "end": 1.2}
+    ]
+    with tempfile.TemporaryDirectory(prefix="personal-caption-proof-") as temporary:
+        output = os.path.join(temporary, "brand.ass")
+        finishing.build_broadcast_ass_v2(manifest, output)
+        with open(output, encoding="utf-8") as handle:
+            document = handle.read()
+        assert "Style: Caption,Poppins," in document
+        assert "&H00F2F9FF" in document  # Personal fill
+        assert "\\c&H00006A&" in document  # Personal red highlight, ASS BGR
+        assert "APOSTOLIC GUIDE" not in document.upper()
+
+
 def check_real_face_reframe_contract(finishing):
     # Even without OpenCV, 9:16 crops are bounded and source-center by default.
     expression = finishing.face_crop_x_expression(.35)
@@ -122,6 +152,7 @@ def main():
     os.chdir(ROOT)
     finishing = load("finishing_smoke", FINISH_PATH)
     check_real_face_reframe_contract(finishing)
+    check_personal_caption_brand(finishing)
     assert "arnndn" not in finishing.audio_filter_v2({"audioPreset":"ag-voice-clean","rnnoiseMix":0})
     denoise_filter=finishing.audio_filter_v2({"audioPreset":"ag-voice-clean","rnnoiseMix":.5})
     assert "arnndn=" in denoise_filter and denoise_filter.index("arnndn=")<denoise_filter.index("deesser="),denoise_filter
