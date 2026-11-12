@@ -4,6 +4,8 @@ import { videoProducerDoctrineSource } from "@/video-producer-doctrine";
 import { z } from "zod";
 import { getStudioPermission } from "@/auth";
 import { createServiceClient } from "@/supabase";
+import {getVideoProducerBrand} from "@/video-producer-brand-server";
+import {requiresVideoProducerDoctrineGate,requiresVideoProducerPathway} from "@/video-producer-brand-profiles";
 import { compileVideoProducerRenderPlan, type VideoProducerEditPlan } from "@/video-producer";
 import type { VideoProducerAudioPlan, VideoProducerCameraPlan } from "@/video-producer-multicam";
 import { resolveVideoProducerProductionState } from "@/video-producer-production-server";
@@ -20,7 +22,7 @@ export async function POST(request: Request) {
   const service = createServiceClient();
   if (!service) return NextResponse.json({ error: "Supabase service access is not configured." }, { status: 503 });
   const project = await service.from("video_producer_projects")
-    .select("id,parent_project_id,mode,status,source_duration,source_range_start,source_range_end,edit_plan,camera_plan,audio_plan,director_metadata,transcript,transcript_text,pathway_slug,updated_at")
+    .select("id,parent_project_id,mode,status,brand_profile,rnnoise_mix,source_duration,source_range_start,source_range_end,edit_plan,camera_plan,audio_plan,director_metadata,transcript,transcript_text,pathway_slug,updated_at")
     .eq("id", parsed.data.projectId).is("deleted_at", null).maybeSingle();
   if (project.error) return NextResponse.json({ error: project.error.message }, { status: 500 });
   if (!project.data?.edit_plan || (project.data.mode !== "podcast" && project.data.mode !== "reels")) return NextResponse.json({ error: "Generate an edit plan before approval." }, { status: 409 });
@@ -36,9 +38,18 @@ export async function POST(request: Request) {
   if (project.data.status !== "planned" && project.data.status !== "draft") {
     return NextResponse.json({ error: "Only editable Producer drafts can be approved." }, { status: 409 });
   }
+  let brand;
+  try {brand=await getVideoProducerBrand(service,project.data.brand_profile||"apostolic-guide");}
+  catch(error){return NextResponse.json({error:error instanceof Error?error.message:"Brand unavailable"},{status:409});}
+  if(requiresVideoProducerPathway(brand,project.data.mode)&&!project.data.pathway_slug)
+   return NextResponse.json({error:"An Apostolic Guide podcast needs a pathway before approval."},{status:409});
+  if(brand.slug==="in-the-now"&&!(project.data.director_metadata as Record<string,unknown>|null)?.kineticSceneV2)
+   return NextResponse.json({error:"Save the In the Now brand preset in Kinetic Video Code Mode before approving. Only saved scenes can be rendered."},{status:409});
   try {
+    if(requiresVideoProducerDoctrineGate(brand)){
     const source = videoProducerDoctrineSource(project.data);
     await assertDoctrineApproved(service, source);
+    }
   } catch (error) {
     return NextResponse.json({
       error: error instanceof Error ? error.message : "Doctrine check unavailable. Approval blocked."
@@ -55,7 +66,10 @@ export async function POST(request: Request) {
       source_range_end: project.data.source_range_end,
       edit_plan: plan,
       camera_plan: project.data.camera_plan as VideoProducerCameraPlan | null,
-      audio_plan: project.data.audio_plan as VideoProducerAudioPlan | null
+      audio_plan: project.data.audio_plan as VideoProducerAudioPlan | null,
+      brand_profile:brand.slug,brand_config:brand.config,
+      scene_document:(project.data.director_metadata as Record<string,unknown>|null)?.kineticSceneV2??null,
+      rnnoise_mix:project.data.rnnoise_mix
     });
     const now = new Date().toISOString();
     const update = await service.from("video_producer_projects").update({

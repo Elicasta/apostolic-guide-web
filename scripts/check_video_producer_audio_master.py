@@ -34,6 +34,8 @@ def video_digest(path):
 
 def main():
     assert target_for_plan({"audioPreset": "none"}) is None
+    assert target_for_plan({"audioPreset": "ag-voice-clean","brandAudioTarget":{"integrated":-14,"truePeak":-1.5,"lra":7}}) == {"integrated":-14,"truePeak":-1.5,"lra":7}
+    assert target_for_plan({"audioPreset": "ag-voice-clean"})["integrated"] == -16
     with tempfile.TemporaryDirectory(prefix="ag-audio-master-") as directory:
         voice = os.path.join(directory, "voice.mp4")
         mix = os.path.join(directory, "mix.mp4")
@@ -50,6 +52,12 @@ def main():
             assert report["after"]["input_tp"] <= -.75, report
             assert video_digest(mix) == video_digest(output), "Video was reencoded by mastering"
             assert os.stat(output).st_size > 1024
+        personal_plan={"audioPreset":"ag-voice-clean","brandAudioTarget":{"integrated":-14,"truePeak":-1.5,"lra":7}}
+        personal_out=os.path.join(directory,"personal.mp4")
+        personal_report=master_packaged_audio(mix,personal_out,personal_plan,tolerance=.5)
+        assert abs(personal_report["after"]["input_i"]+14)<=.5,personal_report
+        assert personal_report["after"]["input_tp"]<=-1.25,personal_report
+        assert video_digest(mix)==video_digest(personal_out)
         print("Video Producer post-mix mastering regression passed")
 
 

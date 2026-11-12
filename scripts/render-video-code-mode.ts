@@ -14,6 +14,7 @@ import {chromium} from "playwright";
 import {videoSceneDocument} from "../src/code-mode/video-scenes";
 import {renderVideoSceneFrame,type SceneFontMap} from "../src/code-mode/video-scene-frame";
 import {footageFilter} from "../src/code-mode/video-footage-motion";
+import {detectVideoTextOverflow} from "../src/code-mode/video-scene-overflow";
 
 const fontNames:Record<keyof SceneFontMap,string>={
  montserrat400:"montserrat-400.woff",
@@ -21,7 +22,8 @@ const fontNames:Record<keyof SceneFontMap,string>={
  bebas400:"bebas-400.woff",
  cormorant400:"cormorant-400.woff",
  cormorant700:"cormorant-700.woff",
- playfairVariable:"playfair-display-variable.ttf"
+ playfairVariable:"playfair-display-variable.ttf",
+ poppins400:"poppins-regular.ttf",poppins700:"poppins-bold.ttf"
 };
 const safeNumber=(raw:string|undefined,fallback:number)=>{
  if(raw===undefined)return fallback;
@@ -38,6 +40,13 @@ async function fontMap(){
 }
 async function graphicData(doc:ReturnType<typeof videoSceneDocument.parse>){
  const resolved:Record<string,string>={};
+ const localLogo=(doc.style as Record<string,unknown>).logoAssetPath;
+ if(typeof localLogo==="string"&&new RegExp("^public/brand/[a-zA-Z0-9._-]+[.](png|jpe?g|webp)$").test(localLogo)){
+  const bytes=await readFile(resolve(process.cwd(),localLogo));
+  if(bytes.length>2*1024*1024)throw new Error("Brand logo exceeds 2MB.");
+  const type=localLogo.endsWith(".png")?"png":localLogo.endsWith(".webp")?"webp":"jpeg";
+  resolved.__brand_logo="data:image/"+type+";base64,"+bytes.toString("base64");
+ }
  for(const asset of doc.assets){
   if(!asset.resolvedUrl)throw new Error("Graphic "+asset.id+" has no signed render URL.");
   const url=new URL(asset.resolvedUrl);
@@ -63,7 +72,7 @@ export async function renderSceneVideo(args:string[]){
  const [documentPath,source,output]=args;
  const doc=videoSceneDocument.parse(JSON.parse(await readFile(documentPath,"utf-8")));
  const start=safeNumber(args[3],0);
- const total=Math.max(...doc.scenes.map(s=>s.end));
+ const total=Math.max(...doc.scenes.map(s=>s.end),...(doc.overlays||[]).map(s=>s.end));
  const duration=safeNumber(args[4],total-start);
  if(duration<=0||duration>3600)throw new Error("Proof duration must be between 0 and 3600 seconds");
  const fps=doc.format.fps,count=Math.ceil(duration*fps);
@@ -101,6 +110,11 @@ export async function renderSceneVideo(args:string[]){
     document.body.innerHTML=html;
     await Promise.all(Array.from(document.images).map(img=>img.decode().catch(()=>{})));
    },body);
+   if(frame===0||frame%15===0||doc.overlays?.some(o=>Math.abs(o.start-clock)<1/fps||Math.abs(o.end-clock)<1/fps)){
+    await page.evaluate(()=>document.fonts.ready);
+    const overflow=await page.evaluate(detectVideoTextOverflow as () => string[]);
+    if(overflow.length)throw new Error("Text overflow at "+clock.toFixed(2)+"s: "+overflow.join("; ")+". Adjust text, spacing or timing before final rendering.");
+   }
    const png=await page.screenshot({omitBackground:true,animations:"disabled"});
    const pngPath=join(dir,String(frame).padStart(6,"0")+".png");
    // Chromium encodes fully opaque frames as PNG RGB but transparent scenes

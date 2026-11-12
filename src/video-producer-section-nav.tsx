@@ -1,12 +1,13 @@
-import { Film, Images, Smartphone } from "lucide-react";
+import { CalendarDays, Film, Images, Smartphone } from "lucide-react";
 import Link from "next/link";
 import styles from "./video-producer-library.module.css";
 
-export type VideoProducerSection = "projects" | "episodes" | "reels" | "graphics";
+export type VideoProducerSection = "projects" | "episodes" | "reels" | "graphics" | "calendar";
 
 const items = [
   { id: "projects" as const, label: "Projects", href: "/admin/video-producer", icon: Film },
   { id: "reels" as const, label: "Reels", href: "/admin/video-producer/reels", icon: Smartphone },
+  { id: "calendar" as const, label: "Calendar", href: "/admin/video-producer/calendar", icon: CalendarDays },
   { id: "graphics" as const, label: "Graphics", href: "/admin/video-producer/graphics", icon: Images }
 ];
 

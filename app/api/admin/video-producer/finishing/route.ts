@@ -13,7 +13,8 @@ const patchSchema = z.object({
   pathwaySlug: z.string().nullable().optional(),
   musicTrackId: z.string().uuid().nullable().optional(),
   audioPreset: z.enum(["ag-voice-clean", "ag-voice-punch", "none"]).optional(),
-  colorPreset: z.enum(["ag-studio", "ag-warm", "ag-clean", "none"]).optional()
+  colorPreset: z.enum(["ag-studio", "ag-warm", "ag-clean", "none"]).optional(),
+  rnnoiseMix: z.number().min(0).max(1).optional()
 });
 
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -30,7 +31,7 @@ export async function GET(request: Request) {
 
   const [projectResult, tracksResult, thumbsResult, renderResult] = await Promise.all([
     service.from("video_producer_projects")
-      .select("id,title,mode,status,parent_project_id,pathway_slug,selected_music_track_id,publisher_render_id,source_duration,edit_plan,approval_fingerprint")
+      .select("id,title,mode,status,brand_profile,rnnoise_mix,parent_project_id,pathway_slug,selected_music_track_id,publisher_render_id,source_duration,edit_plan,approval_fingerprint")
       .eq("id", projectId).maybeSingle(),
     service.from("video_producer_music_tracks")
       .select("id,title,source_provider,source_url,storage_locator,filename,content_type,size_bytes,duration_seconds,bpm,mood,tags,rights_note,active,updated_at")
@@ -93,7 +94,7 @@ export async function PATCH(request: Request) {
   if (!service) return NextResponse.json({ error: "Supabase service access is not configured." }, { status: 503 });
 
   const result = await service.from("video_producer_projects")
-    .select("id,mode,status,parent_project_id,source_duration,transcript_text,edit_plan,pathway_slug,selected_music_track_id")
+    .select("id,mode,status,rnnoise_mix,parent_project_id,source_duration,transcript_text,edit_plan,pathway_slug,selected_music_track_id")
     .eq("id", parsed.data.projectId).maybeSingle();
   if (result.error) return NextResponse.json({ error: result.error.message }, { status: 500 });
   const project = result.data;
@@ -159,6 +160,10 @@ export async function PATCH(request: Request) {
     invalidateApproval = true;
   }
 
+  if(parsed.data.rnnoiseMix!==undefined&&Number(project.rnnoise_mix??0)!==parsed.data.rnnoiseMix){
+   updates.rnnoise_mix=parsed.data.rnnoiseMix;
+   invalidateApproval=true;
+  }
   if (planChanged && nextPlan) updates.edit_plan = nextPlan;
 
   if (invalidateApproval) {

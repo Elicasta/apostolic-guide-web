@@ -6,6 +6,7 @@ actual rendered master for phone readability and pathway orientation.
 """
 import importlib.util
 import os
+import re
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 V1_PATH = os.path.join(ROOT, "scripts", "video_producer_broadcast_graphics.py")
@@ -245,6 +246,30 @@ def add_pathway_followers(lines, manifest, width, height):
             render_left_follower(lines, start, end, width, height, pathway, chapter["stop"], title)
 
 
+def caption_brand_tokens(manifest):
+    """Return a validated, brand-owned font and ASS BGR color palette."""
+    brand = manifest.get("brand") or {}
+    config = brand.get("config") or {}
+    captions = config.get("captions") or {}
+    theme = config.get("theme") or {}
+
+    def color(raw, fallback):
+        if not isinstance(raw, str) or not re.fullmatch(r"#[0-9a-fA-F]{6}", raw):
+            return fallback
+        value = raw[1:].upper()
+        return value[4:6] + value[2:4] + value[0:2]
+
+    name = captions.get("font")
+    font = name if isinstance(name, str) and re.fullmatch(r"[A-Za-z][A-Za-z0-9 ]{0,79}", name) else g.BODY_FONT
+    return {
+        "font": font,
+        "fill": color(captions.get("fill"), g.WARM),
+        "highlight": color(captions.get("highlight"), g.RED),
+        "ink": color(theme.get("ink"), g.NAVY),
+        "slug": brand.get("profile") or "apostolic-guide"
+    }
+
+
 def build_broadcast_ass_v2(manifest, target):
     plan = manifest["renderPlan"]
     output = plan["output"]
@@ -252,6 +277,7 @@ def build_broadcast_ass_v2(manifest, target):
     portrait = height > width
     captions = plan.get("captions") or {}
     pathway = _pathway(manifest)
+    branded = caption_brand_tokens(manifest)
 
     caption_size = 94 if portrait else 56
     if captions.get("style") == "editorial":
@@ -266,7 +292,7 @@ def build_broadcast_ass_v2(manifest, target):
         "Format: Name,Fontname,Fontsize,PrimaryColour,SecondaryColour,OutlineColour,BackColour,Bold,Italic,Underline,StrikeOut,ScaleX,ScaleY,Spacing,Angle,BorderStyle,Outline,Shadow,Alignment,MarginL,MarginR,MarginV,Encoding",
         f"Style: Base,{g.BODY_FONT},42,&H00{g.WARM},&H00{g.WARM},&H00{g.NAVY},&H00000000,0,0,0,0,100,100,0,0,1,0,0,7,0,0,0,1",
         f"Style: Shape,{g.BODY_FONT},10,&H00{g.WARM},&H00{g.WARM},&H00{g.NAVY},&H00000000,0,0,0,0,100,100,0,0,1,0,0,7,0,0,0,1",
-        f"Style: Caption,{g.BODY_FONT},{caption_size},&H00{g.WARM},&H00{g.WARM},&H00{g.NAVY},&H76000000,-1,0,0,0,100,100,0,0,1,{7 if portrait else 5},1,2,70,70,{margin_v},1",
+        f"Style: Caption,{branded['font']},{caption_size},&H00{branded['fill']},&H00{branded['fill']},&H00{branded['ink']},&H76000000,-1,0,0,0,100,100,0,0,1,{7 if portrait else 5},1,2,70,70,{margin_v},1",
         "", "[Events]", "Format: Layer,Start,End,Style,Name,MarginL,MarginR,MarginV,Effect,Text",
     ]
 
@@ -285,10 +311,10 @@ def build_broadcast_ass_v2(manifest, target):
                 cstart = word["start"]
                 cend = group[index + 1]["start"] if index + 1 < len(group) else max(word["end"], cstart + .18)
                 animation_tag = "{\\fad(60,70)}" if animation in ("rise", "pop", "highlight") else ""
-                g.event(lines, cstart, cend, "Caption", animation_tag + g.caption_markup(group, index, style, highlight), layer=8)
+                g.event(lines, cstart, cend, "Caption", animation_tag + g.caption_markup(group, index, style, highlight, branded["highlight"]), layer=8)
 
     output_duration = float(plan.get("outputDuration") or 0)
-    if output_duration > 0 and not pathway:
+    if output_duration > 0 and not pathway and branded["slug"] == "apostolic-guide":
         g.render_brand_bug(lines, 0, output_duration, width, height)
 
     ordinal = 0

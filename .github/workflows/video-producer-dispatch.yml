@@ -2,7 +2,7 @@ name: Video Producer dispatcher
 
 on:
   repository_dispatch:
-    types: [video-producer-transcribe, video-producer-sync, video-producer-render, video-producer-thumbnail, video-producer-publisher-handoff]
+    types: [video-producer-transcribe, video-producer-sync, video-producer-render, video-producer-thumbnail, video-producer-publisher-handoff, video-producer-agent-preview, video-producer-youtube-schedule]
 
 permissions:
   contents: read
@@ -19,7 +19,7 @@ jobs:
         shell: bash
         run: |
           case "$WORKER_REF" in
-            main|codex/video-producer) ;;
+            main|codex/video-producer|codex/video-producer-brand-episodes) ;;
             *) echo "Refusing untrusted Video Producer worker ref: $WORKER_REF" >&2; exit 1 ;;
           esac
       - name: Check out requested worker ref
@@ -59,7 +59,7 @@ jobs:
         shell: bash
         run: |
           case "$WORKER_REF" in
-            main|codex/video-producer) ;;
+            main|codex/video-producer|codex/video-producer-brand-episodes) ;;
             *) echo "Refusing untrusted Video Producer worker ref: $WORKER_REF" >&2; exit 1 ;;
           esac
       - name: Check out requested worker ref
@@ -90,7 +90,7 @@ jobs:
         shell: bash
         run: |
           case "$WORKER_REF" in
-            main|codex/video-producer) ;;
+            main|codex/video-producer|codex/video-producer-brand-episodes) ;;
             *) echo "Refusing untrusted Video Producer worker ref: $WORKER_REF" >&2; exit 1 ;;
           esac
       - name: Check out requested worker ref
@@ -102,12 +102,14 @@ jobs:
         shell: bash
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends ffmpeg curl fonts-noto-core fontconfig
+          sudo apt-get install -y --no-install-recommends ffmpeg curl python3-opencv fonts-noto-core fontconfig
           for pkg in fonts-bebas-neue fonts-montserrat fonts-playfair-display; do
             if apt-cache show "$pkg" >/dev/null 2>&1; then
               sudo apt-get install -y --no-install-recommends "$pkg"
             fi
           done
+          sudo install -d -m 755 /usr/local/share/fonts/video-producer-poppins
+          sudo install -m 644 public/fonts/poppins-regular.ttf public/fonts/poppins-bold.ttf /usr/local/share/fonts/video-producer-poppins/
           fc-cache -f >/dev/null 2>&1 || true
       - name: Write render payload
         env:
@@ -167,7 +169,7 @@ jobs:
         shell: bash
         run: |
           case "$WORKER_REF" in
-            main|codex/video-producer) ;;
+            main|codex/video-producer|codex/video-producer-brand-episodes) ;;
             *) echo "Refusing untrusted Video Producer worker ref: $WORKER_REF" >&2; exit 1 ;;
           esac
       - name: Check out requested worker ref
@@ -179,7 +181,7 @@ jobs:
         shell: bash
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends ffmpeg curl fonts-noto-core fontconfig
+          sudo apt-get install -y --no-install-recommends ffmpeg curl python3-opencv fonts-noto-core fontconfig
           for pkg in fonts-bebas-neue fonts-montserrat; do
             if apt-cache show "$pkg" >/dev/null 2>&1; then
               sudo apt-get install -y --no-install-recommends "$pkg"
@@ -190,7 +192,7 @@ jobs:
         env:
           WORKER_PAYLOAD: ${{ toJson(github.event.client_payload) }}
         run: printf '%s' "$WORKER_PAYLOAD" > /tmp/video-producer-thumbnail.json
-      - name: Render three YouTube candidates
+      - name: Render real frame YouTube thumbnail candidates
         run: python3 scripts/video_producer_thumbnail_worker.py /tmp/video-producer-thumbnail.json
 
   publisher_handoff:
@@ -204,7 +206,7 @@ jobs:
         shell: bash
         run: |
           case "$WORKER_REF" in
-            main|codex/video-producer) ;;
+            main|codex/video-producer|codex/video-producer-brand-episodes) ;;
             *) echo "Refusing untrusted Video Producer worker ref: $WORKER_REF" >&2; exit 1 ;;
           esac
       - name: Check out requested worker ref
@@ -225,3 +227,68 @@ jobs:
         run: printf '%s' "$WORKER_PAYLOAD" > /tmp/video-producer-publisher.json
       - name: Copy reviewed master to Publisher
         run: python3 scripts/video_producer_publisher_handoff_worker.py /tmp/video-producer-publisher.json
+
+  agent_preview:
+    if: github.event.action == 'video-producer-agent-preview'
+    runs-on: ubuntu-latest
+    timeout-minutes: 70
+    env:
+      WORKER_REF: ${{ github.event.client_payload.worker_ref || github.event.repository.default_branch }}
+    steps:
+      - name: Validate trusted worker ref
+        shell: bash
+        run: |
+          case "$WORKER_REF" in
+            main|codex/video-producer|codex/video-producer-brand-episodes) ;;
+            *) echo "Refusing untrusted draft preview ref" >&2; exit 1 ;;
+          esac
+      - name: Check out saved scene renderer
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.WORKER_REF }}
+          persist-credentials: false
+      - name: Install ffmpeg and Chromium
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends ffmpeg curl fonts-noto-core fontconfig
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install deterministic renderer
+        run: |
+          npm ci --no-audit --no-fund
+          npx playwright install --with-deps chromium --only-shell
+      - name: Save private signed preview payload
+        env:
+          PREVIEW_PAYLOAD: ${{ toJson(github.event.client_payload) }}
+        run: printf '%s' "$PREVIEW_PAYLOAD" > /tmp/video-producer-agent-preview.json
+      - name: Render private ten second proof and report
+        run: python3 scripts/render_video_producer_agent_preview_worker.py /tmp/video-producer-agent-preview.json
+
+  youtube_schedule:
+    if: github.event.action == 'video-producer-youtube-schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    env:
+      WORKER_REF: ${{ github.event.client_payload.worker_ref || github.event.repository.default_branch }}
+    steps:
+      - name: Enforce trusted worker ref
+        shell: bash
+        run: |
+          case "$WORKER_REF" in
+            main|codex/video-producer|codex/video-producer-brand-episodes) ;;
+            *) echo "Refusing untrusted scheduled upload worker ref" >&2; exit 1 ;;
+          esac
+      - name: Check out reviewed Video Producer worker
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.WORKER_REF }}
+          persist-credentials: false
+      - name: Write signed worker payload
+        shell: bash
+        env:
+          WORKER_PAYLOAD: ${{ toJson(github.event.client_payload) }}
+        run: printf '%s' "$WORKER_PAYLOAD" > /tmp/video-producer-youtube-schedule.json
+      - name: Stream resumable YouTube upload and finish metadata
+        run: python3 scripts/video_producer_youtube_schedule_worker.py /tmp/video-producer-youtube-schedule.json

@@ -7,8 +7,8 @@ import {VideoProducerDoctrinePanel} from "../video-producer-doctrine-panel";
 
 const library=[
  {name:"Scripture reveal",layer:"overlay" as const,text:"Hear, O Israel: The LORD our God is one LORD."},
- {name:"Statement punch",layer:"overlay" as const,text:"JESUS IS GOD"},
- {name:"Lower third",layer:"lowerthird" as const,text:"APOSTOLIC GUIDE"},
+ {name:"Statement punch",layer:"overlay" as const,text:"Jesus is God."},
+ {name:"Lower third",layer:"lowerthird" as const,text:"This is the central point."},
  {name:"Question stack",layer:"fullframe" as const,text:"WHO IS JESUS?"},
  {name:"Split comparison",layer:"fullframe" as const,text:"CLAIM / SCRIPTURE"},
  {name:"List build",layer:"fullframe" as const,text:"ONE GOD"},
@@ -33,13 +33,81 @@ export function VideoKineticCodeEditor({initialId="",initialKind="producer",init
  const [sourceUrl,setSourceUrl]=useState(""),[transcriptLane,setTranscriptLane]=useState<Array<{word:string;start:number;end:number}>>([]);
  const [keptRanges,setKeptRanges]=useState<Array<{start:number;end:number}>>([]),[sourceOffset,setSourceOffset]=useState(0);
  const [loadedProducerId,setLoadedProducerId]=useState(""),[savedRaw,setSavedRaw]=useState("");
+ const [brandLogoData,setBrandLogoData]=useState("");
+ const [brandName,setBrandName]=useState("");
+ const [brandSlug,setBrandSlug]=useState("apostolic-guide");
+ const [brandPresets,setBrandPresets]=useState<Array<{id:string;name:string;version:number;document:VideoSceneDocument}>>([]);
+ const [presetName,setPresetName]=useState("");
+ const [presetSelected,setPresetSelected]=useState("");
+ const [presetRevision,setPresetRevision]=useState("");
+ const [presetRevisions,setPresetRevisions]=useState<Array<{version:number;created_at:string}>>([]);
  const parsed=useMemo(()=>{try{return videoSceneDocument.safeParse(JSON.parse(raw))}catch{return null}},[raw]);
  const document=parsed?.success?parsed.data:null;
  const scene=document?.scenes.find(s=>s.id===selected)||document?.scenes[0];
+ async function loadPresets(slug:string,presetId=""){
+  const query=new URLSearchParams({brand:slug});
+  if(presetId)query.set("revisions",presetId);
+  const response=await fetch("/api/admin/video-producer/brand-presets?"+query.toString(),{cache:"no-store"});
+  const result=await response.json();
+  if(!response.ok)throw new Error(result.error||"Brand presets could not be loaded.");
+  setBrandPresets(Array.isArray(result.presets)?result.presets:[]);
+  setPresetRevisions(Array.isArray(result.revisions)?result.revisions:[]);
+ }
+ async function saveBrandPreset(replace=false){
+  if(!document||busy)return;
+  if(!presetName.trim()&&!replace){setError("Give the series preset a name.");return;}
+  const selectedPreset=brandPresets.find(p=>p.id===presetSelected);
+  if(replace&&!selectedPreset){setError("Select an existing preset to update.");return;}
+  if(replace&&!window.confirm("Replace this saved brand preset? Its current version will be available for undo."))return;
+  setBusy(true);setError("");
+  try{
+   const input=replace?{action:"update",id:selectedPreset!.id,expectedVersion:selectedPreset!.version,document}:
+    {action:"create",brandSlug,name:presetName.trim(),document};
+   const response=await fetch("/api/admin/video-producer/brand-presets",{
+    method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(input)
+   });
+   const result=await response.json();
+   if(!response.ok)throw new Error(result.error||"Could not save brand preset.");
+   setPresetSelected(result.preset.id);
+   setPresetName(result.preset.name);
+   await loadPresets(brandSlug,result.preset.id);
+   setNotice("Reusable preset saved. Project approval is unchanged until you Apply JSON to the draft.");
+  }catch(e){setError(e instanceof Error?e.message:"Preset save failed");}
+  finally{setBusy(false);}
+ }
+ async function restoreBrandPreset(){
+  const selected=brandPresets.find(p=>p.id===presetSelected);
+  if(!selected||!presetRevision||busy)return;
+  if(!window.confirm("Restore this older preset as a new version? Its current version will remain in revision history."))return;
+  setBusy(true);setError("");
+  try{
+   const response=await fetch("/api/admin/video-producer/brand-presets",{
+    method:"POST",headers:{"content-type":"application/json"},
+    body:JSON.stringify({action:"restore",id:selected.id,expectedVersion:selected.version,restoreVersion:Number(presetRevision)})
+   });
+   const result=await response.json();
+   if(!response.ok)throw new Error(result.error||"Preset revision could not be restored.");
+   setPresetRevision("");
+   await loadPresets(brandSlug,selected.id);
+   setNotice("Saved preset restored. Select Apply preset to load it into your project sandbox.");
+  }catch(e){setError(e instanceof Error?e.message:"Preset undo failed");}
+  finally{setBusy(false);}
+ }
+ function loadSavedBrandPreset(){
+  const selected=brandPresets.find(p=>p.id===presetSelected);
+  if(!selected||!document||readOnly||busy)return;
+  const applied=videoSceneDocument.safeParse({...selected.document,id:document.id,kind:document.kind,
+   expectedUpdatedAt:document.expectedUpdatedAt});
+  if(!applied.success){setError("Saved preset is invalid: "+applied.error.issues[0]?.message);return;}
+  update(applied.data);
+  setNotice("Preset loaded into the sandbox. Review every timeline item, then Apply JSON to save. Approval remains a separate human action.");
+ }
  async function loadProject(checkpoint=""){
   if(!projectId){setError("Enter a project ID or Pathway slug.");return}
   setBusy(true);setError("");setNotice("");
-  try{const query=new URLSearchParams({kind,id:projectId});if(checkpoint)query.set("checkpoint",checkpoint);const res=await fetch("/api/admin/code-mode/video-v2?"+query.toString(),{cache:"no-store"});const value=await res.json();if(!res.ok)throw new Error(value.error||"Load failed");const loaded=JSON.stringify(value.document,null,2);setRaw(loaded);setSavedRaw(loaded);setLoadedProducerId(kind==="producer"?projectId:"");setReadOnly(Boolean(value.readOnly));setSelected(initialScene||value.document.scenes?.[0]?.id||"scene-1");setHistory([]);setCheckpoints(Array.isArray(value.history)?value.history:[]);setSourceUrl(String(value.previewSourceUrl||""));setTranscriptLane(Array.isArray(value.transcriptLane)?value.transcriptLane:[]);setKeptRanges(Array.isArray(value.keptRanges)?value.keptRanges:[]);setSourceOffset(Number(value.sourceOffset||0));setNotice(checkpoint?"Loaded checkpoint for review. Apply JSON to restore this version.":"Loaded "+value.projectStatus+" project.");}catch(e){setError(e instanceof Error?e.message:"Load failed");}finally{setBusy(false)}
+  try{const query=new URLSearchParams({kind,id:projectId});if(checkpoint)query.set("checkpoint",checkpoint);const res=await fetch("/api/admin/code-mode/video-v2?"+query.toString(),{cache:"no-store"});const value=await res.json();if(!res.ok)throw new Error(value.error||"Load failed");const loaded=JSON.stringify(value.document,null,2);setRaw(loaded);setSavedRaw(loaded);setBrandName(String(value.brand?.name||""));setBrandSlug(String(value.brand?.slug||"apostolic-guide"));
+  if(kind==="producer"&&value.brand?.slug)await loadPresets(String(value.brand.slug));
+  setBrandLogoData(String(value.brandLogoData||""));setLoadedProducerId(kind==="producer"?projectId:"");setReadOnly(Boolean(value.readOnly));setSelected(initialScene||value.document.scenes?.[0]?.id||"scene-1");setHistory([]);setCheckpoints(Array.isArray(value.history)?value.history:[]);setSourceUrl(String(value.previewSourceUrl||""));setTranscriptLane(Array.isArray(value.transcriptLane)?value.transcriptLane:[]);setKeptRanges(Array.isArray(value.keptRanges)?value.keptRanges:[]);setSourceOffset(Number(value.sourceOffset||0));setNotice(checkpoint?"Loaded checkpoint for review. Apply JSON to restore this version.":"Loaded "+value.projectStatus+" project.");}catch(e){setError(e instanceof Error?e.message:"Load failed");}finally{setBusy(false)}
  }
  useEffect(()=>{void fetch("/api/admin/video-producer/graphics",{cache:"no-store"}).then(r=>r.ok?r.json():{assets:[]}).then(value=>{
   const rows=Array.isArray(value.assets)?value.assets:[];
@@ -76,6 +144,23 @@ export function VideoKineticCodeEditor({initialId="",initialKind="producer",init
   const css=scene.css+"\n.ag-scene-graphic{position:absolute;max-width:28%;height:auto;right:5%;bottom:7%;object-fit:contain;}";
   update({...document,assets:unique,scenes:document.scenes.map(s=>s.id===scene.id?{...s,html:s.html+image,css}:s)});
  }
+ function patchDocument(patch:Partial<VideoSceneDocument>){
+  if(readOnly||busy||!document)return;
+  update({...document,...patch});
+ }
+ function patchOverlay(index:number,patch:Partial<NonNullable<VideoSceneDocument["overlays"]>[number]>){
+  if(!document||readOnly||busy)return;
+  const overlays=(document.overlays||[]).map((item,i)=>i===index?{...item,...patch}:item);
+  update({...document,overlays});
+ }
+ function addOverlay(type:NonNullable<VideoSceneDocument["overlays"]>[number]["type"]){
+  if(!document||readOnly||busy)return;
+  const latest=Math.max(0,...document.scenes.map(s=>s.end),...(document.overlays||[]).map(s=>s.end));
+  const start=Math.max(0,latest-3);
+  const defaults:{[K in typeof type]:string}={intro:"",outro:"",logo:"",lowerThird:"This is the central point.",boxText:"The important truth.",quote:"The Scripture tells us.",captions:"",shortsEnd:"Full episode on my channel."};
+  const overlays=[...(document.overlays||[]),{type,text:defaults[type],start,end:start+3,position:(type==="logo"?"top-right":type==="lowerThird"||type==="captions"?"lower-left":type==="intro"||type==="outro"?"full":"center") as NonNullable<VideoSceneDocument["overlays"]>[number]["position"],preset:"brand-"+type}];
+  update({...document,overlays:overlays.sort((a,b)=>a.start-b.start)});
+ }
  function patchScene(patch:Partial<NonNullable<typeof scene>>){
   if(readOnly||busy||!document||!scene)return;
   update({...document,scenes:document.scenes.map(s=>s.id===scene.id?{...s,...patch}:s)});
@@ -103,6 +188,52 @@ export function VideoKineticCodeEditor({initialId="",initialKind="producer",init
    {libraryAssets.length?<><label>Graphics library<select value={graphicId} onChange={e=>setGraphicId(e.target.value)}><option value="">Select graphic</option>{libraryAssets.map(a=><option key={a.id} value={a.id}>{a.title}</option>)}</select></label><button type="button" disabled={readOnly||busy||!graphicId} onClick={attachGraphic}>Attach graphic</button></>:null}
    {document?<label>Scene<select value={scene?.id||""} onChange={e=>setSelected(e.target.value)}>{document.scenes.map(s=><option key={s.id}>{s.id}</option>)}</select></label>:null}
   </div>
+  {kind==="producer"&&document?<section aria-label="Reusable brand presets" style={{display:"grid",gap:10,border:"1px solid #66777d",padding:12,borderRadius:10}}>
+   <strong>Reusable {brandName||brandSlug} presets</strong>
+   <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"end"}}>
+    <label>Saved presets<select value={presetSelected} onChange={e=>{
+     const id=e.target.value;setPresetSelected(id);setPresetRevision("");
+     const found=brandPresets.find(p=>p.id===id);setPresetName(found?.name||"");
+     if(id)void loadPresets(brandSlug,id).catch(e=>setError(e instanceof Error?e.message:"Could not load revisions"));
+    }}><option value="">Choose saved preset</option>{brandPresets.map(p=><option key={p.id} value={p.id}>{p.name} · v{p.version}</option>)}</select></label>
+    <button type="button" disabled={busy||readOnly||!presetSelected} onClick={loadSavedBrandPreset}>Load into sandbox</button>
+    <label>Series preset name<input value={presetName} maxLength={120} onChange={e=>setPresetName(e.target.value)} placeholder="New series preset"/></label>
+    <button type="button" disabled={busy||!document||!presetName.trim()} onClick={()=>void saveBrandPreset(false)}>Save as new preset</button>
+    <button type="button" disabled={busy||!presetSelected} onClick={()=>void saveBrandPreset(true)}>Update saved preset</button>
+   </div>
+   {presetSelected&&presetRevisions.length?<div style={{display:"flex",gap:8,alignItems:"end",flexWrap:"wrap"}}>
+    <label>Undo to revision<select value={presetRevision} onChange={e=>setPresetRevision(e.target.value)}>
+     <option value="">Choose older version</option>{presetRevisions.map(r=><option key={r.version} value={r.version}>Version {r.version} · {new Date(r.created_at).toLocaleString()}</option>)}
+    </select></label>
+    <button type="button" disabled={busy||!presetRevision} onClick={()=>void restoreBrandPreset()}>Restore selected revision</button>
+   </div>:null}
+   <small>Saving presets does not edit or publish a project. Load a saved document into the sandbox, review timings, then Apply JSON to a draft checkpoint.</small>
+  </section>:null}
+  {mode==="fields"&&document?<details open style={{display:"grid",gap:10}}>
+    <summary>Shared brand preset · {brandName||"Video"}</summary>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(210px,1fr))",gap:10}}>
+     {(["series","episodeTitle","logo","lowerThird","boxText","quote","kicker","label"] as const).map(key=>
+      <label key={key}>{key}<input style={{width:"100%"}} disabled={readOnly||busy} value={document.fields?.[key]||""} onChange={event=>patchDocument({fields:{series:"",episodeTitle:"",logo:"",lowerThird:"",boxText:"",quote:"",kicker:"",label:"",...document.fields,[key]:event.target.value}})}/></label>
+     )}
+    </div>
+    <label>Shared overlay template HTML<textarea rows={6} style={{display:"block",width:"100%",fontFamily:"monospace"}} disabled={readOnly||busy} value={document.templateHtml||""} onChange={event=>patchDocument({templateHtml:event.target.value})}/></label>
+    <label>Theme CSS<textarea rows={7} style={{display:"block",width:"100%",fontFamily:"monospace"}} disabled={readOnly||busy} value={document.themeCss||""} onChange={event=>patchDocument({themeCss:event.target.value})}/></label>
+    <p>Placeholders: {"{{series}} {{episodeTitle}} {{logo}} {{lowerThird}} {{boxText}} {{quote}} {{kicker}} {{label}}"}. Empty shared template uses the built in layouts. No scripts or external URLs are allowed.</p>
+    <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+     {(["intro","outro","logo","lowerThird","boxText","quote","captions","shortsEnd"] as const).map(type=>
+      <button key={type} type="button" disabled={readOnly||busy} onClick={()=>addOverlay(type)}>Add {type}</button>)}
+    </div>
+    <h3>Timed overlays</h3>
+    {(document.overlays||[]).map((item,index)=><div key={index} style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(120px,1fr))",gap:8,border:"1px solid #53606a",padding:10}}>
+     <strong>{item.type}</strong>
+     <label>Start<input type="number" min={0} step={.1} disabled={readOnly||busy} value={item.start} onChange={e=>patchOverlay(index,{start:Number(e.target.value)})}/></label>
+     <label>End<input type="number" min={0} step={.1} disabled={readOnly||busy} value={item.end} onChange={e=>patchOverlay(index,{end:Number(e.target.value)})}/></label>
+     <label>Position<select disabled={readOnly||busy} value={item.position} onChange={e=>patchOverlay(index,{position:e.target.value as typeof item.position})}>{["top-left","top-right","lower-left","bottom","center","full"].map(v=><option key={v} value={v}>{v}</option>)}</select></label>
+     <label>Preset<input disabled={readOnly||busy} value={item.preset} onChange={e=>patchOverlay(index,{preset:e.target.value})}/></label>
+     <label style={{gridColumn:"1 / -1"}}>Text<input style={{width:"100%"}} disabled={readOnly||busy} value={item.text} onChange={e=>patchOverlay(index,{text:e.target.value})}/></label>
+     <button type="button" disabled={readOnly||busy} onClick={()=>patchDocument({overlays:(document.overlays||[]).filter((_,i)=>i!==index)})}>Remove overlay</button>
+    </div>)}
+   </details>:null}
   {mode==="code"?<label>Whole-scene JSON<textarea value={raw} disabled={readOnly||busy} onChange={e=>{setRaw(e.target.value);setError("");setNotice("")}} spellCheck={false} rows={22} style={{width:"100%",font:"13px/1.5 monospace",display:"block",tabSize:2}}/></label>:
    scene?<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))",gap:12}}>
     <label>Scene start (seconds)<input type="number" disabled={readOnly||busy} min="0" step=".1" value={scene.start} onChange={e=>patchScene({start:Number(e.target.value)})}/></label>
@@ -113,7 +244,7 @@ export function VideoKineticCodeEditor({initialId="",initialKind="producer",init
    </div>:<p>JSON is invalid. Return to Code to repair it.</p>}
   {error?<p role="alert">{error}</p>:null}{notice?<p role="status">{notice}</p>:null}
   {kind==="producer" && loadedProducerId===projectId && raw!==savedRaw ? <p role="status">Save your scene changes with Apply JSON before running the doctrine check. Only saved content can be approved.</p> : null}
-  {kind==="producer" && loadedProducerId===projectId && raw===savedRaw ? <VideoProducerDoctrinePanel key={projectId+":"+savedRaw} projectId={projectId}/> : null}
-  <KineticScenePreview raw={raw} sourceUrl={sourceUrl} sourceOffset={sourceOffset} transcriptWords={transcriptLane} keepSegments={keptRanges}/>
+  {kind==="producer" && loadedProducerId===projectId && raw===savedRaw && !((document?.style as Record<string,unknown>|undefined)?.brandSlug==="in-the-now") ? <VideoProducerDoctrinePanel key={projectId+":"+savedRaw} projectId={projectId}/> : null}
+  <KineticScenePreview raw={raw} brandLogoData={brandLogoData} sourceUrl={sourceUrl} sourceOffset={sourceOffset} transcriptWords={transcriptLane} keepSegments={keptRanges}/>
  </section>;
 }

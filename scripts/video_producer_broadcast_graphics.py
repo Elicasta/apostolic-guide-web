@@ -338,15 +338,16 @@ def render_overlay(lines, cue, start, end, width, height, ordinal):
     return render_generic_overlay(lines, cue, start, end, width, height)
 
 
-def caption_markup(group, active_index, style, highlight):
+def caption_markup(group, active_index, style, highlight, accent_color=None):
+    color = accent_color or RED
     parts = []
     for index, word in enumerate(group):
         value = ass_escape(word["word"])
         if highlight and index == active_index:
             if style == "word-pop":
-                value = "{\\c&H" + RED + "&\\fscx116\\fscy116}" + value + "{\\rCaption}"
+                value = "{\\c&H" + color + "&\\fscx116\\fscy116}" + value + "{\\rCaption}"
             else:
-                value = "{\\c&H" + RED + "&}" + value + "{\\rCaption}"
+                value = "{\\c&H" + color + "&}" + value + "{\\rCaption}"
         parts.append(value)
     return " ".join(parts)
 

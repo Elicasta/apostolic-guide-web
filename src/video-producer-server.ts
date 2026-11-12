@@ -1,4 +1,5 @@
 import "server-only";
+import { githubWorkerDiagnostic } from "./video-producer-github-health";
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { del, issueSignedToken, presignUrl, put } from "@vercel/blob";
 import type { createServiceClient } from "./supabase";
@@ -117,7 +118,7 @@ export async function deletePrivateVideoProducerBlob(pathname: string) {
 export async function dispatchVideoProducerWorker(input: {
   token: string;
   repository: string;
-  eventType: "video-producer-transcribe" | "video-producer-render" | "video-producer-thumbnail" | "video-producer-publisher-handoff" | "video-producer-sync";
+  eventType: "video-producer-transcribe" | "video-producer-render" | "video-producer-thumbnail" | "video-producer-publisher-handoff" | "video-producer-sync" | "video-producer-agent-preview" | "video-producer-youtube-schedule";
   payload: Record<string, unknown>;
 }) {
   const response = await fetch(`https://api.github.com/repos/${input.repository}/dispatches`, {
@@ -133,6 +134,6 @@ export async function dispatchVideoProducerWorker(input: {
   });
   if (!response.ok) {
     const detail = (await response.text().catch(() => "")).slice(0, 1000);
-    throw new Error(`Worker dispatch failed (${response.status})${detail ? `: ${detail}` : ""}`);
+    throw new Error(`${githubWorkerDiagnostic(response.status, "dispatch", input.repository)}${response.status >= 500 && detail ? ` GitHub response: ${detail}` : ""}`);
   }
 }

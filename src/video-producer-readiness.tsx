@@ -1,4 +1,5 @@
 import "server-only";
+import { githubWorkerDiagnostic, VIDEO_PRODUCER_GITHUB_TOKEN_ENV, VIDEO_PRODUCER_GITHUB_TOKEN_FALLBACK } from "./video-producer-github-health";
 import { CheckCircle2, ChevronDown, CircleAlert, CircleHelp, Database, Film, Github, HardDrive, Sparkles } from "lucide-react";
 import { createServiceClient } from "./supabase";
 import { videoProducerOpenAIKey, videoProducerRendererCredentials } from "./video-producer-server";
@@ -27,8 +28,7 @@ async function checkDispatcher(repository: string, token: string) {
       cache: "no-store"
     });
     if (response.ok) return { state: "ready" as const, detail: "Default-branch Video Producer dispatcher is installed." };
-    if (response.status === 404) return { state: "error" as const, detail: "Install video-producer-dispatch.yml on the repository default branch." };
-    return { state: "warning" as const, detail: `Dispatcher check returned ${response.status}; verify the default-branch workflow.` };
+    return { state: "error" as const, detail: githubWorkerDiagnostic(response.status, "dispatcher", repository) };
   } catch {
     return { state: "warning" as const, detail: "Dispatcher could not be checked; verify the default-branch workflow." };
   }
@@ -48,10 +48,11 @@ async function checkActionsTranscriptionSecret(repository: string, token: string
         ? { state: "ready" as const, detail: "GitHub Actions VIDEO_PRODUCER_OPENAI_API_KEY is configured." }
         : { state: "error" as const, detail: "Add VIDEO_PRODUCER_OPENAI_API_KEY to GitHub Actions repository secrets." };
     }
+    if (response.status === 401) return { state: "error" as const, detail: githubWorkerDiagnostic(401, "secrets", repository) };
     if (response.status === 403 || response.status === 404) {
-      return { state: "warning" as const, detail: "The render token cannot enumerate Actions secrets. The transcription readiness workflow verifies this credential without exposing its value." };
+      return { state: "warning" as const, detail: githubWorkerDiagnostic(response.status, "secrets", repository) + " The separate VIDEO_PRODUCER_OPENAI_API_KEY repository secret could not be verified." };
     }
-    return { state: "warning" as const, detail: `GitHub secret check returned ${response.status}; verify the Actions transcription secret.` };
+    return { state: "warning" as const, detail: githubWorkerDiagnostic(response.status, "secrets", repository) };
   } catch {
     return { state: "warning" as const, detail: "GitHub secret inspection was unavailable. The worker will still validate the credential when transcription runs." };
   }
@@ -117,7 +118,7 @@ export async function VideoProducerReadiness() {
   }
 
   let bridgeState: ReadinessState = rendererToken ? "ready" : "error";
-  let bridgeDetail = rendererToken ? `GitHub render bridge connected · ${rendererRepository}` : "Configure VIDEO_STUDIO_GITHUB_TOKEN or the existing encrypted integration secret.";
+  let bridgeDetail = rendererToken ? `Repository access confirmed · ${rendererRepository}. Worker dispatch needs Contents: write permission, which a read-only health probe cannot confirm.` : `Configure ${VIDEO_PRODUCER_GITHUB_TOKEN_ENV} or encrypted ${VIDEO_PRODUCER_GITHUB_TOKEN_FALLBACK}. Fine-grained GitHub token needs repository Contents: write to dispatch workers.`;
   if (rendererToken) {
     try {
       const probe = await fetch(`https://api.github.com/repos/${rendererRepository}`, {
@@ -126,7 +127,7 @@ export async function VideoProducerReadiness() {
       });
       if (!probe.ok) {
         bridgeState = "error";
-        bridgeDetail = `Render token cannot access ${rendererRepository} (${probe.status}).`;
+        bridgeDetail = githubWorkerDiagnostic(probe.status, "repository", rendererRepository);
       }
     } catch {
       bridgeState = "warning";

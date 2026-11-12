@@ -107,10 +107,70 @@ def reel_manifest():
     }
 
 
+def check_personal_caption_brand(finishing):
+    """A personal podcast must never inherit AG logo and caption colors."""
+    manifest = reel_manifest()
+    manifest["brand"] = {
+        "profile": "in-the-now",
+        "config": {
+            "theme": {"ink": "#220909"},
+            "captions": {"font": "Poppins", "fill": "#FFF9F2", "highlight": "#6A0000"}
+        }
+    }
+    manifest["renderPlan"]["captions"] = {
+        "enabled": True, "style": "kinetic-clean", "animation": "highlight",
+        "maxWordsPerCard": 5, "highlightCurrentWord": True
+    }
+    manifest["transcript"]["words"] = [
+        {"word": "A", "start": .3, "end": .5},
+        {"word": "true", "start": .5, "end": .8},
+        {"word": "sentence.", "start": .8, "end": 1.2}
+    ]
+    with tempfile.TemporaryDirectory(prefix="personal-caption-proof-") as temporary:
+        output = os.path.join(temporary, "brand.ass")
+        finishing.build_broadcast_ass_v2(manifest, output)
+        with open(output, encoding="utf-8") as handle:
+            document = handle.read()
+        assert "Style: Caption,Poppins," in document
+        assert "&H00F2F9FF" in document  # Personal fill
+        assert "\\c&H00006A&" in document  # Personal red highlight, ASS BGR
+        assert "APOSTOLIC GUIDE" not in document.upper()
+
+
+def check_real_face_reframe_contract(finishing):
+    # Even without OpenCV, 9:16 crops are bounded and source-center by default.
+    expression = finishing.face_crop_x_expression(.35)
+    assert "iw*0.35000" in expression
+    assert "min(iw,ih*9/16)" in expression
+    assert "max(0,min(" in expression
+    center = finishing.video_normalize_chain("reels")
+    assert "iw*0.50000" in center
+    assert finishing.video_normalize_chain("podcast").startswith("fps=30,scale")
+
+
 def main():
     os.chdir(ROOT)
     finishing = load("finishing_smoke", FINISH_PATH)
+    check_real_face_reframe_contract(finishing)
+    check_personal_caption_brand(finishing)
+    assert "arnndn" not in finishing.audio_filter_v2({"audioPreset":"ag-voice-clean","rnnoiseMix":0})
+    denoise_filter=finishing.audio_filter_v2({"audioPreset":"ag-voice-clean","rnnoiseMix":.5})
+    assert "arnndn=" in denoise_filter and denoise_filter.index("arnndn=")<denoise_filter.index("deesser="),denoise_filter
+
     thumbnail = load("thumbnail_smoke", THUMB_PATH)
+    # Thumbnail probes must never leave the mini episode, even when their
+    # source timestamp is at an episode boundary.
+    first = thumbnail.candidate_source_times(110.0, 360, window_start=110, window_end=145)
+    last = thumbnail.candidate_source_times(144.9, 360, window_start=110, window_end=145)
+    assert all(110 <= t < 145 for t in first + last), (first, last)
+    assert len(first) == len(set(first))
+    assert len(last) == len(set(last))
+    try:
+        thumbnail.candidate_source_times(110, 360, window_start=145, window_end=110)
+    except RuntimeError:
+        pass
+    else:
+        raise RuntimeError("Invalid mini episode windows must be rejected")
     with tempfile.TemporaryDirectory(prefix="ag-finishing-smoke-") as d:
         src = os.path.join(d, "source.mp4")
         bed = os.path.join(d, "music.wav")
@@ -149,6 +209,16 @@ def main():
         thumbnail.render_variant(src, "face-hook", "ONE GOD", "God Is One", 2.0, thumb, d)
         if not os.path.exists(thumb) or os.path.getsize(thumb) < 1024:
             raise RuntimeError("thumbnail smoke output missing")
+        thumbnail.render_variant(src,"A","WHO IS JESUS?","In the Now",2.0,thumb,d,
+                                 {"ink":"220909","accent":"6A0000","paper":"FFF9F2"})
+        if "width=1280" not in probe(thumb) or "height=720" not in probe(thumb):
+            raise RuntimeError("YouTube thumbnail A must be 1280x720")
+        thumbnail.render_variant(src,"B","Jesus is God.","In the Now",2.3,thumb,d)
+        if "width=1280" not in probe(thumb) or "height=720" not in probe(thumb):
+            raise RuntimeError("YouTube thumbnail B must be 1280x720")
+        chosen=thumbnail.select_source_frame(src,2.0,d)
+        if not 0 <= chosen < 6:
+            raise RuntimeError("Real source frame scoring escaped the source duration")
         print(probe(out))
         print(reel_probe)
         print("Video Producer finishing smoke passed")

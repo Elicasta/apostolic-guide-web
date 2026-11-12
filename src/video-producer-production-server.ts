@@ -25,6 +25,10 @@ export type VideoProducerProductionProject = {
   edit_plan: VideoProducerEditPlan;
   camera_plan?: VideoProducerCameraPlan | null;
   audio_plan?: VideoProducerAudioPlan | null;
+  brand_profile?: string;
+  brand_config?: Record<string,unknown>;
+  scene_document?: unknown;
+  rnnoise_mix?:number|null;
 };
 
 export type VideoProducerResolvedProduction = {
@@ -45,7 +49,16 @@ function rangeCovered(start: number, end: number, coverage: { start: number; end
 }
 
 export async function resolveVideoProducerProductionState(service: ServiceClient, project: VideoProducerProductionProject): Promise<VideoProducerResolvedProduction> {
-  const rootProjectId = project.parent_project_id || project.id;
+  // One source can produce root podcast -> mini episode -> matching Short.
+  // Camera/audio assets remain owned by the immutable root recording.
+  let rootProjectId = project.parent_project_id || project.id;
+  if(project.parent_project_id){
+   const parent=await service.from("video_producer_projects")
+     .select("parent_project_id").eq("id",project.parent_project_id).maybeSingle();
+   if(parent.error)throw new Error(parent.error.message);
+   if(!parent.data)throw new Error("Source parent project is no longer available.");
+   if(parent.data.parent_project_id)rootProjectId=parent.data.parent_project_id;
+  }
   const assetsResult = await service.from("video_producer_media_assets")
     .select("id,project_id,role,storage_provider,storage_locator,filename,mime_type,size_bytes,duration,has_audio,sync_status,sync_method,offset_seconds,sync_confidence,sync_metadata,revision,active")
     .eq("project_id", rootProjectId).eq("active", true);
@@ -90,7 +103,13 @@ export async function resolveVideoProducerProductionState(service: ServiceClient
   const usedMedia = media.filter((asset) => (cameraPlan && asset.role === "camera_b") || (audioPlan.source === "external_audio" && asset.role === "external_audio"));
   const cameraRanges = cameraPlan ? compileCameraRangesThroughContentCuts(cameraPlan, project.edit_plan.cuts, duration, cameraBCoverage) : [];
   const usesMulticam = Boolean(cameraPlan || audioPlan.source === "external_audio");
-  const fingerprintInput = videoProducerProductionFingerprintInput({ contentPlan: project.edit_plan, cameraPlan, audioPlan, media: usedMedia });
+  const fingerprintInput = {
+    content:videoProducerProductionFingerprintInput({ contentPlan: project.edit_plan, cameraPlan, audioPlan, media: usedMedia }),
+    brandProfile:project.brand_profile??"apostolic-guide",
+    brandConfig:project.brand_config??null,
+    kineticSceneV2:project.scene_document??null,
+    rnnoiseMix:project.rnnoise_mix??null
+  };
   return {
     rootProjectId,
     media: usedMedia,

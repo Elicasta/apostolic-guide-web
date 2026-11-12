@@ -24,6 +24,7 @@ import { useRouter } from "next/navigation";
 import { compileVideoProducerRenderPlan, formatProducerTime, type VideoProducerEditPlan, type VideoProducerMode } from "@/video-producer";
 import styles from "./video-producer-sequential.module.css";
 import { VideoProducerDoctrinePanel } from "./video-producer-doctrine-panel";
+import {VideoProducerEpisodeSplitPanel} from "./video-producer-episode-split-panel";
 
 export type VideoProducerStep = "source" | "produce" | "finish" | "review" | "deliver";
 
@@ -61,6 +62,8 @@ type ProducerProject = {
   approval_fingerprint?: string | null;
   approved_at?: string | null;
   pathway_slug?: string | null;
+  brand_profile?: string | null;
+  rnnoise_mix?:number|null;
   selected_music_track_id?: string | null;
 };
 
@@ -73,7 +76,7 @@ type ProjectDetail = {
 
 type PathwayOption = { slug: string; title: string; summary: string; steps: Array<{ title: string; reference: string }> };
 type MusicTrack = { id: string; title: string; source_provider: string; filename: string; size_bytes: number; mood?: string | null; previewUrl?: string | null };
-type Thumbnail = { id: string; variant: "face-hook" | "doctrine" | "pathway"; headline: string; timestamp_seconds: number; status: string; previewUrl?: string | null; error?: string | null };
+type Thumbnail = { id: string; variant: "face-hook" | "doctrine" | "pathway" | "A" | "B"; headline: string; timestamp_seconds: number; status: string; previewUrl?: string | null; error?: string | null };
 type FinishingData = {
   project: ProducerProject;
   latestCompletedRender?: { id: string; status: string; output_storage_path?: string | null } | null;
@@ -122,6 +125,8 @@ export function VideoProducerSequentialFlow({ projectId: initialProjectId = "", 
   const [detail, setDetail] = useState<ProjectDetail | null>(null);
   const [finishing, setFinishing] = useState<FinishingData | null>(null);
   const [mode, setMode] = useState<VideoProducerMode>(initialMode);
+  const [startBrand,setStartBrand]=useState("apostolic-guide");
+  const [availableBrands,setAvailableBrands]=useState<Array<{slug:string;name:string}>>([]);
   const [title, setTitle] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState("");
@@ -134,8 +139,17 @@ export function VideoProducerSequentialFlow({ projectId: initialProjectId = "", 
   const [musicFile, setMusicFile] = useState<File | null>(null);
   const autoDirectorRef = useRef(false);
 
+  useEffect(()=>{
+   let active=true;
+   void fetch("/api/admin/video-producer/brand-profiles",{cache:"no-store"}).then(r=>r.ok?r.json():{profiles:[]}).then(value=>{
+    if(active)setAvailableBrands((value.profiles||[]).filter((p:{slug:string;name:string})=>!(/cornerstone/i).test(p.slug+" "+p.name)));
+   }).catch(()=>{});
+   return ()=>{active=false;};
+  },[]);
   const project = detail?.project ?? finishing?.project ?? null;
   const plan = project?.edit_plan ?? null;
+  const isPersonal=project?.brand_profile==="in-the-now";
+  const requiresPathway=project?.mode==="podcast"&&!isPersonal;
   const renderPlan = useMemo(() => {
     if (!plan) return null;
     try { return compileVideoProducerRenderPlan(plan); } catch { return null; }
@@ -217,7 +231,7 @@ export function VideoProducerSequentialFlow({ projectId: initialProjectId = "", 
     if (!project) return false;
     if (target === "source") return Boolean(project.transcript_local_text);
     if (target === "produce") return Boolean(project.edit_plan);
-    if (target === "finish") return Boolean(project.edit_plan && (project.mode === "reels" || finishing?.project.pathway_slug));
+    if (target === "finish") return Boolean(project.edit_plan && (!requiresPathway || finishing?.project.pathway_slug));
     if (target === "review") return Boolean(project.approval_fingerprint);
     return ["review", "completed"].includes(project.status) || latestRender?.status === "completed";
   }
@@ -227,7 +241,7 @@ export function VideoProducerSequentialFlow({ projectId: initialProjectId = "", 
     try {
       const projectTitle = title.trim() || titleFromFile(file.name);
       const created = await json<{ project: ProducerProject }>("/api/admin/video-producer/projects", {
-        method: "POST", body: JSON.stringify({ title: projectTitle, mode })
+        method: "POST", body: JSON.stringify({ title: projectTitle, mode, brandProfile:startBrand })
       });
       const id = created.project.id;
       setProjectId(id); setTitle(projectTitle);
@@ -275,7 +289,7 @@ export function VideoProducerSequentialFlow({ projectId: initialProjectId = "", 
     } finally { setBusy(null); }
   }
 
-  async function patchFinish(payload: { pathwaySlug?: string | null; musicTrackId?: string | null; audioPreset?: "ag-voice-clean" | "ag-voice-punch" | "none"; colorPreset?: "ag-studio" | "ag-warm" | "ag-clean" | "none" }) {
+  async function patchFinish(payload: { pathwaySlug?: string | null; musicTrackId?: string | null; audioPreset?: "ag-voice-clean" | "ag-voice-punch" | "none"; colorPreset?: "ag-studio" | "ag-warm" | "ag-clean" | "none";rnnoiseMix?:number }) {
     if (!projectId) return;
     setBusy("finish"); setError("");
     try {
@@ -312,7 +326,7 @@ export function VideoProducerSequentialFlow({ projectId: initialProjectId = "", 
 
   async function generateThumbnails() {
     if (!projectId) return;
-    setBusy("thumbs"); setError(""); setMessage("Choosing three truthful concepts and rendering them from real frames…");
+    setBusy("thumbs"); setError(""); setMessage("Choosing two genuine frame variants for YouTube Test and Compare.");
     try {
       await json("/api/admin/video-producer/thumbnails", { method: "POST", body: JSON.stringify({ projectId }) });
       await loadFinishing();
@@ -356,7 +370,7 @@ export function VideoProducerSequentialFlow({ projectId: initialProjectId = "", 
 
   const audioPreset = plan?.audioPreset || (project?.mode === "reels" ? "ag-voice-punch" : "ag-voice-clean");
   const colorPreset = plan?.colorPreset || (project?.mode === "reels" ? "ag-clean" : "ag-studio");
-  const finishReady = Boolean(project?.edit_plan && (project.mode === "reels" || finishing?.project.pathway_slug));
+  const finishReady = Boolean(project?.edit_plan && (!requiresPathway || finishing?.project.pathway_slug));
   const renderPercent = latestRender?.status === "completed" ? 100 : Math.max(0, Math.min(100, Number(latestRender?.progress?.percent || 0)));
 
   return (
@@ -383,7 +397,11 @@ export function VideoProducerSequentialFlow({ projectId: initialProjectId = "", 
             <div className={styles.workspaceBody}><div className={styles.stack}>
               {!project ? <>
                 <div className={styles.panel}>
-                  <h3 className={styles.panelTitle}>Production lane</h3>
+                  <h3 className={styles.panelTitle}>Brand profile</h3>
+                  <select className={styles.select} disabled={Boolean(busy)} value={startBrand} onChange={event=>setStartBrand(event.target.value)}>
+                   {(availableBrands.length?availableBrands:[{slug:"apostolic-guide",name:"Apostolic Guide"}]).map(profile=><option key={profile.slug} value={profile.slug}>{profile.name}</option>)}
+                  </select>
+                  <h3 className={styles.panelTitle} style={{marginTop:18}}>Production lane</h3>
                   <div className={styles.modeChoice}>
                     <button type="button" data-active={mode === "podcast"} onClick={() => setMode("podcast")}><Film size={19}/><span><strong>Podcast</strong><small>16:9 · long form</small></span></button>
                     <button type="button" data-active={mode === "reels"} onClick={() => setMode("reels")}><Smartphone size={19}/><span><strong>Reels</strong><small>9:16 · short form</small></span></button>
@@ -408,6 +426,8 @@ export function VideoProducerSequentialFlow({ projectId: initialProjectId = "", 
                   {project.transcript_local_text ? <details className={styles.details} style={{ marginTop: 12 }}><summary>Transcript ready · tap to review</summary><div className={styles.detailsBody}><div className={styles.transcript}>{project.transcript_local_text}</div></div></details> : <p className={styles.panelText}>{project.status === "failed" ? "Transcription needs attention." : "The transcript will appear here when the worker finishes."}</p>}
                   {project.status === "failed" && project.source_locator ? <button className={styles.buttonSecondary} style={{ marginTop: 14 }} disabled={Boolean(busy)} onClick={() => void startTranscription()}>Retry transcription</button> : null}
                 </div>
+                {project.mode==="podcast"&&!project.parent_project_id&&project.transcript_local_text&&project.source_duration
+                 ? <VideoProducerEpisodeSplitPanel projectId={project.id} duration={project.source_duration}/> : null}
                 <div className={styles.stickyActions}>
                   <button className={styles.button} disabled={!project.transcript_local_text} onClick={() => go("produce")}>Continue to Produce <ArrowRight size={15}/></button>
                 </div>
@@ -445,7 +465,7 @@ export function VideoProducerSequentialFlow({ projectId: initialProjectId = "", 
           <section className={styles.workspace}>
             <WorkspaceHeader eyebrow="Step 3" title="Finish" text="Set the visual and sonic treatment once. Advanced engineering stays deterministic behind these presets." status={finishReady ? "Ready for review" : "Needs pathway"}/>
             <div className={styles.workspaceBody}><div className={styles.stack}>
-              {project.mode === "podcast" ? <div className={styles.panel}>
+              {requiresPathway ? <div className={styles.panel}>
                 <h3 className={styles.panelTitle}><SlidersHorizontal size={17}/> Pathway + Graphics V2</h3>
                 <p className={styles.panelText}>The selected pathway becomes authoritative for Pathway Stop cards, references and the persistent pathway orientation system.</p>
                 <select className={styles.select} style={{ marginTop: 12 }} value={finishing.project.pathway_slug || ""} disabled={Boolean(busy)} onChange={(event) => void patchFinish({ pathwaySlug: event.target.value || null })}>
@@ -456,6 +476,9 @@ export function VideoProducerSequentialFlow({ projectId: initialProjectId = "", 
 
               <div className={styles.panel}>
                 <h3 className={styles.panelTitle}><Music2 size={17}/> Voice mastering</h3>
+                <label style={{display:"grid",gap:5,margin:"12px 0"}}>Optional RNNoise mix, {Math.round((finishing.project.rnnoise_mix??0)*100)}%
+                 <input type="range" min={0} max={100} step={5} value={Math.round((finishing.project.rnnoise_mix??0)*100)} disabled={Boolean(busy)} onChange={event=>void patchFinish({rnnoiseMix:Number(event.target.value)/100})}/>
+                </label>
                 <p className={styles.panelText}>Clean is the natural podcast chain. Punch is tighter and more forward for short-form. Both include EQ, de-essing, compression, limiting and loudness control.</p>
                 <div className={styles.choiceGrid}>
                   {[{id:"ag-voice-clean",name:"AG Voice Clean",desc:"Natural · -16 LUFS podcast target"},{id:"ag-voice-punch",name:"AG Voice Punch",desc:"Tighter · -14 LUFS short-form target"},{id:"none",name:"No mastering",desc:"Preserve source audio"}].map((item) => <button type="button" className={styles.choice} data-active={audioPreset === item.id} key={item.id} disabled={Boolean(busy)} onClick={() => void patchFinish({ audioPreset: item.id as "ag-voice-clean" | "ag-voice-punch" | "none" })}><strong>{item.name}</strong><small>{item.desc}</small></button>)}
@@ -487,8 +510,8 @@ export function VideoProducerSequentialFlow({ projectId: initialProjectId = "", 
 
               {project.mode === "podcast" ? <div className={styles.panel}>
                 <h3 className={styles.panelTitle}><ImageIcon size={17}/> YouTube thumbnail lab</h3>
-                <p className={styles.panelText}>Three materially different candidates from real episode frames: face hook, doctrine and pathway.</p>
-                <button className={styles.buttonSecondary} style={{ marginTop: 12 }} disabled={Boolean(busy)} onClick={() => void generateThumbnails()}><Sparkles size={14}/>{finishing.thumbnails.length ? " Regenerate 3 candidates" : " Generate 3 candidates"}</button>
+                <p className={styles.panelText}>Two test variants at 1280 by 720 from genuine episode frames. No generated faces.</p>
+                <button className={styles.buttonSecondary} style={{ marginTop: 12 }} disabled={Boolean(busy)} onClick={() => void generateThumbnails()}><Sparkles size={14}/>{finishing.thumbnails.length ? " Regenerate A and B" : " Generate A and B"}</button>
                 {finishing.thumbnails.length ? <div className={styles.thumbGrid}>{finishing.thumbnails.map((thumb) => <div className={styles.thumb} key={thumb.variant}><div className={styles.thumbVisual}>{thumb.previewUrl ? <img src={thumb.previewUrl} alt={`${thumb.variant} thumbnail`}/> : ["queued","rendering"].includes(thumb.status) ? <><Loader2 size={18} className={styles.spin}/> Rendering</> : "Not rendered"}</div><div className={styles.thumbCopy}><small>{thumb.variant.replace("-"," ")}</small><strong>{thumb.headline}</strong></div></div>)}</div> : null}
               </div> : null}
 
@@ -511,14 +534,14 @@ export function VideoProducerSequentialFlow({ projectId: initialProjectId = "", 
                   <Summary label="Voice" value={audioPreset === "ag-voice-clean" ? "AG Voice Clean" : audioPreset === "ag-voice-punch" ? "AG Voice Punch" : "None"}/>
                   <Summary label="Grade" value={colorPreset === "ag-studio" ? "AG Studio" : colorPreset === "ag-warm" ? "AG Warm" : colorPreset === "ag-clean" ? "AG Clean" : "None"}/>
                   <Summary label="Music" value={selectedMusic?.title || "None"}/>
-                  {project.mode === "podcast" ? <Summary label="YouTube thumbnails" value={finishing.thumbnails.length ? `${finishing.thumbnails.filter((thumb)=>thumb.status === "completed").length}/3 rendered` : "Not generated · optional"}/> : null}
+                  {project.mode === "podcast" ? <Summary label="YouTube thumbnails" value={finishing.thumbnails.length ? `${finishing.thumbnails.filter((thumb)=>thumb.status === "completed").length}/2 rendered` : "Not generated · optional"}/> : null}
                 </div>
                 <details className={styles.details} style={{ marginTop: 12 }}><summary>Inspect edit decisions</summary><div className={styles.detailsBody}><div className={styles.decisionList}>{plan?.overlays.slice(0,18).map((overlay)=><div className={styles.decision} key={overlay.id}><small>{overlay.kind} · {formatProducerTime(overlay.start)}</small><strong>{overlay.title}</strong></div>)}</div></div></details>
               </div>
-              {!project.approval_fingerprint ? <VideoProducerDoctrinePanel key={project.id} projectId={project.id} onChange={setDoctrineReady}/> : null}
-              {project.mode === "podcast" && !finishing.project.pathway_slug ? <div className={`${styles.notice} ${styles.warning}`}>Choose the episode pathway in Finish before approval. That prevents generic branding from replacing the pathway-aware graphics system.</div> : null}
+              {!project.approval_fingerprint && !isPersonal ? <VideoProducerDoctrinePanel key={project.id} projectId={project.id} onChange={setDoctrineReady}/> : null}
+              {requiresPathway && !finishing.project.pathway_slug ? <div className={`${styles.notice} ${styles.warning}`}>Choose the episode pathway in Finish before approval. That prevents generic branding from replacing the pathway-aware graphics system.</div> : null}
               {project.approval_fingerprint ? <div className={`${styles.notice} ${styles.success}`}>Approved. Any later change to pathway, music, voice or grade intentionally removes this approval and brings you back here.</div> : null}
-              <div className={styles.stickyActions}><button className={styles.buttonSecondary} onClick={() => go("finish")}><ArrowLeft size={15}/> Finish</button>{project.approval_fingerprint ? <button className={styles.button} onClick={() => go("deliver")}>Continue to Deliver <ArrowRight size={15}/></button> : <button className={styles.button} disabled={Boolean(busy) || !doctrineReady || (project.mode === "podcast" && !finishing.project.pathway_slug)} onClick={() => void approve()}><Check size={15}/> Approve final production</button>}</div>
+              <div className={styles.stickyActions}><button className={styles.buttonSecondary} onClick={() => go("finish")}><ArrowLeft size={15}/> Finish</button>{project.approval_fingerprint ? <button className={styles.button} onClick={() => go("deliver")}>Continue to Deliver <ArrowRight size={15}/></button> : <button className={styles.button} disabled={Boolean(busy) || (!isPersonal&&!doctrineReady) || (requiresPathway&&!finishing.project.pathway_slug)} onClick={() => void approve()}><Check size={15}/> Approve final production</button>}</div>
             </div></div>
           </section>
         ) : null}
@@ -534,12 +557,17 @@ export function VideoProducerSequentialFlow({ projectId: initialProjectId = "", 
                 {latestRender?.error ? <div className={`${styles.notice} ${styles.warning}`} style={{ marginTop: 12 }}>{latestRender.error}</div> : null}
                 {!latestRender || latestRender.status === "failed" ? <button className={styles.button} style={{ marginTop: 14 }} disabled={!project.approval_fingerprint || Boolean(busy)} onClick={() => void renderMaster(latestRender?.status === "failed")}><Play size={14}/>{latestRender?.status === "failed" ? " Restart render" : " Render master"}</button> : null}
               </div>
+              {latestRender?.status === "completed" && isPersonal ? <div className={styles.panel}>
+                <h3 className={styles.panelTitle}>In the Now YouTube schedule</h3>
+                <p className={styles.panelText}>Submit the reviewed master to your personal channel from the daily calendar. Uploads never happen automatically.</p>
+                <Link className={styles.button} href="/admin/video-producer/calendar">Open release calendar</Link>
+              </div> : null}
               {latestRender?.status === "completed" ? <div className={styles.panel}>
                 <h3 className={styles.panelTitle}><Download size={17}/> Master ready</h3>
                 <p className={styles.panelText}>Private review MP4. The signed download is generated only when you request it.</p>
                 <a className={styles.buttonSecondary} style={{ marginTop: 12 }} href={`/api/admin/video-producer/projects/${projectId}/download`} target="_blank" rel="noopener noreferrer"><Download size={14}/> Download master</a>
               </div> : null}
-              {finishing && latestRender?.status === "completed" ? <div className={styles.panel}>
+              {finishing && latestRender?.status === "completed" && !isPersonal ? <div className={styles.panel}>
                 <h3 className={styles.panelTitle}><Send size={17}/> Existing Publisher</h3>
                 <p className={styles.panelText}>This is a handoff only. The reviewed master gets a distribution copy in the same Publisher used by the other pathway videos.</p>
                 {finishing.publisherRender?.status === "completed" ? <div className={`${styles.notice} ${styles.success}`} style={{ marginTop: 12 }}>Publisher copy ready.</div> : finishing.publisherRender && ["queued","rendering"].includes(finishing.publisherRender.status) ? <Progress label="Copying master to Publisher" percent={65}/> : null}

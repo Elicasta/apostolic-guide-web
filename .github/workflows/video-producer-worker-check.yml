@@ -11,6 +11,8 @@ on:
       - 'scripts/video_producer_broadcast_graphics.py'
       - 'scripts/video_producer_broadcast_graphics_v2.py'
       - 'scripts/video_producer_thumbnail_worker.py'
+      - 'scripts/video_producer_youtube_schedule_worker.py'
+      - 'scripts/check_video_producer_youtube_schedule_worker.py'
       - 'scripts/video_producer_publisher_handoff_worker.py'
       - 'scripts/transcribe_video_producer_worker.py'
       - 'scripts/video_producer_source_probe.py'
@@ -73,6 +75,8 @@ jobs:
             scripts/video_producer_broadcast_graphics.py \
             scripts/video_producer_broadcast_graphics_v2.py \
             scripts/video_producer_thumbnail_worker.py \
+            scripts/video_producer_youtube_schedule_worker.py \
+            scripts/check_video_producer_youtube_schedule_worker.py \
             scripts/video_producer_publisher_handoff_worker.py \
             scripts/transcribe_video_producer_worker.py \
             scripts/video_producer_source_probe.py \
@@ -82,6 +86,9 @@ jobs:
             scripts/check_video_producer_finishing.py \
             scripts/check_video_producer_sync.py \
             scripts/check_video_producer_multicam.py
+
+      - name: Verify YouTube resumable worker protocol
+        run: python3 scripts/check_video_producer_youtube_schedule_worker.py
 
       - name: Confirm SDR, HLG and PQ source classification
         run: python3 scripts/check_video_producer_source_probe.py
