@@ -162,10 +162,8 @@ def select_source_frame(source, timestamp, directory):
         except ValueError:
             pass
     candidates = []
-    for index, offset in enumerate(FRAME_OFFSETS):
-        time = max(0, float(timestamp) + offset)
-        if duration is not None:
-            time = min(time, max(0, duration - .1))
+    for index, time in enumerate(candidate_source_times(
+            timestamp, duration, window_start, window_end)):
         sample = os.path.join(directory, f"sample-{index}.jpg")
         try:
             _sample_frame(source, time, sample)
@@ -219,7 +217,9 @@ def main():
                 raise RuntimeError("Thumbnail variant must be A or B")
             output = os.path.join(directory, f"{variant}.jpg")
             source_timestamp = offset + float(item.get("sourceTimestamp") or 0)
-            selected = select_source_frame(source, source_timestamp, directory)
+            selected = select_source_frame(
+                source, source_timestamp, directory,
+                window_start=offset, window_end=payload.get("source_range_end"))
             print("Selected genuine source frame", variant, selected, flush=True)
             render_variant(source, variant, item.get("headline") or label, label,
                            selected, output, directory, colors)
