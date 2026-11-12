@@ -25,11 +25,12 @@ export function videoBrandSceneStarter(input:{
  return videoSceneDocument.parse({
   tool:"video",version:2,kind,id:projectId,
   format:{w:vertical?1080:1920,h:vertical?1920:1080,fps:30},
-  assets:[],style:{
+  assets:profile.config.logo.assetId?[{id:profile.config.logo.assetId,kind:"graphic" as const}]:[],style:{
    preset:profile.name,ink:profile.config.theme.ink,
    crimson:profile.config.theme.accent,paper:profile.config.theme.paper,
    fontFamily:profile.config.theme.fonts[0],brandSlug:profile.slug,
-   logoAssetPath:profile.config.logo.assetPath
+   logoAssetPath:profile.config.logo.assetPath,
+   logoAssetId:profile.config.logo.assetId
   },
   fields:{series:profile.name,episodeTitle:title,logo:profile.config.logo.wordmark,
    lowerThird:"",boxText:"",quote:"",kicker:"",label:""},
