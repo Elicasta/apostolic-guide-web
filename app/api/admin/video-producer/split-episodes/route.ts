@@ -97,7 +97,7 @@ export async function POST(request:Request){
    if(ep.error)throw new Error(ep.error.message);
    created.push(ep.data.id);
    const short=await service.from("video_producer_projects").insert({
-    ...shared,title:item.title+" | Short",mode:"reels",parent_project_id:ep.data.id,
+    ...shared,title:item.title+": Short",mode:"reels",parent_project_id:ep.data.id,
     source_range_start:item.shortStart,source_range_end:item.shortEnd,
     director_metadata:{splitFromRoot:root.id,matchingEpisodeId:ep.data.id,miniEpisodeIndex:i+1}
    }).select("id,title,mode,status,source_range_start,source_range_end").single();
