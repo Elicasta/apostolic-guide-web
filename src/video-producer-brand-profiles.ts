@@ -16,7 +16,8 @@ export const videoProducerBrandProfileSchema = z.object({
     }).strict(),
     logo: z.object({
       wordmark: z.string().max(120),
-      assetPath: z.string().max(300).nullable().default(null)
+      assetPath: z.string().max(300).nullable().default(null),
+      assetId: z.string().uuid().nullable().default(null)
     }).strict(),
     bumpers: z.object({
       introSeconds: z.number().finite().min(0).max(12),
