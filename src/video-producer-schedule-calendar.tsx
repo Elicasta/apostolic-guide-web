@@ -4,7 +4,7 @@ import Link from "next/link";
 import {CalendarDays,CheckCircle2,ExternalLink,Loader2,ShieldCheck,Upload} from "lucide-react";
 
 type Project={id:string;title:string;mode:"podcast"|"reels";status:string;hasSource:boolean};
-type Draft={id:string;project_id:string;brand_slug:string;channel_handle:string;local_date:string;local_time:string;publish_at:string;title:string;description:string;playlist_id:string|null;thumbnail_variant:"A"|"B"|null;status:string;youtube_video_id:string|null;error_message:string|null};
+type Draft={id:string;project_id:string;brand_slug:string;channel_handle:string;local_date:string;local_time:string;publish_at:string;title:string;description:string;playlist_id:string|null;thumbnail_variant:"A"|"B"|null;status:string;youtube_video_id:string|null;error_message:string|null;worker_stage?:string|null;worker_progress?:number|null;worker_heartbeat_at?:string|null};
 type Brand={slug:string;name:string;config:{destination:{type:string;youtubeHandle:string|null}}};
 type Loaded={brand:Brand;profiles:Brand[];defaultSlot:{localDate:string;localTime:string};projects:Project[];drafts:Draft[]};
 type Channel={id:string;handle:string;title:string};
@@ -151,6 +151,7 @@ export function VideoProducerScheduleCalendar(){
        if(!window.confirm("Cancel this calendar draft?"))return;
        await json(`/api/admin/video-producer/schedule?id=${draft.id}`,{method:"DELETE"});
       })}>Cancel draft</button>:null}
+      {draft.status==="submitting"?<span role="status" className="vp-calendar-note">YouTube upload worker: {draft.worker_stage||"Starting GitHub Actions"} · {draft.worker_progress??0}%</span>:null}
       {draft.status==="submitted"?<span className="vp-calendar-ok"><CheckCircle2 size={15}/> Submitted to YouTube</span>:null}
      </div>
      {editing&&!ready?<p className="vp-calendar-quiet">Render and review the final approved master before submission.</p>:null}
