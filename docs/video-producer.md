@@ -35,7 +35,7 @@ The existing AG video studio/publishing routes remain available to the Apostolic
 ### Production dimensions
 
 - Long episodes: 1920 × 1080, 30 FPS MP4.
-- Shorts: 1080 × 1920, 30 FPS, with face-centered reframe decisions in the existing edit pipeline.
+- Shorts: 1080 × 1920, 30 FPS. The finishing worker samples genuine frames with OpenCV and places the presenter near the horizontal center before applying the existing motion cues. When no reliable face is detected, it uses the original center crop without inventing or modifying a face.
 - YouTube thumbnails: exactly 1280 × 720 JPEG.
 - Short end card: **“Full episode on my channel.”**
 
