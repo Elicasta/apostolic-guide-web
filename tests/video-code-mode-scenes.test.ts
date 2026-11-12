@@ -29,3 +29,16 @@ test("samples keyframes in scene-relative seconds with the same deterministic ea
  assert.ok(Number.isFinite(easingAt("spring",.25)));
  assert.ok(Number.isFinite(easingAt("cubic-bezier(0.4,0,0.2,1)",.25)));
 });
+
+test("shared Video Code Mode templates cannot include publish controls or scripts",()=>{
+ for(const templateHtml of [
+  '<button>Publish now</button>',
+  '<form><input name="schedule"></form>',
+  '<a href="https://example.com">Go live</a>',
+  '<iframe src="https://example.com"></iframe>',
+  '<img src=x onerror=alert(1)>'
+ ]){
+  assert.equal(videoSceneDocument.safeParse({...make(),templateHtml}).success,false,templateHtml);
+ }
+ assert.equal(videoSceneDocument.safeParse({...make(),templateHtml:'<div class="vp-template">{{quote}}</div>'}).success,true);
+});
