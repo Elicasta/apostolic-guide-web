@@ -102,7 +102,7 @@ jobs:
         shell: bash
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends ffmpeg curl fonts-noto-core fontconfig
+          sudo apt-get install -y --no-install-recommends ffmpeg curl python3-opencv fonts-noto-core fontconfig
           for pkg in fonts-bebas-neue fonts-montserrat fonts-playfair-display; do
             if apt-cache show "$pkg" >/dev/null 2>&1; then
               sudo apt-get install -y --no-install-recommends "$pkg"
