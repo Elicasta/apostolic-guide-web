@@ -81,3 +81,18 @@ test("shared template cannot erase brand logo or end screen spacing",()=>{
  doc.overlays=[{type:"boxText",text:"Truth matters.",start:1,end:3,position:"center",preset:"brand-box"}];
  assert.match(compileVideoBrandOverlayFrame(doc,2).html,/vp-template/);
 });
+
+test("registered private brand logo is embedded by ID without Chromium network fetches",()=>{
+ const logoId="4bfe8e77-f6f8-4c6a-99e2-6276c5fe6241";
+ const profile={...brand,config:{...brand.config,logo:{...brand.config.logo,assetId:logoId}}};
+ const doc=videoBrandSceneStarter({
+  profile,projectId:"a222bc42-19a4-497e-9ebc-bcd2270c4534",
+  kind:"producer",mode:"podcast",title:"What Is Faith?",duration:120
+ });
+ assert.equal(doc.assets[0]?.id,logoId);
+ assert.equal((doc.style as Record<string,unknown>).logoAssetId,logoId);
+ const frame=compileVideoBrandOverlayFrame(doc,12,{[logoId]:"data:image/png;base64,aGVsbG8="});
+ assert.match(frame.html,/class="vp-logo"/);
+ assert.match(frame.html,/src="data:image\/png;base64,aGVsbG8="/);
+ assert.doesNotMatch(frame.html,/src="https?:/);
+});
