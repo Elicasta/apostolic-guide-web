@@ -150,7 +150,33 @@ def _score_face_frame(frame):
     return 20 + sharpness + eye_score + centered_score + face_size + closed_mouth_score - hand_penalty
 
 
-def select_source_frame(source, timestamp, directory):
+def candidate_source_times(timestamp, duration=None, window_start=0.0, window_end=None):
+    """Limit every real-frame probe to the named mini episode window."""
+    import math
+
+    start = max(0.0, float(window_start))
+    end = float(window_end) if window_end is not None else duration
+    if end is not None:
+        end = float(end)
+        if duration is not None:
+            end = min(end, float(duration))
+        if not math.isfinite(end) or end <= start:
+            raise RuntimeError("Thumbnail source episode range is invalid")
+    limit = max(start, end - .10) if end is not None else None
+
+    positions = []
+    for delta in FRAME_OFFSETS:
+        probe = max(start, float(timestamp) + delta)
+        if limit is not None:
+            probe = min(probe, limit)
+        if not math.isfinite(probe):
+            raise RuntimeError("Thumbnail source timestamp must be finite")
+        if all(abs(probe - old) > .001 for old in positions):
+            positions.append(probe)
+    return positions
+
+
+def select_source_frame(source, timestamp, directory, window_start=0.0, window_end=None):
     """Pick the most usable real frame around the editor's source timestamp."""
     duration = None
     inspected = subprocess.run(["ffprobe", "-v", "error", "-show_entries",
