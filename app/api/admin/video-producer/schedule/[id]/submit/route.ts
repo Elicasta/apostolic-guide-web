@@ -2,7 +2,7 @@ import {NextResponse} from "next/server";
 import {z} from "zod";
 import {getStudioPermission} from "@/auth";
 import {createServiceClient} from "@/supabase";
-import {createPrivateBlobDownloadUrl} from "@/video-producer-server";
+import {createPrivateBlobDownloadUrl,createWorkerCallbackToken,dispatchVideoProducerWorker,videoProducerRendererCredentials,videoProducerWorkerRef} from "@/video-producer-server";
 import {getVideoProducerBrand} from "@/video-producer-brand-server";
 import {validateVideoProducerChannel} from "@/video-producer-brand-profiles";
 import {validateFutureVideoProducerSchedule} from "@/video-producer-schedule";
@@ -12,7 +12,7 @@ import {
 } from "@/video-producer-youtube-schedule-server";
 
 export const runtime="nodejs";
-export const maxDuration=300;
+export const maxDuration=60;
 const idSchema=z.string().uuid();
 const submitSchema=z.object({confirm:z.literal(true)}).strict();
 function err(message:string,status=409){return NextResponse.json({error:message},{status});}
@@ -61,48 +61,61 @@ export async function POST(request:Request,context:{params:Promise<{id:string}>}
   token=await videoProducerYouTubeAccessToken();
   await verifyVideoProducerYouTubeChannel(token,draft.channel_handle);
  }catch(e){return err(e instanceof Error?e.message:"The selected YouTube channel is not authorized.",409);}
- const claimed=await service.from("video_producer_schedule_drafts")
-  .update({status:"submitting",error_message:null})
-  .eq("id",id).eq("status","draft").is("youtube_video_id",null).select("id").maybeSingle();
+
+ // Claim before dispatch. A second click must not upload or schedule again.
+ const callback=createWorkerCallbackToken();
+ const expiresAt=new Date(Date.now()+8*60*60*1000).toISOString();
+ const claimed=await service.from("video_producer_schedule_drafts").update({
+  status:"submitting",error_message:null,
+  worker_callback_token_hash:callback.hash,worker_token_expires_at:expiresAt,
+  worker_heartbeat_at:new Date().toISOString(),worker_stage:"Waiting for GitHub Actions",
+  worker_progress:0
+ }).eq("id",id).eq("status","draft").is("youtube_video_id",null)
+  .select("id").maybeSingle();
  if(claimed.error)return err(claimed.error.message,500);
- if(!claimed.data)return err("Another request already started submitting this item.",409);
- let videoId:string|null=null;
+ if(!claimed.data)return err("Another request already started this YouTube submission.",409);
  try{
-  const privateUrl=await createPrivateBlobDownloadUrl(render.data.output_storage_path,4*60*60*1000);
-  videoId=await uploadScheduledVideoToYouTube({
-   token,sourceUrl:privateUrl,title:draft.title||project.data.title,description:draft.description||"",publishAt:new Date(draft.publish_at).toISOString()
+  const {token:githubToken,repository}=await videoProducerRendererCredentials(service);
+  if(!githubToken)throw new Error("GitHub dispatcher token VIDEO_STUDIO_GITHUB_TOKEN is not configured.");
+  const ttl=8*60*60*1000;
+  const sourceUrl=await createPrivateBlobDownloadUrl(render.data.output_storage_path,ttl);
+  let thumbnailPath=draft.custom_thumbnail_path;
+  if(!thumbnailPath&&draft.thumbnail_variant){
+   const selected=await service.from("video_producer_thumbnails").select("storage_locator,status")
+    .eq("project_id",project.data.id).eq("variant",draft.thumbnail_variant).maybeSingle();
+   if(selected.error)throw new Error(selected.error.message);
+   if(selected.data?.status!=="completed"||!selected.data.storage_locator)
+    throw new Error("Selected YouTube thumbnail A or B is not ready. Review thumbnails first.");
+   thumbnailPath=selected.data.storage_locator;
+  }
+  const thumbUrl=thumbnailPath?await createPrivateBlobDownloadUrl(thumbnailPath,ttl):null;
+  const workerRef=videoProducerWorkerRef();
+  await dispatchVideoProducerWorker({
+   token:githubToken,repository,eventType:"video-producer-youtube-schedule",
+   payload:{
+    job_id:id,project_id:project.data.id,worker_ref:workerRef,
+    channel_handle:draft.channel_handle,
+    source_url:sourceUrl,thumbnail_url:thumbUrl,
+    callback_url:new URL("/api/admin/video-producer/schedule/"+id+"/worker-callback",request.url).toString(),
+    token_url:new URL("/api/admin/video-producer/schedule/"+id+"/worker-token",request.url).toString(),
+    callback_token:callback.token,
+    title:draft.title||project.data.title,description:draft.description||"",
+    publish_at:new Date(draft.publish_at).toISOString(),
+    playlist_id:draft.playlist_id||null
+   }
   });
-  // Store the YouTube ID immediately so a thumbnail/playlist error cannot cause
-  // a second video upload on retry.
-  const stored=await service.from("video_producer_schedule_drafts").update({
-   status:"submitted",youtube_video_id:videoId,submitted_at:new Date().toISOString()
+  return NextResponse.json({
+   ok:true,status:"submitting",jobId:id,publishAt:draft.publish_at,
+   message:"Upload queued in GitHub Actions after your explicit confirmation. YouTube will receive this video privately with the requested future publish time.",
+   humanConfirmed:true
+  },{status:202});
+ }catch(error){
+  const reason=error instanceof Error?error.message:"GitHub upload worker could not be started.";
+  await service.from("video_producer_schedule_drafts").update({
+   status:"failed",error_message:reason.slice(0,1800),
+   worker_stage:"GitHub dispatch failed",worker_callback_token_hash:null,
+   worker_token_expires_at:null
   }).eq("id",id).eq("status","submitting");
-  if(stored.error)throw new Error("YouTube accepted the video but saving its ID failed. Do not retry the upload. Verify video "+videoId+" in YouTube Studio. "+stored.error.message);
- }catch(e){
-  const msg=e instanceof Error?e.message:"YouTube scheduling failed.";
-  await service.from("video_producer_schedule_drafts").update({status:"failed",error_message:msg.slice(0,1800),youtube_video_id:videoId}).eq("id",id).eq("status","submitting");
-  return err(msg+" Check YouTube Studio before attempting any resubmission.",502);
+  return err(reason+" No automatic retry was scheduled. Recheck the health panel and confirm YouTube Studio state before a new attempt.",502);
  }
- const warnings:string[]=[];
- let thumbnailPath=draft.custom_thumbnail_path;
- if(!thumbnailPath&&draft.thumbnail_variant){
-  const selected=await service.from("video_producer_thumbnails").select("storage_locator,status")
-   .eq("project_id",project.data.id).eq("variant",draft.thumbnail_variant).maybeSingle();
-  if(selected.error)warnings.push("Thumbnail lookup failed: "+selected.error.message);
-  else if(selected.data?.status==="completed"&&selected.data.storage_locator)thumbnailPath=selected.data.storage_locator;
-  else warnings.push("Selected thumbnail A or B is not ready. Choose a completed image in YouTube Studio.");
- }
- if(thumbnailPath){
-  try{await attachYouTubeVideoThumbnail(token,videoId!,await createPrivateBlobDownloadUrl(thumbnailPath,30*60*1000));}
-  catch(e){warnings.push(e instanceof Error?e.message:"Thumbnail upload failed. You can upload it manually in YouTube Studio.");}
- }
- if(draft.playlist_id){
-  try{await addVideoProducerYouTubePlaylist(token,videoId!,draft.playlist_id);}
-  catch(e){warnings.push(e instanceof Error?e.message:"Could not add the video to the playlist.");}
- }
- if(warnings.length)await service.from("video_producer_schedule_drafts").update({error_message:warnings.join(" ").slice(0,1800)}).eq("id",id);
- return NextResponse.json({ok:true,status:"submitted",videoId,
-  youtubeUrl:"https://www.youtube.com/watch?v="+encodeURIComponent(videoId!),
-  publishAt:draft.publish_at,warnings,
-  message:"YouTube accepted this private video with a future publish time. It was submitted only after your confirmation."});
 }
