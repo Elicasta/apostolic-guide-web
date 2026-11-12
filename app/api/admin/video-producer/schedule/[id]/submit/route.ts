@@ -6,10 +6,7 @@ import {createPrivateBlobDownloadUrl,createWorkerCallbackToken,dispatchVideoProd
 import {getVideoProducerBrand} from "@/video-producer-brand-server";
 import {validateVideoProducerChannel} from "@/video-producer-brand-profiles";
 import {validateFutureVideoProducerSchedule} from "@/video-producer-schedule";
-import {
- videoProducerYouTubeAccessToken,verifyVideoProducerYouTubeChannel,
- uploadScheduledVideoToYouTube,attachYouTubeVideoThumbnail,addVideoProducerYouTubePlaylist
-} from "@/video-producer-youtube-schedule-server";
+import {videoProducerYouTubeAccessToken,verifyVideoProducerYouTubeChannel} from "@/video-producer-youtube-schedule-server";
 
 export const runtime="nodejs";
 export const maxDuration=60;
