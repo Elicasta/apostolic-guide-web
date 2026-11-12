@@ -10,7 +10,9 @@ const embedded=(raw:string|undefined)=>raw&&/^data:image\/(?:png|jpeg|webp);base
 
 export function compileVideoBrandOverlayFrame(doc:VideoSceneDocument,time:number,imageData:Record<string,string>={}):{html:string;css:string}{
  const fields={series:"",episodeTitle:"",logo:"",lowerThird:"",boxText:"",quote:"",kicker:"",label:"",...doc.fields};
- const logoData=embedded(imageData["__brand_logo"]);
+ const logoAssetId=(doc.style as Record<string,unknown>).logoAssetId;
+ const logoData=embedded(imageData["__brand_logo"])||
+  (typeof logoAssetId==="string"?embedded(imageData[logoAssetId]):null);
  const css=`<style>
  :root{--vp-ink:${safeColor(doc.style.ink,"#0E1E2D")};--vp-accent:${safeColor(doc.style.crimson,"#B3212D")};--vp-paper:${safeColor(doc.style.paper,"#FFF9F2")}}
  .vp-overlay{position:absolute;inset:0;z-index:10;pointer-events:none;font-family:"${safeFont((doc.style as Record<string,unknown>).fontFamily)}",Montserrat,Arial,sans-serif;color:var(--vp-paper)}
