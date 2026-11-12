@@ -39,6 +39,14 @@ export function VideoProducerScheduleCalendar(){
    .catch(e=>{if(live)setError(e instanceof Error?e.message:"Connect YouTube in Admin Setup.");});
   return ()=>{live=false;};
  },[load,brandSlug]);
+ const submittingCount=(data?.drafts||[]).filter(item=>item.status==="submitting").length;
+ useEffect(()=>{
+  if(!submittingCount)return;
+  // Worker progress is persisted by the signed callback. Refresh only while
+  // a human-submitted upload is in progress, then stop polling.
+  const timer=window.setInterval(()=>{void load().catch(()=>{});},12000);
+  return ()=>window.clearInterval(timer);
+ },[submittingCount,load]);
  const byId=new Map((data?.projects||[]).map(project=>[project.id,project]));
  const projectAvailable=(data?.projects||[]).filter(p=>p.hasSource&&p.status!=="failed");
  const drafts=data?.drafts||[];
@@ -143,7 +151,7 @@ export function VideoProducerScheduleCalendar(){
       {project?<Link href={`/admin/video-producer/${project.id}/deliver`}>Open finished video</Link>:null}
       {draft.youtube_video_id?<a href={`https://www.youtube.com/watch?v=${encodeURIComponent(draft.youtube_video_id)}`} target="_blank" rel="noreferrer"><ExternalLink size={14}/> YouTube Studio video</a>:null}
       {editing?<button disabled={!ready||Boolean(busy)} onClick={()=>void action("YouTube schedule submission",async()=>{
-       if(!window.confirm(`Submit "${current.title}" to ${draft.channel_handle} for ${localLabel(draft.local_date,draft.local_time)}? This is the final action that uploads to YouTube.`))return;
+       if(!window.confirm(`Submit "${current.title}" to ${draft.channel_handle} for ${localLabel(draft.local_date,draft.local_time)}? This is the final action that uploads to YouTube.`))throw new Error("YouTube submission was canceled. Nothing was uploaded.");
        if(Object.keys(edits[draft.id]||{}).length)throw new Error("Save metadata changes before submitting.");
        await json(`/api/admin/video-producer/schedule/${draft.id}/submit`,{method:"POST",body:JSON.stringify({confirm:true})});
       })}>{busy?<Loader2 size={15}/>:<Upload size={15}/>} Send to YouTube schedule</button>:null}
