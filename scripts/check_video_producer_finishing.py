@@ -121,6 +121,7 @@ def check_real_face_reframe_contract(finishing):
 def main():
     os.chdir(ROOT)
     finishing = load("finishing_smoke", FINISH_PATH)
+    check_real_face_reframe_contract(finishing)
     assert "arnndn" not in finishing.audio_filter_v2({"audioPreset":"ag-voice-clean","rnnoiseMix":0})
     denoise_filter=finishing.audio_filter_v2({"audioPreset":"ag-voice-clean","rnnoiseMix":.5})
     assert "arnndn=" in denoise_filter and denoise_filter.index("arnndn=")<denoise_filter.index("deesser="),denoise_filter
