@@ -37,7 +37,7 @@ export async function GET(request:Request){
   const brand=await getVideoProducerBrand(s,slug);
   if(brand.config.destination.type!=="youtube")return respond("This profile uses the Apostolic Guide Publisher, not direct YouTube scheduling.",409);
   const [queue,projects,profiles]=await Promise.all([
-   s.from("video_producer_schedule_drafts").select("id,project_id,brand_slug,channel_handle,publish_at,local_date,local_time,title,description,playlist_id,thumbnail_variant,status,youtube_video_id,error_message,submitted_at").eq("brand_slug",brand.slug).order("publish_at",{ascending:true}).limit(150),
+   s.from("video_producer_schedule_drafts").select("id,project_id,brand_slug,channel_handle,publish_at,local_date,local_time,title,description,playlist_id,thumbnail_variant,status,youtube_video_id,error_message,submitted_at,worker_stage,worker_progress,worker_heartbeat_at").eq("brand_slug",brand.slug).order("publish_at",{ascending:true}).limit(150),
    s.from("video_producer_projects").select("id,title,mode,status,brand_profile,source_locator").eq("brand_profile",brand.slug).is("deleted_at",null).order("created_at",{ascending:false}).limit(150),
    listVideoProducerBrands(s)
   ]);
