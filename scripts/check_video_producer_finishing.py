@@ -158,6 +158,19 @@ def main():
     assert "arnndn=" in denoise_filter and denoise_filter.index("arnndn=")<denoise_filter.index("deesser="),denoise_filter
 
     thumbnail = load("thumbnail_smoke", THUMB_PATH)
+    # Thumbnail probes must never leave the mini episode, even when their
+    # source timestamp is at an episode boundary.
+    first = thumbnail.candidate_source_times(110.0, 360, window_start=110, window_end=145)
+    last = thumbnail.candidate_source_times(144.9, 360, window_start=110, window_end=145)
+    assert all(110 <= t < 145 for t in first + last), (first, last)
+    assert len(first) == len(set(first))
+    assert len(last) == len(set(last))
+    try:
+        thumbnail.candidate_source_times(110, 360, window_start=145, window_end=110)
+    except RuntimeError:
+        pass
+    else:
+        raise RuntimeError("Invalid mini episode windows must be rejected")
     with tempfile.TemporaryDirectory(prefix="ag-finishing-smoke-") as d:
         src = os.path.join(d, "source.mp4")
         bed = os.path.join(d, "music.wav")
