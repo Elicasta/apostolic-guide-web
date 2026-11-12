@@ -14,7 +14,7 @@ export async function POST(request:Request,context:{params:Promise<{id:string}>}
  if(!id.safeParse(jobId).success||!parsed.success)return NextResponse.json({error:"Invalid worker request"},{status:400});
  const service=createServiceClient();if(!service)return NextResponse.json({error:"Unavailable"},{status:503});
  const r=await service.from("video_producer_schedule_drafts")
-  .select("status,brand_slug,channel_handle,worker_callback_token_hash,worker_token_expires_at")
+  .select("status,youtube_video_id,brand_slug,channel_handle,worker_callback_token_hash,worker_token_expires_at")
   .eq("id",jobId).maybeSingle();
  if(r.error)return NextResponse.json({error:"Unavailable"},{status:503});
  const job=r.data;
