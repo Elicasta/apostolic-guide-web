@@ -107,6 +107,17 @@ def reel_manifest():
     }
 
 
+def check_real_face_reframe_contract(finishing):
+    # Even without OpenCV, 9:16 crops are bounded and source-center by default.
+    expression = finishing.face_crop_x_expression(.35)
+    assert "iw*0.35000" in expression
+    assert "min(iw,ih*9/16)" in expression
+    assert "max(0,min(" in expression
+    center = finishing.video_normalize_chain("reels")
+    assert "iw*0.50000" in center
+    assert finishing.video_normalize_chain("podcast").startswith("fps=30,scale")
+
+
 def main():
     os.chdir(ROOT)
     finishing = load("finishing_smoke", FINISH_PATH)
