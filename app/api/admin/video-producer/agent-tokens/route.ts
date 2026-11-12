@@ -10,7 +10,8 @@ export const runtime="nodejs";
 
 export async function GET(){
  const {access,allowed}=await getStudioPermission("manage_integrations");
- if(!allowed||access.state!=="allowed"||!access.user)return NextResponse.json({error:"Forbidden"},{status:403});
+ const content=await getStudioPermission("manage_content");
+ if(!allowed||!content.allowed||content.access.state!=="allowed"||access.state!=="allowed"||!access.user)return NextResponse.json({error:"Forbidden"},{status:403});
  const service=createServiceClient();if(!service)return NextResponse.json({error:"Database unavailable"},{status:503});
  const r=await service.from("video_producer_agent_tokens")
   .select("id,label,scopes,created_at,expires_at,revoked_at,last_used_at")
