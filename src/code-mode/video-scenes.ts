@@ -131,7 +131,7 @@ export function propsAt(scene:VideoScene,target:string,time:number){
  return values;
 }
 export function videoSceneStarter(id:string,layer:VideoScene["layer"]="overlay"):VideoScene{
- return {id,start:0,end:3,layer,html:'<div data-motion="title" class="motion-title">JESUS IS GOD</div>',css:'.motion-title{font-family:Montserrat,sans-serif;font-weight:900;font-size:8cqw;text-align:center;color:#F5F7F4}',keyframes:[
+ return {id,start:0,end:3,layer,html:'<div data-motion="title" class="motion-title">Jesus is God.</div>',css:'.motion-title{font-family:Montserrat,sans-serif;font-weight:900;font-size:8cqw;text-align:center;color:#F5F7F4}',keyframes:[
  {t:0,target:"title",props:{opacity:0,y:80,scale:.9},ease:"ease-out"},
  {t:.5,target:"title",props:{opacity:1,y:0,scale:1},ease:"spring"}
  ],transitionIn:{type:"crossfade",duration:.3,ease:"ease-out"}};
