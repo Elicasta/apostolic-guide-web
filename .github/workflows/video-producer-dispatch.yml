@@ -2,7 +2,7 @@ name: Video Producer dispatcher
 
 on:
   repository_dispatch:
-    types: [video-producer-transcribe, video-producer-sync, video-producer-render, video-producer-thumbnail, video-producer-publisher-handoff, video-producer-agent-preview]
+    types: [video-producer-transcribe, video-producer-sync, video-producer-render, video-producer-thumbnail, video-producer-publisher-handoff, video-producer-agent-preview, video-producer-youtube-schedule]
 
 permissions:
   contents: read
@@ -263,3 +263,30 @@ jobs:
         run: printf '%s' "$PREVIEW_PAYLOAD" > /tmp/video-producer-agent-preview.json
       - name: Render private ten second proof and report
         run: python3 scripts/render_video_producer_agent_preview_worker.py /tmp/video-producer-agent-preview.json
+
+  youtube_schedule:
+    if: github.event.action == 'video-producer-youtube-schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      WORKER_REF: ${{ github.event.client_payload.worker_ref || github.event.repository.default_branch }}
+    steps:
+      - name: Enforce trusted worker ref
+        shell: bash
+        run: |
+          case "$WORKER_REF" in
+            main|codex/video-producer|codex/video-producer-brand-episodes) ;;
+            *) echo "Refusing untrusted scheduled upload worker ref" >&2; exit 1 ;;
+          esac
+      - name: Check out reviewed Video Producer worker
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.WORKER_REF }}
+          persist-credentials: false
+      - name: Write signed worker payload
+        shell: bash
+        env:
+          WORKER_PAYLOAD: ${{ toJson(github.event.client_payload) }}
+        run: printf '%s' "$WORKER_PAYLOAD" > /tmp/video-producer-youtube-schedule.json
+      - name: Stream resumable YouTube upload and finish metadata
+        run: python3 scripts/video_producer_youtube_schedule_worker.py /tmp/video-producer-youtube-schedule.json
