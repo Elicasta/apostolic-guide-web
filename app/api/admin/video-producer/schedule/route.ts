@@ -2,7 +2,7 @@ import {NextResponse} from "next/server";
 import {z} from "zod";
 import {getStudioPermission} from "@/auth";
 import {createServiceClient} from "@/supabase";
-import {getVideoProducerBrand} from "@/video-producer-brand-server";
+import {getVideoProducerBrand,listVideoProducerBrands} from "@/video-producer-brand-server";
 import {validateVideoProducerChannel} from "@/video-producer-brand-profiles";
 import {
  alternateVideoProducerCalendar,calendarDayOffset,defaultVideoProducerSchedule,
@@ -36,13 +36,14 @@ export async function GET(request:Request){
  try{
   const brand=await getVideoProducerBrand(s,slug);
   if(brand.config.destination.type!=="youtube")return respond("This profile uses the Apostolic Guide Publisher, not direct YouTube scheduling.",409);
-  const [queue,projects]=await Promise.all([
+  const [queue,projects,profiles]=await Promise.all([
    s.from("video_producer_schedule_drafts").select("id,project_id,brand_slug,channel_handle,publish_at,local_date,local_time,title,description,playlist_id,thumbnail_variant,status,youtube_video_id,error_message,submitted_at").eq("brand_slug",brand.slug).order("publish_at",{ascending:true}).limit(150),
-   s.from("video_producer_projects").select("id,title,mode,status,brand_profile,source_locator").eq("brand_profile",brand.slug).is("deleted_at",null).order("created_at",{ascending:false}).limit(150)
+   s.from("video_producer_projects").select("id,title,mode,status,brand_profile,source_locator").eq("brand_profile",brand.slug).is("deleted_at",null).order("created_at",{ascending:false}).limit(150),
+   listVideoProducerBrands(s)
   ]);
   if(queue.error)return respond(queue.error.message,500);
   if(projects.error)return respond(projects.error.message,500);
-  return NextResponse.json({brand,defaultSlot:defaultVideoProducerSchedule(),drafts:queue.data||[],
+  return NextResponse.json({brand,profiles:profiles.filter(p=>p.config.destination.type==="youtube").map(p=>({slug:p.slug,name:p.name,config:{destination:p.config.destination}})),defaultSlot:defaultVideoProducerSchedule(),drafts:queue.data||[],
    projects:(projects.data||[]).map(({source_locator,...p})=>({...p,hasSource:Boolean(source_locator)}))});
  }catch(e){return respond(e instanceof Error?e.message:"Scheduling unavailable",409);}
 }
