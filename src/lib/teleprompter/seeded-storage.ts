@@ -25,6 +25,11 @@ import {
   TELEPROMPTER_PERSONAL_SEED_VERSION,
   getPersonalChannelSeedDocuments,
 } from "./personal";
+import {
+  TELEPROMPTER_DOCTRINE_SEED_KEY,
+  TELEPROMPTER_DOCTRINE_SEED_VERSION,
+  getDoctrineSeedDocuments,
+} from "./doctrine";
 
 export {
   DEFAULT_TELEPROMPTER_CONTENT,
@@ -45,6 +50,7 @@ export function getSeedDocuments(): TeleprompterDocument[] {
     ...getLegacySeedDocuments(),
     ...getEpisodeSeedDocuments(),
     ...getPersonalChannelSeedDocuments(),
+    ...getDoctrineSeedDocuments(),
   ];
 }
 
@@ -83,6 +89,20 @@ export function mergeEpisodeSeeds(
   }
 
   return merged;
+}
+
+// Doctrine drafts are a separate install. Do not fold them into mergeEpisodeSeeds:
+// that refresh rewrites untouched previous Apostolic Guide episode documents.
+// Missing doctrine ids are added. An existing id, including an edit or a script
+// Eli created, is left in place. After the version key is stored, a deletion stays
+// deleted until the doctrine seed version is intentionally raised.
+export function mergeDoctrineSeeds(
+  documents: TeleprompterDocument[],
+  doctrineSeeds = getDoctrineSeedDocuments(),
+): TeleprompterDocument[] {
+  const existingIds = new Set(documents.map((document) => document.id));
+  const additions = doctrineSeeds.filter((seed) => !existingIds.has(seed.id));
+  return [...additions, ...documents];
 }
 
 // New personal-channel episodes are installed once per browser without modifying
@@ -125,6 +145,19 @@ export function loadTeleprompterDocuments(): TeleprompterDocument[] {
     window.localStorage.setItem(
       TELEPROMPTER_PERSONAL_SEED_KEY,
       String(TELEPROMPTER_PERSONAL_SEED_VERSION),
+    );
+  }
+
+  const installedDoctrineVersion = Number(
+    window.localStorage.getItem(TELEPROMPTER_DOCTRINE_SEED_KEY) || "0",
+  );
+
+  if (installedDoctrineVersion < TELEPROMPTER_DOCTRINE_SEED_VERSION) {
+    documents = mergeDoctrineSeeds(documents);
+    saveTeleprompterDocuments(documents);
+    window.localStorage.setItem(
+      TELEPROMPTER_DOCTRINE_SEED_KEY,
+      String(TELEPROMPTER_DOCTRINE_SEED_VERSION),
     );
   }
 
