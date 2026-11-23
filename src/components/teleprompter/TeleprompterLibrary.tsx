@@ -7,6 +7,11 @@ import { parseTeleprompterDocument } from "@/lib/teleprompter/parser";
 import { getDoctrineBackupRaw, getLegacyArchiveRaw, loadTeleprompterDocuments } from "@/lib/teleprompter/seeded-storage";
 import { getDoctrineSeedDocuments } from "@/lib/teleprompter/doctrine";
 import {
+  getPathwaySeedDocuments,
+  pathwayFromDocumentId,
+  publicPathwayUrl,
+} from "@/lib/teleprompter/pathways";
+import {
   createTeleprompterDocument,
   duplicateTeleprompterDocument,
   saveTeleprompterDocuments,
@@ -16,19 +21,27 @@ import type {
   TeleprompterTheme,
 } from "@/lib/teleprompter/types";
 
-type LibraryCategory = "doctrine" | "personal" | "other";
+type LibraryCategory = "pathways" | "deepdives" | "personal" | "other";
 
 const rewrittenDoctrine = new Map(getDoctrineSeedDocuments().map((document) => [document.id, document]));
+const publicPathwayScripts = getPathwaySeedDocuments();
+const currentPathways = new Map(publicPathwayScripts.map((document) => [document.id, document]));
+const pathwayOrder = new Map(publicPathwayScripts.map((document, index) => [document.id, index]));
 
 function categoryFor(document: TeleprompterDocument): LibraryCategory {
-  if (document.id.startsWith("ag-doctrine-ep-")) return "doctrine";
+  if (currentPathways.has(document.id)) return "pathways";
+  if (document.id.startsWith("ag-doctrine-ep-")) return "deepdives";
   if (document.id.startsWith("eli-castaneda-episode-")) return "personal";
   return "other";
 }
 
 function statusFor(document: TeleprompterDocument) {
+  const canonical = currentPathways.get(document.id);
+  if (canonical) return document.title === canonical.title && document.content === canonical.content
+    ? "Matches online Pathway"
+    : "Edited · differs from Pathway";
   const rewrite = rewrittenDoctrine.get(document.id);
-  if (rewrite) return document.content === rewrite.content ? "2026 rewrite" : "Your edited version";
+  if (rewrite) return document.content === rewrite.content ? "Deep Dive master" : "Edited Deep Dive";
   if (document.id.startsWith("apostolic-guide-episode-")) return "Older episode";
   if (categoryFor(document) === "personal") return "Personal channel";
   return "Your script";
@@ -38,7 +51,7 @@ export default function TeleprompterLibrary() {
   const [documents, setDocuments] = useState<TeleprompterDocument[]>([]);
   const [selectedId, setSelectedId] = useState("");
   const [search, setSearch] = useState("");
-  const [category, setCategory] = useState<LibraryCategory>("doctrine");
+  const [category, setCategory] = useState<LibraryCategory>("pathways");
   const [previewIndex, setPreviewIndex] = useState(0);
   const [previewTheme, setPreviewTheme] = useState<TeleprompterTheme>("night");
   const [hydrated, setHydrated] = useState(false);
@@ -49,7 +62,7 @@ export default function TeleprompterLibrary() {
     const loaded = loadTeleprompterDocuments();
     const requested = new URLSearchParams(window.location.search).get("doc");
     const requestedDocument = loaded.find((doc) => doc.id === requested);
-    const selected = requestedDocument ?? loaded.find((doc) => categoryFor(doc) === "doctrine") ?? loaded[0];
+    const selected = requestedDocument ?? loaded.find((doc) => categoryFor(doc) === "pathways") ?? loaded[0];
     // Read browser-local storage after mount; schedule state hydration outside
     // the effect's synchronous render cycle to avoid cascading renders.
     let active = true;
@@ -58,7 +71,7 @@ export default function TeleprompterLibrary() {
       setDocuments(loaded);
       setHasDoctrineBackup(Boolean(getDoctrineBackupRaw()));
       setHasLegacyArchive(Boolean(getLegacyArchiveRaw()));
-      setCategory(requestedDocument ? categoryFor(requestedDocument) : "doctrine");
+      setCategory(requestedDocument ? categoryFor(requestedDocument) : "pathways");
       setSelectedId(selected?.id ?? "");
       setHydrated(true);
     });
@@ -80,7 +93,8 @@ export default function TeleprompterLibrary() {
     [selected?.content],
   );
   const counts = useMemo(() => ({
-    doctrine: documents.filter((doc) => categoryFor(doc) === "doctrine").length,
+    pathways: documents.filter((doc) => categoryFor(doc) === "pathways").length,
+    deepdives: documents.filter((doc) => categoryFor(doc) === "deepdives").length,
     personal: documents.filter((doc) => categoryFor(doc) === "personal").length,
     other: documents.filter((doc) => categoryFor(doc) === "other").length,
   }), [documents]);
@@ -90,11 +104,17 @@ export default function TeleprompterLibrary() {
     return documents.filter((doc) => {
       if (needle) return `${doc.title} ${doc.content}`.toLowerCase().includes(needle);
       return categoryFor(doc) === category;
-    }).sort((a, b) =>
-      categoryFor(a) === "doctrine" && categoryFor(b) === "doctrine"
-        ? a.id.localeCompare(b.id)
-        : 0,
-    );
+    }).sort((a, b) => {
+      const aCategory = categoryFor(a);
+      const bCategory = categoryFor(b);
+      if (aCategory === "pathways" && bCategory === "pathways") {
+        return (pathwayOrder.get(a.id) ?? 999) - (pathwayOrder.get(b.id) ?? 999);
+      }
+      if (aCategory === "deepdives" && bCategory === "deepdives") {
+        return a.id.localeCompare(b.id);
+      }
+      return 0;
+    });
   }, [category, documents, search]);
 
   // Never access an out-of-range slide while the editor removes sections.
@@ -156,6 +176,24 @@ export default function TeleprompterLibrary() {
     URL.revokeObjectURL(url);
   };
 
+  const restorePathwayFromWebsite = () => {
+    if (!selected) return;
+    const canonical = currentPathways.get(selected.id);
+    if (!canonical || (selected.content === canonical.content && selected.title === canonical.title)) return;
+    if (!window.confirm("Restore the exact public Pathway wording? Your current version will be saved under My scripts first.")) return;
+    const backup = {
+      ...duplicateTeleprompterDocument(selected),
+      title: `${selected.title} · Backup before Pathway restore`,
+    };
+    setDocuments((current) => [
+      backup,
+      ...current.map((document) => document.id === canonical.id
+        ? { ...canonical, createdAt: document.createdAt, updatedAt: new Date().toISOString() }
+        : document),
+    ]);
+    setPreviewIndex(0);
+  };
+
   const remove = () => {
     if (!selected || documents.length <= 1) return;
     if (!window.confirm(`Delete “${selected.title}”?`)) return;
@@ -187,12 +225,13 @@ export default function TeleprompterLibrary() {
             />
             <p>Script library · 2026</p>
             <div className="tp-library-release">
-              2026 Doctrine series: 24 rewritten scripts.
+              <strong>20 Pathway episodes</strong> mirror the website Scripture, explanations and transitions.
+              The intro and CTA are recording-only. <strong>24 Deep Dives</strong> are separate.
               {hasUnarchivedLegacy
-                ? " Older episodes are still here because this browser could not back them up. Free up browser storage and reload."
+                ? " Older scripts could not be archived on this browser. Free up storage and reload."
                 : hasLegacyArchive
-                  ? " Older episodes are archived."
-                  : " Older seeded episodes have been removed."}
+                  ? " Previous numbered episodes are archived."
+                  : ""}
             </div>
             <button type="button" onClick={createNew} className="tp-library-primary">
               + New script
@@ -215,7 +254,8 @@ export default function TeleprompterLibrary() {
             />
             <div className="tp-library-filters" role="group" aria-label="Script categories">
               {([
-                ["doctrine", "Doctrine", counts.doctrine],
+                ["pathways", "Pathways", counts.pathways],
+                ["deepdives", "Deep Dives", counts.deepdives],
                 ["personal", "Personal", counts.personal],
                 ["other", "My scripts", counts.other],
               ] as const).map(([value, label, count]) => (
@@ -281,10 +321,25 @@ export default function TeleprompterLibrary() {
             <div>
               <button type="button" onClick={duplicate}>Duplicate</button>
               <button type="button" onClick={remove} disabled={documents.length <= 1}>Delete</button>
+              {pathwayFromDocumentId(selected.id) ? (
+                <a
+                  href={publicPathwayUrl(pathwayFromDocumentId(selected.id)!.slug)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >Website</a>
+              ) : null}
               <a href={presentUrl}>Present</a>
             </div>
           </header>
 
+          {currentPathways.has(selected.id) ? (
+            <div className="tp-pathway-source">
+              <span>{statusFor(selected)}. The study body follows the public Pathway word for word; the intro and CTA are separate.</span>
+              {statusFor(selected).startsWith("Edited") ? (
+                <button type="button" onClick={restorePathwayFromWebsite}>Restore website wording</button>
+              ) : null}
+            </div>
+          ) : null}
           <textarea
             value={selected.content}
             onChange={(event) => updateSelected({ content: event.target.value })}

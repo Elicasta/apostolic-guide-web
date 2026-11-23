@@ -428,7 +428,7 @@
 }
 .tp-library-filters {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0,1fr));
+  grid-template-columns: repeat(2, minmax(0,1fr));
   gap: 4px;
   margin-top: 10px;
 }
@@ -467,4 +467,38 @@
   .tp-library-brand > p { margin: 7px 0 8px; }
   .tp-library-brand > img { width: 128px; }
   .tp-library-release { padding: 7px 9px; margin-bottom: 9px; }
+}
+
+/* Website-matched Pathway study source and non-destructive restore controls. */
+.tp-library-release strong { color: #fff; font-weight: 790; }
+.tp-pathway-source {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  border-bottom: 1px solid #d7d9dc;
+  background: #f8f3f1;
+  color: #4a5260;
+  font-size: 11px;
+  line-height: 1.5;
+}
+.tp-pathway-source > span { min-width: 0; }
+.tp-pathway-source button {
+  flex: 0 0 auto;
+  border: 1px solid #b3212d;
+  border-radius: 3px;
+  background: transparent;
+  color: #9b1d27;
+  padding: 8px 9px;
+  font-size: 11px;
+  font-weight: 760;
+  cursor: pointer;
+}
+.tp-pathway-source button:focus-visible { outline: 2px solid #b3212d; outline-offset: 2px; }
+.tp-editor-pane > header > div { flex-wrap: wrap; justify-content: flex-end; }
+@media (max-width: 700px) {
+  .tp-pathway-source { flex-direction: column; align-items: stretch; }
+  .tp-pathway-source button { align-self: flex-start; }
+  .tp-editor-pane > header > div { flex-wrap: wrap; justify-content: flex-start; }
 }

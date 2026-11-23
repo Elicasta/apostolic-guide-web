@@ -99,6 +99,7 @@ export function selectTeleprompterDocument(
   if (lastPresented && !isUntouchedStarterDocument(lastPresented)) return lastPresented;
 
   return (
+    documents.find((document) => document.id.startsWith("ag-pathway-")) ??
     documents.find((document) => document.id === "ag-doctrine-ep-01") ??
     documents.find((document) => document.id === EPISODE_01_ID) ??
     documents.find((document) => document.title === "Jesus Is God") ??

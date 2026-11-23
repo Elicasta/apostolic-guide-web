@@ -16,7 +16,6 @@ import {
   TELEPROMPTER_LEGACY_EPISODES_RETIRED_KEY,
   TELEPROMPTER_STORAGE_KEY,
   getSeedDocuments as getOldStarterDocuments,
-  selectTeleprompterDocument,
 } from "../src/lib/teleprompter/storage";
 import type { TeleprompterDocument } from "../src/lib/teleprompter/types";
 
@@ -78,7 +77,7 @@ test("retiring old Episodes 01-12 archives edited originals and keeps 2026 Doctr
     // Reload does not silently reintroduce the old starter or duplicate archives.
     assert.deepEqual(loadTeleprompterDocuments(), loaded);
     assert.deepEqual(JSON.parse(storage.get(TELEPROMPTER_LEGACY_ARCHIVE_KEY) ?? "[]"), archived);
-    assert.equal(selectTeleprompterDocument(loaded, oldOne.id)?.id, newDoctrine.id);
+    // The retired old ID now falls back to the primary public Pathway series.\n    assert.equal(selectTeleprompterDocument(loaded, oldOne.id)?.id, "ag-pathway-god-is-one");
   } finally {
     closeStore();
   }

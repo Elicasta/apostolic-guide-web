@@ -36,6 +36,13 @@ import {
 } from "./doctrine";
 import { buildLegacyDoctrineScript } from "./doctrine/script";
 import {
+  TELEPROMPTER_PATHWAY_SEED_KEY,
+  TELEPROMPTER_PATHWAY_SIGNATURES_KEY,
+  getPathwaySeedDocuments,
+  getPathwaySeedSignatures,
+  pathwayDocumentSignature,
+} from "./pathways";
+import {
   TEACHING_SESSION_ID,
   TEACHING_SESSION_SCRIPT,
   TEACHING_SESSION_TITLE,
@@ -130,6 +137,7 @@ export function getSeedDocuments(): TeleprompterDocument[] {
     ...getEpisodeSeedDocuments(),
     ...getPersonalChannelSeedDocuments(),
     ...getDoctrineSeedDocuments(),
+    ...getPathwaySeedDocuments(),
     teachingGuideSeed(),
   ];
 }
@@ -230,6 +238,70 @@ export function mergePersonalChannelSeeds(
   ];
 }
 
+/**
+ * Install the 20 website-matched Pathway read-alongs once per browser.
+ * Future public-site edits automatically update only untouched copies.
+ * Edited and deleted copies are never silently overwritten or restored.
+ */
+export function mergePathwayReadAlongs(
+  documents: TeleprompterDocument[],
+  previousSignatures: Record<string, string> | null,
+  seeds = getPathwaySeedDocuments(),
+): TeleprompterDocument[] {
+  const currentById = new Map(seeds.map((seed) => [seed.id, seed]));
+  if (!previousSignatures) {
+    const existingIds = new Set(documents.map((document) => document.id));
+    return [...seeds.filter((seed) => !existingIds.has(seed.id)), ...documents];
+  }
+  return documents.map((document) => {
+    const current = currentById.get(document.id);
+    const previous = previousSignatures[document.id];
+    if (!current || !previous || pathwayDocumentSignature(document) !== previous) return document;
+    if (pathwayDocumentSignature(current) === previous) return document;
+    return { ...current, createdAt: document.createdAt };
+  });
+}
+
+function readPathwaySignatures(): Record<string, string> | null {
+  if (typeof window === "undefined") return null;
+  const raw = window.localStorage.getItem(TELEPROMPTER_PATHWAY_SIGNATURES_KEY);
+  if (!raw) return null;
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
+    return Object.fromEntries(
+      Object.entries(parsed).filter(([key, value]) => key.startsWith("ag-pathway-") && typeof value === "string"),
+    );
+  } catch {
+    return null;
+  }
+}
+
+function installPathwayReadAlongs(documents: TeleprompterDocument[]): TeleprompterDocument[] {
+  if (typeof window === "undefined") return documents;
+  const storage = window.localStorage;
+  const installed = storage.getItem(TELEPROMPTER_PATHWAY_SEED_KEY) === "1";
+  const signatures = readPathwaySignatures();
+  // Incomplete installs may retry. Once installed, a missing snapshot must
+  // NEVER be treated as permission to resurrect intentionally deleted drafts.
+  if (installed && !signatures) return documents;
+  const next = mergePathwayReadAlongs(documents, installed ? signatures : null);
+  const currentSignatures = getPathwaySeedSignatures();
+  try {
+    if (next !== documents && (
+      next.length !== documents.length ||
+      next.some((item, index) => item !== documents[index])
+    )) saveTeleprompterDocuments(next);
+    storage.setItem(TELEPROMPTER_PATHWAY_SIGNATURES_KEY, JSON.stringify(currentSignatures));
+    storage.setItem(TELEPROMPTER_PATHWAY_SEED_KEY, "1");
+    return next;
+  } catch {
+    // Do not mark installed or update the snapshot on storage failure.
+    // The existing drafts remain available for a later retry.
+    return documents;
+  }
+}
+
 export function loadTeleprompterDocuments(): TeleprompterDocument[] {
   let documents = loadLegacyDocuments();
   if (typeof window === "undefined") return documents;
@@ -311,5 +383,5 @@ export function loadTeleprompterDocuments(): TeleprompterDocument[] {
     window.localStorage.setItem(TEACHING_SESSION_SEED_KEY, String(TEACHING_SESSION_VERSION));
   }
 
-  return archiveLegacyEpisodes(documents);
+  return installPathwayReadAlongs(archiveLegacyEpisodes(documents));
 }
