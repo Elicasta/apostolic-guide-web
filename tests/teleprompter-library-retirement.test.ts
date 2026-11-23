@@ -16,7 +16,6 @@ import {
   TELEPROMPTER_LEGACY_EPISODES_RETIRED_KEY,
   TELEPROMPTER_STORAGE_KEY,
   getSeedDocuments as getOldStarterDocuments,
-  selectTeleprompterDocument,
 } from "../src/lib/teleprompter/storage";
 import type { TeleprompterDocument } from "../src/lib/teleprompter/types";
 

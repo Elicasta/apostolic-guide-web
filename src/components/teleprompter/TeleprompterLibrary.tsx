@@ -225,7 +225,7 @@ export default function TeleprompterLibrary() {
             />
             <p>Script library · 2026</p>
             <div className="tp-library-release">
-              <strong>20 Pathway episodes</strong> mirror the website's Scripture, explanations and transitions.
+              <strong>20 Pathway episodes</strong> mirror the website Scripture, explanations and transitions.
               The intro and CTA are recording-only. <strong>24 Deep Dives</strong> are separate.
               {hasUnarchivedLegacy
                 ? " Older scripts could not be archived on this browser. Free up storage and reload."
