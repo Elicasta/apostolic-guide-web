@@ -79,11 +79,14 @@ test("all 24 doctrine narrations move from opening through each canonical verse 
 });
 
 test("recording voice keeps cumulative Scripture-first explanations instead of template fragments", () => {
-  assert.match(scriptFor(13), /do not use Jesus' humanity to erase His deity/i);
-  assert.match(scriptFor(14), /He was praying to the Father/i);
-  assert.match(scriptFor(7), /the Father dwells in Me/i);
-  assert.match(scriptFor(18), /Matthew gives the commission/i);
-  assert.match(scriptFor(23), /initial reception sign/i);
+  // Manuscript lines wrap for large-type teleprompter reading. Assertions
+  // inspect spoken prose, not the display line-break layout.
+  const spoken = (episodeNumber: number) => scriptFor(episodeNumber).replace(/\s+/g, " ");
+  assert.match(spoken(13), /do not use Jesus' humanity to erase His deity/i);
+  assert.match(spoken(14), /He was praying to the Father/i);
+  assert.match(spoken(7), /the Father dwells in Me/i);
+  assert.match(spoken(18), /Matthew gives the commission/i);
+  assert.match(spoken(23), /initial reception sign/i);
   assert.equal(seeds.every((seed) => seed.content.includes("Often stated.")), false);
 });
 
