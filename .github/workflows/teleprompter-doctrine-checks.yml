@@ -1,0 +1,40 @@
+name: Teleprompter doctrine validation
+
+on:
+  pull_request:
+    paths:
+      - 'src/lib/teleprompter/**'
+      - 'src/components/teleprompter/**'
+      - 'src/pathway-audio-script*'
+      - 'src/video-producer-episode-script.ts'
+      - 'app/teleprompter/**'
+      - 'tests/teleprompter-*.test.ts'
+      - 'tests/pathway-audio-script.test.ts'
+      - '.github/workflows/teleprompter-doctrine-checks.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Test all suites
+        run: npm test
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Lint
+        run: npm run lint
+      - name: Build
+        run: npm run build
