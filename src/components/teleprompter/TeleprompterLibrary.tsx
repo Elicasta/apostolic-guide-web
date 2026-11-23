@@ -28,10 +28,17 @@ export default function TeleprompterLibrary() {
     const loaded = loadTeleprompterDocuments();
     const requested = new URLSearchParams(window.location.search).get("doc");
     const selected = loaded.find((doc) => doc.id === requested) ?? loaded[0];
-    setDocuments(loaded);
-    setHasDoctrineBackup(Boolean(getDoctrineBackupRaw()));
-    setSelectedId(selected?.id ?? "");
-    setHydrated(true);
+    // Read browser-local storage after mount; schedule state hydration outside
+    // the effect's synchronous render cycle to avoid cascading renders.
+    let active = true;
+    queueMicrotask(() => {
+      if (!active) return;
+      setDocuments(loaded);
+      setHasDoctrineBackup(Boolean(getDoctrineBackupRaw()));
+      setSelectedId(selected?.id ?? "");
+      setHydrated(true);
+    });
+    return () => { active = false; };
   }, []);
 
   useEffect(() => {
@@ -56,9 +63,8 @@ export default function TeleprompterLibrary() {
     );
   }, [documents, search]);
 
-  useEffect(() => {
-    setPreviewIndex((index) => Math.min(index, Math.max(slides.length - 1, 0)));
-  }, [slides.length]);
+  // Never access an out-of-range slide while the editor removes sections.
+  const safePreviewIndex = Math.min(previewIndex, Math.max(slides.length - 1, 0));
 
   const updateSelected = (
     patch: Partial<Pick<TeleprompterDocument, "title" | "content">>,
@@ -202,7 +208,7 @@ export default function TeleprompterLibrary() {
           <header>
             <div>
               <p>Section preview</p>
-              <span>{previewIndex + 1} / {slides.length}</span>
+              <span>{safePreviewIndex + 1} / {slides.length}</span>
             </div>
             <button
               type="button"
@@ -215,7 +221,7 @@ export default function TeleprompterLibrary() {
           <div className="tp-preview-stage">
             <div className={`tp-preview-canvas tp-theme-${previewTheme}`}>
               <SlideContent
-                slide={slides[previewIndex]}
+                slide={slides[safePreviewIndex]}
                 theme={previewTheme}
                 fontScale={0.8}
                 compact
@@ -226,15 +232,15 @@ export default function TeleprompterLibrary() {
           <div className="tp-preview-controls">
             <button
               type="button"
-              onClick={() => setPreviewIndex((index) => Math.max(0, index - 1))}
-              disabled={previewIndex <= 0}
+              onClick={() => setPreviewIndex(Math.max(0, safePreviewIndex - 1))}
+              disabled={safePreviewIndex <= 0}
             >
               ← Previous
             </button>
             <button
               type="button"
-              onClick={() => setPreviewIndex((index) => Math.min(slides.length - 1, index + 1))}
-              disabled={previewIndex >= slides.length - 1}
+              onClick={() => setPreviewIndex(Math.min(slides.length - 1, safePreviewIndex + 1))}
+              disabled={safePreviewIndex >= slides.length - 1}
             >
               Next →
             </button>
