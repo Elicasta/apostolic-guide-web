@@ -1,3 +1,6 @@
+import { IDENTITY_TEACHING_FLOWS } from "./teaching-flows-identity";
+import { GOSPEL_TEACHING_FLOWS } from "./teaching-flows-gospel";
+import type { DoctrineTeachingFlow } from "./teaching-types";
 import type { DoctrineEpisode } from "./types";
 
 const LINE_WIDTH = 38;
@@ -58,7 +61,7 @@ function verseNote(text: string) {
   return `@note Read the King James text as written. Do not shorten or modernize it.${spelling}`;
 }
 
-export function buildDoctrineScript(episode: DoctrineEpisode) {
+export function buildLegacyDoctrineScript(episode: DoctrineEpisode) {
   const titleSentence = /[.!?]$/.test(episode.title) ? episode.title : `${episode.title}.`;
   const hookNote = [
     `Title: ${titleSentence}`,
@@ -132,4 +135,58 @@ function buildReelSection(episode: DoctrineEpisode) {
 
   lines.push("@note Clip ideas from the recording plan. They are not part of the teaching read.");
   return lines.join("\n").trimEnd();
+}
+
+
+/**
+ * Spoken narrative is authored per episode. The canonical verse cards stay
+ * verbatim and in their original order. Each explanation explicitly carries
+ * the argument from that reading to the next one.
+ *
+ * Legacy output remains available solely for an exact-content safety check
+ * before updating previously seeded local drafts.
+ */
+export const DOCTRINE_TEACHING_FLOWS: Record<number, DoctrineTeachingFlow> = {
+  ...IDENTITY_TEACHING_FLOWS,
+  ...GOSPEL_TEACHING_FLOWS,
+};
+
+function wrapTeaching(value: string) {
+  // Line length is a reading aid; it must not split the teaching into points.
+  return value.trim().split(/\n\s*\n/).map((paragraph) => wrapBlock(paragraph, 42)).join("\n\n");
+}
+
+export function buildDoctrineScript(episode: DoctrineEpisode) {
+  const flow = DOCTRINE_TEACHING_FLOWS[episode.number];
+  if (!flow || flow.readings.length !== episode.verses.length) {
+    throw new Error("Doctrine teaching flow/verse mismatch in episode " + episode.number);
+  }
+
+  const opening = [
+    "# " + episode.title,
+    "@ref " + episode.pathway,
+    "",
+    wrapTeaching(flow.opening),
+    episode.recordingNote ? "@note " + episode.recordingNote : "",
+  ].filter(Boolean).join("\n");
+
+  const readings = episode.verses.map((verse, index) => [
+    "# " + verse.reference,
+    "@ref " + episode.pathway,
+    "",
+    "> " + verse.text,
+    "",
+    wrapTeaching(flow.readings[index]),
+    verseNote(verse.text),
+  ].join("\n"));
+
+  const landing = [
+    "# Bring It Together",
+    "@ref " + episode.pathway,
+    "",
+    wrapTeaching(flow.conclusion),
+    "@note The discussion has ended. Pause and let the invitation stand. The source catalog retains reel ideas separately; they are not presenter pages.",
+  ].join("\n");
+
+  return [opening, ...readings, landing].join("\n\n---\n\n") + "\n";
 }

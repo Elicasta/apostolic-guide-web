@@ -49,35 +49,42 @@ test("doctrine library adds episodes 01 through 24 under distinct draft ids", ()
   });
 });
 
-test("each doctrine draft reads hook, claim, verses, objection, answer, close, then reel cues", () => {
+test("all 24 doctrine narrations move from opening through each canonical verse to a connected conclusion", () => {
   DOCTRINE_EPISODES.forEach((episode, index) => {
     const slides = parseTeleprompterDocument(seeds[index].content);
     assert.deepEqual(
       slides.map((slide) => slide.heading),
-      [
-        episode.title,
-        "The Claim",
-        ...episode.verses.map((verse) => verse.reference),
-        "The Objection",
-        "The Answer",
-        "Close",
-        "Reel Cues",
-      ],
+      [episode.title, ...episode.verses.map((verse) => verse.reference), "Bring It Together"],
       episode.title,
     );
-    assert.equal(slides[0].reference, `Batch ${episode.batch} · ${episode.batchLabel}`);
-    assert.match(slides[0].note ?? "", /Welcome the question/);
-    const close = (slides.at(-2)?.body ?? []).join(" ").replace(/\s+/g, " ");
-    assert.match(close, /Full pathway in the app, link in bio/);
-    assert.ok(close.includes(episode.pathway), `${episode.title} close is missing ${episode.pathway}`);
-    assert.match(slides.at(-1)?.note ?? "", /not part of the teaching read/);
+    assert.equal(slides[0].reference, episode.pathway);
+    const opening = slides[0].body.join(" ");
+    const close = slides.at(-1)?.body.join(" ") ?? "";
+    assert.ok(opening.length > 100, episode.title + " opening is too thin");
+    assert.ok(close.length > 120, episode.title + " conclusion is too thin");
+    assert.ok(close.includes(episode.pathway.split(" / ")[0]), episode.title + " misses its Pathway");
+    assert.equal(seeds[index].content.includes("# The Claim"), false);
+    assert.equal(seeds[index].content.includes("# The Objection"), false);
+    assert.equal(seeds[index].content.includes("# The Answer"), false);
+    assert.equal(seeds[index].content.includes("# Reel Cues"), false);
 
     episode.verses.forEach((verse) => {
       const slide = slides.find((candidate) => candidate.heading === verse.reference);
-      assert.ok(slide, `${episode.title} missing ${verse.reference}`);
+      assert.ok(slide, episode.title + " missing " + verse.reference);
       assert.deepEqual(slide.quotes, [verse.text]);
+      assert.ok(slide.body.join(" ").length > verse.text.length + 150,
+        episode.title + " / " + verse.reference + " needs actual teaching between references");
     });
   });
+});
+
+test("recording voice keeps cumulative Scripture-first explanations instead of template fragments", () => {
+  assert.match(scriptFor(13), /do not use Jesus' humanity to erase His deity/i);
+  assert.match(scriptFor(14), /He was praying to the Father/i);
+  assert.match(scriptFor(7), /the Father dwells in Me/i);
+  assert.match(scriptFor(18), /Matthew gives the commission/i);
+  assert.match(scriptFor(23), /initial reception sign/i);
+  assert.equal(seeds.every((seed) => seed.content.includes("Often stated.")), false);
 });
 
 test("doctrine drafts keep the source KJV spellings, including Isaiah 9:6 Counsellor", () => {
@@ -162,10 +169,13 @@ test("a browser that already has the old seeds receives doctrine drafts without 
   try {
     const loaded = loadTeleprompterDocuments();
     assert.deepEqual(
-      loaded.slice(0, 24).map((document) => document.id),
+      loaded.filter((document) => document.id.startsWith("ag-doctrine-ep-")).map((document) => document.id),
       seeds.map((seed) => seed.id),
     );
-    assert.deepEqual(loaded.slice(24), original);
+    assert.ok(loaded.some((document) => document.id === "apostolic-guide-teaching-who-did-jesus-pray-to"));
+    for (const document of original) {
+      assert.deepEqual(loaded.find((candidate) => candidate.id === document.id), document);
+    }
     assert.equal(store.get(TELEPROMPTER_DOCTRINE_SEED_KEY), String(TELEPROMPTER_DOCTRINE_SEED_VERSION));
 
     const editedDoctrine: TeleprompterDocument = {

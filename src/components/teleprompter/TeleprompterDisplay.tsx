@@ -13,11 +13,8 @@ import {
   makeSessionCode,
   normalizeSessionCode,
 } from "@/lib/teleprompter/realtime";
-import {
-  loadTeleprompterDocuments,
-  selectTeleprompterDocument,
-  setLastPresentedDocumentId,
-} from "@/lib/teleprompter/storage";
+import { loadTeleprompterDocuments } from "@/lib/teleprompter/seeded-storage";
+import { selectTeleprompterDocument, setLastPresentedDocumentId } from "@/lib/teleprompter/storage";
 import { useTeleprompterSessionSync } from "@/lib/teleprompter/use-session-sync";
 import type {
   TeleprompterDocument,

@@ -3,9 +3,9 @@ import catalog from "./catalog.json";
 import { buildDoctrineScript } from "./script";
 import type { DoctrineEpisode } from "./types";
 
-export const TELEPROMPTER_DOCTRINE_SEED_VERSION = 1;
+export const TELEPROMPTER_DOCTRINE_SEED_VERSION = 2;
 export const TELEPROMPTER_DOCTRINE_SEED_KEY = "ag:teleprompter:doctrine-seed:v1";
-export const TELEPROMPTER_DOCTRINE_SEEDED_AT = "2026-11-15T05:00:00.000Z";
+export const TELEPROMPTER_DOCTRINE_SEEDED_AT = "2026-11-22T00:00:00.000Z";
 
 export const DOCTRINE_EPISODES = catalog as DoctrineEpisode[];
 

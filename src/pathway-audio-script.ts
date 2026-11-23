@@ -32,6 +32,11 @@ VOICE AND EDITORIAL RULES
 - Preserve the Pathway's argument and sequence. Do not strengthen an inference into an explicit claim.
 - Make the Apostolic Oneness meaning clear when the supplied passages support it. Do not flatten the script into generic Christian language.
 - Explain why each passage follows the previous passage. Use natural transitions instead of saying Step 1, Step 2, etc.
+- Write one cumulative teaching argument, not a stack of claim/verse/objection/answer summaries. Each passage should answer the tension raised by the preceding thought and naturally create the next question.
+- Sound like a thoughtful teacher sitting across from someone with an open Bible: direct questions, clear assertions, genuine human moments, and plain words. Do not write a legal brief, debate transcript, academic article, or a sequence of sermon outline headings.
+- Keep the strongest text in view: do not erase Christ's human prayers, obedience, or suffering to defend His deity; do not use His humanity to erase His deity. When a hard passage is relevant, read it honestly and show how it fits.
+- Avoid repeated canned lines like "Now let's look at", "This proves", "Point number", "Some people say", and "In conclusion." Vary transitions according to the actual biblical argument.
+- Let the final thought answer the opening question and give the listener something true to carry into their study.
 - Quote only Scripture wording supplied below. Do not invent missing verse wording.
 - End with a concise, platform-neutral summary and invitation to continue studying on Apostolic Guide.
 - Output only the finished narration. No headings, markdown, notes, labels, or commentary.

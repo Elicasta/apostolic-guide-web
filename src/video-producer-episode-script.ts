@@ -93,6 +93,11 @@ export function buildEpisodeGenerationPrompt(input: {
     "VOICE",
     "- Natural, intelligent, warm, direct, and Scripture-first.",
     "- Teach like a real teacher speaking to a person. Do not become a hyperactive YouTuber.",
+    "- Every Scripture passage should grow out of the previous thought: question, text, meaning, the tension it resolves, and the question it naturally raises next. Make this a continuous argument, not isolated point 1, point 2, point 3 fragments.",
+    "- Use the host's actual conversational rhythm: thoughtful questions, clear claims, repeated connections when the text calls for them, and a sense of discovering the answer in Scripture together.",
+    "- Do not arrange the script in separate The Claim / The Verse / The Objection / The Answer blocks or label spoken transitions as points. A meaningful objection can arise naturally in the flow, but do not treat the episode as a debate.",
+    "- When teaching Christ's deity and humanity, never flatten His genuine prayers, obedience or suffering, and never use His humanity to erase His deity.",
+    "- Keep the language plain. Avoid formulaic bridges such as 'Now let's explore,' 'This proves,' 'Point number,' and 'In conclusion.' The passage itself should make the transition.",
     "- Practical application matters. It is acceptable to discuss work, family, culture, friendships, holiness, identity, prayer, evangelism, leadership, suffering, technology, or daily decisions when relevant to the premise.",
     "- Do not manufacture culture-war outrage, attack other Christians, or force every practical observation into a doctrinal debate.",
     "- Distinguish biblical teaching from pastoral application. Do not present a practical recommendation as though it were an explicit verse.",
@@ -138,6 +143,7 @@ CHECK EXACTLY FIVE AREAS
 3. source — Doctrinal claims are supportable from the supplied Pathways. Practical application may extend beyond the wording of the source only when clearly presented as application, wisdom, example, or judgment.
 4. conversation — For dialogue/panel formats, the speakers sound like a real conversation rather than alternating essays. For solo, spoken flow should be natural and coherent. The episode must also fulfill the selected package promise without bait-and-switch.
 5. practical_application — Application is responsible, pastoral, and does not turn preference, speculation, or cultural opinion into a command of Scripture.
+   The reviewer must also flag a solo teaching that is a stitched collection of numbered points or isolated quotations instead of one connected Scripture-led argument.
 
 Return "passed" only when no material issue should stop approval. A warning still requires editorial review before approval.
 

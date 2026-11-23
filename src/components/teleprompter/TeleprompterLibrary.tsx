@@ -4,10 +4,10 @@ import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import SlideContent from "./SlideContent";
 import { parseTeleprompterDocument } from "@/lib/teleprompter/parser";
+import { getDoctrineBackupRaw, loadTeleprompterDocuments } from "@/lib/teleprompter/seeded-storage";
 import {
   createTeleprompterDocument,
   duplicateTeleprompterDocument,
-  loadTeleprompterDocuments,
   saveTeleprompterDocuments,
 } from "@/lib/teleprompter/storage";
 import type {
@@ -22,12 +22,14 @@ export default function TeleprompterLibrary() {
   const [previewIndex, setPreviewIndex] = useState(0);
   const [previewTheme, setPreviewTheme] = useState<TeleprompterTheme>("night");
   const [hydrated, setHydrated] = useState(false);
+  const [hasDoctrineBackup, setHasDoctrineBackup] = useState(false);
 
   useEffect(() => {
     const loaded = loadTeleprompterDocuments();
     const requested = new URLSearchParams(window.location.search).get("doc");
     const selected = loaded.find((doc) => doc.id === requested) ?? loaded[0];
     setDocuments(loaded);
+    setHasDoctrineBackup(Boolean(getDoctrineBackupRaw()));
     setSelectedId(selected?.id ?? "");
     setHydrated(true);
   }, []);
@@ -84,6 +86,19 @@ export default function TeleprompterLibrary() {
     setPreviewIndex(0);
   };
 
+  const exportPreviousDoctrineScripts = () => {
+    const raw = getDoctrineBackupRaw();
+    if (!raw) return;
+    const url = URL.createObjectURL(new Blob([raw], { type: "application/json" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "apostolic-guide-doctrine-before-rewrite.json";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  };
+
   const remove = () => {
     if (!selected || documents.length <= 1) return;
     if (!window.confirm(`Delete “${selected.title}”?`)) return;
@@ -115,6 +130,11 @@ export default function TeleprompterLibrary() {
             <button type="button" onClick={createNew} className="tp-library-primary">
               + New script
             </button>
+            {hasDoctrineBackup ? (
+              <button type="button" onClick={exportPreviousDoctrineScripts} className="tp-library-backup">
+                Export previous doctrine scripts
+              </button>
+            ) : null}
             <input
               value={search}
               onChange={(event) => setSearch(event.target.value)}

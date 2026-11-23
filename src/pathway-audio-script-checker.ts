@@ -70,7 +70,7 @@ CHECK THESE FIVE AREAS
 1. theology — The script positively and accurately reflects the Apostolic Oneness frame without affirming Trinitarian person-language, eternal-Son personhood, multiple divine centers, or shallow mask language.
 2. scripture — Scripture references and quotations are faithful to the supplied canonical source. Do not permit invented verse wording.
 3. source — The argument stays inside the supplied Pathway. It may explain and transition, but must not add outside proof texts, church-history claims, or stronger conclusions than the source supports.
-4. delivery — Spoken flow is clear, pastoral, platform-neutral, and does not attack other groups. The opening includes a natural Apostolic Guide greeting and Pathway follow-along invitation.
+4. delivery — Spoken flow is clear, pastoral, platform-neutral, and does not attack other groups. The opening includes a natural Apostolic Guide greeting and Pathway follow-along invitation. A series of disconnected proof-text fragments, rigid numbered points, or repeated formulaic transitions must receive a delivery warning even when each sentence is doctrinally accurate. Follow the actual argument from passage to passage.
 5. format — Narration only. No markdown headings, production notes, stage directions, subscribe/like requests, or platform-specific calls to action.
 
 When flagging an issue, quote only the smallest relevant excerpt from the proposed script. Give a concrete correction. Do not rewrite the entire script.
