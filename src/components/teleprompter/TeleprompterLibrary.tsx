@@ -84,6 +84,7 @@ export default function TeleprompterLibrary() {
     personal: documents.filter((doc) => categoryFor(doc) === "personal").length,
     other: documents.filter((doc) => categoryFor(doc) === "other").length,
   }), [documents]);
+  const hasUnarchivedLegacy = documents.some((doc) => doc.id.startsWith("apostolic-guide-episode-"));
   const filtered = useMemo(() => {
     const needle = search.trim().toLowerCase();
     return documents.filter((doc) => {
@@ -185,7 +186,14 @@ export default function TeleprompterLibrary() {
               priority
             />
             <p>Script library · 2026</p>
-            <div className="tp-library-release">Updated Doctrine series: 24 rewritten scripts. Older numbered episodes are archived.</div>
+            <div className="tp-library-release">
+              2026 Doctrine series: 24 rewritten scripts.
+              {hasUnarchivedLegacy
+                ? " Older episodes are still here because this browser could not back them up. Free up browser storage and reload."
+                : hasLegacyArchive
+                  ? " Older episodes are archived."
+                  : " Older seeded episodes have been removed."}
+            </div>
             <button type="button" onClick={createNew} className="tp-library-primary">
               + New script
             </button>
@@ -216,7 +224,17 @@ export default function TeleprompterLibrary() {
                   type="button"
                   aria-pressed={category === value}
                   className={category === value ? "is-selected" : ""}
-                  onClick={() => { setCategory(value); setSearch(""); }}
+                  onClick={() => {
+                    setCategory(value);
+                    setSearch("");
+                    if (categoryFor(selected) !== value) {
+                      const next = documents.find((doc) => categoryFor(doc) === value);
+                      if (next) {
+                        setSelectedId(next.id);
+                        setPreviewIndex(0);
+                      }
+                    }
+                  }}
                 >
                   {label} <span>{count}</span>
                 </button>
