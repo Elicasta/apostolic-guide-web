@@ -115,7 +115,7 @@ test("backup failure leaves older episodes untouched and does not mark them reti
 
 test("library CSS allows independent sidebar scrolling at desktop, tablet and phone widths", () => {
   const css = readFileSync("app/teleprompter/teleprompter.css", "utf8");
-  assert.match(css, /\.tp-library-list \{[^}]*min-height: 0;[^}]*overflow-y: auto;[^}]*touch-action: pan-y/s);
+  assert.match(css, /\.tp-library-list \{[^}]*min-height: 132px;[^}]*overflow-y: auto;[^}]*touch-action: pan-y/s);
   assert.match(css, /\.tp-library-sidebar \{[^}]*min-height: 0;[^}]*overflow: hidden/s);
   assert.match(css, /\.tp-library-grid \{ display: block; height: 100%; overflow-y: auto/s);
   assert.match(css, /\.tp-library-sidebar \{ height: min\(67dvh, 580px\); min-height: 340px; max-height: none/s);
