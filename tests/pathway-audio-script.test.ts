@@ -36,3 +36,13 @@ test("audio script prompt preserves the canonical source and supports long-form 
   assert.match(prompt, /under 10,000 characters/i);
   assert.match(prompt, /Do not introduce historical claims or proof texts/i);
 });
+
+
+test("audio generator requires a connected, conversational teaching argument", () => {
+  const prompt = buildPathwayAudioScriptPrompt("John 1:1; John 1:14");
+  assert.match(prompt, /one cumulative teaching argument/i);
+  assert.match(prompt, /not a stack of claim\/verse\/objection\/answer summaries/i);
+  assert.match(prompt, /thoughtful teacher sitting across from someone/i);
+  assert.match(prompt, /genuine human moments/i);
+  assert.match(prompt, /Avoid repeated canned lines/i);
+});

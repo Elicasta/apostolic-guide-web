@@ -13,11 +13,8 @@ import {
   makeSessionCode,
   normalizeSessionCode,
 } from "@/lib/teleprompter/realtime";
-import {
-  loadTeleprompterDocuments,
-  selectTeleprompterDocument,
-  setLastPresentedDocumentId,
-} from "@/lib/teleprompter/storage";
+import { loadTeleprompterDocuments } from "@/lib/teleprompter/seeded-storage";
+import { selectTeleprompterDocument, setLastPresentedDocumentId } from "@/lib/teleprompter/storage";
 import { useTeleprompterSessionSync } from "@/lib/teleprompter/use-session-sync";
 import type {
   TeleprompterDocument,
@@ -50,10 +47,16 @@ export default function TeleprompterDisplay() {
     const nextSession =
       normalizeSessionCode(params.get("session")) || makeSessionCode();
 
-    setDocuments(loaded);
-    setDocumentId(selected?.id ?? "");
+    // Browser storage and the URL are available only after mount. Defer state
+    // hydration to a microtask so the initial effect stays non-rendering.
+    let active = true;
+    queueMicrotask(() => {
+      if (!active) return;
+      setDocuments(loaded);
+      setDocumentId(selected?.id ?? "");
+      setSessionCode(nextSession);
+    });
     if (selected?.id) setLastPresentedDocumentId(selected.id);
-    setSessionCode(nextSession);
 
     params.set("session", nextSession);
     if (selected?.id) params.set("doc", selected.id);
@@ -62,9 +65,9 @@ export default function TeleprompterDisplay() {
       "",
       `${window.location.pathname}?${params.toString()}`,
     );
-    setControllerUrl(
-      `${window.location.origin}/teleprompter/control?session=${nextSession}`,
-    );
+    const remoteUrl = `${window.location.origin}/teleprompter/control?session=${nextSession}`;
+    queueMicrotask(() => { if (active) setControllerUrl(remoteUrl); });
+    return () => { active = false; };
   }, []);
 
   const selectedDocument = useMemo(

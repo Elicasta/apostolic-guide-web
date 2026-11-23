@@ -4,10 +4,10 @@ import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import SlideContent from "./SlideContent";
 import { parseTeleprompterDocument } from "@/lib/teleprompter/parser";
+import { getDoctrineBackupRaw, loadTeleprompterDocuments } from "@/lib/teleprompter/seeded-storage";
 import {
   createTeleprompterDocument,
   duplicateTeleprompterDocument,
-  loadTeleprompterDocuments,
   saveTeleprompterDocuments,
 } from "@/lib/teleprompter/storage";
 import type {
@@ -22,14 +22,23 @@ export default function TeleprompterLibrary() {
   const [previewIndex, setPreviewIndex] = useState(0);
   const [previewTheme, setPreviewTheme] = useState<TeleprompterTheme>("night");
   const [hydrated, setHydrated] = useState(false);
+  const [hasDoctrineBackup, setHasDoctrineBackup] = useState(false);
 
   useEffect(() => {
     const loaded = loadTeleprompterDocuments();
     const requested = new URLSearchParams(window.location.search).get("doc");
     const selected = loaded.find((doc) => doc.id === requested) ?? loaded[0];
-    setDocuments(loaded);
-    setSelectedId(selected?.id ?? "");
-    setHydrated(true);
+    // Read browser-local storage after mount; schedule state hydration outside
+    // the effect's synchronous render cycle to avoid cascading renders.
+    let active = true;
+    queueMicrotask(() => {
+      if (!active) return;
+      setDocuments(loaded);
+      setHasDoctrineBackup(Boolean(getDoctrineBackupRaw()));
+      setSelectedId(selected?.id ?? "");
+      setHydrated(true);
+    });
+    return () => { active = false; };
   }, []);
 
   useEffect(() => {
@@ -54,9 +63,8 @@ export default function TeleprompterLibrary() {
     );
   }, [documents, search]);
 
-  useEffect(() => {
-    setPreviewIndex((index) => Math.min(index, Math.max(slides.length - 1, 0)));
-  }, [slides.length]);
+  // Never access an out-of-range slide while the editor removes sections.
+  const safePreviewIndex = Math.min(previewIndex, Math.max(slides.length - 1, 0));
 
   const updateSelected = (
     patch: Partial<Pick<TeleprompterDocument, "title" | "content">>,
@@ -82,6 +90,19 @@ export default function TeleprompterLibrary() {
     setDocuments((current) => [copy, ...current]);
     setSelectedId(copy.id);
     setPreviewIndex(0);
+  };
+
+  const exportPreviousDoctrineScripts = () => {
+    const raw = getDoctrineBackupRaw();
+    if (!raw) return;
+    const url = URL.createObjectURL(new Blob([raw], { type: "application/json" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "apostolic-guide-doctrine-before-rewrite.json";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
   };
 
   const remove = () => {
@@ -115,6 +136,11 @@ export default function TeleprompterLibrary() {
             <button type="button" onClick={createNew} className="tp-library-primary">
               + New script
             </button>
+            {hasDoctrineBackup ? (
+              <button type="button" onClick={exportPreviousDoctrineScripts} className="tp-library-backup">
+                Export previous doctrine scripts
+              </button>
+            ) : null}
             <input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
@@ -182,7 +208,7 @@ export default function TeleprompterLibrary() {
           <header>
             <div>
               <p>Section preview</p>
-              <span>{previewIndex + 1} / {slides.length}</span>
+              <span>{safePreviewIndex + 1} / {slides.length}</span>
             </div>
             <button
               type="button"
@@ -195,7 +221,7 @@ export default function TeleprompterLibrary() {
           <div className="tp-preview-stage">
             <div className={`tp-preview-canvas tp-theme-${previewTheme}`}>
               <SlideContent
-                slide={slides[previewIndex]}
+                slide={slides[safePreviewIndex]}
                 theme={previewTheme}
                 fontScale={0.8}
                 compact
@@ -206,15 +232,15 @@ export default function TeleprompterLibrary() {
           <div className="tp-preview-controls">
             <button
               type="button"
-              onClick={() => setPreviewIndex((index) => Math.max(0, index - 1))}
-              disabled={previewIndex <= 0}
+              onClick={() => setPreviewIndex(Math.max(0, safePreviewIndex - 1))}
+              disabled={safePreviewIndex <= 0}
             >
               ← Previous
             </button>
             <button
               type="button"
-              onClick={() => setPreviewIndex((index) => Math.min(slides.length - 1, index + 1))}
-              disabled={previewIndex >= slides.length - 1}
+              onClick={() => setPreviewIndex(Math.min(slides.length - 1, safePreviewIndex + 1))}
+              disabled={safePreviewIndex >= slides.length - 1}
             >
               Next →
             </button>
