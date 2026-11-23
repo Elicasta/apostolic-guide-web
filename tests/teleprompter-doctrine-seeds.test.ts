@@ -17,7 +17,7 @@ import {
   TELEPROMPTER_PERSONAL_SEED_KEY,
   TELEPROMPTER_PERSONAL_SEED_VERSION,
 } from "../src/lib/teleprompter/personal";
-import { loadTeleprompterDocuments } from "../src/lib/teleprompter/seeded-storage";
+import { TELEPROMPTER_LEGACY_ARCHIVE_KEY, loadTeleprompterDocuments } from "../src/lib/teleprompter/seeded-storage";
 import { TELEPROMPTER_STORAGE_KEY } from "../src/lib/teleprompter/storage";
 import type { TeleprompterDocument } from "../src/lib/teleprompter/types";
 
@@ -176,8 +176,15 @@ test("a browser that already has the old seeds receives doctrine drafts without 
       seeds.map((seed) => seed.id),
     );
     assert.ok(loaded.some((document) => document.id === "apostolic-guide-teaching-who-did-jesus-pray-to"));
+    // Retired v1 episode drafts are no longer mixed into the rewritten Doctrine library.
+    assert.equal(loaded.some((document) => document.id.startsWith("apostolic-guide-episode-")), false);
+    const archived = JSON.parse(store.get(TELEPROMPTER_LEGACY_ARCHIVE_KEY) ?? "[]") as TeleprompterDocument[];
     for (const document of original) {
-      assert.deepEqual(loaded.find((candidate) => candidate.id === document.id), document);
+      if (document.id.startsWith("apostolic-guide-episode-")) {
+        assert.deepEqual(archived.find((candidate) => candidate.id === document.id), document);
+      } else {
+        assert.deepEqual(loaded.find((candidate) => candidate.id === document.id), document);
+      }
     }
     assert.equal(store.get(TELEPROMPTER_DOCTRINE_SEED_KEY), String(TELEPROMPTER_DOCTRINE_SEED_VERSION));
 

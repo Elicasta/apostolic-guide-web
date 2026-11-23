@@ -4,7 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import SlideContent from "./SlideContent";
 import { parseTeleprompterDocument } from "@/lib/teleprompter/parser";
-import { getDoctrineBackupRaw, loadTeleprompterDocuments } from "@/lib/teleprompter/seeded-storage";
+import { getDoctrineBackupRaw, getLegacyArchiveRaw, loadTeleprompterDocuments } from "@/lib/teleprompter/seeded-storage";
+import { getDoctrineSeedDocuments } from "@/lib/teleprompter/doctrine";
 import {
   createTeleprompterDocument,
   duplicateTeleprompterDocument,
@@ -15,19 +16,40 @@ import type {
   TeleprompterTheme,
 } from "@/lib/teleprompter/types";
 
+type LibraryCategory = "doctrine" | "personal" | "other";
+
+const rewrittenDoctrine = new Map(getDoctrineSeedDocuments().map((document) => [document.id, document]));
+
+function categoryFor(document: TeleprompterDocument): LibraryCategory {
+  if (document.id.startsWith("ag-doctrine-ep-")) return "doctrine";
+  if (document.id.startsWith("eli-castaneda-episode-")) return "personal";
+  return "other";
+}
+
+function statusFor(document: TeleprompterDocument) {
+  const rewrite = rewrittenDoctrine.get(document.id);
+  if (rewrite) return document.content === rewrite.content ? "2026 rewrite" : "Your edited version";
+  if (document.id.startsWith("apostolic-guide-episode-")) return "Older episode";
+  if (categoryFor(document) === "personal") return "Personal channel";
+  return "Your script";
+}
+
 export default function TeleprompterLibrary() {
   const [documents, setDocuments] = useState<TeleprompterDocument[]>([]);
   const [selectedId, setSelectedId] = useState("");
   const [search, setSearch] = useState("");
+  const [category, setCategory] = useState<LibraryCategory>("doctrine");
   const [previewIndex, setPreviewIndex] = useState(0);
   const [previewTheme, setPreviewTheme] = useState<TeleprompterTheme>("night");
   const [hydrated, setHydrated] = useState(false);
   const [hasDoctrineBackup, setHasDoctrineBackup] = useState(false);
+  const [hasLegacyArchive, setHasLegacyArchive] = useState(false);
 
   useEffect(() => {
     const loaded = loadTeleprompterDocuments();
     const requested = new URLSearchParams(window.location.search).get("doc");
-    const selected = loaded.find((doc) => doc.id === requested) ?? loaded[0];
+    const requestedDocument = loaded.find((doc) => doc.id === requested);
+    const selected = requestedDocument ?? loaded.find((doc) => categoryFor(doc) === "doctrine") ?? loaded[0];
     // Read browser-local storage after mount; schedule state hydration outside
     // the effect's synchronous render cycle to avoid cascading renders.
     let active = true;
@@ -35,6 +57,8 @@ export default function TeleprompterLibrary() {
       if (!active) return;
       setDocuments(loaded);
       setHasDoctrineBackup(Boolean(getDoctrineBackupRaw()));
+      setHasLegacyArchive(Boolean(getLegacyArchiveRaw()));
+      setCategory(requestedDocument ? categoryFor(requestedDocument) : "doctrine");
       setSelectedId(selected?.id ?? "");
       setHydrated(true);
     });
@@ -55,13 +79,23 @@ export default function TeleprompterLibrary() {
     () => parseTeleprompterDocument(selected?.content ?? ""),
     [selected?.content],
   );
+  const counts = useMemo(() => ({
+    doctrine: documents.filter((doc) => categoryFor(doc) === "doctrine").length,
+    personal: documents.filter((doc) => categoryFor(doc) === "personal").length,
+    other: documents.filter((doc) => categoryFor(doc) === "other").length,
+  }), [documents]);
+  const hasUnarchivedLegacy = documents.some((doc) => doc.id.startsWith("apostolic-guide-episode-"));
   const filtered = useMemo(() => {
     const needle = search.trim().toLowerCase();
-    if (!needle) return documents;
-    return documents.filter((doc) =>
-      `${doc.title} ${doc.content}`.toLowerCase().includes(needle),
+    return documents.filter((doc) => {
+      if (needle) return `${doc.title} ${doc.content}`.toLowerCase().includes(needle);
+      return categoryFor(doc) === category;
+    }).sort((a, b) =>
+      categoryFor(a) === "doctrine" && categoryFor(b) === "doctrine"
+        ? a.id.localeCompare(b.id)
+        : 0,
     );
-  }, [documents, search]);
+  }, [category, documents, search]);
 
   // Never access an out-of-range slide while the editor removes sections.
   const safePreviewIndex = Math.min(previewIndex, Math.max(slides.length - 1, 0));
@@ -81,6 +115,8 @@ export default function TeleprompterLibrary() {
     const doc = createTeleprompterDocument();
     setDocuments((current) => [doc, ...current]);
     setSelectedId(doc.id);
+    setCategory("other");
+    setSearch("");
     setPreviewIndex(0);
   };
 
@@ -89,6 +125,8 @@ export default function TeleprompterLibrary() {
     const copy = duplicateTeleprompterDocument(selected);
     setDocuments((current) => [copy, ...current]);
     setSelectedId(copy.id);
+    setCategory("other");
+    setSearch("");
     setPreviewIndex(0);
   };
 
@@ -105,12 +143,27 @@ export default function TeleprompterLibrary() {
     URL.revokeObjectURL(url);
   };
 
+  const exportArchivedEpisodes = () => {
+    const raw = getLegacyArchiveRaw();
+    if (!raw) return;
+    const url = URL.createObjectURL(new Blob([raw], { type: "application/json" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "apostolic-guide-archived-episodes-01-12.json";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  };
+
   const remove = () => {
     if (!selected || documents.length <= 1) return;
     if (!window.confirm(`Delete “${selected.title}”?`)) return;
     const remaining = documents.filter((doc) => doc.id !== selected.id);
     setDocuments(remaining);
-    setSelectedId(remaining[0]?.id ?? "");
+    const next = remaining.find((doc) => categoryFor(doc) === category) ?? remaining[0];
+    setSelectedId(next?.id ?? "");
+    if (next) setCategory(categoryFor(next));
     setPreviewIndex(0);
   };
 
@@ -132,13 +185,26 @@ export default function TeleprompterLibrary() {
               height={34}
               priority
             />
-            <p>Teleprompter</p>
+            <p>Script library · 2026</p>
+            <div className="tp-library-release">
+              2026 Doctrine series: 24 rewritten scripts.
+              {hasUnarchivedLegacy
+                ? " Older episodes are still here because this browser could not back them up. Free up browser storage and reload."
+                : hasLegacyArchive
+                  ? " Older episodes are archived."
+                  : " Older seeded episodes have been removed."}
+            </div>
             <button type="button" onClick={createNew} className="tp-library-primary">
               + New script
             </button>
+            {hasLegacyArchive ? (
+              <button type="button" onClick={exportArchivedEpisodes} className="tp-library-backup">
+                Download archived older episodes
+              </button>
+            ) : null}
             {hasDoctrineBackup ? (
               <button type="button" onClick={exportPreviousDoctrineScripts} className="tp-library-backup">
-                Export previous doctrine scripts
+                Export previous doctrine versions
               </button>
             ) : null}
             <input
@@ -147,9 +213,40 @@ export default function TeleprompterLibrary() {
               placeholder="Search scripts"
               aria-label="Search scripts"
             />
+            <div className="tp-library-filters" role="group" aria-label="Script categories">
+              {([
+                ["doctrine", "Doctrine", counts.doctrine],
+                ["personal", "Personal", counts.personal],
+                ["other", "My scripts", counts.other],
+              ] as const).map(([value, label, count]) => (
+                <button
+                  key={value}
+                  type="button"
+                  aria-pressed={category === value}
+                  className={category === value ? "is-selected" : ""}
+                  onClick={() => {
+                    setCategory(value);
+                    setSearch("");
+                    if (categoryFor(selected) !== value) {
+                      const next = documents.find((doc) => categoryFor(doc) === value);
+                      if (next) {
+                        setSelectedId(next.id);
+                        setPreviewIndex(0);
+                      }
+                    }
+                  }}
+                >
+                  {label} <span>{count}</span>
+                </button>
+              ))}
+            </div>
+            {search.trim() ? <p className="tp-library-search-hint">Searching all scripts</p> : null}
           </div>
 
-          <div className="tp-library-list">
+          <div className="tp-library-list" aria-label="Scroll to browse scripts">
+            {filtered.length === 0 ? (
+              <p className="tp-library-empty">{search.trim() ? "No matching scripts." : "No scripts in this category."}</p>
+            ) : null}
             {filtered.map((doc) => {
               const sectionCount = parseTeleprompterDocument(doc.content).length;
               const active = doc.id === selected.id;
@@ -160,10 +257,12 @@ export default function TeleprompterLibrary() {
                   className={active ? "is-active" : ""}
                   onClick={() => {
                     setSelectedId(doc.id);
+                    setCategory(categoryFor(doc));
                     setPreviewIndex(0);
                   }}
                 >
                   <strong>{doc.title}</strong>
+                  <span className="tp-library-list-status">{statusFor(doc)}</span>
                   <span>{sectionCount} sections · {formatUpdated(doc.updatedAt)}</span>
                 </button>
               );
