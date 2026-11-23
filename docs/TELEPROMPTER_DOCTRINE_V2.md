@@ -81,3 +81,29 @@ Then verify on the iPad and phone:
 8. Confirm no remote Video Producer script or public article was altered.
 
 CI, owner editorial approval, and hardware verification are separate gates.
+
+## Library cleanup and scrolling follow-up (2026-11-23)
+
+The 2026 rewrite is now the default **Doctrine** category (24 episodes).
+**Personal** contains the Eli channel scripts; **My scripts** contains user
+documents and the John 17 teaching companion. Search works across all three.
+
+Older `apostolic-guide-episode-01` through `apostolic-guide-episode-12`
+were previously mixed in with the new scripts. Their complete browser-local
+documents (including any user edits) are archived once under
+`ag:teleprompter:archived-episodes:v1`, then removed from the active
+collection. The library offers **Download archived older episodes**.
+If browser storage cannot hold the archive, those originals are left
+untouched. The retirement flag prevents the old Episode 1 starter script
+from reappearing after a reload.
+
+A Doctrine document with exactly the 2026 manuscript is labeled
+**2026 rewrite**. A manuscript edited locally is labeled
+**Your edited version** rather than falsely claiming to contain the latest
+text. This does not modify edited doctrine manuscripts or cloud content.
+
+The sidebar now has a bounded flex scroll region with `min-height: 0`,
+touch panning, and a taller independently scrollable panel on narrow
+screens. Test on the iPad in portrait and landscape orientations, plus
+a phone viewport. The regression suite validates retirement, backup failure,
+reload behavior, old-script selection fallback, and the scroll CSS rules.

@@ -3,6 +3,7 @@ import { EPISODE_01_SCRIPT, EPISODE_01_TITLE } from "./episodes/episode-01";
 
 export const TELEPROMPTER_STORAGE_KEY = "ag:teleprompter:documents:v1";
 export const TELEPROMPTER_LAST_DOCUMENT_KEY = "ag:teleprompter:last-presented:v1";
+export const TELEPROMPTER_LEGACY_EPISODES_RETIRED_KEY = "ag:teleprompter:legacy-episodes-retired:v1";
 
 export const DEFAULT_TELEPROMPTER_CONTENT = "# Intro\nPut the full opening section here.\n\n@note Private speaking cue.\n\n---\n\n# Point 1\nEach --- starts a new teleprompter page. Keep the whole section together.";
 
@@ -58,6 +59,8 @@ function isUntouchedPreviousJesusSeed(document: TeleprompterDocument) {
 }
 
 function ensureEpisodeOneSeed(documents: TeleprompterDocument[]) {
+  // Avoid resurrecting the old starter after archiving the legacy episode set.
+  if (typeof window !== "undefined" && window.localStorage.getItem(TELEPROMPTER_LEGACY_EPISODES_RETIRED_KEY) === "1") return documents;
   if (documents.some((document) => document.id === EPISODE_01_ID)) return documents;
 
   const replacementIndex = documents.findIndex(
@@ -96,6 +99,7 @@ export function selectTeleprompterDocument(
   if (lastPresented && !isUntouchedStarterDocument(lastPresented)) return lastPresented;
 
   return (
+    documents.find((document) => document.id === "ag-doctrine-ep-01") ??
     documents.find((document) => document.id === EPISODE_01_ID) ??
     documents.find((document) => document.title === "Jesus Is God") ??
     documents.find((document) => !isUntouchedStarterDocument(document)) ??

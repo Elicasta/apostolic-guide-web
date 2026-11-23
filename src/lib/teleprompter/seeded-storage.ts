@@ -4,6 +4,7 @@ import {
   JESUS_IS_GOD_SAMPLE,
   TELEPROMPTER_LAST_DOCUMENT_KEY,
   TELEPROMPTER_STORAGE_KEY,
+  TELEPROMPTER_LEGACY_EPISODES_RETIRED_KEY,
   createTeleprompterDocument,
   duplicateTeleprompterDocument,
   getLastPresentedDocumentId,
@@ -48,6 +49,7 @@ export {
   JESUS_IS_GOD_SAMPLE,
   TELEPROMPTER_LAST_DOCUMENT_KEY,
   TELEPROMPTER_STORAGE_KEY,
+  TELEPROMPTER_LEGACY_EPISODES_RETIRED_KEY,
   createTeleprompterDocument,
   duplicateTeleprompterDocument,
   getLastPresentedDocumentId,
@@ -58,6 +60,48 @@ export {
 };
 
 export const TELEPROMPTER_DOCTRINE_BACKUP_KEY = "ag:teleprompter:doctrine:before-v2";
+
+export const TELEPROMPTER_LEGACY_ARCHIVE_KEY = "ag:teleprompter:archived-episodes:v1";
+
+const LEGACY_EPISODE_ID = /^apostolic-guide-episode-(0[1-9]|1[0-2])$/;
+
+export function getLegacyArchiveRaw(): string | null {
+  if (typeof window === "undefined") return null;
+  return window.localStorage.getItem(TELEPROMPTER_LEGACY_ARCHIVE_KEY);
+}
+
+/** Remove retired Episode 01-12 from the active library only after securing a
+ * browser-local backup. Custom scripts and the new Doctrine set stay intact. */
+export function archiveLegacyEpisodes(documents: TeleprompterDocument[]): TeleprompterDocument[] {
+  if (typeof window === "undefined") return documents;
+  const storage = window.localStorage;
+  if (storage.getItem(TELEPROMPTER_LEGACY_EPISODES_RETIRED_KEY) === "1") return documents;
+  const older = documents.filter((document) => LEGACY_EPISODE_ID.test(document.id));
+  if (!older.length) {
+    try { storage.setItem(TELEPROMPTER_LEGACY_EPISODES_RETIRED_KEY, "1"); } catch { /* Retry on next load. */ }
+    return documents;
+  }
+  try {
+    // Keep the full old manuscripts, including any edits, before removing them.
+    const existing = getLegacyArchiveRaw();
+    const parsed: unknown = existing ? JSON.parse(existing) : [];
+    if (!Array.isArray(parsed) || parsed.some((item) => !item || typeof item !== "object" || typeof item.id !== "string")) {
+      return documents;
+    }
+    const archive = parsed as TeleprompterDocument[];
+    const archivedIds = new Set(archive.map((document) => document.id));
+    const combined = [...archive, ...older.filter((document) => !archivedIds.has(document.id))];
+    storage.setItem(TELEPROMPTER_LEGACY_ARCHIVE_KEY, JSON.stringify(combined));
+    const current = documents.filter((document) => !LEGACY_EPISODE_ID.test(document.id));
+    saveTeleprompterDocuments(current);
+    storage.setItem(TELEPROMPTER_LEGACY_EPISODES_RETIRED_KEY, "1");
+    return current;
+  } catch {
+    // Never discard old material when storage cannot hold a backup.
+    return documents;
+  }
+}
+
 
 export function getDoctrineBackupRaw(): string | null {
   if (typeof window === "undefined") return null;
@@ -267,5 +311,5 @@ export function loadTeleprompterDocuments(): TeleprompterDocument[] {
     window.localStorage.setItem(TEACHING_SESSION_SEED_KEY, String(TEACHING_SESSION_VERSION));
   }
 
-  return documents;
+  return archiveLegacyEpisodes(documents);
 }
