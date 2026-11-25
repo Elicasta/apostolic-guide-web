@@ -9,6 +9,7 @@ import type { TeleprompterAction } from "@/lib/teleprompter/types";
 
 const SPEED_PRESETS = [40, 50, 55, 70] as const;
 const NUDGE_PX = 110;
+import { PAGE_NUDGE, manualNavigationForKey } from "@/lib/teleprompter/manual-navigation";
 
 export default function TeleprompterController() {
   const [sessionCode, setSessionCode] = useState("");
@@ -32,6 +33,20 @@ export default function TeleprompterController() {
       setPairUrl(`${window.location.origin}/teleprompter/control?session=${code}`);
     }
   }, []);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!state || state.locked || event.altKey || event.metaKey || event.ctrlKey || event.defaultPrevented) return;
+      const target = event.target;
+      if (target instanceof HTMLElement && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName))) return;
+      const action = manualNavigationForKey(event.key, event.repeat);
+      if (!action) return;
+      event.preventDefault();
+      dispatch(action);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [state, dispatch]);
 
   const send = (action: TeleprompterAction) => {
     if (typeof navigator !== "undefined" && "vibrate" in navigator) {
@@ -150,6 +165,17 @@ export default function TeleprompterController() {
           ) : null}
         </section>
 
+        <div className="tp-transport tp-teaching-transport" aria-label="Manual teaching controls">
+          <button type="button" className="tp-secondary-button" onClick={() => send({ type: "prev" })} disabled={atStart || state?.locked}>← Previous section</button>
+          <button type="button" className="tp-primary-button tp-next-button" onClick={() => send({ type: "next" })} disabled={atEnd || state?.locked}>Next section →</button>
+        </div>
+        <div className="tp-manual-page-controls" aria-label="Scroll manuscript manually">
+          <button type="button" className="tp-secondary-button" disabled={!state || state.locked} onClick={() => send({ type: "scrollNudge", delta: -PAGE_NUDGE })}>↑ Previous page</button>
+          <button type="button" className="tp-secondary-button" disabled={!state || state.locked} onClick={() => send({ type: "scrollNudge", delta: PAGE_NUDGE })}>↓ Next page</button>
+          <button type="button" className="tp-secondary-button" disabled={!state || state.locked} onClick={() => send({ type: "scrollNudge", delta: -NUDGE_PX })} onPointerDown={() => beginHoldNudge(-NUDGE_PX)} onPointerUp={clearHold} onPointerCancel={clearHold} onPointerLeave={clearHold}>↑ Nudge</button>
+          <button type="button" className="tp-secondary-button" disabled={!state || state.locked} onClick={() => send({ type: "scrollNudge", delta: NUDGE_PX })} onPointerDown={() => beginHoldNudge(NUDGE_PX)} onPointerUp={clearHold} onPointerCancel={clearHold} onPointerLeave={clearHold}>↓ Nudge</button>
+        </div>
+
         <section className={`tp-scroll-remote ${scrollPanelOpen ? "is-open" : "is-collapsed"}`} aria-label="Scroll controls">
           <button
             type="button"
@@ -157,7 +183,7 @@ export default function TeleprompterController() {
             onClick={() => setScrollPanelOpen((open) => !open)}
           >
             <span>
-              <b>Scroll</b>
+              <b>Auto-scroll settings</b>
               <small>{scrolling ? `Running · ${scrollSpeed}` : `${scrollSpeed} px/sec`}</small>
             </span>
             <strong>{scrollPanelOpen ? "Hide" : "Show"}</strong>
@@ -215,37 +241,6 @@ export default function TeleprompterController() {
                 ))}
               </div>
 
-              <div className="tp-page-rocker" aria-label="Manual page position">
-                <p className="tp-eyebrow">Page position</p>
-                <div>
-                  <button
-                    type="button"
-                    onClick={() => send({ type: "scrollNudge", delta: -NUDGE_PX })}
-                    onPointerDown={() => beginHoldNudge(-NUDGE_PX)}
-                    onPointerUp={clearHold}
-                    onPointerCancel={clearHold}
-                    onPointerLeave={clearHold}
-                    disabled={!state}
-                  >
-                    ↑
-                    <span>Up</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => send({ type: "scrollNudge", delta: NUDGE_PX })}
-                    onPointerDown={() => beginHoldNudge(NUDGE_PX)}
-                    onPointerUp={clearHold}
-                    onPointerCancel={clearHold}
-                    onPointerLeave={clearHold}
-                    disabled={!state}
-                  >
-                    ↓
-                    <span>Down</span>
-                  </button>
-                </div>
-                <small>Tap to nudge. Hold to keep moving.</small>
-              </div>
-
               <button
                 type="button"
                 className="tp-secondary-button tp-top-button"
@@ -257,25 +252,6 @@ export default function TeleprompterController() {
             </div>
           ) : null}
         </section>
-
-        <div className="tp-transport">
-          <button
-            type="button"
-            className="tp-secondary-button"
-            onClick={() => send({ type: "prev" })}
-            disabled={atStart}
-          >
-            ← Previous
-          </button>
-          <button
-            type="button"
-            className="tp-primary-button tp-next-button"
-            onClick={() => send({ type: "next" })}
-            disabled={atEnd}
-          >
-            Next →
-          </button>
-        </div>
 
         <div className="tp-quick-controls">
           <button
