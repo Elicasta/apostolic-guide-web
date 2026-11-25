@@ -238,6 +238,10 @@ export default function TeleprompterDisplay() {
         dispatch({ type: "scrollTop" });
         return;
       }
+      if (event.repeat && ["ArrowRight", "ArrowLeft", "PageUp", "PageDown"].includes(event.key)) {
+        event.preventDefault();
+        return;
+      }
       const action = manualNavigationForKey(event.key, event.repeat);
       if (!action || locked) return;
       event.preventDefault();
@@ -378,12 +382,12 @@ export default function TeleprompterDisplay() {
       {elgato ? (
         <footer className={`tp-teaching-footer${chromeVisible ? " tp-teaching-footer-controls" : ""}`}>
           {chromeVisible ? <button type="button" onClick={prev} disabled={locked || slideIndex === 0}>← Previous</button> : null}
-          {chromeVisible ? <button type="button" onClick={() => dispatch({ type: "scrollNudge", delta: -PAGE_NUDGE })}>↑ Page</button> : null}
+          {chromeVisible ? <button type="button" disabled={locked} onClick={() => dispatch({ type: "scrollNudge", delta: -PAGE_NUDGE })}>↑ Page</button> : null}
           <div className="tp-teaching-progress">
             <span>{slideIndex + 1} / {slides.length} · {slides[slideIndex + 1] ? `Next: ${slides[slideIndex + 1].heading || "Next section"}` : "Final section"}</span>
             <progress value={slideIndex + 1} max={slides.length} aria-label="Manuscript progress" />
           </div>
-          {chromeVisible ? <button type="button" onClick={() => dispatch({ type: "scrollNudge", delta: PAGE_NUDGE })}>↓ Page</button> : null}
+          {chromeVisible ? <button type="button" disabled={locked} onClick={() => dispatch({ type: "scrollNudge", delta: PAGE_NUDGE })}>↓ Page</button> : null}
           {chromeVisible ? <button type="button" onClick={next} disabled={locked || slideIndex >= slides.length - 1}>Next →</button> : null}
         </footer>
       ) : null}
