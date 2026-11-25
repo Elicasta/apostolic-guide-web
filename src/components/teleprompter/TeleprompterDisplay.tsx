@@ -5,6 +5,7 @@ import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
 import Image from "next/image";
 import { QRCodeSVG } from "qrcode.react";
 import SlideContent from "./SlideContent";
+import { manualNavigationForKey, resolveScrollNudge, PAGE_NUDGE } from "@/lib/teleprompter/manual-navigation";
 import {
   parseTeleprompterDocument,
   summarizeSlides,
@@ -31,6 +32,7 @@ export default function TeleprompterDisplay() {
   const [documentId, setDocumentId] = useState("");
   const [sessionCode, setSessionCode] = useState("");
   const [chromeVisible, setChromeVisible] = useState(true);
+  const [elgato, setElgato] = useState(true);
   const [controllerUrl, setControllerUrl] = useState("");
   const [remoteQrOpen, setRemoteQrOpen] = useState(false);
   const pointerStartRef = useRef<PointerStart | null>(null);
@@ -44,6 +46,10 @@ export default function TeleprompterDisplay() {
     const loaded = loadTeleprompterDocuments();
     const params = new URLSearchParams(window.location.search);
     const selected = selectTeleprompterDocument(loaded, params.get("doc"));
+    let wide = params.get("view") !== "lens";
+    if (!params.has("view")) {
+      try { wide = localStorage.getItem("ag:teleprompter:view") !== "lens"; } catch { /* storage unavailable */ }
+    }
     const nextSession =
       normalizeSessionCode(params.get("session")) || makeSessionCode();
 
@@ -52,6 +58,7 @@ export default function TeleprompterDisplay() {
     let active = true;
     queueMicrotask(() => {
       if (!active) return;
+      setElgato(wide);
       setDocuments(loaded);
       setDocumentId(selected?.id ?? "");
       setSessionCode(nextSession);
@@ -135,7 +142,7 @@ export default function TeleprompterDisplay() {
     if (scrollNudgeSequence <= 0 || scrollNudgeDelta === 0) return;
     const scroller = scrollerRef.current;
     if (!scroller) return;
-    scroller.scrollBy({ top: scrollNudgeDelta, behavior: "smooth" });
+    scroller.scrollBy({ top: resolveScrollNudge(scrollNudgeDelta, scroller.clientHeight), behavior: "auto" });
     scrollCarryRef.current = 0;
   }, [scrollNudgeDelta, scrollNudgeSequence]);
 
@@ -183,8 +190,22 @@ export default function TeleprompterDisplay() {
     };
   }, [dispatch, scrollSpeed, scrolling]);
 
-  const next = useCallback(() => dispatch({ type: "next" }), [dispatch]);
-  const prev = useCallback(() => dispatch({ type: "prev" }), [dispatch]);
+  const next = useCallback(() => { if (!locked) dispatch({ type: "next" }); }, [dispatch, locked]);
+  const prev = useCallback(() => { if (!locked) dispatch({ type: "prev" }); }, [dispatch, locked]);
+  const toggleLayout = useCallback(() => {
+    const wide = !elgato;
+    setElgato(wide);
+    try { localStorage.setItem("ag:teleprompter:view", wide ? "elgato" : "lens"); } catch { /* storage unavailable */ }
+    const url = new URL(window.location.href);
+    url.searchParams.set("view", wide ? "elgato" : "lens");
+    window.history.replaceState(null, "", url.toString());
+  }, [elgato]);
+  const fullscreen = useCallback(async () => {
+    try {
+      if (document.fullscreenElement) await document.exitFullscreen();
+      else if (document.documentElement.requestFullscreen) await document.documentElement.requestFullscreen();
+    } catch { /* browser or display does not support fullscreen */ }
+  }, []);
   const stopForManualScroll = useCallback(() => {
     if (scrolling) dispatch({ type: "scroll", scrolling: false });
   }, [dispatch, scrolling]);
@@ -195,17 +216,21 @@ export default function TeleprompterDisplay() {
         setRemoteQrOpen(false);
         return;
       }
-      if (event.key.toLowerCase() === "c") {
+      if (remoteQrOpen || event.altKey || event.ctrlKey || event.metaKey || event.defaultPrevented) return;
+      const target = event.target;
+      if (target instanceof HTMLElement && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName))) return;
+      if (event.key.toLowerCase() === "c" && !event.repeat) {
         setChromeVisible((visible) => !visible);
         return;
       }
-      if (event.key.toLowerCase() === "f") {
-        void window.document.documentElement.requestFullscreen?.();
+      if (event.key.toLowerCase() === "f" && !event.repeat) {
+        void fullscreen();
         return;
       }
       if (event.code === "Space") {
+        if (target instanceof HTMLElement && target.closest("button, a")) return;
         event.preventDefault();
-        dispatch({ type: "scroll", scrolling: !scrolling });
+        if (!event.repeat) dispatch({ type: "scroll", scrolling: !scrolling });
         return;
       }
       if (event.key === "Home") {
@@ -213,20 +238,15 @@ export default function TeleprompterDisplay() {
         dispatch({ type: "scrollTop" });
         return;
       }
-      if (locked) return;
-      if (event.key === "ArrowRight") {
-        event.preventDefault();
-        next();
-      }
-      if (event.key === "ArrowLeft") {
-        event.preventDefault();
-        prev();
-      }
+      const action = manualNavigationForKey(event.key, event.repeat);
+      if (!action || locked) return;
+      event.preventDefault();
+      dispatch(action);
     };
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [dispatch, locked, next, prev, remoteQrOpen, scrolling]);
+  }, [dispatch, fullscreen, locked, remoteQrOpen, scrolling]);
 
   const copyController = async () => {
     if (controllerUrl) await navigator.clipboard?.writeText(controllerUrl);
@@ -263,12 +283,13 @@ export default function TeleprompterDisplay() {
           : "Connecting";
 
   return (
-    <main className={`tp-display tp-theme-${theme}`}>
+    <main className={`tp-display tp-theme-${theme}${elgato ? " tp-elgato" : ""}`}>
       <div
         ref={scrollerRef}
         className={`tp-reader ${chromeVisible ? "tp-reader-chrome" : ""}`}
         onPointerDown={onPointerDown}
         onPointerUp={onPointerUp}
+        onPointerCancel={() => { pointerStartRef.current = null; }}
         onWheel={stopForManualScroll}
         style={{ "--tp-font-scale": fontScale } as CSSProperties}
       >
@@ -338,10 +359,11 @@ export default function TeleprompterDisplay() {
             </button>
             <button
               type="button"
-              onClick={() => void window.document.documentElement.requestFullscreen?.()}
+              onClick={() => void fullscreen()}
             >
               Full
             </button>
+            <button type="button" onClick={toggleLayout} aria-pressed={elgato}>{elgato ? "Elgato" : "Lens"}</button>
             <button
               type="button"
               onClick={() => setRemoteQrOpen(true)}
@@ -351,6 +373,19 @@ export default function TeleprompterDisplay() {
             </button>
           </div>
         </header>
+      ) : null}
+
+      {elgato ? (
+        <footer className={`tp-teaching-footer${chromeVisible ? " tp-teaching-footer-controls" : ""}`}>
+          {chromeVisible ? <button type="button" onClick={prev} disabled={locked || slideIndex === 0}>← Previous</button> : null}
+          {chromeVisible ? <button type="button" onClick={() => dispatch({ type: "scrollNudge", delta: -PAGE_NUDGE })}>↑ Page</button> : null}
+          <div className="tp-teaching-progress">
+            <span>{slideIndex + 1} / {slides.length} · {slides[slideIndex + 1] ? `Next: ${slides[slideIndex + 1].heading || "Next section"}` : "Final section"}</span>
+            <progress value={slideIndex + 1} max={slides.length} aria-label="Manuscript progress" />
+          </div>
+          {chromeVisible ? <button type="button" onClick={() => dispatch({ type: "scrollNudge", delta: PAGE_NUDGE })}>↓ Page</button> : null}
+          {chromeVisible ? <button type="button" onClick={next} disabled={locked || slideIndex >= slides.length - 1}>Next →</button> : null}
+        </footer>
       ) : null}
 
       {remoteQrOpen && controllerUrl ? (
