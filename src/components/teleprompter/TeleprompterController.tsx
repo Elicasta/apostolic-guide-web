@@ -27,11 +27,17 @@ export default function TeleprompterController() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const code = normalizeSessionCode(params.get("session"));
+    let active = true;
     if (code) {
-      setSessionCode(code);
-      setJoinCode(code);
-      setPairUrl(`${window.location.origin}/teleprompter/control?session=${code}`);
+      const url = `${window.location.origin}/teleprompter/control?session=${code}`;
+      queueMicrotask(() => {
+        if (!active) return;
+        setSessionCode(code);
+        setJoinCode(code);
+        setPairUrl(url);
+      });
     }
+    return () => { active = false; };
   }, []);
 
   useEffect(() => {
