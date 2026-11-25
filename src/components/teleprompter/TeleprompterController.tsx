@@ -6,10 +6,10 @@ import { QRCodeSVG } from "qrcode.react";
 import { normalizeSessionCode } from "@/lib/teleprompter/realtime";
 import { useTeleprompterSessionSync } from "@/lib/teleprompter/use-session-sync";
 import type { TeleprompterAction } from "@/lib/teleprompter/types";
+import { PAGE_NUDGE, manualNavigationForKey } from "@/lib/teleprompter/manual-navigation";
 
 const SPEED_PRESETS = [40, 50, 55, 70] as const;
 const NUDGE_PX = 110;
-import { PAGE_NUDGE, manualNavigationForKey } from "@/lib/teleprompter/manual-navigation";
 
 export default function TeleprompterController() {
   const [sessionCode, setSessionCode] = useState("");
@@ -39,6 +39,10 @@ export default function TeleprompterController() {
       if (!state || state.locked || event.altKey || event.metaKey || event.ctrlKey || event.defaultPrevented) return;
       const target = event.target;
       if (target instanceof HTMLElement && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName))) return;
+      if (event.repeat && ["ArrowRight", "ArrowLeft", "PageUp", "PageDown"].includes(event.key)) {
+        event.preventDefault();
+        return;
+      }
       const action = manualNavigationForKey(event.key, event.repeat);
       if (!action) return;
       event.preventDefault();
