@@ -343,3 +343,83 @@
   .tp-scroll-panel-toggle > span { align-items: flex-start; flex-direction: column; gap: 3px; }
   .tp-script:not(.tp-script-compact) { width: 76vw; }
 }
+
+
+/* Elgato teaching display: fill the 1024 × 600 canvas, with a stationary
+   manuscript and compact transport. Lens mode retains the original layout. */
+.tp-display.tp-elgato.tp-theme-night { background: #050505; color: #f6f6f4; }
+.tp-elgato .tp-reader, .tp-elgato .tp-reader.tp-reader-chrome {
+  inset: 0 0 42px;
+  padding: clamp(22px, 7vh, 65px) clamp(22px, 5vw, 70px) 18vh;
+  scrollbar-gutter: auto;
+  scroll-padding-block: 12px;
+}
+.tp-elgato .tp-reader.tp-reader-chrome { padding-top: 112px; }
+.tp-elgato .tp-script:not(.tp-script-compact) {
+  width: 100%; max-width: 1080px; text-align: left;
+}
+.tp-elgato .tp-script:not(.tp-script-compact) .tp-script-header {
+  margin-bottom: clamp(15px, 3vh, 28px); text-align: left;
+}
+.tp-elgato .tp-script:not(.tp-script-compact) .tp-script-rule {
+  margin-inline: 0; margin-bottom: 12px;
+}
+.tp-elgato .tp-script:not(.tp-script-compact) .tp-script-header h1 {
+  margin-inline: 0;
+  font-size: clamp(25px, calc(4.1vw * var(--tp-font-scale)), 52px);
+  text-wrap: pretty;
+}
+.tp-elgato .tp-script-header > div { margin-top: 10px; font-size: 14px; }
+.tp-elgato .tp-script:not(.tp-script-compact) .tp-script-body {
+  font-size: clamp(calc(22px * var(--tp-font-scale)), calc(3.25vw * var(--tp-font-scale)), calc(42px * var(--tp-font-scale)));
+  line-height: 1.36; text-align: left; text-wrap: pretty;
+  overflow-wrap: anywhere;
+}
+.tp-elgato .tp-script:not(.tp-script-compact) .tp-script-body p {
+  margin: 0 0 .5em; max-width: none;
+}
+.tp-elgato .tp-script:not(.tp-script-compact) .tp-script-spacer {
+  height: .45em;
+}
+.tp-elgato .tp-script:not(.tp-script-compact) .tp-script-body blockquote {
+  max-width: none; text-align: left; border: 0; border-left: 3px solid var(--tp-red);
+  padding: .15em 0 .15em .65em; margin: .65em 0;
+}
+.tp-elgato.tp-theme-night .tp-script-body blockquote { color: #f0d9a5; }
+.tp-elgato .tp-script:not(.tp-script-compact) .tp-speaker-note {
+  max-width: none; margin: 1em 0 0; font-size: .95rem;
+}
+.tp-elgato.tp-theme-night .tp-display-header {
+  background: linear-gradient(#050505 80%, transparent);
+}
+.tp-elgato .tp-display-header { padding: 12px 20px 16px; gap: 8px; grid-template-columns: minmax(0,1fr); }
+.tp-elgato .tp-display-wordmark { width: 112px; }
+.tp-elgato .tp-display-context { margin-top: 3px; }
+.tp-elgato .tp-display-controls {
+  justify-content: flex-start; gap: 16px; overflow-x: auto;
+}
+.tp-teaching-footer {
+  position: absolute; inset: auto 0 0; height: 42px; z-index: 2;
+  display: flex; align-items: center; gap: 12px; padding: 5px 48px 5px 20px;
+  border-top: 1px solid #353535; background: #050505; color: #ddd;
+  font-size: 11px;
+}
+.tp-teaching-footer-controls { gap: 10px; }
+.tp-theme-day .tp-teaching-footer { background: var(--tp-paper); color: var(--tp-navy); border-color: #ccc; }
+.tp-teaching-progress { flex: 1; min-width: 0; display: grid; gap: 4px; }
+.tp-teaching-progress span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tp-teaching-progress progress { width: 100%; height: 3px; accent-color: var(--tp-red-bright); }
+.tp-teaching-footer button {
+  color: inherit; background: transparent; border: 1px solid #666; border-radius: 4px;
+  padding: 5px 9px; white-space: nowrap; cursor: pointer;
+}
+.tp-teaching-footer button:disabled { opacity: .3; cursor: default; }
+.tp-elgato .tp-chrome-toggle { bottom: 5px; right: 8px; }
+.tp-manual-page-controls { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+.tp-manual-page-controls button { min-height: 48px; padding: 10px; touch-action: manipulation; }
+.tp-teaching-transport { grid-template-columns: 1fr 1.3fr; }
+@media (max-width: 600px) {
+  .tp-teaching-footer-controls { gap: 5px; padding-left: 6px; }
+  .tp-teaching-footer button { padding: 5px; font-size: 10px; }
+  .tp-elgato .tp-reader.tp-reader-chrome { padding-top: 105px; }
+}
